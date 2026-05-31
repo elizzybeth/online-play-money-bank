@@ -820,14 +820,20 @@ select {
 }
 
 #wealth-flavor,
-#buy-examples {
+#buy-examples,
+#wealth-count {
   display: block;
 }
 
-#buy-examples {
+#buy-examples,
+#wealth-count {
   margin-top: 8px;
   color: #4b302d;
   font-weight: 800;
+}
+
+#wealth-count {
+  color: #6d392f;
 }
 
 .footer {

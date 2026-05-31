@@ -382,6 +382,7 @@ const display = document.querySelector("#balance-display");
 const amountSymbol = document.querySelector("#amount-symbol");
 const wealthFlavor = document.querySelector("#wealth-flavor");
 const buyExamples = document.querySelector("#buy-examples");
+const wealthCount = document.querySelector("#wealth-count");
 const moneyScene = document.querySelector("#money-scene");
 const wealthEffects = document.querySelector("#wealth-effects");
 const register = document.querySelector("#register");
@@ -449,6 +450,7 @@ function render(direction) {
   amountSymbol.textContent = currency.symbol;
   wealthFlavor.textContent = getFlavorText(state.amount, currency.unit);
   buyExamples.textContent = getBuyExamples(state.amount, currency);
+  wealthCount.textContent = getWealthCountLine(state.amount, currency);
 
   const wealthState = getWealthState(state.amount);
   register.classList.remove(
@@ -818,6 +820,28 @@ function getBuyExamples(amount, currency) {
   }
 
   return `With that much money, you can buy about ${formatExampleList(examples)} in ${currency.country}.`;
+}
+
+function getWealthCountLine(amount, currency) {
+  const amountText = formatMoney(amount, currency);
+  const year = new Date().getFullYear();
+  const count = getEstimatedWealthCount(amount);
+
+  if (count === 0) {
+    return `0 people have ${amountText} or more in ${year}.`;
+  }
+
+  return `About ${formatCount(count)} people have ${amountText} or more in ${year}.`;
+}
+
+function getEstimatedWealthCount(amount) {
+  if (amount >= 1000000000000) return 0;
+  if (amount >= 1000000000) return 3428;
+  if (amount >= 30000000) return 713626;
+  if (amount >= 1000000) return 60000000;
+  if (amount >= 100000) return 688000000;
+  if (amount > 0) return 688000000;
+  return 0;
 }
 
 function getExampleSet(amount, currency) {
