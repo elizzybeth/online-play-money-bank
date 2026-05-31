@@ -136,8 +136,9 @@ select {
   width: min(820px, 100%);
   height: 660px;
   border: 8px solid var(--red-deep);
-  border-radius: 58px 58px 36px 36px;
+  border-radius: 36px 70px 28px 28px;
   background:
+    linear-gradient(118deg, transparent 0 16%, rgba(255, 255, 255, 0.2) 16.2% 17.5%, transparent 17.7% 100%),
     linear-gradient(135deg, rgba(255, 255, 255, 0.38), transparent 32%),
     linear-gradient(180deg, #ff4b57 0%, var(--red) 55%, #c5192b 100%);
   box-shadow:
@@ -147,6 +148,45 @@ select {
     0 34px 50px var(--shadow);
   overflow: visible;
   transform-origin: 50% 75%;
+}
+
+.cash-register::after {
+  content: "";
+  position: absolute;
+  left: -8px;
+  right: -8px;
+  bottom: -8px;
+  height: 96px;
+  z-index: 0;
+  border: 8px solid #063f96;
+  border-top: 0;
+  border-radius: 0 0 28px 28px;
+  background: linear-gradient(180deg, #1670d6, #0647a9);
+  box-shadow: inset 0 14px 0 rgba(255, 255, 255, 0.08);
+}
+
+.toy-logo {
+  position: absolute;
+  left: 300px;
+  top: 78px;
+  z-index: 7;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: white;
+  font-weight: 900;
+  line-height: 0.9;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.12);
+}
+
+.toy-logo span {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 3px solid currentColor;
+  border-radius: 8px;
+  font-size: 13px;
 }
 
 .cash-register.jiggle {
@@ -198,16 +238,21 @@ select {
 }
 
 .register-top {
+  position: relative;
+  z-index: 3;
   display: flex;
   align-items: flex-end;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 34px;
-  padding: 38px 46px 20px;
+  padding: 108px 58px 20px;
 }
 
 .receipt-slot {
-  width: 190px;
-  height: 48px;
+  position: absolute;
+  left: 58px;
+  top: 160px;
+  width: 178px;
+  height: 44px;
   border: 6px solid var(--red-deep);
   border-radius: 24px;
   background: #5a1721;
@@ -217,17 +262,17 @@ select {
 .display-housing {
   position: relative;
   z-index: 8;
-  width: 420px;
-  padding: 18px;
-  border: 8px solid var(--yellow-dark);
-  border-radius: 24px;
-  background: var(--yellow);
-  box-shadow: inset 0 7px 0 rgba(255, 255, 255, 0.3), 0 9px 0 var(--red-dark);
+  width: 432px;
+  padding: 14px;
+  border: 8px solid #4a5450;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #424b48, #313a37);
+  box-shadow: inset 0 7px 0 rgba(255, 255, 255, 0.12), 0 9px 0 var(--red-dark);
 }
 
 .display-label {
-  margin: 0 0 8px;
-  color: #744c00;
+  margin: 0 0 6px;
+  color: rgba(255, 255, 255, 0.72);
   font-size: 14px;
   font-weight: 900;
   text-transform: uppercase;
@@ -236,12 +281,12 @@ select {
 .lcd-display {
   display: block;
   width: 100%;
-  min-height: 80px;
-  padding: 12px 14px;
+  min-height: 72px;
+  padding: 10px 14px;
   overflow: hidden;
   color: var(--green-dark);
   border: 5px solid #2e7b4b;
-  border-radius: 12px;
+  border-radius: 8px;
   background:
     repeating-linear-gradient(0deg, rgba(27, 93, 60, 0.08) 0 2px, transparent 2px 6px),
     var(--green-lcd);
@@ -253,34 +298,139 @@ select {
   text-shadow: 0 2px 0 rgba(255, 255, 255, 0.6);
 }
 
-.button-bank {
+.checkout-left {
   position: absolute;
-  left: 54px;
-  top: 282px;
-  display: grid;
-  grid-template-columns: repeat(4, 70px);
-  gap: 16px;
-  width: max-content;
+  left: 104px;
+  top: 292px;
+  z-index: 6;
+  width: 250px;
 }
 
-.button-bank span {
-  height: 42px;
-  border: 5px solid #c77e18;
+.card-reader {
+  position: absolute;
+  left: 92px;
+  bottom: 104px;
+  width: 138px;
+  height: 105px;
+  padding: 16px 12px 10px;
+  border: 7px solid #073f9d;
+  border-radius: 12px 12px 0 0;
+  background: linear-gradient(180deg, #ffffff 0 58%, #1f75d8 58%);
+  transform: rotate(3deg);
+  box-shadow: 0 8px 0 rgba(0, 0, 0, 0.18);
+}
+
+.card-chip {
+  position: absolute;
+  left: 14px;
+  top: 18px;
+  width: 26px;
+  height: 20px;
+  border-radius: 5px;
+  background:
+    linear-gradient(90deg, transparent 45%, rgba(0, 0, 0, 0.18) 45% 55%, transparent 55%),
+    linear-gradient(0deg, transparent 45%, rgba(0, 0, 0, 0.18) 45% 55%, transparent 55%),
+    #c6c6c6;
+}
+
+.card-reader strong {
+  display: block;
+  margin-left: 38px;
+  color: #f7df32;
+  font-size: 19px;
+  line-height: 0.82;
+  text-shadow: 2px 2px 0 #2746b8;
+}
+
+.card-reader small {
+  position: absolute;
+  left: 18px;
+  bottom: 12px;
+  color: white;
+  font-family: "Courier New", monospace;
+  font-size: 12px;
+}
+
+.paper-pad {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 230px;
+  height: 130px;
+  border: 7px solid #d7192c;
   border-radius: 14px;
-  background: linear-gradient(180deg, #fff280, var(--yellow));
-  box-shadow: 0 8px 0 #b66912;
+  background: linear-gradient(180deg, #ffffff, #edf6fb);
+  box-shadow: inset 0 0 0 4px rgba(255, 255, 255, 0.45), 0 8px 0 rgba(100, 10, 20, 0.16);
+}
+
+.button-bank {
+  position: absolute;
+  z-index: 7;
+  right: 72px;
+  top: 310px;
+  display: grid;
+  grid-template-columns: repeat(4, 62px);
+  gap: 12px;
+  width: auto;
+  padding: 18px;
+  border: 7px solid #0744a5;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #0754bd, #073d9a);
+  box-shadow: inset 0 7px 0 rgba(255, 255, 255, 0.12), 0 10px 0 rgba(0, 0, 0, 0.16);
+}
+
+.button-bank button {
+  height: 54px;
+  border: 4px solid rgba(36, 24, 23, 0.28);
+  border-radius: 13px;
+  font-size: 28px;
+  font-weight: 900;
+  line-height: 1;
+  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.28);
+  transition: transform 100ms ease, box-shadow 100ms ease;
+}
+
+.button-bank button:hover {
+  transform: translateY(-2px);
+}
+
+.button-bank button:active {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3);
+}
+
+.calc-key.number,
+.calc-key.equals {
+  color: #1d1b1a;
+  background: linear-gradient(180deg, #ffffff, #e8eef4);
+}
+
+.calc-key.operator {
+  background: linear-gradient(180deg, #ffe86a, #ffbd25);
+}
+
+.calc-key.action {
+  grid-column: span 2;
+  color: white;
+  background: linear-gradient(180deg, #ff4a56, #c91528);
+  font-size: 18px;
+  letter-spacing: 0;
+}
+
+.calc-key.open {
+  grid-column: span 2;
 }
 
 .drawer-window {
   position: absolute;
   z-index: 4;
-  left: 52px;
-  right: 52px;
-  bottom: 42px;
-  height: 180px;
-  border: 8px solid var(--red-deep);
-  border-radius: 30px 30px 24px 24px;
-  background: linear-gradient(180deg, rgba(110, 15, 28, 0.12), rgba(110, 15, 28, 0.32));
+  left: 46px;
+  right: 380px;
+  bottom: -120px;
+  height: 250px;
+  border: 9px solid #063f96;
+  border-radius: 22px 22px 14px 14px;
+  background: linear-gradient(180deg, rgba(13, 86, 180, 0.25), rgba(5, 55, 145, 0.84));
   overflow: visible;
 }
 
@@ -308,23 +458,23 @@ select {
   transform: rotate(-2deg) translateY(8px);
 }
 
-.strain-quadrillion .button-bank span:nth-child(2),
-.strain-quadrillion .button-bank span:nth-child(7) {
+.strain-quadrillion .button-bank button:nth-child(2),
+.strain-quadrillion .button-bank button:nth-child(7) {
   transform: translateY(8px) rotate(4deg);
 }
 
-.strain-quadrillion .button-bank span:nth-child(4) {
+.strain-quadrillion .button-bank button:nth-child(4) {
   transform: translate(5px, 13px) rotate(-8deg);
 }
 
 .drawer-back {
   position: absolute;
-  inset: 16px 18px 58px;
-  border: 5px solid rgba(91, 14, 28, 0.65);
-  border-radius: 22px 22px 12px 12px;
+  inset: 18px 18px 60px;
+  border: 5px solid rgba(3, 37, 103, 0.9);
+  border-radius: 18px 18px 8px 8px;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0)),
-    #742435;
+    #0b3f93;
   box-shadow: inset 0 10px 20px rgba(0, 0, 0, 0.22);
 }
 
@@ -343,12 +493,12 @@ select {
   left: -8px;
   right: -8px;
   bottom: -8px;
-  height: 76px;
-  border: 8px solid var(--red-deep);
-  border-radius: 14px 14px 24px 24px;
+  height: 80px;
+  border: 8px solid #063f96;
+  border-radius: 8px 8px 14px 14px;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent 42%),
-    linear-gradient(180deg, #ff4651, #bf1727);
+    linear-gradient(180deg, #1473d7, #0646a5);
   box-shadow: inset 0 8px 0 rgba(255, 255, 255, 0.09);
 }
 
@@ -359,9 +509,9 @@ select {
   width: 176px;
   height: 30px;
   transform: translateX(-50%);
-  border: 5px solid #c77e18;
+  border: 5px solid #063f96;
   border-radius: 18px;
-  background: var(--yellow);
+  background: #0a2b6f;
   box-shadow: inset 0 5px 0 rgba(255, 255, 255, 0.36);
 }
 
@@ -1022,7 +1172,7 @@ select {
     gap: 12px;
   }
 
-  .button-bank span {
+  .button-bank button {
     height: 38px;
   }
 

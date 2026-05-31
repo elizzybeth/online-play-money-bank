@@ -8,6 +8,7 @@ const currencies = {
     symbol: "$",
     name: "USD",
     locale: "en-US",
+    usdRate: 1,
     unit: "pretend dollars",
     country: "the United States",
     examples: [
@@ -20,6 +21,7 @@ const currencies = {
     symbol: "€",
     name: "EUR",
     locale: "fr-FR",
+    usdRate: 1.08,
     unit: "pretend euros",
     country: "France",
     examples: [
@@ -32,6 +34,7 @@ const currencies = {
     symbol: "£",
     name: "GBP",
     locale: "en-GB",
+    usdRate: 1.27,
     unit: "pretend pounds",
     country: "the United Kingdom",
     examples: [
@@ -44,6 +47,7 @@ const currencies = {
     symbol: "¥",
     name: "JPY",
     locale: "ja-JP",
+    usdRate: 0.0064,
     unit: "pretend yen",
     country: "Japan",
     examples: [
@@ -56,6 +60,7 @@ const currencies = {
     symbol: "C$",
     name: "CAD",
     locale: "en-CA",
+    usdRate: 0.73,
     unit: "pretend Canadian dollars",
     country: "Canada",
     examples: [
@@ -68,6 +73,7 @@ const currencies = {
     symbol: "A$",
     name: "AUD",
     locale: "en-AU",
+    usdRate: 0.66,
     unit: "pretend Australian dollars",
     country: "Australia",
     examples: [
@@ -388,11 +394,16 @@ const wealthEffects = document.querySelector("#wealth-effects");
 const register = document.querySelector("#register");
 const clearButton = document.querySelector("#clear-register");
 const presetButtons = document.querySelectorAll("[data-amount]");
+const calcKeys = document.querySelectorAll("[data-calc]");
 const wealthCaption = document.querySelector("#wealth-caption");
 
 let state = loadState();
 let previousAmount = state.amount;
 let lastDirection = "in";
+let calcInput = formatCalculatorInput(state.amount);
+let calcStoredValue = null;
+let calcOperator = null;
+let calcShouldResetInput = true;
 
 initialize();
 
@@ -420,13 +431,25 @@ function initialize() {
   presetButtons.forEach((button) => {
     button.addEventListener("click", () => {
       setAmount(button.dataset.amount);
+      calcInput = formatCalculatorInput(state.amount);
+      calcStoredValue = null;
+      calcOperator = null;
+      calcShouldResetInput = true;
       amountInput.focus();
     });
   });
 
   clearButton.addEventListener("click", () => {
     setAmount(0);
+    calcInput = "0";
+    calcStoredValue = null;
+    calcOperator = null;
+    calcShouldResetInput = true;
     amountInput.focus();
+  });
+
+  calcKeys.forEach((button) => {
+    button.addEventListener("click", () => handleCalculatorPress(button.dataset.calc));
   });
 }
 
@@ -441,6 +464,89 @@ function setAmount(rawValue, syncInput = true) {
   }
   saveState();
   render(lastDirection);
+}
+
+function handleCalculatorPress(key) {
+  if (key === "clear") {
+    calcInput = "0";
+    calcStoredValue = null;
+    calcOperator = null;
+    calcShouldResetInput = true;
+    setAmount(0);
+    return;
+  }
+
+  if (key === "open") {
+    register.classList.add("jiggle");
+    renderFlyingGhosts(currencies[state.currency].symbol);
+    window.setTimeout(() => register.classList.remove("jiggle"), 480);
+    return;
+  }
+
+  if (key === "=") {
+    runPendingCalculation();
+    calcOperator = null;
+    calcStoredValue = null;
+    calcShouldResetInput = true;
+    return;
+  }
+
+  if (["+", "-", "*", "/"].includes(key)) {
+    runPendingCalculation();
+    calcStoredValue = state.amount;
+    calcOperator = key;
+    calcShouldResetInput = true;
+    return;
+  }
+
+  if (key === ".") {
+    if (calcShouldResetInput) {
+      calcInput = "0.";
+      calcShouldResetInput = false;
+    } else if (!calcInput.includes(".")) {
+      calcInput += ".";
+    }
+    setAmount(calcInput);
+    return;
+  }
+
+  if (/^\d$/.test(key)) {
+    if (calcShouldResetInput || calcInput === "0") {
+      calcInput = key;
+      calcShouldResetInput = false;
+    } else {
+      calcInput += key;
+    }
+
+    if (calcInput.replace(".", "").length > 16) {
+      calcInput = calcInput.slice(0, -1);
+      return;
+    }
+
+    setAmount(calcInput);
+  }
+}
+
+function runPendingCalculation() {
+  const currentValue = clamp(roundMoney(Number(calcInput) || 0), 0, MAX_AMOUNT);
+
+  if (calcOperator && calcStoredValue !== null) {
+    const result = calculate(calcStoredValue, currentValue, calcOperator);
+    setAmount(result);
+    calcInput = formatCalculatorInput(state.amount);
+    return;
+  }
+
+  setAmount(currentValue);
+  calcInput = formatCalculatorInput(state.amount);
+}
+
+function calculate(left, right, operator) {
+  if (operator === "+") return clamp(left + right, 0, MAX_AMOUNT);
+  if (operator === "-") return clamp(left - right, 0, MAX_AMOUNT);
+  if (operator === "*") return clamp(left * right, 0, MAX_AMOUNT);
+  if (operator === "/") return right === 0 ? left : clamp(left / right, 0, MAX_AMOUNT);
+  return right;
 }
 
 function render(direction) {
@@ -832,23 +938,29 @@ function getBuyExamples(amount, currency) {
 function getWealthCountLine(amount, currency) {
   const amountText = formatMoney(amount, currency);
   const year = new Date().getFullYear();
-  const count = getEstimatedWealthCount(amount);
+  const count = getEstimatedWealthCount(amount * currency.usdRate);
 
   if (count === 0) {
-    return `0 people have ${amountText} or more in ${year}.`;
+    return `Worldwide estimate: 0 people have roughly ${amountText} or more in net wealth in ${year}.`;
   }
 
-  return `About ${formatCount(count)} people have ${amountText} or more in ${year}.`;
+  return `Worldwide estimate: about ${formatCount(count)} people have roughly ${amountText} or more in net wealth in ${year}.`;
 }
 
-function getEstimatedWealthCount(amount) {
-  if (amount >= 1000000000000) return 0;
-  if (amount >= 1000000000) return 3428;
-  if (amount >= 30000000) return 713626;
-  if (amount >= 1000000) return 60000000;
-  if (amount >= 100000) return 688000000;
-  if (amount > 0) return 688000000;
+function getEstimatedWealthCount(usdAmount) {
+  if (usdAmount >= 1000000000000) return 0;
+  if (usdAmount >= 1000000000) return 3428;
+  if (usdAmount >= 30000000) return interpolateWealthCount(usdAmount, 30000000, 713626, 1000000000, 3428);
+  if (usdAmount >= 1000000) return interpolateWealthCount(usdAmount, 1000000, 60000000, 30000000, 713626);
+  if (usdAmount >= 100000) return interpolateWealthCount(usdAmount, 100000, 688000000, 1000000, 60000000);
+  if (usdAmount >= 10000) return interpolateWealthCount(usdAmount, 10000, 2250000000, 100000, 688000000);
+  if (usdAmount > 0) return interpolateWealthCount(Math.max(usdAmount, 1), 1, 3800000000, 10000, 2250000000);
   return 0;
+}
+
+function interpolateWealthCount(amount, lowAmount, lowCount, highAmount, highCount) {
+  const ratio = (Math.log10(amount) - Math.log10(lowAmount)) / (Math.log10(highAmount) - Math.log10(lowAmount));
+  return Math.max(0, Math.round(lowCount + (highCount - lowCount) * clamp(ratio, 0, 1)));
 }
 
 function getExampleSet(amount, currency) {
@@ -947,6 +1059,10 @@ function formatInputAmount(amount) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   });
+}
+
+function formatCalculatorInput(amount) {
+  return Number.isInteger(amount) ? String(amount) : amount.toFixed(2);
 }
 
 function roundMoney(amount) {
