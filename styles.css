@@ -569,8 +569,8 @@ select {
 .piling-yacht {
   opacity: 0;
   transform: translate(var(--pile-start-x), var(--pile-start-y)) rotate(var(--pile-spin)) scaleX(var(--pile-flip)) scale(0.34);
-  animation: yacht-pile-fall 1.6s cubic-bezier(.18, .82, .28, 1.18) forwards, yacht-settled-bob 2.8s ease-in-out infinite;
-  animation-delay: var(--pile-delay), calc(var(--pile-delay) + 1.6s);
+  animation: yacht-pile-fall 4.8s cubic-bezier(.18, .82, .28, 1.18) forwards, yacht-settled-bob 2.8s ease-in-out infinite;
+  animation-delay: var(--pile-delay), calc(var(--pile-delay) + 4.8s);
 }
 
 .bill,

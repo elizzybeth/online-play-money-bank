@@ -934,7 +934,7 @@ function renderWealthEffects(amount, currency) {
     yacht.style.zIndex = String(30 + row);
     yacht.style.setProperty("--pile-rot", `${-18 + Math.random() * 36}deg`);
     yacht.style.setProperty("--pile-flip", i % 2 ? -1 : 1);
-    yacht.style.setProperty("--pile-delay", `${i * 0.06 + Math.random() * 0.22}s`);
+    yacht.style.setProperty("--pile-delay", `${i * 0.18 + Math.random() * 0.66}s`);
     yacht.style.setProperty("--pile-start-x", `${-140 + Math.random() * 280}px`);
     yacht.style.setProperty("--pile-start-y", `${-980 - Math.random() * 620}px`);
     yacht.style.setProperty("--pile-spin", `${-80 + Math.random() * 160}deg`);
