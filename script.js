@@ -720,6 +720,7 @@ function createPieces(amount, currency) {
 
   let remaining = Math.floor(amount);
   let index = 0;
+  let lane = 0;
 
   denominations.forEach((denomination) => {
     if (remaining <= 0 || index >= visibleTarget) return;
@@ -731,11 +732,12 @@ function createPieces(amount, currency) {
     const bundleSize = Math.max(1, Math.floor(count / displayStacks));
 
     for (let i = 0; i < displayStacks; i += 1) {
-      pieces.push(createCashPiece(index, denomination, bundleSize, currency, wealthState));
+      pieces.push(createCashPiece(index, lane, i, displayStacks, denomination, bundleSize, currency));
       index += 1;
     }
 
     remaining -= count * denomination;
+    lane += 1;
   });
 
   if (amount > 0 && amount < 1) {
@@ -787,32 +789,33 @@ function createPieces(amount, currency) {
   return pieces;
 }
 
-function createCashPiece(index, denomination, bundleSize, currency, wealthState) {
-  const row = Math.floor(index / 4);
-  const col = index % 4;
+function createCashPiece(index, lane, laneIndex, laneCount, denomination, bundleSize, currency) {
+  const compartment = lane % 4;
+  const row = Math.floor(laneIndex / 2);
+  const pairOffset = laneIndex % 2;
   const isStack = bundleSize > 1;
   return {
     type: "bill",
     className: `bill drawer-bill ${isStack ? "bill-stack" : ""}`,
     label: isStack ? `${formatDenomination(denomination, currency)} x${formatCompactCount(bundleSize)}` : formatDenomination(denomination, currency),
-    x: 5 + col * 21 + (row % 2) * 4,
-    y: 12 + row * 16 + (col % 2) * 3,
-    rot: -6 + ((index * 5) % 12),
+    x: 4 + compartment * 25 + pairOffset * 3,
+    y: 10 + row * 13 + Math.min(laneCount, 6) * 0.4,
+    rot: -2 + pairOffset * 4,
     z: 60 + index,
     overflow: false
   };
 }
 
-function createCashBrick(index, value, currency, wealthState) {
+function createCashBrick(index, value, currency) {
   const row = Math.floor(index / 4);
   const col = index % 4;
   return {
     type: "brick",
     className: "brick cash-brick",
     label: formatCompactMoney(value, currency),
-    x: 5 + col * 20 + (row % 2) * 3,
-    y: 24 + row * 18,
-    rot: -5 + ((index * 4) % 10),
+    x: 5 + col * 24,
+    y: 24 + row * 15,
+    rot: -2 + (col % 2) * 4,
     z: 34 + index,
     overflow: false
   };
