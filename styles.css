@@ -733,13 +733,31 @@ select {
   width: 100%;
   min-width: 0;
   padding: 14px 16px;
-  color: var(--ink);
+  color: var(--green-dark);
   border: 4px solid var(--ink);
   border-radius: 0 10px 10px 0;
-  background: white;
-  font-size: 25px;
+  background:
+    repeating-linear-gradient(0deg, rgba(27, 93, 60, 0.045) 0 2px, transparent 2px 7px),
+    #fbfff2;
+  font-family: "Courier New", monospace;
+  font-size: 30px;
   font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0;
   box-shadow: inset 0 4px 0 rgba(0, 0, 0, 0.08);
+  caret-color: var(--red);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.amount-row input:focus {
+  background:
+    repeating-linear-gradient(0deg, rgba(27, 93, 60, 0.07) 0 2px, transparent 2px 7px),
+    var(--green-lcd);
+}
+
+.amount-row input::selection {
+  color: white;
+  background: var(--green-dark);
 }
 
 .amount-row p,
