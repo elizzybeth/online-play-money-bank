@@ -662,7 +662,7 @@ function renderMoney(amount, currency, direction) {
     }
 
     if (piece.type === "bill") {
-      const colorPair = billColors[index % billColors.length];
+      const colorPair = piece.colorPair || billColors[index % billColors.length];
       element.style.setProperty("--bill-a", colorPair[0]);
       element.style.setProperty("--bill-b", colorPair[1]);
       element.textContent = currency.symbol;
@@ -827,10 +827,26 @@ function createCashPiece(index, lane, laneIndex, laneCount, denomination, bundle
   const row = spreadAcrossCompartments ? Math.floor(laneIndex / 4) : Math.floor(laneIndex / 2);
   const pairOffset = spreadAcrossCompartments ? row % 2 : laneIndex % 2;
   const isStack = bundleSize > 1;
+  const denominationStyle = getDenominationStyle(currency.name, denomination);
+
+  if (isCoinDenomination(currency.name, denomination)) {
+    return {
+      type: "coin",
+      className: `coin drawer-coin ${isStack ? "coin-stack" : ""} ${denominationStyle}`,
+      label: currency.symbol,
+      x: 5 + compartment * 3 + pairOffset * 3,
+      y: 10 + row * 18 + Math.min(laneCount, 5) * 0.4,
+      rot: -8 + pairOffset * 8,
+      z: 70 + index,
+      overflow: false
+    };
+  }
+
   return {
     type: "bill",
-    className: `bill drawer-bill ${isStack ? "bill-stack" : ""}`,
+    className: `bill drawer-bill ${isStack ? "bill-stack" : ""} ${denominationStyle}`,
     label: currency.symbol,
+    colorPair: getBillColorPair(currency.name, denomination),
     x: 27 + compartment * 18 + pairOffset * 3,
     y: 8 + row * (spreadAcrossCompartments ? 7 : 10) + Math.min(laneCount, 6) * 0.4,
     rot: -2 + pairOffset * 4,
@@ -1041,6 +1057,37 @@ function getDenominations(code) {
   if (code === "GBP") return [50, 20, 10, 5, 2, 1];
   if (code === "EUR") return [500, 200, 100, 50, 20, 10, 5, 2, 1];
   return [100, 50, 20, 10, 5, 1];
+}
+
+function isCoinDenomination(code, denomination) {
+  if (code === "JPY") return denomination < 1000;
+  if (["EUR", "GBP", "CAD", "AUD"].includes(code)) return denomination <= 2;
+  return false;
+}
+
+function getDenominationStyle(code, denomination) {
+  if (code === "JPY") {
+    if (denomination >= 10000) return "denom-note-top";
+    if (denomination >= 5000) return "denom-note-high";
+    if (denomination >= 1000) return "denom-note-base";
+    if (denomination >= 500) return "denom-coin-large";
+    if (denomination >= 100) return "denom-coin-medium";
+    return "denom-coin-small";
+  }
+
+  if (denomination >= 100) return "denom-note-top";
+  if (denomination >= 50) return "denom-note-high";
+  return "denom-note-base";
+}
+
+function getBillColorPair(code, denomination) {
+  if (code === "JPY") {
+    if (denomination >= 10000) return ["#fff0a8", "#f0b83f"];
+    if (denomination >= 5000) return ["#d7c9ff", "#8d78df"];
+    if (denomination >= 1000) return ["#b8f1ff", "#54bfdc"];
+  }
+
+  return null;
 }
 
 function getBundleSize(count) {
