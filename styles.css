@@ -326,12 +326,12 @@ select {
   position: absolute;
   z-index: 9;
   right: 72px;
-  top: 310px;
+  top: 260px;
   display: grid;
-  grid-template-columns: repeat(4, 62px);
-  gap: 12px;
+  grid-template-columns: repeat(4, 58px);
+  gap: 10px;
   width: auto;
-  padding: 18px;
+  padding: 14px;
   border: 7px solid #0744a5;
   border-radius: 18px;
   background: linear-gradient(180deg, #0754bd, #073d9a);
@@ -339,7 +339,7 @@ select {
 }
 
 .button-bank button {
-  height: 54px;
+  height: 46px;
   border: 4px solid rgba(36, 24, 23, 0.28);
   border-radius: 13px;
   font-size: 28px;
@@ -435,7 +435,7 @@ select {
   border: 5px solid rgba(3, 37, 103, 0.9);
   border-radius: 18px 18px 8px 8px;
   background:
-    linear-gradient(90deg, transparent 0 25%, rgba(3, 37, 103, 0.72) 25% 28%, transparent 28% 50%, rgba(3, 37, 103, 0.72) 50% 53%, transparent 53% 75%, rgba(3, 37, 103, 0.72) 75% 78%, transparent 78%),
+    linear-gradient(90deg, transparent 0 22%, rgba(3, 37, 103, 0.78) 22% 25%, transparent 25% 44%, rgba(3, 37, 103, 0.72) 44% 47%, transparent 47% 63%, rgba(3, 37, 103, 0.72) 63% 66%, transparent 66% 82%, rgba(3, 37, 103, 0.72) 82% 85%, transparent 85%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0)),
     #0b3f93;
   box-shadow: inset 0 10px 20px rgba(0, 0, 0, 0.22);
@@ -778,24 +778,24 @@ select {
 }
 
 .coin {
-  width: 52px;
-  height: 52px;
+  width: 30px;
+  height: 30px;
   display: grid;
   place-items: center;
-  border: 4px solid #cc8d19;
+  border: 3px solid #cc8d19;
   border-radius: 50%;
   background:
     radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.78) 0 8px, transparent 9px),
     linear-gradient(135deg, #ffe98d, #e6a624);
   box-shadow: 0 8px 8px rgba(0, 0, 0, 0.16);
   color: #82500d;
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 900;
   transform: rotate(var(--rot));
 }
 
 .drawer-coin {
-  transform: rotate(var(--rot)) scale(0.8);
+  transform: rotate(var(--rot));
 }
 
 .bill.fly-in,

@@ -745,8 +745,8 @@ function createPieces(amount, currency) {
       type: "coin",
       className: "coin drawer-coin",
       label: currency.symbol,
-      x: 22,
-      y: 18,
+      x: 3,
+      y: 12,
       rot: 0,
       z: 90
     });
@@ -778,9 +778,9 @@ function createPieces(amount, currency) {
       type: "coin",
       className: "coin drawer-coin",
       label: currency.symbol,
-      x: 6 + i * 10,
-      y: 8 + (i % 2) * 12,
-      rot: 0,
+      x: 3 + (i % 2) * 4,
+      y: 10 + Math.floor(i / 2) * 24,
+      rot: -6 + i * 4,
       z: 120 + i
     });
   }
@@ -797,7 +797,7 @@ function createCashPiece(index, lane, laneIndex, laneCount, denomination, bundle
     type: "bill",
     className: `bill drawer-bill ${isStack ? "bill-stack" : ""}`,
     label: currency.symbol,
-    x: 4 + compartment * 25 + pairOffset * 3,
+    x: 27 + compartment * 18 + pairOffset * 3,
     y: 8 + row * 10 + Math.min(laneCount, 6) * 0.4,
     rot: -2 + pairOffset * 4,
     z: 60 + index,
@@ -812,7 +812,7 @@ function createCashBrick(index, value, currency) {
     type: "brick",
     className: "brick cash-brick",
     label: currency.symbol,
-    x: 5 + col * 24,
+    x: 27 + col * 18,
     y: 24 + row * 15,
     rot: -2 + (col % 2) * 4,
     z: 34 + index,
