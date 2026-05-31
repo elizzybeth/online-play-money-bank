@@ -384,7 +384,7 @@ select {
   position: absolute;
   z-index: 6;
   left: -26px;
-  right: 248px;
+  right: 410px;
   bottom: -168px;
   height: 238px;
   border: 9px solid #063f96;
@@ -482,7 +482,8 @@ select {
 .money-scene {
   position: absolute;
   z-index: 6;
-  inset: 18px 22px 42px 22px;
+  inset: 18px 18px 42px 18px;
+  overflow: hidden;
   pointer-events: none;
   perspective: 520px;
 }
@@ -705,8 +706,8 @@ select {
 }
 
 .bill {
-  width: 118px;
-  height: 50px;
+  width: 96px;
+  height: 42px;
   display: grid;
   place-items: center;
   border: 3px solid rgba(36, 24, 23, 0.28);
@@ -718,7 +719,7 @@ select {
     linear-gradient(135deg, var(--bill-a), var(--bill-b));
   box-shadow: 0 8px 10px rgba(0, 0, 0, 0.18);
   color: rgba(36, 24, 23, 0.76);
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 900;
   transform: rotate(var(--rot));
 }
@@ -728,8 +729,8 @@ select {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 38px;
-  height: 28px;
+  width: 30px;
+  height: 22px;
   transform: translate(-50%, -50%);
   display: grid;
   place-items: center;
@@ -773,8 +774,8 @@ select {
 }
 
 .brick {
-  width: 146px;
-  height: 62px;
+  width: 112px;
+  height: 48px;
   border: 4px solid rgba(36, 24, 23, 0.3);
   border-radius: 10px;
   background:
@@ -789,9 +790,9 @@ select {
   content: attr(data-symbol);
   position: absolute;
   right: 10px;
-  top: 17px;
+  top: 12px;
   color: rgba(255, 255, 255, 0.84);
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 900;
 }
 
@@ -1189,7 +1190,7 @@ select {
 
   .drawer-window {
     left: -12px;
-    right: 250px;
+    right: 410px;
     bottom: -150px;
     height: 218px;
   }

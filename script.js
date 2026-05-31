@@ -788,18 +788,18 @@ function createPieces(amount, currency) {
 }
 
 function createCashPiece(index, denomination, bundleSize, currency, wealthState) {
-  const row = Math.floor(index / 5);
-  const col = index % 5;
+  const row = Math.floor(index / 4);
+  const col = index % 4;
   const isStack = bundleSize > 1;
   return {
     type: "bill",
     className: `bill drawer-bill ${isStack ? "bill-stack" : ""}`,
     label: isStack ? `${formatDenomination(denomination, currency)} x${formatCompactCount(bundleSize)}` : formatDenomination(denomination, currency),
-    x: 4 + col * 18 + (row % 2) * 4,
-    y: 12 + row * 18 + (col % 2) * 3,
-    rot: -9 + ((index * 7) % 18),
+    x: 5 + col * 21 + (row % 2) * 4,
+    y: 12 + row * 16 + (col % 2) * 3,
+    rot: -6 + ((index * 5) % 12),
     z: 60 + index,
-    overflow: (wealthState === "huge" && row > 5) || (wealthState === "ridiculous" && row > 7)
+    overflow: false
   };
 }
 
@@ -810,11 +810,11 @@ function createCashBrick(index, value, currency, wealthState) {
     type: "brick",
     className: "brick cash-brick",
     label: formatCompactMoney(value, currency),
-    x: 4 + col * 22 + (row % 2) * 8,
-    y: 22 + row * 22,
-    rot: -7 + ((index * 5) % 14),
+    x: 5 + col * 20 + (row % 2) * 3,
+    y: 24 + row * 18,
+    rot: -5 + ((index * 4) % 10),
     z: 34 + index,
-    overflow: wealthState === "ridiculous" && row > 5
+    overflow: false
   };
 }
 
