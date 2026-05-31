@@ -489,11 +489,11 @@ select {
 }
 
 .strain-trillion .money-scene {
-  inset: -2px 38px 64px 94px;
+  inset: 18px 18px 42px 18px;
 }
 
 .strain-quadrillion .money-scene {
-  inset: -18px 20px 54px 76px;
+  inset: 18px 18px 42px 18px;
 }
 
 .wealth-effects {
@@ -534,52 +534,21 @@ select {
 
 .champagne-bottle {
   position: absolute;
-  width: 22px;
-  height: 62px;
-  border: 3px solid #175932;
-  border-radius: 8px 8px 5px 5px;
-  background:
-    linear-gradient(90deg, transparent 0 46%, rgba(255, 255, 255, 0.55) 46% 58%, transparent 58%),
-    linear-gradient(180deg, #1d8d4b 0 72%, #ffda57 72% 88%, #1d8d4b 88%);
-  box-shadow: 0 8px 10px rgba(0, 0, 0, 0.2);
+  width: 54px;
+  height: 108px;
+  background: url("assets/champagne-sticker-sm.png") center / contain no-repeat;
+  filter: drop-shadow(0 8px 7px rgba(42, 26, 12, 0.28));
   transform-origin: 50% 100%;
   animation: bottle-party 1.8s ease-in-out infinite;
   animation-delay: var(--bottle-delay);
 }
 
-.champagne-bottle::before {
-  content: "";
-  position: absolute;
-  left: 5px;
-  top: -19px;
-  width: 8px;
-  height: 18px;
-  border: 3px solid #175932;
-  border-bottom: 0;
-  border-radius: 5px 5px 0 0;
-  background: #1d8d4b;
-}
-
-.champagne-bottle::after {
-  content: "";
-  position: absolute;
-  left: 3px;
-  top: -38px;
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: #fff7b0;
-  box-shadow:
-    11px -14px 0 #ffffff,
-    -8px -22px 0 #ffe36c,
-    18px -32px 0 #fff7b0;
-}
-
 .falling-yacht,
 .piling-yacht {
   position: absolute;
-  width: 108px;
-  height: 72px;
+  width: 116px;
+  height: 40px;
+  background: url("assets/yacht-sticker-sm.png") center / contain no-repeat;
   filter: drop-shadow(0 6px 5px rgba(20, 48, 65, 0.24));
 }
 
@@ -591,111 +560,9 @@ select {
 
 .piling-yacht {
   opacity: 0;
-  transform: translate(var(--pile-start-x), var(--pile-start-y)) rotate(var(--pile-spin)) scaleX(var(--pile-flip)) scale(0.48);
+  transform: translate(var(--pile-start-x), var(--pile-start-y)) rotate(var(--pile-spin)) scaleX(var(--pile-flip)) scale(0.34);
   animation: yacht-pile-fall 1.6s cubic-bezier(.18, .82, .28, 1.18) forwards, yacht-settled-bob 2.8s ease-in-out infinite;
   animation-delay: var(--pile-delay), calc(var(--pile-delay) + 1.6s);
-}
-
-.yacht-hull,
-.yacht-cabin,
-.yacht-mast,
-.yacht-sail,
-.yacht-wake {
-  position: absolute;
-}
-
-.yacht-hull {
-  left: 10px;
-  right: 8px;
-  bottom: 10px;
-  height: 22px;
-  border: 3px solid #17618e;
-  border-radius: 5px 7px 34px 42px;
-  background:
-    linear-gradient(90deg, transparent 0 12%, #17618e 12% 16%, transparent 16% 100%),
-    linear-gradient(180deg, #ffffff 0 48%, #9fe8ff 48% 76%, #2ba9dc 76%);
-  transform: skewX(-12deg);
-}
-
-.yacht-hull::after {
-  content: "";
-  position: absolute;
-  left: 12px;
-  right: 18px;
-  bottom: 5px;
-  height: 3px;
-  border-radius: 99px;
-  background: #ffda57;
-}
-
-.yacht-cabin {
-  left: 36px;
-  bottom: 30px;
-  width: 43px;
-  height: 18px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 5px;
-  border: 3px solid #17618e;
-  border-bottom: 0;
-  border-radius: 12px 13px 4px 4px;
-  background: linear-gradient(180deg, #ffffff, #bff2ff);
-  transform: skewX(-8deg);
-}
-
-.yacht-cabin i {
-  width: 7px;
-  height: 6px;
-  border-radius: 2px;
-  background: #3fbfe9;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
-}
-
-.yacht-mast {
-  left: 47px;
-  bottom: 31px;
-  width: 5px;
-  height: 48px;
-  border-radius: 99px;
-  background: #6a4b2a;
-  transform: rotate(-3deg);
-  transform-origin: bottom center;
-}
-
-.yacht-sail {
-  width: 0;
-  height: 0;
-  filter: drop-shadow(0 2px 0 #17618e);
-}
-
-.yacht-sail-main {
-  left: 49px;
-  bottom: 37px;
-  border-left: 27px solid #ffffff;
-  border-top: 39px solid transparent;
-  border-bottom: 0 solid transparent;
-}
-
-.yacht-sail-front {
-  left: 25px;
-  bottom: 37px;
-  border-right: 22px solid #f2fbff;
-  border-top: 31px solid transparent;
-  border-bottom: 0 solid transparent;
-}
-
-.yacht-wake {
-  left: 2px;
-  bottom: 2px;
-  width: 82px;
-  height: 10px;
-  border-radius: 50%;
-  background:
-    radial-gradient(circle at 18% 50%, rgba(255, 255, 255, 0.95) 0 5px, transparent 6px),
-    radial-gradient(circle at 50% 50%, rgba(159, 232, 255, 0.88) 0 5px, transparent 6px),
-    radial-gradient(circle at 82% 50%, rgba(255, 255, 255, 0.88) 0 4px, transparent 5px);
-  opacity: 0.82;
 }
 
 .bill,
@@ -744,6 +611,15 @@ select {
 .drawer-bill {
   transform: rotate(var(--rot)) rotateX(8deg);
   transform-origin: 50% 90%;
+}
+
+.loose-bill {
+  filter: drop-shadow(0 7px 5px rgba(0, 0, 0, 0.2));
+}
+
+.effect-loose-bill {
+  animation: loose-bill-pop 1.2s ease-out both, loose-bill-hover 2.6s ease-in-out infinite;
+  animation-delay: var(--loose-delay), calc(var(--loose-delay) + 1.2s);
 }
 
 .bill-stack {
@@ -1063,6 +939,17 @@ select {
   50% { transform: rotate(calc(var(--bottle-rot) * -1)) translateY(-9px); }
 }
 
+@keyframes loose-bill-pop {
+  0% { opacity: 0; transform: translateY(60px) rotate(var(--rot)) scale(0.72); }
+  78% { opacity: 1; transform: translateY(-8px) rotate(var(--rot)) scale(1.04); }
+  100% { opacity: 1; transform: translateY(0) rotate(var(--rot)) scale(1); }
+}
+
+@keyframes loose-bill-hover {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -5px; }
+}
+
 @keyframes yacht-fall {
   0% { transform: translate(0, -70px) rotate(var(--yacht-rot)); opacity: 0; }
   8% { opacity: 1; }
@@ -1072,20 +959,20 @@ select {
 @keyframes yacht-pile-fall {
   0% {
     opacity: 0;
-    transform: translate(var(--pile-start-x), var(--pile-start-y)) rotate(var(--pile-spin)) scaleX(var(--pile-flip)) scale(0.48);
+    transform: translate(var(--pile-start-x), var(--pile-start-y)) rotate(var(--pile-spin)) scaleX(var(--pile-flip)) scale(0.34);
   }
   12% {
     opacity: 1;
   }
   72% {
-    transform: translate(0, 10px) rotate(var(--pile-rot)) scaleX(var(--pile-flip)) scale(0.48);
+    transform: translate(0, 10px) rotate(var(--pile-rot)) scaleX(var(--pile-flip)) scale(0.34);
   }
   84% {
-    transform: translate(0, -8px) rotate(calc(var(--pile-rot) * .72)) scaleX(var(--pile-flip)) scale(0.48);
+    transform: translate(0, -8px) rotate(calc(var(--pile-rot) * .72)) scaleX(var(--pile-flip)) scale(0.34);
   }
   100% {
     opacity: 1;
-    transform: translate(0, 0) rotate(var(--pile-rot)) scaleX(var(--pile-flip)) scale(0.48);
+    transform: translate(0, 0) rotate(var(--pile-rot)) scaleX(var(--pile-flip)) scale(0.34);
   }
 }
 

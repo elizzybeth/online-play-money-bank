@@ -622,7 +622,7 @@ function render(direction) {
   }
 
   renderMoney(state.amount, currency, direction);
-  renderWealthEffects(state.amount);
+  renderWealthEffects(state.amount, currency);
 
   if (direction !== "currency" && state.amount !== previousAmount) {
     register.classList.add("jiggle");
@@ -731,7 +731,7 @@ function createPieces(amount, currency) {
     const bundleSize = Math.max(1, Math.floor(count / displayStacks));
 
     for (let i = 0; i < displayStacks; i += 1) {
-      pieces.push(createCashPiece(index, lane, i, displayStacks, denomination, bundleSize, currency));
+      pieces.push(createCashPiece(index, lane, i, displayStacks, denomination, bundleSize, currency, amount >= 1000000));
       index += 1;
     }
 
@@ -788,17 +788,17 @@ function createPieces(amount, currency) {
   return pieces;
 }
 
-function createCashPiece(index, lane, laneIndex, laneCount, denomination, bundleSize, currency) {
-  const compartment = lane % 4;
-  const row = Math.floor(laneIndex / 2);
-  const pairOffset = laneIndex % 2;
+function createCashPiece(index, lane, laneIndex, laneCount, denomination, bundleSize, currency, spreadAcrossCompartments = false) {
+  const compartment = spreadAcrossCompartments ? laneIndex % 4 : lane % 4;
+  const row = spreadAcrossCompartments ? Math.floor(laneIndex / 4) : Math.floor(laneIndex / 2);
+  const pairOffset = spreadAcrossCompartments ? row % 2 : laneIndex % 2;
   const isStack = bundleSize > 1;
   return {
     type: "bill",
     className: `bill drawer-bill ${isStack ? "bill-stack" : ""}`,
     label: currency.symbol,
     x: 27 + compartment * 18 + pairOffset * 3,
-    y: 8 + row * 10 + Math.min(laneCount, 6) * 0.4,
+    y: 8 + row * (spreadAcrossCompartments ? 7 : 10) + Math.min(laneCount, 6) * 0.4,
     rot: -2 + pairOffset * 4,
     z: 60 + index,
     overflow: false
@@ -837,7 +837,7 @@ function getStrainClass(amount) {
   return "";
 }
 
-function renderWealthEffects(amount) {
+function renderWealthEffects(amount, currency) {
   wealthEffects.replaceChildren();
 
   if (amount < 1000000000) {
@@ -846,9 +846,9 @@ function renderWealthEffects(amount) {
 
   const intensity = amount >= 1000000000000000 ? "quadrillion" : amount >= 1000000000000 ? "trillion" : "billion";
   const counts = {
-    billion: { confetti: 12, champagne: 0, bottles: 0, fallingYachts: 0, pilingYachts: 0 },
-    trillion: { confetti: 24, champagne: 4, bottles: 2, fallingYachts: 0, pilingYachts: 45 },
-    quadrillion: { confetti: 58, champagne: 10, bottles: 6, fallingYachts: 0, pilingYachts: 280 }
+    billion: { confetti: 12, champagne: 0, bottles: 0, fallingYachts: 0, pilingYachts: 0, looseBills: 0 },
+    trillion: { confetti: 24, champagne: 0, bottles: 3, fallingYachts: 0, pilingYachts: 28, looseBills: 10 },
+    quadrillion: { confetti: 58, champagne: 0, bottles: 7, fallingYachts: 0, pilingYachts: 120, looseBills: 18 }
   }[intensity];
 
   for (let i = 0; i < counts.confetti; i += 1) {
@@ -882,6 +882,21 @@ function renderWealthEffects(amount) {
     wealthEffects.append(bottle);
   }
 
+  for (let i = 0; i < counts.looseBills; i += 1) {
+    const bill = document.createElement("span");
+    bill.className = "bill effect-loose-bill";
+    const colorPair = billColors[i % billColors.length];
+    bill.style.setProperty("--bill-a", colorPair[0]);
+    bill.style.setProperty("--bill-b", colorPair[1]);
+    bill.style.left = `${9 + (i * 7) % 36}%`;
+    bill.style.bottom = `${120 + (i % 5) * 20}px`;
+    bill.style.zIndex = String(70 + i);
+    bill.style.setProperty("--rot", `${-34 + (i * 19) % 68}deg`);
+    bill.style.setProperty("--loose-delay", `${i * 0.08}s`);
+    bill.textContent = currency.symbol;
+    wealthEffects.append(bill);
+  }
+
   for (let i = 0; i < counts.fallingYachts; i += 1) {
     const yacht = createYacht("falling-yacht");
     yacht.style.left = `${4 + Math.random() * 88}%`;
@@ -911,14 +926,6 @@ function renderWealthEffects(amount) {
 function createYacht(className) {
   const yacht = document.createElement("span");
   yacht.className = className;
-  yacht.innerHTML = `
-    <span class="yacht-mast"></span>
-    <span class="yacht-sail yacht-sail-main"></span>
-    <span class="yacht-sail yacht-sail-front"></span>
-    <span class="yacht-cabin"><i></i><i></i><i></i></span>
-    <span class="yacht-hull"></span>
-    <span class="yacht-wake"></span>
-  `;
   return yacht;
 }
 
