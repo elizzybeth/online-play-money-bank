@@ -406,6 +406,8 @@ let calcStoredValue = null;
 let calcOperator = null;
 let calcShouldResetInput = true;
 let receiptLines = [];
+let setReceiptTimer = 0;
+let lastSetReceiptAmount = null;
 
 initialize();
 
@@ -413,14 +415,22 @@ function initialize() {
   amountInput.value = formatInputAmount(state.amount);
   currencySelect.value = state.currency;
   render("in");
+  addReceiptLine(`BAL ${formatLedgerAmount(state.amount)}`);
 
   amountInput.addEventListener("input", () => {
     setAmount(parseAmountInput(amountInput.value), false);
+    queueSetReceiptLine();
   });
 
   amountInput.addEventListener("blur", () => {
     amountInput.value = formatInputAmount(state.amount);
-    addReceiptLine(`SET ${formatLedgerAmount(state.amount)}`);
+    commitSetReceiptLine();
+  });
+
+  amountInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      amountInput.blur();
+    }
   });
 
   currencySelect.addEventListener("change", () => {
@@ -470,6 +480,20 @@ function setAmount(rawValue, syncInput = true) {
   }
   saveState();
   render(lastDirection);
+}
+
+function queueSetReceiptLine() {
+  window.clearTimeout(setReceiptTimer);
+  setReceiptTimer = window.setTimeout(commitSetReceiptLine, 700);
+}
+
+function commitSetReceiptLine() {
+  window.clearTimeout(setReceiptTimer);
+  if (lastSetReceiptAmount === state.amount) {
+    return;
+  }
+  lastSetReceiptAmount = state.amount;
+  addReceiptLine(`SET ${formatLedgerAmount(state.amount)}`);
 }
 
 function handleCalculatorPress(key) {
