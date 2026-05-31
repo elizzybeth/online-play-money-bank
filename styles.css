@@ -125,15 +125,29 @@ select {
 }
 
 .register-zone {
+  --register-scale: 1;
   min-width: 0;
   display: grid;
-  place-items: center;
-  min-height: 640px;
+  place-items: start center;
+  min-height: calc(790px * var(--register-scale));
+  overflow: visible;
+}
+
+.register-frame {
+  width: calc(820px * var(--register-scale));
+  height: calc(790px * var(--register-scale));
+}
+
+.register-canvas {
+  width: 820px;
+  height: 790px;
+  transform: scale(var(--register-scale));
+  transform-origin: top center;
 }
 
 .cash-register {
   position: relative;
-  width: min(820px, 100%);
+  width: 820px;
   height: 660px;
   border: 8px solid var(--red-deep);
   border-radius: 36px 70px 28px 28px;
@@ -267,7 +281,7 @@ select {
     repeating-linear-gradient(90deg, transparent 0 8px, rgba(0, 0, 0, 0.04) 8px 9px, transparent 9px 17px),
     linear-gradient(180deg, #fffef4, #f6f1d8);
   box-shadow: 0 -6px 14px rgba(0, 0, 0, 0.13);
-  transform: translateY(-72px) rotate(-2deg);
+  transform: rotate(-2deg);
   clip-path: polygon(0 0, 9% 2%, 18% 0, 27% 2%, 36% 0, 45% 2%, 54% 0, 63% 2%, 72% 0, 81% 2%, 90% 0, 100% 2%, 100% 100%, 0 100%);
 }
 
@@ -1065,13 +1079,18 @@ select {
   100% { opacity: 0; transform: translateY(-32px) scale(0.4); }
 }
 
+@media (max-width: 1360px) {
+  .main-stage {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 1100px) {
   body {
     min-width: 0;
   }
 
   .main-stage {
-    grid-template-columns: 1fr;
     padding: 28px 22px 24px;
     overflow-x: hidden;
   }
@@ -1081,49 +1100,43 @@ select {
   }
 
   .register-zone {
-    min-height: 720px;
-  }
-
-  .cash-register {
-    width: min(820px, calc(100vw - 44px));
-    height: 610px;
-    border-radius: 42px 42px 30px 30px;
+    --register-scale: min(1, calc((100vw - 44px) / 820));
   }
 
   .register-top {
-    gap: 18px;
-    padding: 108px 28px 16px;
+    gap: 34px;
+    padding: 108px 58px 20px;
   }
 
   .receipt-slot {
-    left: 58px;
+    left: 64px;
     top: 120px;
-    width: 160px;
-    height: 104px;
+    width: 176px;
+    height: 112px;
   }
 
   .display-housing {
-    width: min(420px, 58vw);
+    width: 432px;
   }
 
   .button-bank {
     left: auto;
-    right: 46px;
-    top: 302px;
+    right: 72px;
+    top: 260px;
     width: max-content;
-    grid-template-columns: repeat(4, minmax(42px, 64px));
-    gap: 12px;
+    grid-template-columns: repeat(4, 58px);
+    gap: 10px;
   }
 
   .button-bank button {
-    height: 38px;
+    height: 46px;
   }
 
   .drawer-window {
     left: 24px;
-    right: 430px;
-    bottom: -150px;
-    height: 218px;
+    right: 420px;
+    bottom: -168px;
+    height: 238px;
   }
 
   .control-panel {
