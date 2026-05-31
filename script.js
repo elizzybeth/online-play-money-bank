@@ -401,7 +401,7 @@ function initialize() {
   render("in");
 
   amountInput.addEventListener("input", () => {
-    setAmount(amountInput.value, false);
+    setAmount(parseAmountInput(amountInput.value), false);
   });
 
   amountInput.addEventListener("blur", () => {
@@ -412,6 +412,7 @@ function initialize() {
     state.currency = currencySelect.value;
     saveState();
     render("currency");
+    amountInput.value = formatInputAmount(state.amount);
     sparkle();
   });
 
@@ -429,7 +430,7 @@ function initialize() {
 }
 
 function setAmount(rawValue, syncInput = true) {
-  const numeric = Number(rawValue);
+  const numeric = typeof rawValue === "number" ? rawValue : parseAmountInput(rawValue);
   const amount = clamp(Number.isFinite(numeric) ? roundMoney(numeric) : 0, 0, MAX_AMOUNT);
   lastDirection = amount >= state.amount ? "in" : "out";
   previousAmount = state.amount;
@@ -911,9 +912,41 @@ function clamp(value, min, max) {
 }
 
 function formatInputAmount(amount) {
-  return Number.isInteger(amount) ? String(amount) : amount.toFixed(2);
+  return amount.toLocaleString(currencies[state.currency].locale, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
 }
 
 function roundMoney(amount) {
   return Math.round(amount * 100) / 100;
+}
+
+function parseAmountInput(value) {
+  if (typeof value === "number") {
+    return value;
+  }
+
+  const currency = currencies[state.currency];
+  let normalized = String(value)
+    .replace(currency.symbol, "")
+    .replace(/[^\d.,\-]/g, "");
+
+  const decimalSeparator = getDecimalSeparator(currency.locale);
+  if (decimalSeparator === ",") {
+    normalized = normalized.replace(/\./g, "").replace(",", ".");
+  } else {
+    normalized = normalized.replace(/,/g, "");
+  }
+
+  return Number(normalized);
+}
+
+function getDecimalSeparator(locale) {
+  const parts = new Intl.NumberFormat(locale, {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1
+  }).formatToParts(1.1);
+
+  return parts.find((part) => part.type === "decimal")?.value || ".";
 }
