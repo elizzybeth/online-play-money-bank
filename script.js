@@ -654,7 +654,6 @@ function renderMoney(amount, currency, direction) {
     element.style.setProperty("--from-rot", `${piece.rot + (index % 2 ? 38 : -38)}deg`);
     element.style.setProperty("--from-x", `${piece.fromX ?? (index % 2 ? 180 : -180)}px`);
     element.style.animationDelay = `${Math.min(index * 24, 260)}ms`;
-    element.dataset.denomination = piece.label || "";
 
     if (piece.overflow) {
       element.classList.add("overflow-top");
@@ -664,12 +663,12 @@ function renderMoney(amount, currency, direction) {
       const colorPair = billColors[index % billColors.length];
       element.style.setProperty("--bill-a", colorPair[0]);
       element.style.setProperty("--bill-b", colorPair[1]);
-      element.textContent = piece.label;
+      element.textContent = currency.symbol;
       element.setAttribute("aria-hidden", "true");
     }
 
     if (piece.type === "brick") {
-      element.dataset.symbol = piece.label;
+      element.dataset.symbol = currency.symbol;
     }
 
     if (piece.type === "coin") {
@@ -700,7 +699,7 @@ function renderFlyingGhosts(currency) {
     ghost.style.bottom = `${24 + (i % 3) * 24}px`;
     ghost.style.zIndex = String(140 + i);
     ghost.style.animationDelay = `${i * 35}ms`;
-    ghost.textContent = formatDenomination(denomination, currency);
+    ghost.textContent = currency.symbol;
     moneyScene.append(ghost);
     window.setTimeout(() => ghost.remove(), 780);
   }
@@ -745,7 +744,7 @@ function createPieces(amount, currency) {
     pieces.push({
       type: "coin",
       className: "coin drawer-coin",
-      label: String(cents),
+      label: currency.symbol,
       x: 22,
       y: 18,
       rot: 0,
@@ -757,7 +756,7 @@ function createPieces(amount, currency) {
     pieces.push({
       type: "bill",
       className: "bill drawer-bill",
-      label: formatDenomination(1, currency),
+      label: currency.symbol,
       x: 20,
       y: 18,
       rot: -4,
@@ -797,9 +796,9 @@ function createCashPiece(index, lane, laneIndex, laneCount, denomination, bundle
   return {
     type: "bill",
     className: `bill drawer-bill ${isStack ? "bill-stack" : ""}`,
-    label: isStack ? `${formatDenomination(denomination, currency)} x${formatCompactCount(bundleSize)}` : formatDenomination(denomination, currency),
+    label: currency.symbol,
     x: 4 + compartment * 25 + pairOffset * 3,
-    y: 10 + row * 13 + Math.min(laneCount, 6) * 0.4,
+    y: 8 + row * 10 + Math.min(laneCount, 6) * 0.4,
     rot: -2 + pairOffset * 4,
     z: 60 + index,
     overflow: false
@@ -812,7 +811,7 @@ function createCashBrick(index, value, currency) {
   return {
     type: "brick",
     className: "brick cash-brick",
-    label: formatCompactMoney(value, currency),
+    label: currency.symbol,
     x: 5 + col * 24,
     y: 24 + row * 15,
     rot: -2 + (col % 2) * 4,
