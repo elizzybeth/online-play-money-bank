@@ -381,7 +381,7 @@ select {
 
 .wealth-effects {
   position: absolute;
-  inset: -90px -36px -40px;
+  inset: -210px -54px -42px;
   z-index: 12;
   overflow: hidden;
   pointer-events: none;
@@ -474,7 +474,7 @@ select {
 
 .piling-yacht {
   opacity: 0;
-  transform: translate(var(--pile-start-x), var(--pile-start-y)) rotate(var(--pile-spin)) scaleX(var(--pile-flip)) scale(0.52);
+  transform: translate(var(--pile-start-x), var(--pile-start-y)) rotate(var(--pile-spin)) scaleX(var(--pile-flip)) scale(0.48);
   animation: yacht-pile-fall 1.6s cubic-bezier(.18, .82, .28, 1.18) forwards, yacht-settled-bob 2.8s ease-in-out infinite;
   animation-delay: var(--pile-delay), calc(var(--pile-delay) + 1.6s);
 }
@@ -901,20 +901,20 @@ select {
 @keyframes yacht-pile-fall {
   0% {
     opacity: 0;
-    transform: translate(var(--pile-start-x), var(--pile-start-y)) rotate(var(--pile-spin)) scaleX(var(--pile-flip)) scale(0.52);
+    transform: translate(var(--pile-start-x), var(--pile-start-y)) rotate(var(--pile-spin)) scaleX(var(--pile-flip)) scale(0.48);
   }
   12% {
     opacity: 1;
   }
   72% {
-    transform: translate(0, 10px) rotate(var(--pile-rot)) scaleX(var(--pile-flip)) scale(0.52);
+    transform: translate(0, 10px) rotate(var(--pile-rot)) scaleX(var(--pile-flip)) scale(0.48);
   }
   84% {
-    transform: translate(0, -8px) rotate(calc(var(--pile-rot) * .72)) scaleX(var(--pile-flip)) scale(0.52);
+    transform: translate(0, -8px) rotate(calc(var(--pile-rot) * .72)) scaleX(var(--pile-flip)) scale(0.48);
   }
   100% {
     opacity: 1;
-    transform: translate(0, 0) rotate(var(--pile-rot)) scaleX(var(--pile-flip)) scale(0.52);
+    transform: translate(0, 0) rotate(var(--pile-rot)) scaleX(var(--pile-flip)) scale(0.48);
   }
 }
 

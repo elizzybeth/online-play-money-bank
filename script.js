@@ -636,7 +636,7 @@ function renderWealthEffects(amount) {
   const counts = {
     billion: { confetti: 12, champagne: 0, bottles: 0, fallingYachts: 0, pilingYachts: 0 },
     trillion: { confetti: 24, champagne: 4, bottles: 2, fallingYachts: 0, pilingYachts: 45 },
-    quadrillion: { confetti: 58, champagne: 10, bottles: 6, fallingYachts: 0, pilingYachts: 168 }
+    quadrillion: { confetti: 58, champagne: 10, bottles: 6, fallingYachts: 0, pilingYachts: 280 }
   }[intensity];
 
   for (let i = 0; i < counts.confetti; i += 1) {
@@ -683,8 +683,8 @@ function renderWealthEffects(amount) {
   for (let i = 0; i < counts.pilingYachts; i += 1) {
     const yacht = createYacht("piling-yacht");
     const row = Math.floor(i / 14);
-    yacht.style.left = `${-7 + Math.random() * 112}%`;
-    yacht.style.bottom = `${6 + row * 29 + Math.random() * 18}px`;
+    yacht.style.left = `${-9 + Math.random() * 116}%`;
+    yacht.style.bottom = `${4 + row * 30 + Math.random() * 20}px`;
     yacht.style.zIndex = String(30 + row);
     yacht.style.setProperty("--pile-rot", `${-26 + Math.random() * 52}deg`);
     yacht.style.setProperty("--pile-flip", i % 2 ? -1 : 1);
