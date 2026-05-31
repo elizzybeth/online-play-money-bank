@@ -390,6 +390,7 @@ const wealthFlavor = document.querySelector("#wealth-flavor");
 const buyExamples = document.querySelector("#buy-examples");
 const wealthCount = document.querySelector("#wealth-count");
 const moneyScene = document.querySelector("#money-scene");
+const stuffedBillScene = document.querySelector("#stuffed-bill-scene");
 const wealthEffects = document.querySelector("#wealth-effects");
 const receiptTape = document.querySelector("#receipt-tape");
 const register = document.querySelector("#register");
@@ -632,6 +633,7 @@ function render(direction) {
 
 function renderMoney(amount, currency, direction) {
   moneyScene.replaceChildren();
+  stuffedBillScene.replaceChildren();
 
   if (amount <= 0) {
     if (direction === "out") {
@@ -680,6 +682,38 @@ function renderMoney(amount, currency, direction) {
 
   if (direction === "out") {
     renderFlyingGhosts(currency);
+  }
+
+  renderStuffedBills(amount, currency, direction);
+}
+
+function renderStuffedBills(amount, currency, direction) {
+  const count = amount >= 1000000000000000 ? 28 : amount >= 1000000000000 ? 18 : 0;
+  if (!count) {
+    return;
+  }
+
+  for (let i = 0; i < count; i += 1) {
+    const bill = document.createElement("span");
+    bill.className = "bill stuffed-bill";
+    if (direction === "in") {
+      bill.classList.add("stuff-in");
+    }
+    const colorPair = billColors[i % billColors.length];
+    const cluster = i % 5;
+    const layer = Math.floor(i / 5);
+    bill.style.setProperty("--bill-a", colorPair[0]);
+    bill.style.setProperty("--bill-b", colorPair[1]);
+    bill.style.setProperty("--rot", `${[-64, -38, -16, 26, 52][cluster] + (layer % 2 ? 7 : -4)}deg`);
+    bill.style.setProperty("--bend", `${cluster % 2 ? -14 : 14}deg`);
+    bill.style.setProperty("--stuff-x", `${cluster === 0 ? -18 : cluster === 4 ? 18 : 0}px`);
+    bill.style.setProperty("--stuff-y", `${10 + (cluster % 3) * 4}px`);
+    bill.style.left = `${18 + cluster * 15.5 + (layer % 2) * 2}%`;
+    bill.style.bottom = `${10 + layer * 4 + (cluster % 2) * 2}px`;
+    bill.style.zIndex = String(92 + layer);
+    bill.style.animationDelay = `${Math.min(i * 28, 420)}ms`;
+    bill.textContent = currency.symbol;
+    stuffedBillScene.append(bill);
   }
 }
 
@@ -847,8 +881,8 @@ function renderWealthEffects(amount, currency) {
   const intensity = amount >= 1000000000000000 ? "quadrillion" : amount >= 1000000000000 ? "trillion" : "billion";
   const counts = {
     billion: { confetti: 12, champagne: 0, bottles: 0, fallingYachts: 0, pilingYachts: 0, looseBills: 0 },
-    trillion: { confetti: 24, champagne: 0, bottles: 3, fallingYachts: 0, pilingYachts: 28, looseBills: 10 },
-    quadrillion: { confetti: 58, champagne: 0, bottles: 7, fallingYachts: 0, pilingYachts: 120, looseBills: 18 }
+    trillion: { confetti: 24, champagne: 0, bottles: 3, fallingYachts: 0, pilingYachts: 28 },
+    quadrillion: { confetti: 58, champagne: 0, bottles: 7, fallingYachts: 0, pilingYachts: 120 }
   }[intensity];
 
   for (let i = 0; i < counts.confetti; i += 1) {
@@ -882,21 +916,6 @@ function renderWealthEffects(amount, currency) {
     wealthEffects.append(bottle);
   }
 
-  for (let i = 0; i < counts.looseBills; i += 1) {
-    const bill = document.createElement("span");
-    bill.className = "bill effect-loose-bill";
-    const colorPair = billColors[i % billColors.length];
-    bill.style.setProperty("--bill-a", colorPair[0]);
-    bill.style.setProperty("--bill-b", colorPair[1]);
-    bill.style.left = `${9 + (i * 7) % 36}%`;
-    bill.style.bottom = `${120 + (i % 5) * 20}px`;
-    bill.style.zIndex = String(70 + i);
-    bill.style.setProperty("--rot", `${-34 + (i * 19) % 68}deg`);
-    bill.style.setProperty("--loose-delay", `${i * 0.08}s`);
-    bill.textContent = currency.symbol;
-    wealthEffects.append(bill);
-  }
-
   for (let i = 0; i < counts.fallingYachts; i += 1) {
     const yacht = createYacht("falling-yacht");
     yacht.style.left = `${4 + Math.random() * 88}%`;
@@ -909,16 +928,16 @@ function renderWealthEffects(amount, currency) {
 
   for (let i = 0; i < counts.pilingYachts; i += 1) {
     const yacht = createYacht("piling-yacht");
-    const row = Math.floor(i / 14);
-    yacht.style.left = `${-9 + Math.random() * 116}%`;
-    yacht.style.bottom = `${4 + row * 30 + Math.random() * 20}px`;
+    const row = Math.floor(i / 5);
+    yacht.style.left = `${-34 + Math.random() * 134}%`;
+    yacht.style.bottom = `${-20 + row * 112 + Math.random() * 52}px`;
     yacht.style.zIndex = String(30 + row);
-    yacht.style.setProperty("--pile-rot", `${-26 + Math.random() * 52}deg`);
+    yacht.style.setProperty("--pile-rot", `${-18 + Math.random() * 36}deg`);
     yacht.style.setProperty("--pile-flip", i % 2 ? -1 : 1);
-    yacht.style.setProperty("--pile-delay", `${i * 0.12 + Math.random() * 0.32}s`);
-    yacht.style.setProperty("--pile-start-x", `${-36 + Math.random() * 72}px`);
-    yacht.style.setProperty("--pile-start-y", `${-760 - Math.random() * 420}px`);
-    yacht.style.setProperty("--pile-spin", `${-140 + Math.random() * 280}deg`);
+    yacht.style.setProperty("--pile-delay", `${i * 0.06 + Math.random() * 0.22}s`);
+    yacht.style.setProperty("--pile-start-x", `${-140 + Math.random() * 280}px`);
+    yacht.style.setProperty("--pile-start-y", `${-980 - Math.random() * 620}px`);
+    yacht.style.setProperty("--pile-spin", `${-80 + Math.random() * 160}deg`);
     wealthEffects.append(yacht);
   }
 }

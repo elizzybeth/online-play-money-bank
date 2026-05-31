@@ -488,6 +488,14 @@ select {
   perspective: 520px;
 }
 
+.stuffed-bill-scene {
+  position: absolute;
+  z-index: 7;
+  inset: 18px 18px 34px 18px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
 .strain-trillion .money-scene {
   inset: 18px 18px 42px 18px;
 }
@@ -498,7 +506,7 @@ select {
 
 .wealth-effects {
   position: absolute;
-  inset: -210px -54px -42px;
+  inset: -250px -110px -60px;
   z-index: 12;
   overflow: hidden;
   pointer-events: none;
@@ -546,10 +554,10 @@ select {
 .falling-yacht,
 .piling-yacht {
   position: absolute;
-  width: 116px;
-  height: 40px;
+  width: 1160px;
+  height: 400px;
   background: url("assets/yacht-sticker-sm.png") center / contain no-repeat;
-  filter: drop-shadow(0 6px 5px rgba(20, 48, 65, 0.24));
+  filter: drop-shadow(0 18px 18px rgba(20, 48, 65, 0.24));
 }
 
 .falling-yacht {
@@ -617,9 +625,24 @@ select {
   filter: drop-shadow(0 7px 5px rgba(0, 0, 0, 0.2));
 }
 
-.effect-loose-bill {
-  animation: loose-bill-pop 1.2s ease-out both, loose-bill-hover 2.6s ease-in-out infinite;
-  animation-delay: var(--loose-delay), calc(var(--loose-delay) + 1.2s);
+.stuffed-bill {
+  transform-origin: 50% 94%;
+  filter: drop-shadow(0 9px 5px rgba(0, 0, 0, 0.24));
+  transform: translate(var(--stuff-x), var(--stuff-y)) rotate(var(--rot)) skewY(var(--bend));
+}
+
+.stuffed-bill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.22), transparent 28% 70%, rgba(255, 255, 255, 0.26));
+  mix-blend-mode: multiply;
+  opacity: 0.36;
+}
+
+.stuffed-bill.stuff-in {
+  animation: stuffed-bill-settle 620ms cubic-bezier(.2, 1.38, .38, 1) both;
 }
 
 .bill-stack {
@@ -939,15 +962,10 @@ select {
   50% { transform: rotate(calc(var(--bottle-rot) * -1)) translateY(-9px); }
 }
 
-@keyframes loose-bill-pop {
-  0% { opacity: 0; transform: translateY(60px) rotate(var(--rot)) scale(0.72); }
-  78% { opacity: 1; transform: translateY(-8px) rotate(var(--rot)) scale(1.04); }
-  100% { opacity: 1; transform: translateY(0) rotate(var(--rot)) scale(1); }
-}
-
-@keyframes loose-bill-hover {
-  0%, 100% { translate: 0 0; }
-  50% { translate: 0 -5px; }
+@keyframes stuffed-bill-settle {
+  0% { opacity: 0; transform: translate(var(--stuff-x), -120px) rotate(calc(var(--rot) + 36deg)) scale(0.76) skewY(0deg); }
+  78% { opacity: 1; transform: translate(var(--stuff-x), calc(var(--stuff-y) - 7px)) rotate(var(--rot)) scale(1.04) skewY(var(--bend)); }
+  100% { opacity: 1; transform: translate(var(--stuff-x), var(--stuff-y)) rotate(var(--rot)) scale(1) skewY(var(--bend)); }
 }
 
 @keyframes yacht-fall {
