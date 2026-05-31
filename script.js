@@ -391,6 +391,7 @@ const buyExamples = document.querySelector("#buy-examples");
 const wealthCount = document.querySelector("#wealth-count");
 const moneyScene = document.querySelector("#money-scene");
 const wealthEffects = document.querySelector("#wealth-effects");
+const receiptTape = document.querySelector("#receipt-tape");
 const register = document.querySelector("#register");
 const clearButton = document.querySelector("#clear-register");
 const presetButtons = document.querySelectorAll("[data-amount]");
@@ -404,6 +405,7 @@ let calcInput = formatCalculatorInput(state.amount);
 let calcStoredValue = null;
 let calcOperator = null;
 let calcShouldResetInput = true;
+let receiptLines = [];
 
 initialize();
 
@@ -418,6 +420,7 @@ function initialize() {
 
   amountInput.addEventListener("blur", () => {
     amountInput.value = formatInputAmount(state.amount);
+    addReceiptLine(`SET ${formatLedgerAmount(state.amount)}`);
   });
 
   currencySelect.addEventListener("change", () => {
@@ -425,12 +428,14 @@ function initialize() {
     saveState();
     render("currency");
     amountInput.value = formatInputAmount(state.amount);
+    addReceiptLine(`${state.currency} ${formatLedgerAmount(state.amount)}`);
     sparkle();
   });
 
   presetButtons.forEach((button) => {
     button.addEventListener("click", () => {
       setAmount(button.dataset.amount);
+      addReceiptLine(`SET ${formatLedgerAmount(state.amount)}`);
       calcInput = formatCalculatorInput(state.amount);
       calcStoredValue = null;
       calcOperator = null;
@@ -441,6 +446,7 @@ function initialize() {
 
   clearButton.addEventListener("click", () => {
     setAmount(0);
+    addReceiptLine("CLEAR 0.00");
     calcInput = "0";
     calcStoredValue = null;
     calcOperator = null;
@@ -473,12 +479,14 @@ function handleCalculatorPress(key) {
     calcOperator = null;
     calcShouldResetInput = true;
     setAmount(0);
+    addReceiptLine("ON/C 0.00");
     return;
   }
 
   if (key === "open") {
     register.classList.add("jiggle");
-    renderFlyingGhosts(currencies[state.currency].symbol);
+    renderFlyingGhosts(currencies[state.currency]);
+    addReceiptLine("OPEN DRAWER");
     window.setTimeout(() => register.classList.remove("jiggle"), 480);
     return;
   }
@@ -492,7 +500,7 @@ function handleCalculatorPress(key) {
   }
 
   if (["+", "-", "*", "/"].includes(key)) {
-    runPendingCalculation();
+    runPendingCalculation(false);
     calcStoredValue = state.amount;
     calcOperator = key;
     calcShouldResetInput = true;
@@ -527,17 +535,23 @@ function handleCalculatorPress(key) {
   }
 }
 
-function runPendingCalculation() {
+function runPendingCalculation(logTotal = true) {
   const currentValue = clamp(roundMoney(Number(calcInput) || 0), 0, MAX_AMOUNT);
 
   if (calcOperator && calcStoredValue !== null) {
+    const left = calcStoredValue;
+    const operator = calcOperator;
     const result = calculate(calcStoredValue, currentValue, calcOperator);
     setAmount(result);
+    addReceiptLine(`${formatLedgerAmount(left)} ${formatOperator(operator)} ${formatLedgerAmount(currentValue)} = ${formatLedgerAmount(state.amount)}`);
     calcInput = formatCalculatorInput(state.amount);
     return;
   }
 
   setAmount(currentValue);
+  if (logTotal) {
+    addReceiptLine(`TOTAL ${formatLedgerAmount(state.amount)}`);
+  }
   calcInput = formatCalculatorInput(state.amount);
 }
 
@@ -583,7 +597,7 @@ function render(direction) {
     register.classList.add(strainClass);
   }
 
-  renderMoney(state.amount, currency.symbol, direction);
+  renderMoney(state.amount, currency, direction);
   renderWealthEffects(state.amount);
 
   if (direction !== "currency" && state.amount !== previousAmount) {
@@ -592,20 +606,20 @@ function render(direction) {
   }
 }
 
-function renderMoney(amount, symbol, direction) {
+function renderMoney(amount, currency, direction) {
   moneyScene.replaceChildren();
 
   if (amount <= 0) {
     if (direction === "out") {
-      renderFlyingGhosts(symbol);
+      renderFlyingGhosts(currency);
     }
     return;
   }
 
-  const pieces = createPieces(amount);
+  const pieces = createPieces(amount, currency);
   pieces.forEach((piece, index) => {
     const element = document.createElement("span");
-    element.className = piece.type;
+    element.className = piece.className || piece.type;
     if (direction === "in") {
       element.classList.add("fly-in");
     }
@@ -614,8 +628,9 @@ function renderMoney(amount, symbol, direction) {
     element.style.zIndex = String(piece.z);
     element.style.setProperty("--rot", `${piece.rot}deg`);
     element.style.setProperty("--from-rot", `${piece.rot + (index % 2 ? 38 : -38)}deg`);
-    element.style.setProperty("--from-x", `${index % 2 ? 180 : -180}px`);
+    element.style.setProperty("--from-x", `${piece.fromX ?? (index % 2 ? 180 : -180)}px`);
     element.style.animationDelay = `${Math.min(index * 24, 260)}ms`;
+    element.dataset.denomination = piece.label || "";
 
     if (piece.overflow) {
       element.classList.add("overflow-top");
@@ -625,31 +640,33 @@ function renderMoney(amount, symbol, direction) {
       const colorPair = billColors[index % billColors.length];
       element.style.setProperty("--bill-a", colorPair[0]);
       element.style.setProperty("--bill-b", colorPair[1]);
-      element.textContent = symbol;
+      element.textContent = piece.label;
       element.setAttribute("aria-hidden", "true");
     }
 
     if (piece.type === "brick") {
-      element.dataset.symbol = symbol;
+      element.dataset.symbol = piece.label;
     }
 
     if (piece.type === "coin") {
-      element.textContent = symbol;
+      element.textContent = piece.label || currency.symbol;
     }
 
     moneyScene.append(element);
   });
 
   if (direction === "out") {
-    renderFlyingGhosts(symbol);
+    renderFlyingGhosts(currency);
   }
 }
 
-function renderFlyingGhosts(symbol) {
+function renderFlyingGhosts(currency) {
+  const denominations = getDenominations(currency.name);
   for (let i = 0; i < 8; i += 1) {
     const ghost = document.createElement("span");
     ghost.className = "bill fly-out";
     const colorPair = billColors[i % billColors.length];
+    const denomination = denominations[i % Math.min(denominations.length, 4)];
     ghost.style.setProperty("--bill-a", colorPair[0]);
     ghost.style.setProperty("--bill-b", colorPair[1]);
     ghost.style.setProperty("--rot", `${-20 + i * 6}deg`);
@@ -659,63 +676,122 @@ function renderFlyingGhosts(symbol) {
     ghost.style.bottom = `${24 + (i % 3) * 24}px`;
     ghost.style.zIndex = String(140 + i);
     ghost.style.animationDelay = `${i * 35}ms`;
-    ghost.textContent = symbol;
+    ghost.textContent = formatDenomination(denomination, currency);
     moneyScene.append(ghost);
     window.setTimeout(() => ghost.remove(), 780);
   }
 }
 
-function createPieces(amount) {
+function createPieces(amount, currency) {
   const wealthState = getWealthState(amount);
-  const counts = {
-    small: {
-      bills: amount < 1 ? 0 : Math.max(1, Math.min(9, Math.ceil(amount / 14))),
-      coins: amount < 1 ? 1 : amount < 50 ? 4 : 1,
-      bricks: 0
-    },
-    medium: { bills: 16, coins: 0, bricks: 0 },
-    large: { bills: 26, coins: 0, bricks: 3 },
-    huge: { bills: 30, coins: 0, bricks: 10 },
-    ridiculous: { bills: 36, coins: 0, bricks: 18 }
-  }[wealthState] || { bills: 0, coins: 0, bricks: 0 };
-
   const pieces = [];
+  const denominations = getDenominations(currency.name);
+  const visibleTarget = {
+    small: 8,
+    medium: 14,
+    large: 22,
+    huge: 34,
+    ridiculous: 52
+  }[wealthState] || 0;
 
-  for (let i = 0; i < counts.bricks; i += 1) {
-    pieces.push({
-      type: "brick",
-      x: 2 + ((i * 16) % 74),
-      y: 4 + Math.floor(i / 5) * 10 + (i % 2) * 4,
-      rot: -8 + (i % 5) * 4,
-      z: i + 20,
-      overflow: wealthState === "ridiculous" && i > 15
-    });
-  }
+  let remaining = Math.floor(amount);
+  let index = 0;
 
-  for (let i = 0; i < counts.bills; i += 1) {
-    const row = Math.floor(i / 8);
-    pieces.push({
-      type: "bill",
-      x: 2 + ((i * 11) % 76),
-      y: 3 + row * 6 + ((i % 3) * 3),
-      rot: -24 + ((i * 11) % 48),
-      z: i + 60,
-      overflow: wealthState === "huge" && i > 27 || wealthState === "ridiculous" && i > 31
-    });
-  }
+  denominations.forEach((denomination) => {
+    if (remaining <= 0 || index >= visibleTarget) return;
+    const count = Math.floor(remaining / denomination);
+    if (count <= 0) return;
 
-  for (let i = 0; i < counts.coins; i += 1) {
+    const stacks = Math.min(count, Math.max(1, Math.ceil(count / getBundleSize(count))));
+    const displayStacks = Math.min(stacks, visibleTarget - index);
+    const bundleSize = Math.max(1, Math.floor(count / displayStacks));
+
+    for (let i = 0; i < displayStacks; i += 1) {
+      pieces.push(createCashPiece(index, denomination, bundleSize, currency, wealthState));
+      index += 1;
+    }
+
+    remaining -= count * denomination;
+  });
+
+  if (amount > 0 && amount < 1) {
+    const cents = Math.max(1, Math.round(amount * 100));
     pieces.push({
       type: "coin",
-      x: 18 + i * 14,
-      y: 10 + (i % 2) * 18,
+      className: "coin drawer-coin",
+      label: String(cents),
+      x: 22,
+      y: 18,
       rot: 0,
-      z: i + 80,
-      overflow: false
+      z: 90
+    });
+  }
+
+  if (pieces.length === 0 && amount >= 1) {
+    pieces.push({
+      type: "bill",
+      className: "bill drawer-bill",
+      label: formatDenomination(1, currency),
+      x: 20,
+      y: 18,
+      rot: -4,
+      z: 70
+    });
+  }
+
+  if (remaining > 0 || amount >= 1000000) {
+    const megaStacks = Math.min(18, Math.max(2, Math.floor(Math.log10(Math.max(amount, 10)))));
+    for (let i = 0; i < megaStacks && pieces.length < visibleTarget + 18; i += 1) {
+      const value = amount / megaStacks;
+      pieces.push(createCashBrick(pieces.length, value, currency, wealthState));
+    }
+  }
+
+  const cents = Math.round((amount - Math.floor(amount)) * 100);
+  for (let i = 0; i < Math.min(5, cents); i += 1) {
+    pieces.push({
+      type: "coin",
+      className: "coin drawer-coin",
+      label: currency.symbol,
+      x: 6 + i * 10,
+      y: 8 + (i % 2) * 12,
+      rot: 0,
+      z: 120 + i
     });
   }
 
   return pieces;
+}
+
+function createCashPiece(index, denomination, bundleSize, currency, wealthState) {
+  const row = Math.floor(index / 5);
+  const col = index % 5;
+  const isStack = bundleSize > 1;
+  return {
+    type: "bill",
+    className: `bill drawer-bill ${isStack ? "bill-stack" : ""}`,
+    label: isStack ? `${formatDenomination(denomination, currency)} x${formatCompactCount(bundleSize)}` : formatDenomination(denomination, currency),
+    x: 4 + col * 18 + (row % 2) * 4,
+    y: 12 + row * 18 + (col % 2) * 3,
+    rot: -9 + ((index * 7) % 18),
+    z: 60 + index,
+    overflow: (wealthState === "huge" && row > 5) || (wealthState === "ridiculous" && row > 7)
+  };
+}
+
+function createCashBrick(index, value, currency, wealthState) {
+  const row = Math.floor(index / 4);
+  const col = index % 4;
+  return {
+    type: "brick",
+    className: "brick cash-brick",
+    label: formatCompactMoney(value, currency),
+    x: 4 + col * 22 + (row % 2) * 8,
+    y: 22 + row * 22,
+    rot: -7 + ((index * 5) % 14),
+    z: 34 + index,
+    overflow: wealthState === "ridiculous" && row > 5
+  };
 }
 
 function getWealthState(amount) {
@@ -851,6 +927,89 @@ function formatMoney(amount, currency) {
 
     return part.value;
   }).join("");
+}
+
+function formatDenomination(amount, currency) {
+  const formatter = new Intl.NumberFormat(currency.locale, {
+    style: "currency",
+    currency: currency.name,
+    currencyDisplay: "symbol",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  });
+
+  return formatter.formatToParts(amount).map((part) => {
+    if (part.type === "currency") {
+      return currency.symbol;
+    }
+
+    return part.value;
+  }).join("");
+}
+
+function formatCompactMoney(amount, currency) {
+  const abs = Math.abs(amount);
+  const suffixes = [
+    { value: 1000000000000000, label: "Q" },
+    { value: 1000000000000, label: "T" },
+    { value: 1000000000, label: "B" },
+    { value: 1000000, label: "M" },
+    { value: 1000, label: "K" }
+  ];
+  const suffix = suffixes.find((item) => abs >= item.value);
+
+  if (!suffix) {
+    return formatDenomination(Math.max(1, Math.round(amount)), currency);
+  }
+
+  const compact = amount / suffix.value;
+  const value = compact >= 100 ? compact.toFixed(0) : compact >= 10 ? compact.toFixed(1) : compact.toFixed(2);
+  return `${currency.symbol}${value.replace(/\.0+$/, "")}${suffix.label}`;
+}
+
+function formatCompactCount(count) {
+  if (count >= 1000000000000) return `${Math.floor(count / 1000000000000)}T`;
+  if (count >= 1000000000) return `${Math.floor(count / 1000000000)}B`;
+  if (count >= 1000000) return `${Math.floor(count / 1000000)}M`;
+  if (count >= 1000) return `${Math.floor(count / 1000)}K`;
+  return String(count);
+}
+
+function formatLedgerAmount(amount) {
+  const currency = currencies[state.currency];
+  return formatMoney(amount, currency).replace(currency.symbol, "").trim();
+}
+
+function formatOperator(operator) {
+  return { "+": "+", "-": "-", "*": "x", "/": "/" }[operator] || operator;
+}
+
+function getDenominations(code) {
+  if (code === "JPY") return [10000, 5000, 1000, 500, 100, 50, 10, 5, 1];
+  if (code === "GBP") return [50, 20, 10, 5, 2, 1];
+  if (code === "EUR") return [500, 200, 100, 50, 20, 10, 5, 2, 1];
+  return [100, 50, 20, 10, 5, 1];
+}
+
+function getBundleSize(count) {
+  if (count >= 1000000000) return 100000000;
+  if (count >= 1000000) return 100000;
+  if (count >= 100000) return 10000;
+  if (count >= 10000) return 1000;
+  if (count >= 1000) return 100;
+  if (count >= 100) return 10;
+  return 1;
+}
+
+function addReceiptLine(text) {
+  if (!receiptTape) return;
+  receiptLines = [`${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}  ${text}`, ...receiptLines].slice(0, 9);
+  receiptTape.replaceChildren();
+  receiptLines.slice().reverse().forEach((line) => {
+    const item = document.createElement("span");
+    item.textContent = line;
+    receiptTape.append(item);
+  });
 }
 
 function formatPlainAmount(amount) {

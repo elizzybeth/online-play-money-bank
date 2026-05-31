@@ -34,11 +34,12 @@
         <section class="register-zone" aria-labelledby="display-label">
           <div class="cash-register" id="register">
             <div class="toy-logo" aria-hidden="true">
-              <span>LR</span>
-              <strong>Learning<br />Resources</strong>
+              <span>$</span>
             </div>
             <div class="register-top">
-              <div class="receipt-slot" aria-hidden="true"></div>
+              <div class="receipt-slot" aria-label="Receipt tape">
+                <div class="receipt-tape" id="receipt-tape" aria-live="polite"></div>
+              </div>
               <div class="display-housing">
                 <p id="display-label" class="display-label">Pretend Rich Mode</p>
                 <output id="balance-display" class="lcd-display" for="amount currency">$0</output>
@@ -48,7 +49,6 @@
             <div class="checkout-left">
               <div class="card-reader" aria-hidden="true">
                 <span class="card-chip"></span>
-                <strong>Pretend<br />&amp; Play</strong>
                 <small>800 222 3909</small>
               </div>
               <div class="paper-pad" aria-hidden="true"></div>
