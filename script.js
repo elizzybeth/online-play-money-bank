@@ -448,6 +448,7 @@ function render(direction) {
   display.textContent = formatMoney(state.amount, currency);
   display.style.fontSize = getDisplaySize(state.amount);
   amountSymbol.textContent = currency.symbol;
+  updateAmountInputSize();
   wealthFlavor.textContent = getFlavorText(state.amount, currency.unit);
   buyExamples.textContent = getBuyExamples(state.amount, currency);
   wealthCount.textContent = getWealthCountLine(state.amount, currency);
@@ -720,6 +721,12 @@ function getDisplaySize(amount) {
   if (characters > 16) return "28px";
   if (characters > 13) return "34px";
   return "";
+}
+
+function updateAmountInputSize() {
+  const length = amountInput.value.length;
+  amountInput.classList.toggle("digits-long", length > 15 && length <= 20);
+  amountInput.classList.toggle("digits-huge", length > 20);
 }
 
 function formatMoney(amount, currency) {
