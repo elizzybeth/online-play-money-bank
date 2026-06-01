@@ -153,3 +153,27 @@
 - Added a reset saved state button.
 - Persisted the reduced-motion setting with the existing app state.
 - Suppressed generated wealth effects and fly-in/fly-out animation when reduced animation is enabled.
+
+## 2026-06-01: Drawer Open/Close Interaction Slice 1
+
+### Scope
+
+- Made the cash drawer an interactive control.
+- Clicking the open drawer closes it with a slide animation.
+- Pressing the register `OPEN` key opens the drawer with the same animation.
+
+### Checks
+
+- `node --check script.js`: passed.
+- In-app browser verified:
+  - Page load starts with the drawer open and does not print an extra drawer action.
+  - Clicking the drawer changes the register to `drawer-closed`.
+  - The receipt logs `CLOSE DRAWER`.
+  - Pressing `OPEN` changes the register to `drawer-open`.
+  - The receipt logs `OPEN DRAWER`.
+
+### Changes
+
+- Added persistent drawer open/closed state.
+- Added keyboard accessibility for closing the drawer with Enter or Space.
+- Converted the wealth-strain drawer offsets to CSS variables so they combine with open/close movement.

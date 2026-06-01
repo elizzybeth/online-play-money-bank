@@ -395,6 +395,8 @@ select {
 }
 
 .drawer-window {
+  --drawer-offset: 0px;
+  --drawer-tilt: 0deg;
   position: absolute;
   z-index: 6;
   left: 24px;
@@ -407,18 +409,54 @@ select {
     linear-gradient(90deg, rgba(255, 255, 255, 0.1), transparent 16% 84%, rgba(0, 0, 0, 0.16)),
     linear-gradient(180deg, rgba(13, 86, 180, 0.25), rgba(5, 55, 145, 0.84));
   overflow: visible;
+  cursor: pointer;
+  transform: translateY(var(--drawer-offset)) rotate(var(--drawer-tilt));
+  transition: transform 520ms cubic-bezier(.18, 1.18, .32, 1), box-shadow 520ms ease;
+}
+
+.drawer-window:focus-visible {
+  outline: 5px solid #1b5dff;
+  outline-offset: 8px;
+}
+
+.drawer-closed .drawer-window {
+  --drawer-offset: -132px;
+  box-shadow: 0 18px 0 rgba(6, 63, 150, 0.28);
+}
+
+.drawer-closed .drawer-lip {
+  transform: translateY(8px);
+}
+
+.drawer-moving .drawer-window {
+  animation: drawer-slide-bounce 540ms cubic-bezier(.18, 1.18, .32, 1) both;
 }
 
 .strain-billion .drawer-window {
-  transform: translateY(3px) rotate(-0.25deg);
+  --drawer-offset: 3px;
+  --drawer-tilt: -0.25deg;
 }
 
 .strain-trillion .drawer-window {
-  transform: translateY(7px) rotate(0.7deg);
+  --drawer-offset: 7px;
+  --drawer-tilt: 0.7deg;
 }
 
 .strain-quadrillion .drawer-window {
-  transform: translateY(14px) rotate(-1.4deg);
+  --drawer-offset: 14px;
+  --drawer-tilt: -1.4deg;
+}
+
+.drawer-closed.strain-billion .drawer-window {
+  --drawer-offset: -126px;
+}
+
+.drawer-closed.strain-trillion .drawer-window {
+  --drawer-offset: -121px;
+}
+
+.drawer-closed.strain-quadrillion .drawer-window {
+  --drawer-offset: -112px;
 }
 
 .strain-quadrillion .drawer-lip {
@@ -1122,6 +1160,10 @@ select {
   animation: none !important;
 }
 
+.reduced-motion .drawer-window {
+  transition: none;
+}
+
 .reduced-motion .wealth-effects {
   display: none;
 }
@@ -1255,6 +1297,13 @@ select {
   0% { opacity: 0; transform: scale(0.2); }
   35% { opacity: 1; transform: scale(1); }
   100% { opacity: 0; transform: translateY(-32px) scale(0.4); }
+}
+
+@keyframes drawer-slide-bounce {
+  0% { filter: saturate(1); }
+  45% { filter: saturate(1.16); }
+  72% { filter: saturate(1.08); }
+  100% { filter: saturate(1); }
 }
 
 @keyframes currency-display-pop {

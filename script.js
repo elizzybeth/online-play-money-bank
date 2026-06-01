@@ -394,6 +394,7 @@ const stuffedBillScene = document.querySelector("#stuffed-bill-scene");
 const wealthEffects = document.querySelector("#wealth-effects");
 const receiptTape = document.querySelector("#receipt-tape");
 const register = document.querySelector("#register");
+const drawerWindow = document.querySelector("#drawer-window");
 const clearButton = document.querySelector("#clear-register");
 const presetButtons = document.querySelectorAll("[data-amount]");
 const calcKeys = document.querySelectorAll("[data-calc]");
@@ -413,6 +414,7 @@ let calcShouldResetInput = true;
 let receiptLines = [];
 let setReceiptTimer = 0;
 let lastSetReceiptAmount = null;
+let drawerOpen = true;
 
 initialize();
 
@@ -421,6 +423,7 @@ function initialize() {
   amountInput.value = formatInputAmount(state.amount);
   currencySelect.value = state.currency;
   reduceMotionToggle.checked = Boolean(state.reducedMotion);
+  setDrawerOpen(true, false);
   render("in");
   addReceiptLine(`BAL ${formatLedgerAmount(state.amount)}`);
 
@@ -474,6 +477,19 @@ function initialize() {
 
   calcKeys.forEach((button) => {
     button.addEventListener("click", () => handleCalculatorPress(button.dataset.calc));
+  });
+
+  drawerWindow.addEventListener("click", () => {
+    if (drawerOpen) {
+      setDrawerOpen(false);
+    }
+  });
+
+  drawerWindow.addEventListener("keydown", (event) => {
+    if ((event.key === "Enter" || event.key === " ") && drawerOpen) {
+      event.preventDefault();
+      setDrawerOpen(false);
+    }
   });
 
   settingsButton.addEventListener("click", () => {
@@ -554,10 +570,7 @@ function handleCalculatorPress(key) {
   }
 
   if (key === "open") {
-    register.classList.add("jiggle");
-    renderFlyingGhosts(currencies[state.currency]);
-    addReceiptLine("OPEN DRAWER");
-    window.setTimeout(() => register.classList.remove("jiggle"), 480);
+    setDrawerOpen(true);
     return;
   }
 
@@ -602,6 +615,24 @@ function handleCalculatorPress(key) {
     }
 
     setAmount(calcInput);
+  }
+}
+
+function setDrawerOpen(open, log = true) {
+  const changed = drawerOpen !== open;
+  drawerOpen = open;
+  register.classList.toggle("drawer-open", drawerOpen);
+  register.classList.toggle("drawer-closed", !drawerOpen);
+  drawerWindow.setAttribute("aria-label", drawerOpen ? "Close cash drawer" : "Cash drawer is closed");
+  drawerWindow.setAttribute("aria-pressed", drawerOpen ? "true" : "false");
+
+  if (log && !state.reducedMotion) {
+    register.classList.add("drawer-moving");
+    window.setTimeout(() => register.classList.remove("drawer-moving"), 520);
+  }
+
+  if (log && changed) {
+    addReceiptLine(drawerOpen ? "OPEN DRAWER" : "CLOSE DRAWER");
   }
 }
 
