@@ -125,6 +125,21 @@
 - Tune high-wealth overlay density so the core controls remain readable long enough to interact.
 - Add reduced-motion behavior before increasing animation complexity further.
 
+## 2026-06-01: Drawer Closed Position Refinement
+
+### Scope
+
+- Refined the closed drawer state so the drawer appears tucked inside the register base.
+- Left only the handle visible while the drawer is closed.
+
+### Checks
+
+- `node --check script.js`: passed.
+- In-app browser verified:
+  - Clicking the open drawer hides the drawer contents and visible drawer face.
+  - The handle sits inside the blue register base in the closed position.
+  - Pressing `OPEN` restores the full drawer, border, money, and receipt log.
+
 ## 2026-06-01: Settings and Reduced Motion Slice 1
 
 ### Scope
