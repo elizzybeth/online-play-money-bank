@@ -1217,3 +1217,32 @@ select {
     height: 348px;
   }
 }
+
+@media (max-width: 400px) {
+  .main-stage {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .register-zone {
+    --register-scale: 0.4;
+    min-height: 316px;
+  }
+
+  .register-frame {
+    width: 328px;
+    height: 316px;
+  }
+}
+
+@media (max-width: 360px) {
+  .register-zone {
+    --register-scale: 0.36;
+    min-height: 284px;
+  }
+
+  .register-frame {
+    width: 295px;
+    height: 284px;
+  }
+}
