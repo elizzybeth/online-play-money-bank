@@ -129,20 +129,20 @@ select {
   min-width: 0;
   display: grid;
   place-items: start center;
-  min-height: calc(790px * var(--register-scale));
+  min-height: 790px;
   overflow: visible;
 }
 
 .register-frame {
-  width: calc(820px * var(--register-scale));
-  height: calc(790px * var(--register-scale));
+  width: 820px;
+  height: 790px;
 }
 
 .register-canvas {
   width: 820px;
   height: 790px;
   transform: scale(var(--register-scale));
-  transform-origin: top center;
+  transform-origin: top left;
 }
 
 .cash-register {
@@ -1100,7 +1100,7 @@ select {
   }
 
   .register-zone {
-    --register-scale: min(1, calc((100vw - 44px) / 820));
+    min-height: 790px;
   }
 
   .register-top {
@@ -1143,5 +1143,77 @@ select {
     max-width: 720px;
     width: 100%;
     justify-self: center;
+  }
+}
+
+@media (max-width: 860px) {
+  .register-zone {
+    --register-scale: 0.94;
+    min-height: 743px;
+  }
+
+  .register-frame {
+    width: 771px;
+    height: 743px;
+  }
+}
+
+@media (max-width: 800px) {
+  .register-zone {
+    --register-scale: 0.86;
+    min-height: 679px;
+  }
+
+  .register-frame {
+    width: 706px;
+    height: 679px;
+  }
+}
+
+@media (max-width: 700px) {
+  .register-zone {
+    --register-scale: 0.74;
+    min-height: 585px;
+  }
+
+  .register-frame {
+    width: 607px;
+    height: 585px;
+  }
+}
+
+@media (max-width: 600px) {
+  .register-zone {
+    --register-scale: 0.62;
+    min-height: 490px;
+  }
+
+  .register-frame {
+    width: 508px;
+    height: 490px;
+  }
+}
+
+@media (max-width: 520px) {
+  .register-zone {
+    --register-scale: 0.52;
+    min-height: 411px;
+  }
+
+  .register-frame {
+    width: 426px;
+    height: 411px;
+  }
+}
+
+@media (max-width: 440px) {
+  .register-zone {
+    --register-scale: 0.44;
+    min-height: 348px;
+  }
+
+  .register-frame {
+    width: 361px;
+    height: 348px;
   }
 }
