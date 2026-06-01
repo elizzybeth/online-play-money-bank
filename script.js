@@ -681,7 +681,7 @@ function renderMoney(amount, currency, direction) {
   });
 
   if (direction === "out") {
-    renderFlyingGhosts(currency);
+    renderFlyingGhosts(currency, previousAmount - amount);
   }
 
   renderStuffedBills(amount, currency, direction);
@@ -717,25 +717,60 @@ function renderStuffedBills(amount, currency, direction) {
   }
 }
 
-function renderFlyingGhosts(currency) {
+function renderFlyingGhosts(currency, delta = previousAmount) {
   const denominations = getDenominations(currency.name);
-  for (let i = 0; i < 8; i += 1) {
+  const magnitude = Math.log10(Math.max(Math.abs(delta), 1));
+  const billCount = Math.min(22, 6 + Math.floor(magnitude * 2.2));
+  const brickCount = Math.max(0, Math.min(8, Math.floor((magnitude - 5) * 1.4)));
+  const coinCount = delta < 10 ? 4 : 0;
+
+  for (let i = 0; i < coinCount; i += 1) {
+    const coin = document.createElement("span");
+    coin.className = "coin drawer-coin fly-out";
+    coin.style.setProperty("--rot", `${-24 + i * 13}deg`);
+    coin.style.setProperty("--from-rot", `${80 + i * 22}deg`);
+    coin.style.setProperty("--from-x", `${i % 2 ? 160 : -160}px`);
+    coin.style.left = `${8 + i * 6}%`;
+    coin.style.bottom = `${14 + i * 10}px`;
+    coin.style.zIndex = String(150 + i);
+    coin.style.animationDelay = `${i * 28}ms`;
+    coin.textContent = currency.symbol;
+    moneyScene.append(coin);
+    window.setTimeout(() => coin.remove(), 980);
+  }
+
+  for (let i = 0; i < billCount; i += 1) {
     const ghost = document.createElement("span");
-    ghost.className = "bill fly-out";
-    const colorPair = billColors[i % billColors.length];
+    ghost.className = `bill fly-out ${i % 3 === 0 ? "bill-stack stack-thick" : ""}`;
     const denomination = denominations[i % Math.min(denominations.length, 4)];
+    const colorPair = getBillColorPair(currency.name, denomination) || billColors[i % billColors.length];
     ghost.style.setProperty("--bill-a", colorPair[0]);
     ghost.style.setProperty("--bill-b", colorPair[1]);
-    ghost.style.setProperty("--rot", `${-20 + i * 6}deg`);
-    ghost.style.setProperty("--from-rot", `${20 + i * 9}deg`);
-    ghost.style.setProperty("--from-x", `${i % 2 ? 210 : -210}px`);
-    ghost.style.left = `${10 + i * 10}%`;
-    ghost.style.bottom = `${24 + (i % 3) * 24}px`;
-    ghost.style.zIndex = String(140 + i);
-    ghost.style.animationDelay = `${i * 35}ms`;
+    ghost.style.setProperty("--rot", `${-30 + (i * 11) % 64}deg`);
+    ghost.style.setProperty("--from-rot", `${28 + i * 12}deg`);
+    ghost.style.setProperty("--from-x", `${i % 2 ? 240 : -240}px`);
+    ghost.style.left = `${8 + (i * 9) % 78}%`;
+    ghost.style.bottom = `${22 + (i % 4) * 24}px`;
+    ghost.style.zIndex = String(160 + i);
+    ghost.style.animationDelay = `${i * 30}ms`;
     ghost.textContent = currency.symbol;
     moneyScene.append(ghost);
-    window.setTimeout(() => ghost.remove(), 780);
+    window.setTimeout(() => ghost.remove(), 980);
+  }
+
+  for (let i = 0; i < brickCount; i += 1) {
+    const brick = document.createElement("span");
+    brick.className = "brick cash-brick fly-out";
+    brick.dataset.symbol = currency.symbol;
+    brick.style.setProperty("--rot", `${-10 + i * 5}deg`);
+    brick.style.setProperty("--from-rot", `${38 + i * 17}deg`);
+    brick.style.setProperty("--from-x", `${i % 2 ? 260 : -260}px`);
+    brick.style.left = `${24 + (i * 11) % 50}%`;
+    brick.style.bottom = `${30 + (i % 3) * 28}px`;
+    brick.style.zIndex = String(190 + i);
+    brick.style.animationDelay = `${120 + i * 44}ms`;
+    moneyScene.append(brick);
+    window.setTimeout(() => brick.remove(), 1080);
   }
 }
 
@@ -844,7 +879,7 @@ function createCashPiece(index, lane, laneIndex, laneCount, denomination, bundle
 
   return {
     type: "bill",
-    className: `bill drawer-bill ${isStack ? "bill-stack" : ""} ${denominationStyle}`,
+    className: `bill drawer-bill ${isStack ? `bill-stack ${getBundleClass(bundleSize)}` : ""} ${denominationStyle}`,
     label: currency.symbol,
     colorPair: getBillColorPair(currency.name, denomination),
     x: 27 + compartment * 18 + pairOffset * 3,
@@ -853,6 +888,14 @@ function createCashPiece(index, lane, laneIndex, laneCount, denomination, bundle
     z: 60 + index,
     overflow: false
   };
+}
+
+function getBundleClass(bundleSize) {
+  if (bundleSize >= 100000) return "stack-vault";
+  if (bundleSize >= 1000) return "stack-fat";
+  if (bundleSize >= 100) return "stack-thick";
+  if (bundleSize >= 10) return "stack-medium";
+  return "stack-thin";
 }
 
 function createCashBrick(index, value, currency) {

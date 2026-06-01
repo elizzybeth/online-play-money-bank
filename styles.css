@@ -682,6 +682,49 @@ select {
     0 14px 13px rgba(0, 0, 0, 0.2);
 }
 
+.stack-medium {
+  box-shadow:
+    0 4px 0 rgba(232, 255, 204, 0.88),
+    0 8px 0 rgba(116, 183, 93, 0.7),
+    0 12px 0 rgba(67, 130, 74, 0.54),
+    0 18px 13px rgba(0, 0, 0, 0.22);
+}
+
+.stack-thick {
+  transform: rotate(var(--rot)) rotateX(8deg) scale(1.08);
+  box-shadow:
+    0 4px 0 rgba(232, 255, 204, 0.9),
+    0 8px 0 rgba(152, 214, 111, 0.78),
+    0 12px 0 rgba(91, 168, 94, 0.65),
+    0 16px 0 rgba(54, 123, 79, 0.5),
+    0 24px 15px rgba(0, 0, 0, 0.24);
+}
+
+.stack-fat,
+.stack-vault {
+  transform: rotate(var(--rot)) rotateX(8deg) scale(1.16);
+  border-width: 3px;
+}
+
+.stack-fat {
+  box-shadow:
+    0 5px 0 rgba(232, 255, 204, 0.92),
+    0 10px 0 rgba(152, 214, 111, 0.82),
+    0 15px 0 rgba(91, 168, 94, 0.72),
+    0 20px 0 rgba(54, 123, 79, 0.56),
+    0 29px 16px rgba(0, 0, 0, 0.26);
+}
+
+.stack-vault {
+  box-shadow:
+    0 5px 0 rgba(232, 255, 204, 0.94),
+    0 10px 0 rgba(179, 229, 120, 0.86),
+    0 15px 0 rgba(124, 194, 91, 0.78),
+    0 20px 0 rgba(78, 157, 82, 0.68),
+    0 25px 0 rgba(42, 113, 78, 0.56),
+    0 35px 18px rgba(0, 0, 0, 0.28);
+}
+
 .brick {
   width: 44px;
   height: 92px;
@@ -765,7 +808,7 @@ select {
 .bill.fly-out,
 .brick.fly-out,
 .coin.fly-out {
-  animation: fly-out 420ms ease-in both;
+  animation: fly-out 760ms cubic-bezier(.55, .02, .9, .5) both;
 }
 
 .sparkle {
