@@ -435,12 +435,13 @@ function initialize() {
   });
 
   currencySelect.addEventListener("change", () => {
+    const previousCurrency = state.currency;
     state.currency = currencySelect.value;
     saveState();
     render("currency");
     amountInput.value = formatInputAmount(state.amount);
-    addReceiptLine(`${state.currency} ${formatLedgerAmount(state.amount)}`);
-    sparkle();
+    addReceiptLine(`CUR ${previousCurrency}->${state.currency} ${formatLedgerAmount(state.amount)}`);
+    playCurrencySwap(previousCurrency, state.currency);
   });
 
   presetButtons.forEach((button) => {
@@ -1367,6 +1368,43 @@ function sparkle() {
     moneyScene.append(sparkleEl);
     window.setTimeout(() => sparkleEl.remove(), 900);
   }
+}
+
+function playCurrencySwap(previousCurrencyCode, nextCurrencyCode) {
+  const previousCurrency = currencies[previousCurrencyCode];
+  const nextCurrency = currencies[nextCurrencyCode];
+  register.classList.remove("currency-swap");
+  void register.offsetWidth;
+  register.classList.add("currency-swap");
+  sparkle();
+  renderCurrencyTokens(previousCurrency, nextCurrency);
+  window.setTimeout(() => register.classList.remove("currency-swap"), 920);
+}
+
+function renderCurrencyTokens(previousCurrency, nextCurrency) {
+  const symbols = [
+    previousCurrency?.symbol || "",
+    nextCurrency.symbol,
+    nextCurrency.symbol,
+    nextCurrency.symbol,
+    previousCurrency?.symbol || "",
+    nextCurrency.symbol,
+    nextCurrency.symbol,
+    nextCurrency.symbol
+  ].filter(Boolean);
+
+  symbols.forEach((symbol, index) => {
+    const token = document.createElement("span");
+    token.className = "currency-token";
+    token.textContent = symbol;
+    token.style.left = `${16 + (index * 11) % 68}%`;
+    token.style.bottom = `${70 + (index % 4) * 42}px`;
+    token.style.setProperty("--token-x", `${index % 2 ? 120 : -120}px`);
+    token.style.setProperty("--token-rot", `${-36 + index * 13}deg`);
+    token.style.animationDelay = `${index * 42}ms`;
+    wealthEffects.append(token);
+    window.setTimeout(() => token.remove(), 1100);
+  });
 }
 
 function loadState() {

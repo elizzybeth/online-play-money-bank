@@ -820,6 +820,38 @@ select {
   animation: sparkle 700ms ease-out both;
 }
 
+.currency-swap .display-housing {
+  animation: currency-display-pop 740ms cubic-bezier(.18, 1.35, .38, 1) both;
+}
+
+.currency-swap .money-scene .bill,
+.currency-swap .money-scene .brick,
+.currency-swap .money-scene .coin,
+.currency-swap .stuffed-bill {
+  animation: currency-money-flip 760ms cubic-bezier(.2, 1.4, .38, 1) both;
+}
+
+.currency-token {
+  position: absolute;
+  z-index: 80;
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  color: var(--green-dark);
+  border: 3px solid rgba(36, 24, 23, 0.36);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 32% 25%, rgba(255, 255, 255, 0.78) 0 9px, transparent 10px),
+    linear-gradient(135deg, #fff280, #b9fb7f);
+  box-shadow: 0 10px 10px rgba(36, 24, 23, 0.2);
+  font-family: "Courier New", monospace;
+  font-size: 20px;
+  font-weight: 900;
+  pointer-events: none;
+  animation: currency-token-pop 900ms cubic-bezier(.18, 1.22, .38, 1) both;
+}
+
 .control-panel {
   min-width: 0;
   align-self: stretch;
@@ -1120,6 +1152,26 @@ select {
   0% { opacity: 0; transform: scale(0.2); }
   35% { opacity: 1; transform: scale(1); }
   100% { opacity: 0; transform: translateY(-32px) scale(0.4); }
+}
+
+@keyframes currency-display-pop {
+  0% { filter: hue-rotate(0deg) saturate(1); transform: scale(1) rotate(0deg); }
+  35% { filter: hue-rotate(70deg) saturate(1.4); transform: scale(1.045) rotate(-1deg); }
+  70% { filter: hue-rotate(-20deg) saturate(1.25); transform: scale(0.99) rotate(0.6deg); }
+  100% { filter: hue-rotate(0deg) saturate(1); transform: scale(1) rotate(0deg); }
+}
+
+@keyframes currency-money-flip {
+  0% { filter: hue-rotate(0deg) saturate(1); transform: rotate(var(--rot)) rotateX(8deg) scale(1); }
+  42% { filter: hue-rotate(120deg) saturate(1.65); transform: rotate(calc(var(--rot) + 16deg)) rotateY(72deg) rotateX(14deg) scale(1.12); }
+  100% { filter: hue-rotate(0deg) saturate(1); transform: rotate(var(--rot)) rotateX(8deg) scale(1); }
+}
+
+@keyframes currency-token-pop {
+  0% { opacity: 0; transform: translate(0, 30px) rotate(0deg) scale(0.28); }
+  28% { opacity: 1; }
+  72% { opacity: 1; transform: translate(var(--token-x), -74px) rotate(var(--token-rot)) scale(1.08); }
+  100% { opacity: 0; transform: translate(calc(var(--token-x) * 1.18), -116px) rotate(calc(var(--token-rot) * 1.5)) scale(0.72); }
 }
 
 @media (max-width: 1360px) {

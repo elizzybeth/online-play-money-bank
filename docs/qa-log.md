@@ -92,3 +92,35 @@
 - Live-check the full ladder visually when a viewport-capable browser runner is available.
 - Tune high-wealth overlay density so the core controls remain readable long enough to interact.
 - Add a more obvious currency-change transformation animation.
+
+## 2026-06-01: P1 Currency Change Animation Slice 1
+
+### Scope
+
+- Implemented the spec requirement that currency changes should visibly transform existing money and sparkle.
+
+### Checks
+
+- `node --check script.js`: passed.
+- In-app browser checked currency switches at:
+  - Medium balance: `10,000`.
+  - High balance: `1,000,000,000`.
+- Confirmed during each switch:
+  - Register receives the temporary currency-swap animation class.
+  - Drawer/display money animates.
+  - Eight currency-symbol tokens appear.
+  - Fourteen sparkle particles appear.
+  - Receipt logs `CUR old->new amount`.
+  - Temporary class and tokens clean up after animation.
+  - No console errors.
+
+### Changes
+
+- Added a currency-swap animation on the display and drawer money.
+- Added currency-symbol token bursts over the register.
+- Updated receipt logging from a plain currency line to `CUR previous->next amount`.
+
+### Remaining P1 Work
+
+- Tune high-wealth overlay density so the core controls remain readable long enough to interact.
+- Add reduced-motion behavior before increasing animation complexity further.
