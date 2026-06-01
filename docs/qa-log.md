@@ -124,3 +124,32 @@
 
 - Tune high-wealth overlay density so the core controls remain readable long enough to interact.
 - Add reduced-motion behavior before increasing animation complexity further.
+
+## 2026-06-01: Settings and Reduced Motion Slice 1
+
+### Scope
+
+- Made the top-right settings button functional for MVP instead of a dead future-use control.
+- Added reduced-motion support before adding more animation-heavy features.
+
+### Checks
+
+- `node --check script.js`: passed.
+- In-app browser verified:
+  - Settings dialog opens from the gear button.
+  - Settings dialog closes with the Close button.
+  - Reduced animation toggle adds the reduced-motion state.
+  - Reduced animation persists after reload.
+  - Wealth effects are hidden while reduced animation is enabled.
+  - Reset saved state returns to `$1,000,000.00` USD.
+  - Reset preserves the current reduced-motion preference.
+  - Receipt logs `MOTION LOW`, `MOTION FULL`, and `RESET ...` events.
+  - No console errors.
+
+### Changes
+
+- Added a native settings dialog.
+- Added a reduced animation toggle.
+- Added a reset saved state button.
+- Persisted the reduced-motion setting with the existing app state.
+- Suppressed generated wealth effects and fly-in/fly-out animation when reduced animation is enabled.

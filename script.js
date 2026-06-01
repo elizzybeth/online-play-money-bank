@@ -398,6 +398,10 @@ const clearButton = document.querySelector("#clear-register");
 const presetButtons = document.querySelectorAll("[data-amount]");
 const calcKeys = document.querySelectorAll("[data-calc]");
 const wealthCaption = document.querySelector("#wealth-caption");
+const settingsButton = document.querySelector("#settings-button");
+const settingsDialog = document.querySelector("#settings-dialog");
+const reduceMotionToggle = document.querySelector("#reduce-motion");
+const resetSavedStateButton = document.querySelector("#reset-saved-state");
 
 let state = loadState();
 let previousAmount = state.amount;
@@ -413,8 +417,10 @@ let lastSetReceiptAmount = null;
 initialize();
 
 function initialize() {
+  applyMotionPreference();
   amountInput.value = formatInputAmount(state.amount);
   currencySelect.value = state.currency;
+  reduceMotionToggle.checked = Boolean(state.reducedMotion);
   render("in");
   addReceiptLine(`BAL ${formatLedgerAmount(state.amount)}`);
 
@@ -468,6 +474,44 @@ function initialize() {
 
   calcKeys.forEach((button) => {
     button.addEventListener("click", () => handleCalculatorPress(button.dataset.calc));
+  });
+
+  settingsButton.addEventListener("click", () => {
+    if (typeof settingsDialog.showModal === "function") {
+      settingsDialog.showModal();
+    } else {
+      settingsDialog.setAttribute("open", "");
+    }
+  });
+
+  reduceMotionToggle.addEventListener("change", () => {
+    state.reducedMotion = reduceMotionToggle.checked;
+    saveState();
+    applyMotionPreference();
+    render("settings");
+    addReceiptLine(`MOTION ${state.reducedMotion ? "LOW" : "FULL"}`);
+  });
+
+  resetSavedStateButton.addEventListener("click", () => {
+    const reducedMotion = state.reducedMotion;
+    state = {
+      amount: DEFAULT_AMOUNT,
+      currency: "USD",
+      reducedMotion,
+      version: STORAGE_VERSION
+    };
+    previousAmount = state.amount;
+    calcInput = formatCalculatorInput(state.amount);
+    calcStoredValue = null;
+    calcOperator = null;
+    calcShouldResetInput = true;
+    lastSetReceiptAmount = null;
+    saveState();
+    currencySelect.value = state.currency;
+    amountInput.value = formatInputAmount(state.amount);
+    receiptLines = [];
+    render("settings");
+    addReceiptLine(`RESET ${formatLedgerAmount(state.amount)}`);
   });
 }
 
@@ -647,7 +691,7 @@ function renderMoney(amount, currency, direction) {
   pieces.forEach((piece, index) => {
     const element = document.createElement("span");
     element.className = piece.className || piece.type;
-    if (direction === "in") {
+    if (direction === "in" && !state.reducedMotion) {
       element.classList.add("fly-in");
     }
     element.style.left = `${piece.x}%`;
@@ -681,7 +725,7 @@ function renderMoney(amount, currency, direction) {
     moneyScene.append(element);
   });
 
-  if (direction === "out") {
+  if (direction === "out" && !state.reducedMotion) {
     renderFlyingGhosts(currency, previousAmount - amount);
   }
 
@@ -697,7 +741,7 @@ function renderStuffedBills(amount, currency, direction) {
   for (let i = 0; i < count; i += 1) {
     const bill = document.createElement("span");
     bill.className = "bill stuffed-bill";
-    if (direction === "in") {
+    if (direction === "in" && !state.reducedMotion) {
       bill.classList.add("stuff-in");
     }
     const colorPair = billColors[i % billColors.length];
@@ -934,7 +978,7 @@ function getStrainClass(amount) {
 function renderWealthEffects(amount, currency) {
   wealthEffects.replaceChildren();
 
-  if (amount < 1000000000) {
+  if (state.reducedMotion || amount < 1000000000) {
     return;
   }
 
@@ -1359,6 +1403,10 @@ function formatExampleList(examples) {
 }
 
 function sparkle() {
+  if (state.reducedMotion) {
+    return;
+  }
+
   for (let i = 0; i < 14; i += 1) {
     const sparkleEl = document.createElement("span");
     sparkleEl.className = "sparkle";
@@ -1371,6 +1419,10 @@ function sparkle() {
 }
 
 function playCurrencySwap(previousCurrencyCode, nextCurrencyCode) {
+  if (state.reducedMotion) {
+    return;
+  }
+
   const previousCurrency = currencies[previousCurrencyCode];
   const nextCurrency = currencies[nextCurrencyCode];
   register.classList.remove("currency-swap");
@@ -1414,6 +1466,7 @@ function loadState() {
       return {
         amount: DEFAULT_AMOUNT,
         currency: currencies[saved.currency] ? saved.currency : "USD",
+        reducedMotion: Boolean(saved.reducedMotion),
         version: STORAGE_VERSION
       };
     }
@@ -1422,15 +1475,20 @@ function loadState() {
     return {
       amount: clamp(Number.isFinite(savedAmount) ? savedAmount : DEFAULT_AMOUNT, 0, MAX_AMOUNT),
       currency: currencies[saved.currency] ? saved.currency : "USD",
+      reducedMotion: Boolean(saved.reducedMotion),
       version: STORAGE_VERSION
     };
   } catch {
-    return { amount: DEFAULT_AMOUNT, currency: "USD", version: STORAGE_VERSION };
+    return { amount: DEFAULT_AMOUNT, currency: "USD", reducedMotion: false, version: STORAGE_VERSION };
   }
 }
 
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...state, version: STORAGE_VERSION }));
+}
+
+function applyMotionPreference() {
+  document.body.classList.toggle("reduced-motion", Boolean(state.reducedMotion));
 }
 
 function clamp(value, min, max) {

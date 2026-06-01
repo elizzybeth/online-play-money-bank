@@ -24,7 +24,15 @@
             <option value="CAD">CAD C$</option>
             <option value="AUD">AUD A$</option>
           </select>
-          <button class="icon-button" type="button" aria-label="Settings coming soon" title="Settings coming soon">
+          <button
+            class="icon-button"
+            type="button"
+            id="settings-button"
+            aria-label="Open settings"
+            aria-haspopup="dialog"
+            aria-controls="settings-dialog"
+            title="Settings"
+          >
             <span aria-hidden="true">⚙</span>
           </button>
         </div>
@@ -122,6 +130,27 @@
       <footer class="footer">
         Play money only. Sadly, capitalism remains undefeated.
       </footer>
+
+      <dialog class="settings-dialog" id="settings-dialog" aria-labelledby="settings-title">
+        <form method="dialog" class="settings-card">
+          <div class="settings-header">
+            <h2 id="settings-title">Settings</h2>
+            <button class="settings-close" type="submit" aria-label="Close settings">Close</button>
+          </div>
+
+          <label class="settings-toggle" for="reduce-motion">
+            <span>
+              <strong>Reduce animation</strong>
+              <small>Keep the toy calmer while preserving the balance display.</small>
+            </span>
+            <input id="reduce-motion" type="checkbox" />
+          </label>
+
+          <button class="settings-reset" type="button" id="reset-saved-state">
+            Reset saved state
+          </button>
+        </form>
+      </dialog>
     </div>
 
     <script src="script.js"></script>

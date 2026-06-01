@@ -1023,6 +1023,109 @@ select {
   font-weight: 900;
 }
 
+.settings-dialog {
+  width: min(440px, calc(100vw - 32px));
+  padding: 0;
+  color: var(--ink);
+  border: 7px solid #2b78c5;
+  border-radius: 20px;
+  background: #fffbe7;
+  box-shadow: 0 18px 0 rgba(43, 120, 197, 0.22), 0 28px 42px var(--shadow);
+}
+
+.settings-dialog::backdrop {
+  background: rgba(36, 24, 23, 0.36);
+}
+
+.settings-card {
+  display: grid;
+  gap: 18px;
+  padding: 22px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 250, 215, 0.94)),
+    #fffbe7;
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.settings-header h2 {
+  margin: 0;
+  font-size: 26px;
+}
+
+.settings-close,
+.settings-reset {
+  border: 4px solid var(--ink);
+  border-radius: 12px;
+  font-weight: 900;
+  box-shadow: 0 5px 0 rgba(36, 24, 23, 0.22);
+}
+
+.settings-close {
+  padding: 9px 13px;
+  background: linear-gradient(180deg, #ffffff, #e8eef4);
+}
+
+.settings-reset {
+  min-height: 50px;
+  color: var(--ink);
+  background: linear-gradient(180deg, #ffffff, #ffcaca);
+}
+
+.settings-toggle {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border: 4px solid var(--ink);
+  border-radius: 14px;
+  background: linear-gradient(180deg, #fff280, var(--yellow));
+  box-shadow: inset 0 5px 0 rgba(255, 255, 255, 0.28);
+}
+
+.settings-toggle strong,
+.settings-toggle small {
+  display: block;
+}
+
+.settings-toggle small {
+  margin-top: 4px;
+  color: #5d433c;
+  line-height: 1.25;
+}
+
+.settings-toggle input {
+  width: 34px;
+  height: 34px;
+  accent-color: var(--green-dark);
+}
+
+.reduced-motion .cash-register,
+.reduced-motion .cash-register.huge,
+.reduced-motion .cash-register.strain-billion,
+.reduced-motion .cash-register.strain-trillion,
+.reduced-motion .cash-register.strain-quadrillion,
+.reduced-motion .bill,
+.reduced-motion .brick,
+.reduced-motion .coin,
+.reduced-motion .sparkle,
+.reduced-motion .currency-token,
+.reduced-motion .champagne-bottle,
+.reduced-motion .confetti-bit,
+.reduced-motion .piling-yacht {
+  animation: none !important;
+}
+
+.reduced-motion .wealth-effects {
+  display: none;
+}
+
 .state-empty .empty-note {
   display: block;
 }
