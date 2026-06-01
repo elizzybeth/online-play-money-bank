@@ -57,6 +57,38 @@
 
 ### Remaining P1 Work
 
-- Walk the full drawer ladder for USD and JPY: `0`, `0.01`, `1`, `100`, `1,000`, `10,000`, `100,000`, `1,000,000`, `1,000,000,000`, `1,000,000,000,000`, and `1,000,000,000,000,000`.
+- Walk the full drawer ladder for all currencies: `0`, `0.01`, `1`, `100`, `1,000`, `10,000`, `100,000`, `1,000,000`, `1,000,000,000`, `1,000,000,000,000`, and `1,000,000,000,000,000`.
 - Tune high-wealth overlay density so core controls remain readable long enough to interact.
+- Add a more obvious currency-change transformation animation.
+
+## 2026-06-01: P1 Drawer Visualization Slice 2
+
+### Scope
+
+- Extended drawer ladder hardening from USD/JPY to all MVP currencies: USD, EUR, GBP, JPY, CAD, and AUD.
+- Focused on making equivalent tiers feel intentionally different for every selected currency.
+
+### Checks
+
+- `node --check script.js`: passed.
+- Local render-function harness walked all six currencies across the amount ladder.
+- In-app browser smoke checked `10,000` for USD, EUR, GBP, JPY, CAD, and AUD with no console errors.
+- Confirmed representative fixes:
+  - JPY `1` renders as a small coin.
+  - JPY `100` renders as a medium coin.
+  - EUR `1` and GBP `1` render as toy coins, not note-styled coins.
+  - EUR `10,000` and GBP `1,000` now render as stacks instead of loose single notes.
+  - Million tiers still add money bricks.
+
+### Changes
+
+- Made note bundle calculation use ceiling division so high-denomination currencies stack sooner.
+- Added currency-specific toy note color palettes for USD, EUR, GBP, CAD, AUD, and JPY.
+- Applied proper coin sizing classes across coin-using currencies.
+- Marked fractional coin pieces as tiny toy coins.
+
+### Remaining P1 Work
+
+- Live-check the full ladder visually when a viewport-capable browser runner is available.
+- Tune high-wealth overlay density so the core controls remain readable long enough to interact.
 - Add a more obvious currency-change transformation animation.

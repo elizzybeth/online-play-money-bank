@@ -797,7 +797,7 @@ function createPieces(amount, currency) {
 
     const stacks = Math.min(count, Math.max(1, Math.ceil(count / getBundleSize(count))));
     const displayStacks = Math.min(stacks, visibleTarget - index);
-    const bundleSize = Math.max(1, Math.floor(count / displayStacks));
+    const bundleSize = Math.max(1, Math.ceil(count / displayStacks));
 
     for (let i = 0; i < displayStacks; i += 1) {
       pieces.push(createCashPiece(index, lane, i, displayStacks, denomination, bundleSize, currency, amount >= 1000000));
@@ -812,7 +812,7 @@ function createPieces(amount, currency) {
     const cents = Math.max(1, Math.round(amount * 100));
     pieces.push({
       type: "coin",
-      className: "coin drawer-coin",
+      className: "coin drawer-coin denom-coin-small",
       label: currency.symbol,
       x: 3,
       y: 12,
@@ -845,7 +845,7 @@ function createPieces(amount, currency) {
   for (let i = 0; i < Math.min(5, cents); i += 1) {
     pieces.push({
       type: "coin",
-      className: "coin drawer-coin",
+      className: "coin drawer-coin denom-coin-small",
       label: currency.symbol,
       x: 3 + (i % 2) * 4,
       y: 10 + Math.floor(i / 2) * 24,
@@ -1118,6 +1118,12 @@ function getDenominationStyle(code, denomination) {
     return "denom-coin-small";
   }
 
+  if (isCoinDenomination(code, denomination)) {
+    if (denomination >= 2) return "denom-coin-large";
+    if (denomination >= 1) return "denom-coin-medium";
+    return "denom-coin-small";
+  }
+
   if (denomination >= 100) return "denom-note-top";
   if (denomination >= 50) return "denom-note-high";
   return "denom-note-base";
@@ -1128,6 +1134,44 @@ function getBillColorPair(code, denomination) {
     if (denomination >= 10000) return ["#fff0a8", "#f0b83f"];
     if (denomination >= 5000) return ["#d7c9ff", "#8d78df"];
     if (denomination >= 1000) return ["#b8f1ff", "#54bfdc"];
+  }
+
+  if (code === "EUR") {
+    if (denomination >= 500) return ["#d7c9ff", "#9276ff"];
+    if (denomination >= 200) return ["#fff0a8", "#f0b83f"];
+    if (denomination >= 100) return ["#baff82", "#58d56f"];
+    if (denomination >= 50) return ["#ffb798", "#ff765f"];
+    return ["#a6f4ff", "#55c9ed"];
+  }
+
+  if (code === "GBP") {
+    if (denomination >= 50) return ["#ffd6f0", "#d267c4"];
+    if (denomination >= 20) return ["#d5c4ff", "#9276ff"];
+    if (denomination >= 10) return ["#ffb798", "#ff765f"];
+    return ["#a6f4ff", "#55c9ed"];
+  }
+
+  if (code === "CAD") {
+    if (denomination >= 100) return ["#d5c4ff", "#9276ff"];
+    if (denomination >= 50) return ["#ffb798", "#ff765f"];
+    if (denomination >= 20) return ["#baff82", "#58d56f"];
+    if (denomination >= 10) return ["#d7c9ff", "#9276ff"];
+    return ["#a6f4ff", "#55c9ed"];
+  }
+
+  if (code === "AUD") {
+    if (denomination >= 100) return ["#baff82", "#58d56f"];
+    if (denomination >= 50) return ["#fff280", "#ffbd42"];
+    if (denomination >= 20) return ["#ffb798", "#ff765f"];
+    if (denomination >= 10) return ["#a6f4ff", "#55c9ed"];
+    return ["#ffd6f0", "#ff8ed2"];
+  }
+
+  if (code === "USD") {
+    if (denomination >= 100) return ["#baff82", "#58d56f"];
+    if (denomination >= 50) return ["#d5c4ff", "#9276ff"];
+    if (denomination >= 20) return ["#ffd6f0", "#ff8ed2"];
+    return ["#a6f4ff", "#55c9ed"];
   }
 
   return null;
