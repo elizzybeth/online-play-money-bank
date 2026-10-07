@@ -10,26 +10,8 @@ let W,H,stage=-1,busy=false,angle=-.28,desiredAngle=-.28,morph=0,hop=-1,bank=0,f
 try{bank=+(localStorage.getItem('fold-save-bank')||0);frogs=bank}catch(e){}
 const frogSteps=[["Fold the bill in half","Bring the right short edge across to the left short edge. The bill becomes a double-layered square."],["Fold the left corner","Fold the upper-left corner diagonally toward the center. Keep the bottom edge flat."],["Fold the right corner","Mirror that fold on the upper-right corner. The pointed top will become your frog’s head."],["Turn out the left front foot","Fold the left top flap outward along its crease. Keep the other foot flat for now."],["Turn out the right front foot","Mirror the fold on the right top flap. Your frog now has two front feet."],["Narrow the lower body","Bring both lower sides inward toward the middle. Leave the front feet spread out."],["Spread the back feet","Turn out the lower portions of those folded side flaps. Your frog now has two wider back feet."],["Fold up the spring","Bring the lower body up along the horizontal crease. Press the layered fold firmly."],["Fold the spring back","Fold the lower flap back down along the next crease. This accordion pleat gives the frog its hop."]];
 
-const butterflySteps=[
- ['Fold the long edge','Bring the lower long edge up to the upper edge. This makes a narrow, two-layer strip.'],
- ['Fold the strip in half','Bring the right short end over to the left. Press the center crease firmly.'],
- ['Open the wings','Open both folds again. The crossing center creases mark the body and divide the four wings.'],
- ['Shape the left upper wing','Fold the left upper corner inward along the diagonal guide. Keep the central body crease flat.'],
- ['Shape the right upper wing','Mirror the diagonal fold on the right upper corner. Your upper wings now match.'],
- ['Shape the left lower wing','Fold the left lower corner inward to give the wing a pointed outline.'],
- ['Shape the right lower wing','Mirror that fold on the right lower corner. Leave a narrow strip at the center for the body.'],
- ['Lift both wings','Lift each wing gently along the body crease. Keep the center low and leave the wings open in a shallow V.']
-];
-const butterflyFoldPlans=[
- [{a:[-2.7,0],b:[2.7,0],side:1}],
- [{a:[0,-1.4],b:[0,.1],side:-1}],
- [{a:[0,-1.4],b:[0,.1],side:1,tag:2},{a:[-2.7,0],b:[2.7,0],side:-1,tag:1}],
- [{a:[-2.6,0],b:[-1.1,-1.22],side:-1}],
- [{a:[1.1,-1.22],b:[2.6,0],side:-1}],
- [{a:[-2.6,0],b:[-1.1,1.22],side:1}],
- [{a:[1.1,1.22],b:[2.6,0],side:1}],
- [{a:[-.12,-1.4],b:[-.12,.1],side:1,angle:.43},{a:[.12,-1.4],b:[.12,.1],side:-1,angle:.43}]
-];
+const butterflySteps=[["Make the layered base","Fold the bill in half across its short ends. Fold the two upper edges toward the center, then turn the paper over."],["Tuck the corners","Fold the exposed corners inward. Bring the two lower flaps up to the bottom edge and tuck them inside. Turn the paper over."],["Mark the wing creases","Bring the center edges outward to the sloping sides. Press both creases, open them again, and turn the paper over."],["Fold the lower edges outward","Bring the lower raw edges to the outside edges. Fold only the top flap, one side at a time."],["Collapse along the creases","Lift the center and fold the right half over the left. Let the existing creases guide the layers into a compact stack."],["Flatten the left flap","Swing the left flap to the right and press it flat. Keep the point and layered edges lined up."],["Reverse the lower points","Open each lower point just enough to push its crease inward. Close the layers around the reversed points."],["Draw out the tails","Gently twist the two new points and ease them downward. These slender tips become the butterfly’s tails."],["Lengthen the tails","Pull each tail gently from its pocket, keeping the wing layers together. Turn the butterfly over."],["Squash the center flap","Bend the small triangular center flap upward. Open its pocket and press it flat to start the body."],["Narrow the body","Reverse-fold the sides of the center flap inward. Keep the wings open while the body becomes slim."],["Tuck the head","Crimp the top of the body and tuck the tip inside. Fold the body edges under to make a small, neat head."],["Fold along the body","Bring the two wings together along the central mountain crease. The narrow body stays on the outside."],["Angle the first wing","Open the left wing along the diagonal crease beside the lower body. Give it a gentle upward angle."],["Angle the second wing","Repeat the diagonal body-side fold on the right wing. Open both wings evenly."],["Crimp the wings","Make a shallow pleat across each wing along the earlier crease. Keep the wing tips raised and the tails pointing back."]];
+const butterflyFoldPlans=Array.from({length:16},()=>[]);
 let level=0,steps=frogSteps,foldPlans,butterflies=0;
 try{const saved=JSON.parse(localStorage.getItem('fold-save-collection')||'null');if(saved){frogs=Number(saved.frogs)||0;butterflies=Number(saved.butterflies)||0}}catch(e){}
 const denominations=[1,5,10,20,50,100];
@@ -125,7 +107,46 @@ function paper(){if(level===1)return butterflyPaper();const k=Math.max(0,stage),
 
 
 
-function butterflyPaper(){const k=Math.max(0,stage),t=morph;let plan=k?foldPlans[k-1]:[];if(k===steps.length&&hop>=0)plan=plan.map(op=>({...op,angle:.43+Math.sin(hop*38)*.24}));const mesh=k===0?paperStates[0]:performFold(paperStates[k-1],plan,t,k);let hx=0,hy=0,hz=0,scale=1;if(hop>=0){const h=Math.min(1,hop);hx=4.35*h+Math.sin(h*Math.PI)*.25;hz=-1.3*h+Math.sin(h*Math.PI*2)*.4;hy=Math.sin(h*Math.PI)*2.4+h*2.1;if(h>.9)scale=Math.max(0,1-(h-.9)/.1)}const zOffset=k===0?0:k===1?.61*t:k===2?.61:k===3?.61*(1-t):0,world=(v,tags)=>[v[0]*scale+hx,(v[1]+tags.length*.005)*scale+hy,(v[2]+zOffset)*scale+hz];for(const panel of mesh)for(let i=1;i<panel.poly.length-1;i++){const vs=[panel.poly[0],panel.poly[i],panel.poly[i+1]],points=vs.map(v=>world(v.p,panel.tags));face(points,'#e5e6ca','#304c3c33');const f=faces[faces.length-1];f.uv=vs.map(v=>v.uv);f.shade=paperShade(points)}if(k===steps.length){box(hx,.19*scale+hy,hz,.16*scale,.07*scale,1.08*scale,['#a8b68b','#5a704c','#879973']);for(const sign of [-1,1])face([[sign*.03*scale+hx,.27*scale+hy,-.46*scale+hz],[sign*.23*scale+hx,.4*scale+hy,-.81*scale+hz],[sign*.27*scale+hx,.4*scale+hy,-.79*scale+hz],[sign*.07*scale+hx,.27*scale+hy,-.46*scale+hz]],'#536a46','transparent')}return mesh}
+
+const butterflyBoundary=[[0,-1.22],[2.6,-1.22],[2.6,-.4],[2.6,.5],[2.6,1.22],[.6,1.22],[0,1.22],[1.05,0]];
+// Coordinates are x, height above the table, z. Repeated vertices are folded layer contacts.
+const butterflyForms=[
+ null,
+ [[0,0,-1.22],[2.6,0,-1.22],[2.6,0,-.4],[2.6,0,.5],[2.6,0,1.22],[.6,0,1.22],[0,0,1.22],[1.05,0,0]],
+ [[0,0,-1.5],[2.25,0,.85],[1.8,.01,.85],[1.3,.02,.85],[.8,.03,.85],[.3,.04,.85],[0,.05,.85],[.8,.02,.05]],
+ [[0,.02,-1.5],[2.25,.02,.85],[1.8,.03,.85],[1.25,.04,.6],[.65,.05,.65],[.25,.06,.85],[0,.07,.85],[.8,.04,.05]],
+ [[0,.02,-1.5],[2.25,.02,.85],[1.7,.03,.65],[1.25,.04,.4],[.6,.05,.55],[.25,.06,.85],[0,.07,.85],[.75,.04,-.05]],
+ [[0,.02,-1.5],[2.25,.02,.85],[1.75,.08,.55],[1.25,.1,.05],[.6,.1,.35],[.25,.06,.85],[0,.07,.85],[.75,.04,-.05]],
+ [[0,.04,-1.5],[2.25,.04,.85],[1.75,.1,.55],[1.25,.12,.05],[.6,.12,.35],[.25,.08,.85],[0,.09,.85],[.75,.06,-.05]],
+ [[0,.04,-1.3],[2.15,.04,-1.1],[1.75,.06,-.3],[1.4,.08,.35],[.65,.1,.75],[.35,.12,.3],[0,.14,.45],[.8,.08,-.1]],
+ [[0,.04,-1.3],[2.15,.04,-1.1],[1.75,.06,-.3],[1.4,.08,.35],[.4,.1,1.15],[.3,.12,.4],[0,.14,.45],[.8,.08,-.1]],
+ [[0,.04,-1.3],[2.15,.04,-1.1],[1.75,.06,-.3],[1.4,.08,.35],[.32,.1,1.5],[.22,.12,.4],[0,.14,.45],[.8,.08,-.1]],
+ [[0,.04,-1.3],[2.15,.04,-1.1],[1.75,.06,-.3],[1.4,.08,.35],[.32,.1,1.5],[.22,.12,.4],[0,.14,.45],[.8,.08,-.1]],
+ [[.25,.12,-.9],[2.15,.04,-1.3],[1.85,.06,-.35],[1.4,.08,.5],[.32,.1,1.5],[.22,.12,.4],[.2,.2,.55],[.8,.08,-.1]],
+ [[.13,.15,-.9],[2.15,.04,-1.3],[1.85,.06,-.35],[1.4,.08,.5],[.32,.1,1.5],[.22,.12,.4],[.12,.22,.55],[.8,.08,-.1]],
+ [[.1,.17,-.7],[2.15,.04,-1.3],[1.85,.06,-.35],[1.4,.08,.5],[.32,.1,1.5],[.22,.12,.4],[.1,.25,.55],[.8,.08,-.1]],
+ [[.1,.17,-.7],[2.15,.04,-1.3],[1.85,.06,-.35],[1.4,.08,.5],[.32,.1,1.5],[.22,.12,.4],[.1,.25,.55],[.8,.08,-.1]],
+ [[.1,.17,-.7],[2.15,.66,-1.3],[1.85,.48,-.35],[1.4,.32,.5],[.32,.1,1.5],[.22,.15,.4],[.1,.25,.55],[.8,.32,-.1]],
+ [[.1,.17,-.7],[2.15,.66,-1.3],[1.85,.48,-.35],[1.4,.32,.5],[.32,.1,1.5],[.22,.15,.4],[.1,.25,.55],[.8,.32,-.1]],
+ [[.1,.17,-.7],[2.15,.82,-1.3],[1.9,.48,-.32],[1.45,.32,.55],[.32,.1,1.5],[.22,.15,.4],[.1,.25,.55],[.83,.23,-.1]]
+];
+function butterflyVertex(n,sign,k){
+ const b=butterflyBoundary[n];if(k===0)return [sign*b[0],sheetY,b[1]];
+ let p=butterflyForms[k][n].slice();p[0]*=sign;p[1]+=sheetY;
+ if(k===1){p[0]=-Math.abs(p[0])+1.3;p[1]+=sign>0?.012:0}
+ if(k===5||k===6){p[0]=Math.abs(p[0])-1.05;p[1]+=sign<0?.025:0}
+ if(k===13){p=[sign*.1+sign*(Math.abs(p[0])-.1)*.13,sheetY+(Math.abs(p[0])-.1)*.94+.18,p[2]]}
+ if(k===14&&sign===1)return butterflyVertex(n,sign,13);
+ return p;
+}
+function butterflyPaper(){
+ const k=Math.max(0,stage),t=morph;let hx=0,hy=0,hz=0,scale=1;
+ if(hop>=0){const h=Math.min(1,hop);hx=4.35*h+Math.sin(h*Math.PI)*.25;hz=-1.3*h+Math.sin(h*Math.PI*2)*.4;hy=Math.sin(h*Math.PI)*2.4+h*2.1;if(h>.9)scale=Math.max(0,1-(h-.9)/.1)}
+ const point=(n,sign)=>{const a=butterflyVertex(n,sign,Math.max(0,k-1)),b=butterflyVertex(n,sign,k);let p=k===0?b:a.map((v,j)=>v+(b[j]-v)*t);if(k===1){const original=butterflyVertex(n,sign,0);p=sign>0?hinge(original,{a:[0,-1.3],b:[0,1.3],side:-1},t):original;p[0]+=1.3*t;p[1]+=sign>0?.012*t:0}else if(k===13||k===14&&sign===-1||k===15&&sign===1){const flat=butterflyVertex(n,sign,12),open=butterflyVertex(n,sign,15);const closing=k===13,u=closing?t:1-t,theta=u*1.44;const width=Math.abs(flat[0])-.1;p=[sign*(.1+width*Math.cos(theta)),flat[1]+width*Math.sin(theta),flat[2]];if(!closing)p=p.map((v,j)=>v+(open[j]-flat[j])*(1-u))}else if(k>0){const travel=Math.hypot(b[0]-a[0],b[2]-a[2]);p[1]+=Math.sin(Math.PI*t)*travel*.42}if(hop>=0)p[1]+=Math.sin(hop*38)*Math.abs(p[0])*.26;return [p[0]*scale+hx,p[1]*scale+hy,p[2]*scale+hz]};
+ for(const sign of [-1,1])for(let i=0;i<7;i++){const ns=[7,i,(i+1)%7],points=ns.map(n=>point(n,sign));face(points,'#e5e6ca','#304c3c55');const f=faces[faces.length-1];f.uv=ns.map(n=>[(sign*butterflyBoundary[n][0]+2.6)/5.2*1200,(butterflyBoundary[n][1]+1.22)/2.44*560]);f.shade=paperShade(points)}
+ if(k>=10){const amount=k===10?t:1,w=.28-(Math.min(12,k)-10)*.065;const verts=[[-w,sheetY+.12,-.72],[w,sheetY+.12,-.72],[w*.65,sheetY+.18,.55],[-w*.65,sheetY+.18,.55],[0,sheetY+.33*amount,-.5],[0,sheetY+.35*amount,.45]];for(const ids of [[0,1,4],[0,4,5],[0,5,3],[1,2,5],[1,5,4],[2,3,5]]){const points=ids.map(n=>[verts[n][0]*scale+hx,verts[n][1]*scale+hy,verts[n][2]*scale+hz]);face(points,'#e5e6ca','#304c3c66');faces[faces.length-1].uv=ids.map(n=>[600+verts[n][0]*100,280+verts[n][2]*120]);faces[faces.length-1].shade=paperShade(points)}}
+}
+
 
 function paintRegisterDisplay(){const a=project([-5.025,1.92,-1.573]),b=project([-3.975,1.92,-1.573]),c=project([-5.025,1.64,-1.573]);ctx.save();ctx.transform((b[0]-a[0])/160,(b[1]-a[1])/160,(c[0]-a[0])/44,(c[1]-a[1])/44,a[0],a[1]);ctx.fillStyle='#d8edae';ctx.font='600 25px sans-serif';ctx.textAlign='center';ctx.fillText('$'+billValue()+'.00',80,30);ctx.restore()}
 function pointInTriangle(p,a,b,c){const cross=(v,w,u)=>(w[0]-v[0])*(u[1]-v[1])-(w[1]-v[1])*(u[0]-v[0]);if(Math.abs(cross(a,b,c))<.5)return false;let v=[cross(a,b,p),cross(b,c,p),cross(c,a,p)];return v.every(n=>n>=-.1)||v.every(n=>n<=.1)}
@@ -159,14 +180,14 @@ let pv=stage>=0&&hop<1?paper():null;faces.sort((a,b)=>a.d-b.d);let frogShadowDra
 if(stage>=0&&stage<steps.length&&!busy){const [a,b]=guide();line([a,b],'#a7ad55',2,[5,5]);for(const [p,r,fill] of [[b,13,'#fffdf1'],[a,10,'#dfb849']]){let q=project(p);ctx.beginPath();ctx.arc(q[0],q[1],r,0,Math.PI*2);ctx.fillStyle=fill;ctx.fill();ctx.strokeStyle='#ad9039';ctx.lineWidth=2;ctx.stroke()}let q=project(b);ctx.fillStyle='#ab8a38';ctx.font='17px sans-serif';ctx.fillText('↓',q[0],q[1]+5)}
 if(drag){ctx.beginPath();ctx.arc(drag.x,drag.y,12,0,Math.PI*2);ctx.strokeStyle='#dfb849';ctx.lineWidth=3;ctx.stroke()}
 clock++;requestAnimationFrame(draw)}
-function guide(){if(level===1){const g=[[[0,.2,1.15],[0,.2,-1.15]],[[2.5,.2,-.3],[-2.5,.2,-.3]],[[-2.3,.2,-.3],[2.3,.2,-.3]],[[-2.45,.2,-.55],[-1.45,.2,.2]],[[2.45,.2,-.55],[1.45,.2,.2]],[[-2.45,.2,.5],[-1.45,.2,-.2]],[[2.45,.2,.5],[1.45,.2,-.2]],[[2,.2,0],[1.7,1,0]]];return g[Math.min(stage,g.length-1)]}const guides=[[[2.5,.2,0],[-2.5,.2,0]],[[-1.2,.2,-1.2],[0,.2,0]],[[1.2,.2,-1.2],[0,.2,0]],[[0,.2,-.4],[-1.05,.2,-.4]],[[0,.2,-.4],[1.05,.2,-.4]],[[-1.2,.2,.7],[0,.2,.7]],[[0,.2,.8],[-1.2,.2,.8]],[[0,.2,1.2],[0,.2,-.1]],[[0,.2,-.1],[0,.2,.6]]];return guides[Math.min(stage,steps.length-1)]}
+function guide(){if(level===1){const g=[[[2.5,.2,0],[-2.5,.2,0]],[[2,.2,.8],[.5,.2,.2]],[[.3,.2,0],[1.5,.2,.4]],[[.5,.2,.8],[1.5,.2,.3]],[[1.5,.2,0],[-1,.2,0]],[[0,.2,0],[1.5,.2,0]],[[1.4,.2,.4],[.4,.5,.8]],[[.4,.3,.8],[.3,.2,1.4]],[[.3,.2,1],[.3,.2,1.5]],[[0,.2,-.6],[0,.7,-.6]],[[.3,.4,0],[.1,.4,0]],[[0,.4,-.8],[0,.3,-.5]],[[1.6,.3,0],[0,1.7,0]],[[-.2,.3,0],[-1.8,.8,0]],[[.2,.3,0],[1.8,.8,0]],[[-1.5,.7,0],[-1.5,.4,.3]]];return g[Math.min(stage,g.length-1)]}const guides=[[[2.5,.2,0],[-2.5,.2,0]],[[-1.2,.2,-1.2],[0,.2,0]],[[1.2,.2,-1.2],[0,.2,0]],[[0,.2,-.4],[-1.05,.2,-.4]],[[0,.2,-.4],[1.05,.2,-.4]],[[-1.2,.2,.7],[0,.2,.7]],[[0,.2,.8],[-1.2,.2,.8]],[[0,.2,1.2],[0,.2,-.1]],[[0,.2,-.1],[0,.2,.6]]];return guides[Math.min(stage,steps.length-1)]}
 function resize(){const r=canvas.getBoundingClientRect();W=r.width;H=r.height;canvas.width=W*devicePixelRatio;canvas.height=H*devicePixelRatio;ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0)}window.addEventListener('resize',resize);resize();
 function toast(message){$('toast').textContent=message;$('toast').style.opacity=1;setTimeout(()=>$('toast').style.opacity=0,1800)}
 function update(){
  $('hint').hidden=false;$('balance').textContent='$'+bank;$('collected').textContent=frogs+' frogs · '+butterflies+' butterflies';$('progress').innerHTML=steps.map((_,i)=>'<i class="'+(i<stage?'done':'')+'"></i>').join('');$('undo').hidden=stage<1||hop>=0;$('action').disabled=busy;
  $('level-frog').classList.toggle('selected',level===0);$('level-butterfly').classList.toggle('selected',level===1);$('level-butterfly').disabled=busy||frogs===0;$('level-frog').disabled=busy;$('level-butterfly').textContent=frogs?'🦋 2 · Butterfly':'🔒 2 · Butterfly';$('level-butterfly').title=frogs?'Fold a butterfly':'Save your first frog to unlock';$('next-level').hidden=level===1||hop<1;$('next-level').disabled=busy;
  const name=level?'butterfly':'frog';
- if(stage<0){$('step').textContent=level?'Level 2 · Butterfly':'Level 1 · Frog';$('title').textContent=level?'Five dollars take flight.':'Every frog starts with a bill.';$('instruction').textContent=level?'Take a $5 bill and fold a butterfly. Eight gentle folds, then a flutter into the bank.':'Take a dollar from the register. Then follow the guides to bring your frog to life.';$('action').textContent='Take a $'+billValue()+' bill ↗';$('hint').textContent='Click the cash register to take a $'+billValue()+' bill'}
+ if(stage<0){$('step').textContent=level?'Level 2 · Butterfly':'Level 1 · Frog';$('title').textContent=level?'Five dollars take flight.':'Every frog starts with a bill.';$('instruction').textContent=level?'Take a $5 bill and fold a butterfly. Sixteen guided folds, then a flutter into the bank.':'Take a dollar from the register. Then follow the guides to bring your frog to life.';$('action').textContent='Take a $'+billValue()+' bill ↗';$('hint').textContent='Click the cash register to take a $'+billValue()+' bill'}
  else if(stage<steps.length){$('step').textContent='Level '+(level+1)+' · Fold '+(stage+1)+' of '+steps.length;$('title').textContent=steps[stage][0];$('instruction').textContent=steps[stage][1];$('action').textContent='Make this fold →';$('hint').textContent='Drag the gold dot to the target · or use Make this fold'}
  else{$('step').textContent=hop>=1?'Beautifully saved':(level?'Butterfly complete!':'Frog complete!');$('title').textContent=hop>=1?(level?'A little flutter. Five dollars saved.':'A little hop. A dollar saved.'):(level?'Ready to spread your wings?':'Ready, set… ribbit.');$('instruction').textContent=hop>=1?(level?'Your butterfly is safe in the bank. Fold another, or revisit the frog workshop.':'Your frog is cozy in the bank. Level 2 is unlocked—make a butterfly next!'):'Click your '+name+' to '+(level?'flutter':'hop')+' into the slot and save your $'+billValue()+' bill.';$('action').textContent=hop>=1?'Fold another '+name+' ↗':(level?'Flutter':'Hop')+' into my piggy bank →';$('hint').textContent=hop>=1?'':'Click your '+name+' to send it home';$('hint').hidden=hop>=1}
 }
