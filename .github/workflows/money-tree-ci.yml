@@ -13,6 +13,7 @@ jobs:
       matrix:
         browser: [chromium, firefox, webkit]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: games/money-tree
@@ -29,7 +30,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
       - run: pnpm exec playwright install --with-deps ${{ matrix.browser }}
-      - run: pnpm test:e2e
+      - run: xvfb-run --auto-servernum pnpm test:e2e --headed
+        timeout-minutes: 10
         env:
           MONEY_TREE_BROWSER: ${{ matrix.browser }}
       - run: pnpm build
