@@ -22,6 +22,10 @@
 - 104 camera samples across doorways, room corners, shop aisles, garden, and an exterior roof edge.
 - Valid and invalid save imports.
 - Crop growth uses elapsed active time after a rendering stall; pausing prevents advancement.
+- New tree colliders clear overlapping players and allow them to walk away.
+- Pause-menu recovery preserves resources, crops, journal and day, cancels unfinished digging, and persists through reload.
+- Mom and Robertson remind empty-pocket players to check the piggy bank; reminders stop after withdrawing savings.
+- Robertson's sign boards have separate bounds; inspect the storefront screenshot for legibility.
 - Opt-in visual regression images for opening, bedroom, and harvest-ready garden.
 
 ## Visual checks

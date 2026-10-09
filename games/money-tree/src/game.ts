@@ -211,6 +211,22 @@ export function blocked(x: number, z: number, rects: Rect[], radius = 0.48) {
       z - radius < r.z + r.d / 2,
   );
 }
+// A new tree collider can appear around the player. Find nearby clear ground
+// instead of trapping movement inside the expanded collision volume.
+export function clearPosition(pos: { x: number; z: number }, rects: Rect[]) {
+  const clear = (x: number, z: number) =>
+    Math.abs(x) <= 38 && z >= -39 && z <= 38 && !blocked(x, z, rects);
+  if (clear(pos.x, pos.z)) return pos;
+  for (let radius = 0.15; radius <= 3; radius += 0.15) {
+    for (let step = 0; step < 32; step++) {
+      const angle = (step * Math.PI * 2) / 32;
+      const x = pos.x + Math.sin(angle) * radius;
+      const z = pos.z + Math.cos(angle) * radius;
+      if (clear(x, z)) return { x, z };
+    }
+  }
+  return { x: -16, z: 4 };
+}
 export function move(
   pos: { x: number; z: number },
   dx: number,

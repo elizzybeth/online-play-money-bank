@@ -17,6 +17,7 @@ import {
   recover,
   move,
   blocked,
+  clearPosition,
   type State,
 } from "./game";
 import { createWorld, type Target } from "./world";
@@ -125,7 +126,7 @@ function save() {
 function toast(text: string) {
   $("#toast").textContent = text;
   $("#toast").style.opacity = "1";
-  toastTime = 4;
+  toastTime = Math.max(4, Math.min(10, text.length / 18));
 }
 function close() {
   last = performance.now();
@@ -259,13 +260,18 @@ function shop(item: "seeds" | "can" | "shovel" | "fertilizer") {
     "ROBERTSONS",
   );
 }
+function momGreeting() {
+  return s.cash === 0 && s.bank > 0
+    ? "“You headed into town? Take some money with you. I think you've got some in your piggy bank. OK, love you!”"
+    : "“You headed into town? OK, love you!”";
+}
 function robertson() {
   visit("Visited Ol’ Man Robertson at the store.");
   s.metRobertson = true;
   save();
   panel(
     "Ol’ Man Robertson",
-    `<p>“Well, look who it is! Lovely day for a little dirt under your nails.”</p><p>“How’s the garden going? You still looking to buy some seeds?”</p><p class="fine">Watering can $1 · Shovel $1 · Fertilizer $5<br>“You seem pretty new to this. You might want some other supplies.”</p>`,
+    `<p>“Well, look who it is! Lovely day for a little dirt under your nails.”</p>${s.cash === 0 ? "<p>“No money with you? Head back home and check your piggy bank. You might have some saved in there.”</p>" : ""}<p>“How’s the garden going? You still looking to buy some seeds?”</p><p class="fine">Watering can $1 · Shovel $1 · Fertilizer $5<br>“You seem pretty new to this. You might want some other supplies.”</p>`,
     [
       { label: "Yes, seeds please · $2", run: () => shop("seeds") },
       { label: "Look around", run: close },
@@ -294,6 +300,24 @@ function pauseMenu() {
     `<p>Day ${s.day} · Your progress saves automatically.</p><p class="fine">WASD to walk. Drag to rotate the camera; arrow keys also work. E interacts. J opens the notebook. I opens your bag.<br>Growth pauses while menus are open or the tab is hidden.</p>`,
     [
       { label: "Keep playing", run: close },
+      ...(s.awake
+        ? [
+            {
+              label: "I'm stuck — return home",
+              run: () => {
+                action = undefined;
+                s.position = { x: -16, z: 4 };
+                yaw = 0;
+                pitch = 0.42;
+                save();
+                close();
+                toast(
+                  "Back on safe ground at home. Your money, garden, and progress are safe.",
+                );
+              },
+            },
+          ]
+        : []),
       {
         label: muted ? "Sound: off" : "Sound: on",
         run: () => {
@@ -437,7 +461,7 @@ function interact() {
     save();
     return panel(
       "Mom",
-      "<p>“You headed into town? OK, love you!”</p>",
+      `<p>${momGreeting()}</p>`,
       [{ label: "Love you too", run: close }],
       "HOME",
     );
@@ -781,7 +805,7 @@ function frame(now: number) {
         momSpoke = true;
         s.metMom = true;
         visit("Talked with Mom before heading out.");
-        toast("Mom: “You headed into town? OK, love you!”");
+        toast(`Mom: ${momGreeting()}`);
       }
       if (
         s.metRobertson &&
@@ -806,13 +830,24 @@ function frame(now: number) {
   world.player.position.z = s.position.z;
   world.player.visible = s.awake || !begun;
   world.sleeping.visible = begun && !s.awake;
+  let treesChanged = false;
   for (let i = 0; i < 5; i++) {
     const p = s.plots[i],
       v = `${p.stage}:${p.fertilized}`;
     if (v !== plotVersions[i]) {
       world.moneyTree(i, p.stage, p.fertilized);
       plotVersions[i] = v;
+      treesChanged = true;
     }
+  }
+  if (
+    treesChanged &&
+    s.awake &&
+    blocked(s.position.x, s.position.z, world.rects)
+  ) {
+    s.position = clearPosition(s.position, world.rects);
+    world.player.position.set(s.position.x, 0, s.position.z);
+    save();
   }
   for (let i = 0; i < 5; i++) {
     const p = s.plots[i];
@@ -923,6 +958,12 @@ if (new URLSearchParams(location.search).has("test")) {
     advance: (dt: number) => tick(s, dt),
     rects: world.rects,
     targets: world.targets,
+    shopSigns: () =>
+      ["robertsons-name", "robertsons-trade"].map((name) => {
+        const mesh = scene.getObjectByName(name) as T.Mesh;
+        const bounds = new T.Box3().setFromObject(mesh);
+        return { min: bounds.min.toArray(), max: bounds.max.toArray() };
+      }),
     npcHeadPenetrations: () => {
       const sphere = (g: T.Object3D) => {
         const head = g.getObjectByName("head") as T.Mesh;

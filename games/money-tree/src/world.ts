@@ -85,23 +85,30 @@ export function createWorld(scene: T.Scene) {
     z: number,
     width = 4,
     color = "#334a3c",
+    aspect = 4,
   ) {
     const c = document.createElement("canvas");
-    c.width = 512;
+    c.width = 128 * aspect;
     c.height = 128;
     const ctx = c.getContext("2d")!;
     ctx.fillStyle = "#faf1d8";
-    ctx.fillRect(0, 0, 512, 128);
+    ctx.fillRect(0, 0, c.width, 128);
     ctx.strokeStyle = "#af996b";
     ctx.lineWidth = 9;
-    ctx.strokeRect(5, 5, 502, 118);
+    ctx.strokeRect(5, 5, c.width - 10, 118);
     ctx.fillStyle = color;
     ctx.font = "bold 43px Georgia";
+    for (
+      let size = 43;
+      ctx.measureText(text).width > c.width - 48 && size > 12;
+    ) {
+      ctx.font = `bold ${--size}px Georgia`;
+    }
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(text, 256, 66);
+    ctx.fillText(text, c.width / 2, 66);
     const mesh = new T.Mesh(
-      new T.PlaneGeometry(width, width / 4),
+      new T.PlaneGeometry(width, width / aspect),
       new T.MeshBasicMaterial({
         map: new T.CanvasTexture(c),
         side: T.DoubleSide,
@@ -299,8 +306,9 @@ export function createWorld(scene: T.Scene) {
   box(4, 1.8, -23, 4, 3.6, 0.25, "#a9b9a2", true);
   box(11, 1.8, -23, 6, 3.6, 0.25, "#a9b9a2", true);
   occluders.push(box(7, 3.2, -23, 2, 1, 0.25, "#a9b9a2"));
-  label("ROBERTSONS", 8, 4.2, -22.85, 8);
-  label("HARDWARE & GROCERIES", 8, 3.55, -22.83, 5);
+  label("ROBERTSONS", 8, 4.8, -22.7, 8).name = "robertsons-name";
+  label("HARDWARE & GROCERIES", 8, 3.1, -22.7, 8, "#334a3c", 8).name =
+    "robertsons-trade";
   for (const x of [3, 13]) {
     box(x, 1, -29, 1, 2, 7, "#947859", true);
     for (let j = 0; j < 6; j++) {
