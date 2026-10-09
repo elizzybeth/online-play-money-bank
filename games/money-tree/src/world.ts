@@ -1,3 +1,4 @@
+import { moneySkeleton } from "./money-tree-model";
 import { surfaceMaterial, surfaceTexture } from "./textures";
 import { hats, type HatId } from "./hats";
 import { makeHat } from "./hat-models";
@@ -439,7 +440,9 @@ export function createWorld(scene: T.Scene) {
       new T.CapsuleGeometry(0.12, 0.45, 3, 8),
       surfaceMaterial("#d9b6bd", "cloth"),
     );
-    thigh.position.set(side * 0.16, 0.43, 0.6);
+    thigh.position.set(side * 0.16, 0.43, 0.48);
+    ball(side * 0.16, 0.37, 0.94, 0.15, "#d9b6bd", seatedLegs).material =
+      surfaceMaterial("#d9b6bd", "cloth");
     thigh.rotation.x = Math.PI / 2;
     seatedLegs.add(thigh);
     const calf = new T.Mesh(
@@ -531,7 +534,7 @@ export function createWorld(scene: T.Scene) {
           : status.activity === "garden"
             ? -17.2
             : -12.5,
-      seated ? 0.72 : 0,
+      seated ? 0.69 : 0,
       garden ? 18 : seated ? 10 : status.activity === "garden" ? 11.7 : 11.4,
     );
     mom.scale.y = 1;
@@ -1126,43 +1129,27 @@ export function createWorld(scene: T.Scene) {
       ball(0, 0.12, 0, 0.17, "#94ba77", g);
       return;
     }
-    const height =
-      stage === "harvested" ? 1.25 : stage === "growing" ? 1.5 : 2.5;
-    const trunk = box(0, height / 2, 0, 0.2, height, 0.2, "#303832", false, g);
-    trunk.rotation.z = 0.12;
-    treeRects[index] = { x: g.position.x, z: g.position.z, w: 0.28, d: 0.28 };
+    const height = stage === "harvested" ? 1.35 : 2.4;
+    const wood = surfaceMaterial(
+      stage === "harvested" ? "#655e50" : "#252b28",
+      "bark",
+      1,
+      3,
+    );
+    const skeleton = moneySkeleton(index, height, wood, stage === "harvested");
+    g.add(skeleton.trunk, skeleton.branches);
+    treeRects[index] = { x: g.position.x, z: g.position.z, w: 0.5, d: 0.5 };
     rects.push(treeRects[index]!);
-    treeTrunks[index] = trunk;
-    occluders.push(trunk);
-    for (let j = 0; j < 6; j++) {
-      const a = j * 2.4,
-        branch = box(
-          Math.sin(a) * 0.44,
-          height * (0.45 + j * 0.065),
-          Math.cos(a) * 0.35,
-          0.13,
-          1.1,
-          0.13,
-          "#303832",
-          false,
-          g,
-        );
-      branch.rotation.z = Math.sin(a) * 0.9;
-      branch.rotation.x = Math.cos(a) * 0.7;
-    }
-    if (stage === "harvested") {
-      g.traverse((o) => {
-        if (o instanceof T.Mesh) o.material.color.set("#655e50");
-      });
-      for (const branch of g.children.slice(1)) branch.rotation.z += 0.8;
-    }
+    treeTrunks[index] = skeleton.trunk;
+    occluders.push(skeleton.trunk);
     if (stage === "ready" || stage === "growing") {
       for (let j = 0; j < (stage === "ready" ? 18 : 6); j++) {
-        const a = j * 2.4;
+        const a = j * 2.4,
+          tip = skeleton.tips[j % skeleton.tips.length];
         const bill = box(
-          Math.sin(a) * (0.6 + (j % 3) * 0.14),
-          height * 0.6 + (j % 5) * 0.22,
-          Math.cos(a) * 0.75,
+          tip.x,
+          tip.y - 0.08,
+          tip.z,
           0.42,
           0.22,
           0.025,

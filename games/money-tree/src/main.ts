@@ -1373,7 +1373,20 @@ addEventListener("keydown", (e) => {
     const choice = speaking?.element.querySelector<HTMLButtonElement>(
       ".choices button:not(:disabled)",
     );
-    if (choice && choice.dataset.safeDefault === "true") choice.click();
+    const speaker = world.speakers.find((n) => n.id === speaking?.id);
+    const closeEnough =
+      speaker &&
+      Math.hypot(
+        speaker.object.position.x - s.position.x,
+        speaker.object.position.z - s.position.z,
+      ) < 8;
+    if (
+      choice &&
+      choice.dataset.safeDefault === "true" &&
+      closeEnough &&
+      !speaking!.id.startsWith("npc")
+    )
+      choice.click();
     else interact();
   } else if (key === "j") notebook();
   else if (key === "i") bag();

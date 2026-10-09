@@ -12,10 +12,10 @@ for (let spot = 0; spot < seedStashSpots.length; spot++)
       seedStashSpot: spot,
       position: { x: seedStashSpots[spot].x, z: seedStashSpots[spot].z },
     });
-    await page.addInitScript(
-      (s) => localStorage.setItem("money-tree-v1", JSON.stringify(s)),
-      s,
-    );
+    await page.addInitScript((s) => {
+      if (!localStorage.getItem("money-tree-v1"))
+        localStorage.setItem("money-tree-v1", JSON.stringify(s));
+    }, s);
     await page.goto("./?test");
     await page.getByRole("button", { name: "Wake up" }).click();
     await expect(page.locator("#prompt")).toContainText("seed packet");
@@ -42,21 +42,21 @@ for (let spot = 0; spot < seedStashSpots.length; spot++)
 test("up and down arrows tilt the camera without walking", async ({ page }) => {
   const s = fresh();
   Object.assign(s, { awake: true, position: { x: 3, z: 20 } });
-  await page.addInitScript(
-    (s) => localStorage.setItem("money-tree-v1", JSON.stringify(s)),
-    s,
-  );
+  await page.addInitScript((s) => {
+    if (!localStorage.getItem("money-tree-v1"))
+      localStorage.setItem("money-tree-v1", JSON.stringify(s));
+  }, s);
   await page.goto("./?test");
   await page.getByRole("button", { name: "Wake up" }).click();
   const initial = await page.evaluate(() => (window as any).game.cameraPitch());
   await page.keyboard.down("ArrowUp");
-  await page.waitForTimeout(200);
+  await expect.poll(() => page.evaluate(() => (window as any).game.cameraPitch())).toBeLessThan(initial - 0.05);
   await page.keyboard.up("ArrowUp");
   expect(
     await page.evaluate(() => (window as any).game.cameraPitch()),
   ).toBeLessThan(initial);
   await page.keyboard.down("ArrowDown");
-  await page.waitForTimeout(400);
+  await expect.poll(() => page.evaluate(() => (window as any).game.cameraPitch())).toBeGreaterThan(initial + 0.05);
   await page.keyboard.up("ArrowDown");
   expect(
     await page.evaluate(() => (window as any).game.cameraPitch()),

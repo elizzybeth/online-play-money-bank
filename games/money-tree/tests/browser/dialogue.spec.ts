@@ -78,7 +78,7 @@ test("harvest withers, Robertson stops selling seeds, cap seeds replant once and
   await page.keyboard.press("e");
   await page.getByRole("button", { name: "Buy · $5.00" }).click();
   await page.keyboard.press("i");
-  await expect(page.locator(".inventory-card svg")).toHaveCount(5);
+  await expect(page.locator(".inventory-card svg")).toHaveCount(7);
   await expect(page.locator("[data-item=fertilizer]")).toContainText(
     "1 application",
   );

@@ -46,7 +46,7 @@ for (const [day, activity, phrase] of [
     await expect(page.locator(".speech-bubble")).not.toHaveText(firstReply!);
     if (activity === "resting" || activity === "reading") {
       const pose = await page.evaluate(() => (window as any).game.momPose());
-      expect(pose.y).toBe(0.72);
+      expect(pose.y).toBe(0.69);
       expect(pose.scale).toBe(1);
       for (const foot of pose.feet) expect(foot[0]).toBeGreaterThan(-17.8);
     }
