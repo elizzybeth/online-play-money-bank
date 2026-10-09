@@ -9,6 +9,8 @@ test.beforeEach(async ({ page }) => {
 });
 test("opening and bedroom visual regression", async ({ page }) => {
   await page.goto("./?test");
+  await expect(page.locator(".title-logo")).toBeVisible();
+  await expect(page).toHaveScreenshot("title.png", { maxDiffPixelRatio: 0.01 });
   await page.getByRole("button", { name: "Wake up" }).click();
   await expect(page.locator("#toast")).toHaveCSS("opacity", "0");
   await expect(page).toHaveScreenshot("opening.png", {

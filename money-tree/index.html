@@ -5,24 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#233d34" />
     <title>Money Tree · Online Play Money Bank</title>
-    <script type="module" crossorigin src="./assets/index-Boj3Ttvw.js"></script>
+    <script type="module" crossorigin src="./assets/index-BKorC1or.js"></script>
     <link rel="modulepreload" crossorigin href="./assets/three-BFna5-hl.js">
-    <link rel="stylesheet" crossorigin href="./assets/index-DSFJ9cbi.css">
-  <style>
-a.opmb-brand { color: inherit; text-decoration: none; }
-a.opmb-brand:hover { color: #d8edb7; }
-.opmb-home { display: inline-block; color: #d9e7ae; font: 12px Arial, sans-serif; text-decoration: none; padding: 8px 0; }
-.opmb-home:hover { text-decoration: underline; }
-a.opmb-brand:focus-visible, .opmb-home:focus-visible { outline: 3px solid #d8a148; outline-offset: 4px; border-radius: 4px; }
-</style>
-</head>
+    <link rel="stylesheet" crossorigin href="./assets/index-BfWiC1Bg.css">
+  </head>
   <body>
     <div id="app">
       <canvas id="world" tabindex="0" aria-label="Money Tree 3D game"></canvas>
       <header>
-        <a class="brand opmb-brand" href="https://onlineplaymoneybank.com/" aria-label="Back to Online Play Money Bank" title="Back to OPMB">
-          <span class="sprout">♧</span>
-          <div>MONEY TREE<small>← ONLINE PLAY MONEY BANK</small></div>
+        <a
+          class="brand opmb-brand"
+          href="https://onlineplaymoneybank.com/"
+          aria-label="Back to Online Play Money Bank"
+          title="Back to OPMB"
+        >
+          <img src="./money-tree-logo.webp" alt="Money Tree" />
         </a>
         <div id="stats"></div>
         <button id="journal">Notebook <kbd>J</kbd></button
@@ -30,7 +27,6 @@ a.opmb-brand:focus-visible, .opmb-home:focus-visible { outline: 3px solid #d8a14
         ><button id="pause" aria-label="Pause game">☰</button>
       </header>
       <aside id="quest">
-        <small>A LITTLE HOPE, A LITTLE MAGIC</small>
         <h2 id="objective"></h2>
         <p id="hint"></p>
       </aside>
@@ -47,15 +43,25 @@ a.opmb-brand:focus-visible, .opmb-home:focus-visible { outline: 3px solid #d8a14
       <div id="modal" hidden></div>
       <div id="intro">
         <div class="intro-card">
-          <small>AN ORDINARY TOWN. AN EXTRAORDINARY GARDEN.</small>
-          <h1>Money<br /><em>Tree.</em></h1>
+          <h1>
+            <img
+              class="title-logo"
+              src="./money-tree-logo.webp"
+              alt="Money Tree"
+            />
+          </h1>
           <p>A pocketful of change.<br />A garden full of possibility.</p>
-          <button id="begin">Wake up &nbsp; →</button>
+          <div class="intro-actions">
+            <button id="begin">Wake up &nbsp; →</button>
+            <button id="new-game">Start new game</button>
+          </div>
           <p class="fine">
             A cozy little adventure · keyboard & mouse<br />Your progress saves
             on this browser.
           </p>
-          <a class="opmb-home" href="https://onlineplaymoneybank.com/">← Back to OPMB</a>
+          <a class="opmb-home" href="https://onlineplaymoneybank.com/"
+            >← Back to OPMB</a
+          >
         </div>
         <div class="intro-note">
           “Money doesn't grow on trees.<br /><em>Or does it?</em>”

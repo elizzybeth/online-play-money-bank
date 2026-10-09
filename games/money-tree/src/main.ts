@@ -306,7 +306,7 @@ function panel(
   title: string,
   text: string,
   choices: Choice[],
-  subtitle = "MONEY TREE",
+  _subtitle = "MONEY TREE",
 ) {
   releaseMouse();
   dismissSpeech();
@@ -320,7 +320,7 @@ function panel(
   p.setAttribute("role", "dialog");
   p.setAttribute("aria-modal", "true");
   p.setAttribute("aria-label", title);
-  p.innerHTML = `<small>${subtitle}</small><h2>${title}</h2>`;
+  p.innerHTML = `<h2>${title}</h2>`;
   const content = document.createElement("div");
   content.innerHTML = text;
   p.append(content);
@@ -362,13 +362,8 @@ const esc = (str: string) =>
   );
 function notebook() {
   panel(
-    "A little hope",
-    s.journal
-      .map(
-        (e, i) =>
-          `<div class="entry"><small>${i ? "A DAY TO REMEMBER" : "THE FIRST PAGE"}</small><p>${esc(e)}</p></div>`,
-      )
-      .join("") +
+    "Your notebook",
+    s.journal.map((e) => `<div class="entry"><p>${esc(e)}</p></div>`).join("") +
       `<p class="fine">Today's entry will be written when you go to sleep.</p>`,
     [{ label: "Close notebook", run: close }],
     "YOUR NOTEBOOK",
@@ -840,6 +835,41 @@ function chime() {
     o.stop(audio.currentTime + 0.7 + i * 0.1);
   }
 }
+function cancelNewGame() {
+  close();
+  $("#intro").hidden = false;
+  $("#new-game").focus();
+}
+$("#new-game").onclick = () => {
+  $("#intro").hidden = true;
+  panel(
+    "Start a new game?",
+    "<p>This replaces your saved garden, money, and notebook. You’ll begin in bed with $4.33 in your piggy bank.</p>",
+    [
+      { label: "Keep my game", run: cancelNewGame },
+      {
+        label: "Start new game",
+        destructive: true,
+        run: () => {
+          action = undefined;
+          momSpoke = false;
+          world.player.userData.farewell = false;
+          s = fresh();
+          wasHome = true;
+          visitedOutside = false;
+          yaw = 0;
+          pitch = 0.42;
+          thoughtTime = 0;
+          thought.hidden = true;
+          plotVersions.length = 0;
+          save();
+          close();
+          $("#begin").click();
+        },
+      },
+    ],
+  );
+};
 $("#begin").onclick = () => {
   begun = true;
   last = performance.now();
@@ -883,6 +913,7 @@ addEventListener("keydown", (e) => {
   if (e.repeat) return;
   const key = e.key.toLowerCase();
   if (key === "escape") {
+    if (!begun && paused) return cancelNewGame();
     if (begun) paused ? close() : pauseMenu();
     return;
   }
