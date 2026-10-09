@@ -1,6 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  parseAmount,
+  neighborLine,
+  summarizeDay,
+  momStatus,
+  findCapSeeds,
   fresh,
   buy,
   plant,
@@ -18,7 +23,7 @@ import {
   fertilize,
   clearPosition,
 } from "../src/game";
-test("opening economy and complete renewable crop loop", () => {
+test("opening economy, withering and seed hunt loop", () => {
   const s = fresh();
   assert.equal(s.bank, 433);
   withdraw(s);
@@ -30,13 +35,20 @@ test("opening economy and complete renewable crop loop", () => {
     assert(plant(s, i));
     assert(water(s, i));
   }
-  tick(s, 89);
+  tick(s, 179);
   assert(s.plots.every((p) => p.stage === "growing"));
   tick(s, 1);
   for (let i = 0; i < 5; i++) {
     const n = harvest(s, i);
     assert(n >= 200 && n <= 700);
     assert.equal(harvest(s, i), 0);
+    assert(!water(s, i));
+  }
+  assert(!buy(s, "seeds"));
+  assert(findCapSeeds(s));
+  assert(!findCapSeeds(s));
+  for (let i = 0; i < 5; i++) {
+    assert(plant(s, i));
     assert(water(s, i));
   }
   deposit(s);
@@ -61,9 +73,9 @@ test("tools, transaction atomicity, fertilizer and recovery", () => {
   assert(water(s, 0));
   s.fertilizer = 1;
   assert(fertilize(s, 0));
-  assert.equal(s.plots[0].remaining, 60);
+  assert.equal(s.plots[0].remaining, 120);
   assert(!fertilize(s, 0));
-  tick(s, 60);
+  tick(s, 120);
   assert(s.plots[0].yield >= 400);
   const before = JSON.stringify(s);
   assert(!buy(s, "fertilizer"));
@@ -153,4 +165,123 @@ test("import decoder accepts formatted fresh saves and rejects invalid data", ()
   assert.deepEqual(decode(JSON.stringify(fresh(), null, 2)), fresh());
   assert.equal(decode("{}"), null);
   assert.equal(decode("bad"), null);
+});
+
+test("legacy saves migrate seed progression without losing balances", () => {
+  const s = fresh();
+  withdraw(s);
+  buy(s, "seeds");
+  const legacy = JSON.parse(JSON.stringify(s));
+  delete legacy.boughtSeeds;
+  delete legacy.foundCapSeeds;
+  const restored = decode(JSON.stringify(legacy))!;
+  assert.equal(restored.cash, 233);
+  assert.equal(restored.boughtSeeds, true);
+  assert.equal(restored.foundCapSeeds, false);
+  assert(!buy(restored, "seeds"));
+  const before = JSON.stringify(restored);
+  assert(!findCapSeeds({ ...fresh() }));
+  assert.equal(JSON.stringify(restored), before);
+});
+
+test("five dollars buys one fertilizer application for exactly one tree", () => {
+  const s = fresh();
+  s.cash = 500;
+  s.can = true;
+  s.seeds = 2;
+  assert(buy(s, "fertilizer"));
+  assert.equal(s.cash, 0);
+  assert.equal(s.fertilizer, 1);
+  assert(plant(s, 0));
+  assert(plant(s, 1));
+  assert(water(s, 0));
+  assert(water(s, 1));
+  assert.equal(s.fertilizer, 1);
+  assert.equal(s.plots[0].fertilized, false);
+  assert(fertilize(s, 0));
+  assert.equal(s.fertilizer, 0);
+  assert(!fertilize(s, 1));
+});
+
+test("journal groups repeated work and reflects on day-one surgery money", () => {
+  const events = [
+    "Talked with Mom before heading out.",
+    "Visited Ol’ Man Robertson at the store.",
+    ...Array(5).fill("Planted a money seed."),
+    ...Array(5).fill("Watered a money tree."),
+    "Harvested $2.00 from a money tree.",
+    "Harvested $3.00 from a money tree.",
+  ];
+  const entry = summarizeDay(1, events);
+  assert(entry.includes("planting 5 seeds"));
+  assert(entry.includes("watering 5 times"));
+  assert(entry.includes("Harvested $5.00"));
+  assert(entry.includes("drop in the bucket"));
+  assert(!entry.includes("Planted a money seed."));
+  assert(entry.length < 650);
+  const legacy = {
+    ...fresh(),
+    journal: [fresh().journal[0], `Day 1 — ${events.join(" ")}`],
+  };
+  assert.equal(decode(JSON.stringify(legacy))!.journal[1], entry);
+});
+test("Mom has tired days and five distinct good-day activities", () => {
+  assert(!momStatus(1).energetic);
+  assert(momStatus(1).thought.includes("tired"));
+  assert.deepEqual(
+    [2, 4, 6, 8, 10].map((day) => momStatus(day).activity),
+    ["cooking", "birdhouses", "painting", "reading", "garden"],
+  );
+  assert(momStatus(10).reply.includes("ugly"));
+  assert(momStatus(10).reply.includes("thank you"));
+});
+
+test("neighbors vary every conversation and remember their place after a save", () => {
+  const s = fresh();
+  for (const id of ["npc1", "npc2", "npc3"]) {
+    const lines = Array.from({ length: 16 }, () => neighborLine(s, id));
+    assert.equal(new Set(lines).size, 16);
+  }
+  const restored = decode(JSON.stringify(s))!;
+  assert.deepEqual(restored.neighborChats, s.neighborChats);
+  assert.equal(neighborLine(restored, "npc2"), neighborLine(s, "npc2"));
+  assert.equal(
+    decode(JSON.stringify({ ...fresh(), neighborChats: { npc2: -1 } })),
+    null,
+  );
+});
+
+test("legacy growing trees migrate to three minutes without losing growth progress", () => {
+  const old = JSON.parse(JSON.stringify(fresh()));
+  delete old.boughtSeeds;
+  delete old.foundCapSeeds;
+  delete old.neighborChats;
+  old.plots[0] = {
+    stage: "growing",
+    remaining: 45,
+    fertilized: false,
+    yield: 0,
+  };
+  const restored = decode(JSON.stringify(old))!;
+  assert.equal(restored.plots[0].remaining, 90);
+  assert.equal(decode(JSON.stringify(restored))!.plots[0].remaining, 90);
+});
+
+test("partial piggy-bank transfers use exact cents and reject overdrafts", () => {
+  const s = fresh();
+  assert(withdraw(s, 200));
+  assert.equal(s.bank, 233);
+  assert.equal(s.cash, 200);
+  assert(deposit(s, 67));
+  assert.equal(s.bank, 300);
+  assert.equal(s.cash, 133);
+  const before = JSON.stringify(s);
+  assert(!withdraw(s, 301));
+  assert(!deposit(s, 134));
+  assert(!deposit(s, -1));
+  assert.equal(JSON.stringify(s), before);
+  assert.equal(parseAmount("1.33"), 133);
+  assert.equal(parseAmount(".50"), 50);
+  for (const input of ["1.001", "-1", "0", "1e3", "abc"])
+    assert.equal(parseAmount(input), null);
 });

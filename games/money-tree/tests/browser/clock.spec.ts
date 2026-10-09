@@ -15,7 +15,12 @@ test("crop clock survives a render stall and respects the pause menu", async ({
     cash: 33,
     bank: 0,
   });
-  s.plots[0] = { stage: "growing", remaining: 90, fertilized: false, yield: 0 };
+  s.plots[0] = {
+    stage: "growing",
+    remaining: 180,
+    fertilized: false,
+    yield: 0,
+  };
   s.position = { x: -16, z: 22 };
   const state = () => page.evaluate(() => (window as any).game.state());
   async function importGarden() {
@@ -34,15 +39,15 @@ test("crop clock survives a render stall and respects the pause menu", async ({
     );
   }
   await importGarden();
-  await page.clock.fastForward(100000);
+  await page.clock.fastForward(190000);
   expect((await state()).plots[0].stage).toBe("ready");
   await importGarden();
   await page.getByRole("button", { name: "Pause game" }).click();
   const before = (await state()).plots[0].remaining;
-  await page.clock.fastForward(100000);
+  await page.clock.fastForward(190000);
   expect((await state()).plots[0].remaining).toBe(before);
   await page.getByRole("button", { name: "Keep playing" }).click();
-  await page.clock.fastForward(100000);
+  await page.clock.fastForward(190000);
   expect((await state()).plots[0].stage).toBe("ready");
 });
 
@@ -100,6 +105,6 @@ test("hand planting takes longer and watering is grey until a can is purchased",
   );
   await page.keyboard.press("e");
   expect((await state()).plots[0].stage).toBe("growing");
-  await page.clock.fastForward(100000);
+  await page.clock.fastForward(190000);
   expect((await state()).plots[0].stage).toBe("ready");
 });
