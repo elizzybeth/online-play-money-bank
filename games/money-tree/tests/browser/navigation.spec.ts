@@ -3,36 +3,33 @@ async function pos(p: Page) {
   return p.evaluate(() => (window as any).game.state().position);
 }
 async function axis(p: Page, dimension: "x" | "z", destination: number) {
-  const before = await pos(p),
-    positive = destination > before[dimension],
-    key = dimension === "x" ? (positive ? "d" : "a") : positive ? "s" : "w";
-  let slow = false;
-  await p.keyboard.down(key);
-  try {
-    await expect
-      .poll(
-        async () => {
-          const current = await pos(p);
-          if (Math.abs(current[dimension] - destination) < 2 && !slow) {
-            slow = true;
-            await p.keyboard.down("Shift");
-          }
-          return positive
-            ? current[dimension] >= destination - 0.08
-            : current[dimension] <= destination + 0.08;
-        },
-        { timeout: 20000, intervals: [50] },
-      )
-      .toBe(true);
-  } finally {
-    await p.keyboard.up(key);
-    await p.keyboard.up("Shift");
+  // Keep real keyboard input, but pause the browser clock between samples.
+  // Slow software renderers must not keep walking while Playwright reads state.
+  for (let step = 0; step < 120; step++) {
+    const current = await pos(p);
+    const delta = destination - current[dimension];
+    if (Math.abs(delta) < 0.08) return;
+    const key =
+      dimension === "x" ? (delta > 0 ? "d" : "a") : delta > 0 ? "s" : "w";
+    await p.keyboard.down(key);
+    try {
+      await p.clock.fastForward(
+        Math.min(250, Math.ceil((Math.abs(delta) / 4) * 1000)),
+      );
+    } finally {
+      await p.keyboard.up(key);
+    }
   }
+  throw new Error(
+    `Could not walk to ${dimension}=${destination}; stopped at ${JSON.stringify(await pos(p))}`,
+  );
 }
 test("whole town traversal through actual doors and fence gate", async ({
   page,
 }) => {
+  await page.clock.install();
   await page.goto("./?test");
+  await page.clock.pauseAt(new Date(Date.now() + 1000));
   await page.getByRole("button", { name: "Wake up" }).click();
   await page.keyboard.press("e");
   await axis(page, "z", 25);
@@ -41,6 +38,7 @@ test("whole town traversal through actual doors and fence gate", async ({
   await axis(page, "x", 7);
   await axis(page, "z", -31);
   await axis(page, "x", 8);
+  await page.clock.fastForward(16);
   await expect(page.locator("#prompt")).toContainText("Robertson");
   await page.keyboard.press("e");
   await expect(page.locator("#modal")).toContainText("How’s the garden going");
@@ -52,6 +50,7 @@ test("whole town traversal through actual doors and fence gate", async ({
   await axis(page, "z", 25);
   await axis(page, "x", -16);
   await axis(page, "z", 4);
+  await page.clock.fastForward(16);
   await expect(page.locator("#location")).toContainText("Home");
   await page.screenshot({ path: "../../work/bedroom-third-person.png" });
 });
