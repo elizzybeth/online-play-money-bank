@@ -27,11 +27,11 @@ async function axis(p: Page, dimension: "x" | "z", destination: number) {
 test("whole town traversal through actual doors and fence gate", async ({
   page,
 }) => {
-  await page.clock.install();
+  // Pause on the blank page before expensive WebGL loading. A fixed future
+  // target cannot race slow CI rendering or a Date.now() round trip.
+  await page.clock.install({ time: new Date("2026-01-01T00:00:00Z") });
+  await page.clock.pauseAt(new Date("2026-01-02T00:00:00Z"));
   await page.goto("./?test");
-  await page.clock.pauseAt(
-    new Date(await page.evaluate(() => Date.now() + 1000)),
-  );
   await page.getByRole("button", { name: "Wake up" }).click();
   await page.keyboard.press("e");
   await axis(page, "z", 25);
@@ -217,11 +217,11 @@ test("scenery clears paths and doors; visible hedges cover world boundaries", as
 test("camera eases through the front doorway without jumps or wall penetration", async ({
   page,
 }) => {
-  await page.clock.install();
+  // Pause on the blank page before expensive WebGL loading. A fixed future
+  // target cannot race slow CI rendering or a Date.now() round trip.
+  await page.clock.install({ time: new Date("2026-01-01T00:00:00Z") });
+  await page.clock.pauseAt(new Date("2026-01-02T00:00:00Z"));
   await page.goto("./?test");
-  await page.clock.pauseAt(
-    new Date(await page.evaluate(() => Date.now() + 1000)),
-  );
   await page.getByRole("button", { name: "Wake up" }).click();
   await page.keyboard.press("e");
   await page.evaluate(() => (window as any).game.teleport(-16, 12.5));
