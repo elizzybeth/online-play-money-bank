@@ -27,9 +27,11 @@ async function axis(p: Page, dimension: "x" | "z", destination: number) {
 test("whole town traversal through actual doors and fence gate", async ({
   page,
 }) => {
-  await page.clock.install();
+  // Pause on the blank page before expensive WebGL loading. A fixed future
+  // target cannot race slow CI rendering or a Date.now() round trip.
+  await page.clock.install({ time: new Date("2026-01-01T00:00:00Z") });
+  await page.clock.pauseAt(new Date("2026-01-02T00:00:00Z"));
   await page.goto("./?test");
-  await page.clock.pauseAt(new Date(Date.now() + 1000));
   await page.getByRole("button", { name: "Wake up" }).click();
   await page.keyboard.press("e");
   await axis(page, "z", 25);
@@ -41,7 +43,10 @@ test("whole town traversal through actual doors and fence gate", async ({
   await page.clock.fastForward(16);
   await expect(page.locator("#prompt")).toContainText("Robertson");
   await page.keyboard.press("e");
-  await expect(page.locator("#modal")).toContainText("How’s the garden going");
+  await page.clock.fastForward(16);
+  await expect(page.locator(".speech-bubble")).toContainText(
+    "How’s the garden going",
+  );
   await page.getByRole("button", { name: "Look around" }).click();
   await page.screenshot({ path: "../../work/robertsons.png" });
   await axis(page, "x", 7);
@@ -161,4 +166,110 @@ test("approaching a neighbor does not intersect their rendered head", async ({
   expect(
     await page.evaluate(() => (window as any).game.npcHeadPenetrations()),
   ).toBe(0);
+});
+
+test("scenery clears paths and doors; visible hedges cover world boundaries", async ({
+  page,
+}) => {
+  await page.goto("./?test");
+  const result = await page.evaluate(() => {
+    const g = (window as any).game;
+    const obstructions = g.scenery.filter((o: any) =>
+      g.paths
+        .concat(g.doorways)
+        .some(
+          (r: any) =>
+            o.x + o.radius > r.x - r.w / 2 &&
+            o.x - o.radius < r.x + r.w / 2 &&
+            o.z + o.radius > r.z - r.d / 2 &&
+            o.z - o.radius < r.z + r.d / 2,
+        ),
+    );
+    const connected = new Set([0]);
+    for (let pass = 0; pass < g.paths.length; pass++)
+      g.paths.forEach((a: any, i: number) => {
+        if (connected.has(i))
+          g.paths.forEach((b: any, j: number) => {
+            if (
+              Math.abs(a.x - b.x) < (a.w + b.w) / 2 &&
+              Math.abs(a.z - b.z) < (a.d + b.d) / 2
+            )
+              connected.add(j);
+          });
+      });
+    return {
+      obstructions,
+      hedges: g.boundaryHedges(),
+      allPathsConnected: connected.size === g.paths.length,
+    };
+  });
+  expect(result.obstructions).toEqual([]);
+  expect(result.allPathsConnected).toBe(true);
+  expect(result.hedges).toHaveLength(4);
+  for (const bounds of result.hedges)
+    expect(bounds.max[1] - bounds.min[1]).toBeGreaterThan(2);
+  expect(result.hedges[0].min[0]).toBeLessThan(-38);
+  expect(result.hedges[1].max[0]).toBeGreaterThan(38);
+  expect(result.hedges[2].min[2]).toBeLessThan(-39);
+  expect(result.hedges[3].max[2]).toBeGreaterThan(38);
+});
+
+test("camera eases through the front doorway without jumps or wall penetration", async ({
+  page,
+}) => {
+  // Pause on the blank page before expensive WebGL loading. A fixed future
+  // target cannot race slow CI rendering or a Date.now() round trip.
+  await page.clock.install({ time: new Date("2026-01-01T00:00:00Z") });
+  await page.clock.pauseAt(new Date("2026-01-02T00:00:00Z"));
+  await page.goto("./?test");
+  await page.getByRole("button", { name: "Wake up" }).click();
+  await page.keyboard.press("e");
+  await page.evaluate(() => (window as any).game.teleport(-16, 12.5));
+  for (let i = 0; i < 60; i++) await page.clock.fastForward(16);
+  let previous = await page.evaluate(
+    () => (window as any).game.camera().position,
+  );
+  let maxShift = 0;
+  await page.keyboard.down("s");
+  try {
+    for (let i = 0; i < 55; i++) {
+      await page.clock.fastForward(16);
+      const camera = await page.evaluate(() => (window as any).game.camera());
+      expect(camera.penetrations).toBe(0);
+      maxShift = Math.max(
+        maxShift,
+        Math.hypot(
+          ...camera.position.map((n: number, j: number) => n - previous[j]),
+        ),
+      );
+      previous = camera.position;
+    }
+  } finally {
+    await page.keyboard.up("s");
+  }
+  expect(maxShift).toBeLessThan(0.75);
+  expect(
+    await page.evaluate(() => (window as any).game.state().position.z),
+  ).toBeGreaterThan(14);
+});
+
+test("home has a pitched roof that cuts away indoors and returns outside", async ({
+  page,
+}) => {
+  await page.goto("./?test");
+  const roof = await page.evaluate(() => (window as any).game.homeRoof());
+  expect(roof.bounds.max[0] - roof.bounds.min[0]).toBeGreaterThan(12);
+  expect(roof.bounds.max[2] - roof.bounds.min[2]).toBeGreaterThan(16);
+  expect(roof.bounds.max[0] - roof.bounds.min[0]).toBeLessThan(15);
+  expect(roof.bounds.max[2] - roof.bounds.min[2]).toBeLessThan(19);
+  expect(roof.bounds.max[1] - roof.bounds.min[1]).toBeGreaterThan(2);
+  await page.getByRole("button", { name: "Wake up" }).click();
+  await expect
+    .poll(() => page.evaluate(() => (window as any).game.homeRoof().opacity))
+    .toBeLessThan(0.05);
+  await page.keyboard.press("e");
+  await page.evaluate(() => (window as any).game.teleport(-16, 22));
+  await expect
+    .poll(() => page.evaluate(() => (window as any).game.homeRoof().opacity))
+    .toBeGreaterThan(0.95);
 });

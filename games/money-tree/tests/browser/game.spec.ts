@@ -19,6 +19,11 @@ test("opening, real controls, economy, gardening, journal and reload", async ({
   await page.screenshot({ path: "../../work/bedroom.png" });
   await interact(page);
   expect((await state(page)).awake).toBe(true);
+  await expect(page.locator("#toast")).toContainText(
+    "Take a look around your room",
+  );
+  await expect(page.locator("#objective")).toContainText("Take a look around");
+  await expect(page.locator("#toast")).not.toContainText("Robertson");
   // Actual input drives the player from bedroom through the living room door.
   await page.keyboard.down("s");
   await expect
@@ -26,7 +31,7 @@ test("opening, real controls, economy, gardening, journal and reload", async ({
     .toBeGreaterThan(12);
   await page.keyboard.up("s");
   expect((await state(page)).position.z).toBeGreaterThan(12);
-  await expect(page.locator("#toast")).toContainText("love you");
+  await expect(page.locator("#speech-layer")).toContainText("love you");
   await at(page, -10.8, 1.4);
   await expect(page.locator("#prompt")).toContainText("piggy bank");
   await interact(page);
@@ -56,7 +61,7 @@ test("opening, real controls, economy, gardening, journal and reload", async ({
     await interact(page);
   }
   expect((await state(page)).seeds).toBe(0);
-  await page.evaluate(() => (window as any).game.advance(90));
+  await page.evaluate(() => (window as any).game.advance(180));
   await at(page, -16, 22);
   await page.screenshot({ path: "../../work/garden.png" });
   for (let i = 0; i < 5; i++) {
@@ -136,7 +141,7 @@ test("save import preserves valid progress and refuses invalid data", async ({
   expect((await state(page)).day).toBe(3);
 });
 
-test("Mom greets you in the living room, rather than through the outside wall", async ({
+test("Mom waits until you return home to cough, rather than through the outside wall", async ({
   page,
 }) => {
   await page.goto("./?test");
@@ -150,7 +155,7 @@ test("Mom greets you in the living room, rather than through the outside wall", 
   expect((await state(page)).metMom).toBe(false);
   await at(page, -16, 10);
   await expect.poll(async () => (await state(page)).metMom).toBe(true);
-  await expect(page.locator("#toast")).toContainText("love you");
+  await expect(page.locator("#speech-layer")).toContainText("cough");
 });
 
 test("starting a new garden cancels planting and lets you get out of bed", async ({

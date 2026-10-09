@@ -76,8 +76,9 @@ test("unstuck returns home without resetting resources, journal, day or crops; c
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "I'm stuck — return home" }).click();
   await expect(page.locator("#modal")).toBeHidden();
+  await expect.poll(async () => (await state(page)).metMom).toBe(true);
   const after = await state(page);
-  expect(after).toEqual({ ...s, position: { x: -16, z: 4 } });
+  expect(after).toEqual({ ...s, metMom: true, events: ["Checked in with Mom after coming home."], position: { x: -16, z: 4 } });
   await page.waitForTimeout(300);
   await expect(page.locator("#prompt")).not.toContainText("Planting");
   await page.reload();
@@ -89,18 +90,18 @@ test("Mom and Robertson remind an empty-pocket player about the piggy bank", asy
 }) => {
   await start(page);
   await page.evaluate(() => (window as any).game.teleport(-16, 10));
-  await expect(page.locator("#toast")).toContainText(
+  await expect(page.locator("#speech-layer")).toContainText(
     "Take some money with you",
   );
-  await expect(page.locator("#toast")).toContainText("piggy bank");
+  await expect(page.locator("#speech-layer")).toContainText("piggy bank");
   await page.evaluate(() => (window as any).game.teleport(-17.2, 10));
   await page.keyboard.press("e");
-  await expect(page.locator("#modal")).toContainText("piggy bank");
+  await expect(page.locator(".speech-bubble")).toContainText("piggy bank");
   await page.getByRole("button", { name: "Love you too" }).click();
   await page.evaluate(() => (window as any).game.teleport(8, -31.7));
   await expect(page.locator("#prompt")).toContainText("Robertson");
   await page.keyboard.press("e");
-  await expect(page.locator("#modal")).toContainText(
+  await expect(page.locator(".speech-bubble")).toContainText(
     "Head back home and check your piggy bank",
   );
   await page.getByRole("button", { name: "Look around" }).click();
@@ -112,12 +113,14 @@ test("Mom and Robertson remind an empty-pocket player about the piggy bank", asy
   await page.evaluate(() => (window as any).game.teleport(-17.2, 10));
   await expect(page.locator("#prompt")).toContainText("Mom");
   await page.keyboard.press("e");
-  await expect(page.locator("#modal")).not.toContainText("piggy bank");
+  await expect(page.locator(".speech-bubble")).not.toContainText("piggy bank");
   await page.getByRole("button", { name: "Love you too" }).click();
   await page.evaluate(() => (window as any).game.teleport(8, -31.7));
   await expect(page.locator("#prompt")).toContainText("Robertson");
   await page.keyboard.press("e");
-  await expect(page.locator("#modal")).not.toContainText("Head back home");
+  await expect(page.locator(".speech-bubble")).not.toContainText(
+    "Head back home",
+  );
 });
 test("Robertsons' two sign boards do not overlap", async ({ page }) => {
   await start(page);
