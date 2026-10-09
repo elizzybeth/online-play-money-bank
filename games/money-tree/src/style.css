@@ -660,3 +660,24 @@ body:has(#intro:not([hidden]))
   ) {
   visibility: hidden;
 }
+
+a.opmb-brand {
+  color: inherit;
+  text-decoration: none;
+}
+.opmb-home {
+  display: inline-block;
+  color: #d9e7ae;
+  font-size: 14px;
+  text-decoration: none;
+  padding: 8px 0;
+}
+.opmb-home:hover {
+  text-decoration: underline;
+}
+a.opmb-brand:focus-visible,
+.opmb-home:focus-visible {
+  outline: 3px solid #d8a148;
+  outline-offset: 4px;
+  border-radius: 4px;
+}
