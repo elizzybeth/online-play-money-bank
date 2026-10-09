@@ -272,3 +272,23 @@ test("an observed cough enters the writer facts without inventing Mom's energy",
     return natural;
   });
 });
+
+test("expanded gardens retain exact journal facts without invalidating legacy contexts", () => {
+  const s = fresh();
+  s.plots.push({
+    x: -24,
+    z: 19,
+    soilFilled: false,
+    stage: "empty",
+    remaining: 0,
+    fertilized: false,
+    yield: 0,
+  });
+  const c = journalContext(s);
+  s.journal.push(temporaryEntry(c));
+  s.day++;
+  s.journalDrafts = [c];
+  assert(decode(JSON.stringify(s)));
+  assert.equal(c.garden.empty, 6);
+  assert.equal(c.plotCount, 6);
+});

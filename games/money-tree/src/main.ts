@@ -10,6 +10,10 @@ import "./style.css";
 import { inventoryIcon } from "./icons";
 import * as T from "three";
 import {
+  buyGardenSupply,
+  canPlaceBed,
+  placeGardenBed,
+  fillGardenBed,
   noteHatPower,
   buyHat,
   equipHat,
@@ -18,6 +22,9 @@ import {
   parseAmount,
   neighborLine,
   momStatus,
+  momReply,
+  seedStashSpots,
+  findHiddenSeeds,
   findCapSeeds,
   fresh,
   load,
@@ -69,6 +76,19 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, 1.25));
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = T.PCFSoftShadowMap;
+const graphicsContext = renderer.getContext();
+const rendererInfo = graphicsContext.getExtension("WEBGL_debug_renderer_info");
+const softwareRenderer =
+  rendererInfo &&
+  /swiftshader|llvmpipe|software|basic render/i.test(
+    String(graphicsContext.getParameter(rendererInfo.UNMASKED_RENDERER_WEBGL)),
+  );
+if (softwareRenderer) {
+  lowQuality = true;
+  renderer.shadowMap.enabled = false;
+  renderer.setPixelRatio(0.75);
+}
+
 renderer.outputColorSpace = T.SRGBColorSpace;
 scene.add(new T.HemisphereLight("#fff5de", "#819b74", 2.3));
 const sun = new T.DirectionalLight("#ffe7b9", 3);
@@ -88,6 +108,7 @@ scene.add(sun);
 const world = createWorld(scene),
   camera = new T.PerspectiveCamera(52, innerWidth / innerHeight, 0.08, 110),
   ray = new T.Raycaster();
+world.syncBeds(s.plots);
 if (
   blocked(s.position.x, s.position.z, world.rects) ||
   Math.abs(s.position.x) > 38 ||
@@ -113,6 +134,7 @@ let begun = false,
   paused = false,
   yaw = 0,
   pitch = 0.42,
+  cameraTilted = false,
   near: Target | undefined,
   action:
     | {
@@ -142,14 +164,15 @@ document.body.append(thought);
 let thoughtTime = 0;
 function askMom() {
   const status = momStatus(s.day);
+  const reply = momReply(s);
   visit(
     status.energetic
       ? `Mom had energy for ${status.journal} today.`
       : `Mom was exhausted on the couch when I ${visitedOutside ? "came home" : "checked on her"}.`,
   );
-  visit(`Heard Mom: ${status.reply}`);
+  visit(`Heard Mom: ${reply}`);
   save();
-  speak("mom", `<p>${status.reply}</p>`);
+  speak("mom", `<p>${reply}</p>`);
   thought.textContent = `Your thought: ${status.thought}`;
   thought.hidden = false;
   thoughtTime = 9;
@@ -157,12 +180,23 @@ function askMom() {
 function returnToMom() {
   s.metMom = true;
   visit("Checked in with Mom after coming home.");
-  visit("Heard Mom coughing when I got home.");
+  const badDay = !momStatus(s.day).energetic;
+  const count = s.neighborChats["mom-home"] ?? 0;
+  s.neighborChats["mom-home"] = count + 1;
+  const greeting = [
+    "You’re home, sweetheart.",
+    "There you are! How was your walk?",
+    "It’s good to see you, love.",
+    "Come tell me what you found today.",
+  ][count % 4];
+  if (badDay) visit("Heard Mom coughing when I got home.");
   save();
-  world.mom.userData.coughTime = 2;
-  speak("mom", "<p><em>*cough, cough*</em> “You’re home, sweetheart.”</p>", [
-    { label: "How are you doing?", run: askMom },
-  ]);
+  world.mom.userData.coughTime = badDay ? 2 : 0;
+  speak(
+    "mom",
+    `<p>${badDay ? "<em>*cough, cough*</em> " : ""}“${greeting}”</p>`,
+    [{ label: "How are you doing?", run: askMom }],
+  );
 }
 
 const keys = new Set<string>();
@@ -224,6 +258,7 @@ function speak(id: string, text: string, choices: Choice[] = []) {
     button.textContent = choice.label;
     button.disabled = !!choice.disabled;
     button.onclick = choice.run;
+    button.dataset.safeDefault = String(!choice.destructive);
     row.append(button);
   }
   const end = document.createElement("button");
@@ -242,6 +277,13 @@ function speak(id: string, text: string, choices: Choice[] = []) {
 }
 function updateSpeech(dt: number) {
   world.capSeeds.visible = !s.foundCapSeeds;
+  const spot = seedStashSpots[s.seedStashSpot ?? 0];
+  world.forestSeeds.position.set(spot.x, 0, spot.z);
+  const forestTarget = world.targets.find((t) => t.id === "forest-seeds")!;
+  forestTarget.x = spot.x;
+  forestTarget.z = spot.z;
+  world.forestSeeds.visible = !!s.foundCapSeeds && !s.foundForestSeeds;
+  world.storeSeeds.visible = !!s.foundForestSeeds && !s.foundStoreSeeds;
   if (speaking) {
     speaking.remaining -= dt;
     if (speaking.remaining <= 0) dismissSpeech();
@@ -639,6 +681,18 @@ function showHat(id: HatId) {
 function bag() {
   const items = [
     {
+      id: "bed",
+      label: "Garden beds",
+      value: String(s.gardenBeds ?? 0),
+      available: !!s.gardenBeds,
+    },
+    {
+      id: "soil",
+      label: "Soil bags",
+      value: String(s.soilBags ?? 0),
+      available: !!s.soilBags,
+    },
+    {
       id: "money",
       label: "Pocket money",
       value: money(s.cash),
@@ -681,6 +735,20 @@ function bag() {
                 equipHat(s, null);
                 save();
                 bag();
+              },
+            },
+          ]
+        : []),
+      ...(s.gardenBeds
+        ? [
+            {
+              label: "Place a garden bed",
+              run: () => {
+                close();
+                placingBed = true;
+                toast(
+                  "Walk to a clear spot around your house. E places the bed; Escape cancels. Green means it fits.",
+                );
               },
             },
           ]
@@ -792,9 +860,19 @@ function shop(item: "seeds" | "can" | "shovel" | "fertilizer") {
   );
 }
 function momGreeting() {
-  return s.cash === 0 && s.bank > 0
-    ? "“You headed into town? Take some money with you. I think you've got some in your piggy bank. OK, love you!”"
-    : "“You headed into town? OK, love you!”";
+  const count = s.neighborChats["mom-greeting"] ?? 0;
+  s.neighborChats["mom-greeting"] = count + 1;
+  const lines = [
+    "You headed into town? OK, love you!",
+    "Heading out, sweetheart? Tell me about it when you get back.",
+    "Have a good walk, love. I’ll be here.",
+    "Off exploring again? Love you. See you soon.",
+  ];
+  const reminder =
+    s.cash === 0 && s.bank > 0
+      ? " Take some money with you. I think you've got some in your piggy bank."
+      : "";
+  return `“${lines[count % lines.length]}${reminder}”`;
 }
 function robertson() {
   visit("Visited Ol’ Man Robertson at the store.");
@@ -809,6 +887,8 @@ function robertson() {
       ...(!s.boughtSeeds
         ? [{ label: "Yes, seeds please · $2", run: () => shop("seeds") }]
         : []),
+      { label: "Garden bed · $30", run: () => gardenSupply("bed") },
+      { label: "Soil for one bed · $10", run: () => gardenSupply("soil") },
       { label: "Look around", run: dismissSpeech },
       ...(!s.can && s.cash + s.bank < 100 && !s.recovered
         ? [
@@ -828,10 +908,51 @@ function robertson() {
     ],
   );
 }
+function gardenSupply(item: "bed" | "soil") {
+  panel(
+    item === "bed" ? "A new garden bed" : "Soil for a garden bed",
+    `<p>${item === "bed" ? "A wooden bed to carry home and place on your property. Fill it with soil before planting." : "One bag fills one empty bed. Stand near the bed and press E to add it."}</p><p>Price: ${money(item === "bed" ? 3000 : 1000)}. Pocket: ${money(s.cash)}.</p>`,
+    [
+      {
+        label: item === "bed" ? "Buy garden bed · $30" : "Buy soil · $10",
+        disabled: s.cash < (item === "bed" ? 3000 : 1000),
+        run: () => {
+          if (buyGardenSupply(s, item)) {
+            save();
+            close();
+            toast(
+              item === "bed"
+                ? "Garden bed packed. Open your bag to place it at home."
+                : "Soil packed. Press E at an empty bed to fill it.",
+            );
+          }
+        },
+      },
+      { label: "Keep looking", run: close },
+    ],
+  );
+}
+let placingBed = false;
+const bedGhost = new T.Mesh(
+  new T.BoxGeometry(1.6, 0.18, 3.1),
+  new T.MeshBasicMaterial({
+    color: 0x77b67a,
+    transparent: true,
+    opacity: 0.4,
+    depthWrite: false,
+  }),
+);
+bedGhost.visible = false;
+scene.add(bedGhost);
+const bedPosition = () => ({
+  x: Math.round((s.position.x - Math.sin(yaw) * 2.5) * 4) / 4,
+  z: Math.round((s.position.z - Math.cos(yaw) * 2.5) * 4) / 4,
+});
+const bedObstacles = () => world.rects.concat(world.paths, world.doorways);
 function pauseMenu() {
   panel(
     "Take a little breather",
-    `<p>Day ${s.day} · Your progress saves automatically.</p><p class="fine">WASD to walk. Click the game to capture the mouse and look around; arrow keys also work. Hold Shift to run. Escape releases the mouse. E interacts. J opens the notebook. I opens your bag.<br>Growth pauses while menus are open or the tab is hidden.</p>`,
+    `<p>Day ${s.day} · Your progress saves automatically.</p><p class="fine">WASD to walk. Click the game to capture the mouse and look around; left/right arrows turn; up/down arrows tilt the camera. Hold Shift to run. Escape releases the mouse. E interacts. J opens the notebook. I opens your bag.<br>Growth pauses while menus are open or the tab is hidden.</p>`,
     [
       { label: "Keep playing", run: close },
       ...(s.awake
@@ -1006,12 +1127,20 @@ function interact() {
       ],
       "YOUR BED",
     );
+  if (id === "forest-seeds" || id === "store-seeds") {
+    if (findHiddenSeeds(s, id === "forest-seeds" ? "forest" : "store")) {
+      save();
+      toast("Five money seeds! Another chance for the garden.");
+    }
+    return;
+  }
   if (id === "mom") {
     s.metMom = true;
     visit("Talked with Mom before heading out.");
-    visit(`Heard Mom: ${momGreeting()}`);
+    const greeting = momGreeting();
+    visit(`Heard Mom: ${greeting}`);
     save();
-    return speak("mom", `<p>${momGreeting()}</p>`, [
+    return speak("mom", `<p>${greeting}</p>`, [
       { label: "How are you doing?", run: askMom },
       { label: "Love you too", run: dismissSpeech },
     ]);
@@ -1048,6 +1177,14 @@ function interact() {
   if (id.startsWith("plot")) {
     const i = +id.slice(4),
       p = s.plots[i];
+    if (p.soilFilled === false) {
+      if (fillGardenBed(s, i)) {
+        save();
+        world.syncBeds(s.plots);
+        toast("Soil added. This bed is ready for seeds.");
+      } else toast("This bed needs soil. Robertson sells a bag for $10.");
+      return;
+    }
     if (["empty", "harvested"].includes(p.stage)) {
       if (!s.seeds)
         return toast(
@@ -1189,6 +1326,12 @@ addEventListener("keydown", (e) => {
   if (e.repeat) return;
   const key = e.key.toLowerCase();
   if (key === "escape") {
+    if (placingBed) {
+      placingBed = false;
+      bedGhost.visible = false;
+      toast("Bed placement cancelled. It is still in your bag.");
+      return;
+    }
     if (!begun && paused) return cancelNewGame();
     if (begun) paused ? close() : pauseMenu();
     return;
@@ -1210,8 +1353,29 @@ addEventListener("keydown", (e) => {
   ) {
     jumpVelocity = 5.5;
     noteHatPower(s, "to jump");
-  } else if (key === "e") interact();
-  else if (key === "j") notebook();
+  } else if (key === "e") {
+    if (placingBed) {
+      const p = bedPosition();
+      if (placeGardenBed(s, p.x, p.z, bedObstacles())) {
+        placingBed = false;
+        world.syncBeds(s.plots);
+        save();
+        toast(
+          "Bed placed! Bring a $10 bag of soil from Robertson’s and press E at this bed.",
+        );
+      } else
+        toast(
+          "Choose clear ground on your property, away from paths, doors and other beds.",
+        );
+      return;
+    }
+
+    const choice = speaking?.element.querySelector<HTMLButtonElement>(
+      ".choices button:not(:disabled)",
+    );
+    if (choice && choice.dataset.safeDefault === "true") choice.click();
+    else interact();
+  } else if (key === "j") notebook();
   else if (key === "i") bag();
   else keys.add(key);
 });
@@ -1284,6 +1448,7 @@ addEventListener("pointermove", (e) => {
     (document.pointerLockElement === $("#world") || dragging)
   ) {
     yaw -= e.movementX * 0.006;
+    cameraTilted = true;
     pitch = T.MathUtils.clamp(pitch + e.movementY * 0.004, 0.15, 1.1);
   }
 });
@@ -1297,8 +1462,13 @@ function selectTarget() {
   return world.targets
     .filter(
       (t) =>
+        (t.id !== "forest-seeds" ||
+          (!!s.foundCapSeeds && !s.foundForestSeeds)) &&
+        (t.id !== "store-seeds" ||
+          (!!s.foundForestSeeds && !s.foundStoreSeeds)) &&
         Math.hypot(x - t.x, z - t.z) <
-          (s.equippedHat === "lantern" ? 3 : 2.1) && hasSight(t),
+          (s.equippedHat === "lantern" ? 3 : 2.1) &&
+        hasSight(t),
     )
     .sort(
       (a, b) => Math.hypot(x - a.x, z - a.z) - Math.hypot(x - b.x, z - b.z),
@@ -1361,7 +1531,11 @@ function updateUI() {
   } else if (s.boughtSeeds && !s.seeds) {
     objective = "Find fresh seeds";
     hint = s.foundCapSeeds
-      ? "Keep exploring town for more seeds. Harvested trees wither."
+      ? s.foundForestSeeds
+        ? s.foundStoreSeeds
+          ? "Your Sprout Cap can find seeds when you harvest. Keep exploring."
+          : "Look carefully around Robertson’s shelves for another seed packet."
+        : "Look for a small seed packet out among the trees."
       : "Robertson has no more seeds. Look in the brim of a cap at Thread & Thimble.";
   } else if (s.metRobertson) {
     objective = "Seeds of possibility";
@@ -1408,9 +1582,19 @@ function updateUI() {
             : s.can
               ? "Water seeds / tree"
               : "Water seeds (need watering can)";
+      if (p.soilFilled === false) {
+        label = s.soilBags
+          ? "Fill bed with soil"
+          : "Fill bed (need $10 soil bag)";
+        unavailable = !s.soilBags;
+      }
     }
     prompt = `<kbd>E</kbd> ${label}`;
   }
+  if (placingBed)
+    prompt = canPlaceBed(s, bedPosition().x, bedPosition().z, bedObstacles())
+      ? "<kbd>E</kbd> Place garden bed · Escape cancels"
+      : "Find clear ground on your property · Escape cancels";
   $("#prompt").innerHTML = prompt;
   $("#prompt").classList.toggle("unavailable", unavailable);
   $("#prompt").setAttribute("aria-disabled", String(unavailable));
@@ -1481,9 +1665,16 @@ function frame(now: number) {
     if (s.awake) {
       if (keys.has("arrowleft")) yaw += dt * 1.8;
       if (keys.has("arrowright")) yaw -= dt * 1.8;
-      let f =
-          (keys.has("w") || keys.has("arrowup") ? 1 : 0) -
-          (keys.has("s") || keys.has("arrowdown") ? 1 : 0),
+      if (keys.has("arrowup") || keys.has("arrowdown")) cameraTilted = true;
+      pitch = T.MathUtils.clamp(
+        pitch +
+          ((keys.has("arrowdown") ? 1 : 0) - (keys.has("arrowup") ? 1 : 0)) *
+            dt *
+            0.8,
+        0.15,
+        1.1,
+      );
+      let f = (keys.has("w") ? 1 : 0) - (keys.has("s") ? 1 : 0),
         r = (keys.has("d") ? 1 : 0) - (keys.has("a") ? 1 : 0);
       const n = Math.hypot(f, r);
       if (n) {
@@ -1565,8 +1756,11 @@ function frame(now: number) {
         momSpoke = true;
         s.metMom = true;
         visit("Talked with Mom before heading out.");
-        visit(`Heard Mom: ${momGreeting()}`);
-        speak("mom", `<p>${momGreeting()}</p>`);
+        const greeting = momGreeting();
+        visit(`Heard Mom: ${greeting}`);
+        speak("mom", `<p>${greeting}</p>`, [
+          { label: "How are you doing?", run: askMom },
+        ]);
       }
       if (
         s.metRobertson &&
@@ -1591,8 +1785,28 @@ function frame(now: number) {
   world.player.position.z = s.position.z;
   world.player.visible = s.awake || !begun;
   world.sleeping.visible = begun && !s.awake;
+  if (world.syncBeds(s.plots)) plotVersions.splice(5);
+  while (timers.length < s.plots.length) {
+    const el = document.createElement("div");
+    el.className = "tree-timer";
+    timerLayer.append(el);
+    timers.push(el);
+  }
+  while (timers.length > s.plots.length) {
+    timers.pop()!.remove();
+    plotVersions.pop();
+  }
+  if (placingBed && !s.gardenBeds) placingBed = false;
+  bedGhost.visible = placingBed && begun && !paused;
+  if (placingBed) {
+    const p = bedPosition();
+    bedGhost.position.set(p.x, 0.2, p.z);
+    bedGhost.material.color.set(
+      canPlaceBed(s, p.x, p.z, bedObstacles()) ? 0x77b67a : 0xc76862,
+    );
+  }
   let treesChanged = false;
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < s.plots.length; i++) {
     const p = s.plots[i],
       v = `${p.stage}:${p.fertilized}`;
     if (v !== plotVersions[i]) {
@@ -1610,7 +1824,7 @@ function frame(now: number) {
     world.player.position.set(s.position.x, 0, s.position.z);
     save();
   }
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < s.plots.length; i++) {
     const p = s.plots[i];
     world.plots[i].scale.setScalar(
       p.stage === "growing"
@@ -1638,7 +1852,8 @@ function frame(now: number) {
         s.position.z < 14) ||
       (s.position.x > 2 && s.position.x < 14 && s.position.z < -23) ||
       inHatShop;
-    const wantedAngle = indoors ? Math.max(0.95, pitch) : pitch;
+    const wantedAngle =
+      indoors && !cameraTilted ? Math.max(0.95, pitch) : pitch;
     const easing = reducedMotion ? 1 : 1 - Math.exp(-dt * 6);
     followAngle += (wantedAngle - followAngle) * easing;
     const angle = followAngle;
@@ -1745,7 +1960,7 @@ function frame(now: number) {
     camera.lookAt(cameraAim);
   }
 
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < s.plots.length; i++) {
     const p = s.plots[i],
       el = timers[i];
     const position = world.plots[i].position
@@ -1855,6 +2070,18 @@ if (new URLSearchParams(location.search).has("test")) {
           );
         }).length;
     },
+    bedPreview: () => ({
+      position: bedPosition(),
+      valid: canPlaceBed(s, bedPosition().x, bedPosition().z, bedObstacles()),
+    }),
+    momPose: () => ({
+      y: world.mom.position.y,
+      scale: world.mom.scale.y,
+      feet: world.mom.children
+        .filter((o) => o.name === "foot")
+        .map((o) => o.getWorldPosition(new T.Vector3()).toArray()),
+    }),
+    cameraPitch: () => pitch,
     frame: () => frameNumber,
     camera: () => ({
       position: camera.position.toArray(),
@@ -1883,6 +2110,7 @@ if (new URLSearchParams(location.search).has("test")) {
       ).length,
     }),
     reset: () => {
+      placingBed = false;
       cancelJournalWriter();
       s = fresh();
       close();

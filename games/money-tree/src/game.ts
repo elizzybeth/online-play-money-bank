@@ -7,6 +7,9 @@ import {
 } from "./journal";
 import { hatById, type HatId } from "./hats";
 export type Plot = {
+  x?: number;
+  z?: number;
+  soilFilled?: boolean;
   stage: "empty" | "planted" | "growing" | "ready" | "harvested";
   remaining: number;
   fertilized: boolean;
@@ -24,6 +27,8 @@ export type State = {
   shovel: boolean;
   can: boolean;
   fertilizer: number;
+  gardenBeds?: number;
+  soilBags?: number;
   awake: boolean;
   metMom: boolean;
   metRobertson: boolean;
@@ -31,6 +36,9 @@ export type State = {
   neighborChats: Record<string, number>;
   boughtSeeds: boolean;
   foundCapSeeds: boolean;
+  seedStashSpot?: number;
+  foundForestSeeds?: boolean;
+  foundStoreSeeds?: boolean;
   plots: Plot[];
   events: string[];
   journal: string[];
@@ -53,6 +61,8 @@ export const fresh = (): State => ({
   shovel: false,
   can: false,
   fertilizer: 0,
+  gardenBeds: 0,
+  soilBags: 0,
   awake: false,
   metMom: false,
   metRobertson: false,
@@ -60,6 +70,9 @@ export const fresh = (): State => ({
   neighborChats: {},
   boughtSeeds: false,
   foundCapSeeds: false,
+  seedStashSpot: Math.floor(Math.random() * 5),
+  foundForestSeeds: false,
+  foundStoreSeeds: false,
   plots: Array.from({ length: 5 }, () => ({
     stage: "empty",
     remaining: 0,
@@ -103,6 +116,7 @@ export function noteHatPower(s: State, purpose: string) {
 export function plant(s: State, i: number) {
   if (
     !s.plots[i] ||
+    s.plots[i].soilFilled === false ||
     !["empty", "harvested"].includes(s.plots[i].stage) ||
     s.seeds < 1
   )
@@ -400,7 +414,8 @@ export function decode(raw: string | null): State | null {
         (k) => typeof s[k] === "boolean",
       ) ||
       !Array.isArray(s.plots) ||
-      s.plots.length !== 5 ||
+      s.plots.length < 5 ||
+      s.plots.length > 50 ||
       !s.plots.every(
         (p: Plot) =>
           ["empty", "planted", "growing", "ready", "harvested"].includes(
@@ -475,6 +490,26 @@ export function decode(raw: string | null): State | null {
         : entry;
     });
     // Migrate existing version-one saves without losing progress.
+    s.gardenBeds ??= 0;
+    s.soilBags ??= 0;
+    if (
+      ![s.gardenBeds, s.soilBags].every(
+        (n) => Number.isSafeInteger(n) && n >= 0 && n <= 1000,
+      )
+    )
+      return null;
+    if (
+      !s.plots.every(
+        (p: Plot, i: number) =>
+          (p.soilFilled === undefined || typeof p.soilFilled === "boolean") &&
+          (p.soilFilled !== false || p.stage === "empty") &&
+          (i < 5 ||
+            (Number.isFinite(p.x) &&
+              Number.isFinite(p.z) &&
+              withinProperty(p.x!, p.z!))),
+      )
+    )
+      return null;
     s.neighborChats ??= {};
     if (
       !s.neighborChats ||
@@ -482,13 +517,27 @@ export function decode(raw: string | null): State | null {
       typeof s.neighborChats !== "object" ||
       !Object.entries(s.neighborChats).every(
         ([key, value]) =>
-          ["npc1", "npc2", "npc3"].includes(key) &&
+          (["npc1", "npc2", "npc3", "mom-home", "mom-greeting"].includes(key) ||
+            /^mom-reply-(resting|cooking|birdhouses|painting|reading|garden)$/.test(
+              key,
+            )) &&
           Number.isSafeInteger(value) &&
           Number(value) >= 0,
       )
     )
       return null;
     s.foundCapSeeds ??= false;
+    s.seedStashSpot ??= Math.floor(Math.random() * seedStashSpots.length);
+    s.foundForestSeeds ??= false;
+    s.foundStoreSeeds ??= false;
+    if (
+      !Number.isInteger(s.seedStashSpot) ||
+      s.seedStashSpot < 0 ||
+      s.seedStashSpot >= seedStashSpots.length ||
+      typeof s.foundForestSeeds !== "boolean" ||
+      typeof s.foundStoreSeeds !== "boolean"
+    )
+      return null;
     if (
       typeof s.boughtSeeds !== "boolean" ||
       typeof s.foundCapSeeds !== "boolean"
@@ -649,3 +698,138 @@ export const plantingSeconds = (s: State) =>
   (s.equippedHat === "hardhat" ? 0.5 : s.equippedHat === "cap" ? 0.85 : 1);
 export const movementSpeed = (s: State, running: boolean) =>
   (running ? 7 : 4) * (s.equippedHat === "propeller" ? 1.25 : 1);
+
+export const seedStashSpots = [
+  { x: -29, z: -33 },
+  { x: -29, z: -23 },
+  { x: -29, z: -13 },
+  { x: -29, z: 7 },
+  { x: -29, z: 27 },
+];
+export function findHiddenSeeds(s: State, location: "forest" | "store") {
+  if (
+    location === "forest"
+      ? !s.foundCapSeeds || s.foundForestSeeds
+      : !s.foundForestSeeds || s.foundStoreSeeds
+  )
+    return false;
+  if (location === "forest") s.foundForestSeeds = true;
+  else s.foundStoreSeeds = true;
+  s.seeds += 5;
+  s.events.push(
+    location === "forest"
+      ? "Found five money seeds among the trees."
+      : "Found five money seeds hidden in Robertson’s store.",
+  );
+  return true;
+}
+export function momReply(s: State) {
+  const status = momStatus(s.day);
+  const alternatives: Record<string, string[]> = {
+    resting: [
+      "I’m tired, love. Will you sit with me for a minute?",
+      "I wanted to get up, but the couch won today. Tell me what you’ve been doing.",
+      "I’m taking it slowly today. It helps having you here.",
+    ],
+    cooking: [
+      "Could you pass me that spoon? I’m glad I felt up to cooking today.",
+      "Something warm for dinner sounded good. There’s enough for both of us.",
+      "The kitchen smells better than the sofa. I’m enjoying being up today.",
+    ],
+    birdhouses: [
+      "Do you think a bird will like this little house? I’m still working on the roof.",
+      "I’ve got enough energy for a few more nails. Want to help me pick a color?",
+      "These little houses are keeping my hands busy. I like making things.",
+    ],
+    painting: [
+      "I’m trying a bit of blue here. What do you think?",
+      "It feels good to have my paints out again. Come have a look.",
+      "I’m still deciding what this picture needs. I’m happy to be painting today.",
+    ],
+    reading: [
+      "I’m at a good bit in my book. Let me finish this page and you can tell me about your day.",
+      "Reading suits me today. I can rest and have an adventure at the same time.",
+      "I’ve been enjoying this book. Maybe we can read some together later.",
+    ],
+    garden: [
+      "Those money trees look a little spooky. Thank you for taking such good care of the garden.",
+      "I like being out here with you. The trees aren’t very pretty, but you’ve worked hard.",
+      "I’m glad I could look at your garden today. Thank you, sweetheart.",
+    ],
+  };
+  const key = `mom-reply-${status.activity}`,
+    count = s.neighborChats[key] ?? 0;
+  s.neighborChats[key] = count + 1;
+  return count === 0
+    ? status.reply
+    : `“${alternatives[status.activity][(count - 1) % 3]}”`;
+}
+
+export const withinProperty = (x: number, z: number) =>
+  Number.isFinite(x) &&
+  Number.isFinite(z) &&
+  x >= -25.1 &&
+  x <= -8.9 &&
+  z >= -4.4 &&
+  z <= 22.4;
+export function buyGardenSupply(s: State, item: "bed" | "soil") {
+  const cost = item === "bed" ? 3000 : 1000;
+  if (
+    s.cash < cost ||
+    (item === "bed" && s.plots.length + (s.gardenBeds ?? 0) >= 50) ||
+    (item === "soil" && (s.soilBags ?? 0) >= 1000)
+  )
+    return false;
+  s.cash -= cost;
+  if (item === "bed") s.gardenBeds = (s.gardenBeds ?? 0) + 1;
+  else s.soilBags = (s.soilBags ?? 0) + 1;
+  s.events.push(
+    item === "bed"
+      ? "Bought a new garden bed for $30.00."
+      : "Bought soil to fill a garden bed for $10.00.",
+  );
+  return true;
+}
+export function canPlaceBed(s: State, x: number, z: number, obstacles: Rect[]) {
+  return (
+    withinProperty(x, z) &&
+    s.plots.length < 50 &&
+    !obstacles.some(
+      (r) =>
+        Math.abs(x - r.x) < 0.9 + r.w / 2 && Math.abs(z - r.z) < 1.6 + r.d / 2,
+    ) &&
+    !s.plots.some(
+      (p, i) =>
+        Math.abs(x - (p.x ?? -20 + i * 2)) < 1.9 &&
+        Math.abs(z - (p.z ?? 19)) < 3.3,
+    )
+  );
+}
+export function placeGardenBed(
+  s: State,
+  x: number,
+  z: number,
+  obstacles: Rect[],
+) {
+  if (!(s.gardenBeds ?? 0) || !canPlaceBed(s, x, z, obstacles)) return false;
+  s.gardenBeds!--;
+  s.plots.push({
+    x,
+    z,
+    soilFilled: false,
+    stage: "empty",
+    remaining: 0,
+    fertilized: false,
+    yield: 0,
+  });
+  s.events.push("Placed a new garden bed on our property.");
+  return true;
+}
+export function fillGardenBed(s: State, i: number) {
+  const p = s.plots[i];
+  if (!p || p.soilFilled !== false || !(s.soilBags ?? 0)) return false;
+  s.soilBags!--;
+  p.soilFilled = true;
+  s.events.push("Filled a new garden bed with soil.");
+  return true;
+}
