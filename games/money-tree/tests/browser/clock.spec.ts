@@ -3,7 +3,8 @@ import { fresh } from "../../src/game";
 test("crop clock survives a render stall and respects the pause menu", async ({
   page,
 }) => {
-  await page.clock.install();
+  await page.clock.install({ time: new Date("2026-01-01T00:00:00Z") });
+  await page.clock.pauseAt(new Date("2026-01-02T00:00:00Z"));
   await page.goto("./?test");
   await page.getByRole("button", { name: "Wake up" }).click();
   await page.keyboard.press("e");
@@ -34,6 +35,7 @@ test("crop clock survives a render stall and respects the pause menu", async ({
       mimeType: "application/json",
       buffer: Buffer.from(JSON.stringify(s)),
     });
+    await page.clock.fastForward(16);
     await expect(page.locator("#objective")).toContainText(
       "Let your garden grow",
     );
@@ -54,7 +56,8 @@ test("crop clock survives a render stall and respects the pause menu", async ({
 test("hand planting takes longer and watering is grey until a can is purchased", async ({
   page,
 }) => {
-  await page.clock.install();
+  await page.clock.install({ time: new Date("2026-01-01T00:00:00Z") });
+  await page.clock.pauseAt(new Date("2026-01-02T00:00:00Z"));
   await page.goto("./?test");
   await page.getByRole("button", { name: "Wake up" }).click();
   await page.keyboard.press("e");
@@ -77,9 +80,11 @@ test("hand planting takes longer and watering is grey until a can is purchased",
     mimeType: "application/json",
     buffer: Buffer.from(JSON.stringify(s)),
   });
+  await page.clock.fastForward(16);
   await expect(page.locator("#modal")).toBeHidden();
   await expect(page.locator("#prompt")).toContainText("Plant seeds");
   await page.keyboard.press("e");
+  await page.clock.fastForward(16);
   await expect(page.locator("#prompt")).toContainText("Planting");
   await page.clock.fastForward(2000);
   const state = () => page.evaluate(() => (window as any).game.state());
@@ -96,9 +101,11 @@ test("hand planting takes longer and watering is grey until a can is purchased",
   await page.keyboard.press("e");
   expect((await state()).plots[0].stage).toBe("planted");
   await page.evaluate(() => (window as any).game.teleport(5, -24.9));
+  await page.clock.fastForward(16);
   await page.keyboard.press("e");
   await page.getByRole("button", { name: "Buy · $1.00" }).click();
   await page.evaluate(() => (window as any).game.teleport(-20, 20.6));
+  await page.clock.fastForward(16);
   await expect(page.locator("#prompt")).toHaveAttribute(
     "aria-disabled",
     "false",
