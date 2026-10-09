@@ -30,7 +30,8 @@ for (const [day, activity, phrase] of [
     await expect(page.locator(".speech-bubble")).not.toContainText(
       "take these good days",
     );
-    await page.evaluate(() => (window as any).game.teleport(-16, 22));
+    // Garden-day Mom moves outside; walk beyond her conversation range.
+    await page.evaluate(() => (window as any).game.teleport(-16, 28));
     await expect(page.locator(".speech-bubble")).toHaveCount(0);
     await page.evaluate(() => (window as any).game.teleport(-16, 12));
     await expect(page.locator(".speech-bubble")).toContainText("cough");
