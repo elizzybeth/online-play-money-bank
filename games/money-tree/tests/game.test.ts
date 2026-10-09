@@ -16,6 +16,7 @@ import {
   move,
   blocked,
   fertilize,
+  clearPosition,
 } from "../src/game";
 test("opening economy and complete renewable crop loop", () => {
   const s = fresh();
@@ -95,6 +96,22 @@ test("swept movement cannot tunnel, can slide and traverse doors", () => {
   const q = { x: 0, z: 3 };
   move(q, 0, -6, doorway);
   assert(q.z < -2.9);
+});
+test("new tree collisions move overlapping players onto nearby clear ground", () => {
+  const rects = [{ x: -20, z: 19, w: 0.28, d: 0.28 }];
+  for (const pos of [
+    { x: -20, z: 19 },
+    { x: -19.8, z: 19.2 },
+  ]) {
+    const safe = clearPosition(pos, rects);
+    assert(!blocked(safe.x, safe.z, rects));
+    assert(Math.hypot(safe.x - pos.x, safe.z - pos.z) < 1);
+    move(safe, 0, 1, rects);
+    assert(!blocked(safe.x, safe.z, rects));
+  }
+  const clear = { x: -16, z: 4 };
+  assert.equal(clearPosition(clear, rects), clear);
+  assert.deepEqual(clearPosition({ x: 200, z: 200 }, rects), clear);
 });
 test("random actions preserve nonnegative inventory and bounded yields", () => {
   const s = fresh();

@@ -8,6 +8,8 @@ WASD walks relative to the camera. Drag the view or use left/right arrows to loo
 Planting takes 2 seconds with the shovel or 8 by hand. Moving cancels planting without spending a seed. Water starts a 90-second crop timer. Fertilizer supplies five applications, speeds growth, and improves harvests. Trees yield $2–$7, stay planted after harvesting, and produce another crop when watered again. Sleep in bed to finish watered crops and write the daily notebook entry. Browser menus and hidden tabs pause growth. Saves are local to this browser; use the pause menu to export/import them.
 
 ## Develop
+If you get stuck, press Escape and choose **I'm stuck — return home**. This cancels unfinished digging and returns you to clear ground in your bedroom without resetting your day, money, inventory, notebook, or garden. Newly growing trees also move an overlapping player onto nearby clear ground automatically.
+
 Use Node 22+ and pnpm 11.
 
 ```
