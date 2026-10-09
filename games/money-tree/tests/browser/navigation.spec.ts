@@ -129,6 +129,11 @@ test("camera stays outside walls and furniture during doorway and corner sweeps"
     [8, -31.7],
     [12, -24.8],
     [7.7, 4.9],
+    [24, -22.3],
+    [24, -24],
+    [20.65, -24.6],
+    [27.35, -32],
+    [24, -32.3],
   ]) {
     await page.evaluate(
       ([x, z]) => (window as any).game.teleport(x, z),
@@ -176,7 +181,7 @@ test("scenery clears paths and doors; visible hedges cover world boundaries", as
     const g = (window as any).game;
     const obstructions = g.scenery.filter((o: any) =>
       g.paths
-        .concat(g.doorways)
+        .concat(g.doorways, [{ x: 24, z: -29, w: 12, d: 12 }])
         .some(
           (r: any) =>
             o.x + o.radius > r.x - r.w / 2 &&

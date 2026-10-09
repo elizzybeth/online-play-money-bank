@@ -19,7 +19,7 @@
 - Browser wall collision and interaction occlusion.
 - Entire home–town–home traversal using real movement input.
 - Reachability of all interaction targets through the world’s collision geometry.
-- 104 camera samples across doorways, room corners, shop aisles, garden, and an exterior roof edge.
+- 144 camera samples across doorways, room corners, shop aisles, garden, and an exterior roof edge.
 - Valid and invalid save imports.
 - Crop growth uses elapsed active time after a rendering stall; pausing prevents advancement.
 - New tree colliders clear overlapping players and allow them to walk away.
@@ -34,4 +34,11 @@ Inspect the opening feet view, third-person bedroom, door transitions, Mom on th
 
 ## Known scope limits
 
-Desktop keyboard and mouse. No touch/gamepad support yet. Interiors use a roofless dollhouse presentation to keep small rooms navigable. Other stores are conversational storefronts. Audio is synthesized. Cross-engine results and physical-device performance are recorded separately; WebKit automation does not substitute for a complete Safari device certification. The mother's operation remains the motivation, with no invented target cost or ending. Saves are browser-local, not cloud accounts.
+Desktop keyboard and mouse. No touch/gamepad support yet. Home and haberdashery roofs cut away indoors; Robertsons uses an open dollhouse interior. The bicycle shop remains a conversational storefront. Audio is synthesized. Cross-engine results and physical-device performance are recorded separately; WebKit automation does not substitute for a complete Safari device certification. Mom’s surgery target is $10,000 as specified; a funded-surgery ending is future work. Saves are browser-local, not cloud accounts.
+
+## Hat shop and notebook regression checks
+- Walk through the haberdashery’s actual entrance, inspect all ten stands, collect the cap’s seeds without payment, buy hats at exact prices, equip from the pictorial bag, and reload to verify ownership and equipment.
+- Verify jump takeoff and landing, speed ratio using real input, longer interaction reach, growth reporting, auto-watering/tool gating, planting times, growth acceleration and bounded harvest bonuses.
+- Sweep shop entrance, aisles and counter cameras through eight yaw angles; flood-fill all interaction targets to ensure reachability.
+- Validate first-night doubts before harvest, first-harvest reflection after day one, exact remaining-goal arithmetic and ceiling to whole days, no em dashes, and legacy diary migration.
+- Open latest notebook page by default, turn both directions with buttons and arrows, check first/last-page disabled controls and safe E-to-close, then reopen to latest.

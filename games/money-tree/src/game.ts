@@ -1,3 +1,4 @@
+import { hatById, type HatId } from "./hats";
 export type Plot = {
   stage: "empty" | "planted" | "growing" | "ready" | "harvested";
   remaining: number;
@@ -6,6 +7,9 @@ export type Plot = {
 };
 export type State = {
   version: 1;
+  hats: HatId[];
+  equippedHat: HatId | null;
+  harvestReflected: boolean;
   day: number;
   cash: number;
   bank: number;
@@ -30,6 +34,9 @@ export const opening =
   "Need $ for mom's operation. Money doesn't grow on trees. Or does it? Ol' Man Robertson said something strange today. He said he'd have some seeds for me next time I see him.";
 export const fresh = (): State => ({
   version: 1,
+  hats: [],
+  equippedHat: null,
+  harvestReflected: false,
   day: 1,
   cash: 0,
   bank: 433,
@@ -88,6 +95,7 @@ export function plant(s: State, i: number) {
   s.seeds--;
   s.plots[i].stage = "planted";
   s.events.push("Planted a money seed.");
+  if (s.equippedHat === "rain" && s.can) water(s, i);
   return true;
 }
 export function water(s: State, i: number) {
@@ -119,7 +127,10 @@ export function tick(s: State, dt: number) {
   if (!Number.isFinite(dt) || dt < 0) return;
   for (const p of s.plots) {
     if (p.stage === "growing") {
-      p.remaining = Math.max(0, p.remaining - dt);
+      p.remaining = Math.max(
+        0,
+        p.remaining - dt * (s.equippedHat === "wizard" ? 1.25 : 1),
+      );
       if (!p.remaining) {
         p.stage = "ready";
         s.rng = (s.rng * 16807) % 2147483647;
@@ -127,6 +138,8 @@ export function tick(s: State, dt: number) {
         p.yield =
           (p.fertilized ? 4 + Math.floor(r * 4) : 2 + Math.floor(r * r * 6)) *
           100;
+        if (s.equippedHat === "beekeeper" && p.fertilized)
+          p.yield = Math.max(600, p.yield);
       }
     }
   }
@@ -134,15 +147,28 @@ export function tick(s: State, dt: number) {
 export function harvest(s: State, i: number) {
   const p = s.plots[i];
   if (!p || p.stage !== "ready") return 0;
-  const n = p.yield;
+  const n = Math.min(700, p.yield + (s.equippedHat === "banker" ? 100 : 0));
   s.cash += n;
+  if (s.equippedHat === "cap") {
+    s.seeds++;
+    s.events.push("Saved a fresh seed in my Sprout Cap.");
+  }
   p.stage = "harvested";
   p.yield = 0;
   p.fertilized = false;
   s.events.push(`Harvested ${money(n)} from a money tree.`);
   return n;
 }
-export function summarizeDay(day: number, events: string[]) {
+export const SURGERY_GOAL = 1_000_000;
+export function summarizeDay(
+  day: number,
+  events: string[],
+  reflection?: {
+    firstHarvest: boolean;
+    available: number;
+    boughtSeeds: boolean;
+  },
+) {
   const count = (prefix: string) =>
     events.filter((e) => e.startsWith(prefix)).length;
   const planted = count("Planted"),
@@ -179,11 +205,23 @@ export function summarizeDay(day: number, events: string[]) {
   if (count("Bought a shovel")) supplies.push("a shovel");
   if (events.some((e) => e.startsWith("Bought") && e.includes("fertilizer")))
     supplies.push("fertilizer");
+  const newHats = events
+    .filter((e) => e.startsWith("Bought the "))
+    .map((e) => e.slice(10, -1));
+  if (newHats.length)
+    lines.push(
+      `I tried a new look at Thread & Thimble and came home with ${newHats.join(", ")}. There’s more to these hats than meets the eye.`,
+    );
   if (supplies.length)
     lines.push(`I picked up ${supplies.join(", ")} for the garden.`);
   if (events.some((e) => e.startsWith("Found five money seeds")))
     lines.push(
       "Five money seeds were hiding in a cap’s brim at Thread & Thimble. This town has more secrets than I thought.",
+    );
+  const savedSeeds = count("Saved a fresh seed");
+  if (savedSeeds)
+    lines.push(
+      `The Sprout Cap caught ${savedSeeds} fresh ${savedSeeds === 1 ? "seed" : "seeds"} as I harvested. I can keep the garden going.`,
     );
   const work: string[] = [];
   if (planted)
@@ -205,14 +243,42 @@ export function summarizeDay(day: number, events: string[]) {
     lines.push(
       "A quiet day. Tomorrow is another chance to make a little progress.",
     );
-  if (day === 1)
+  if (count("Bought five"))
     lines.push(
-      `I made ${money(earned)} today. It’s only a drop in the bucket compared to what Mom’s surgery will cost. Still, it’s a beginning. I have to keep going.`,
+      "Money seeds? Actual money? I thought Robertson was joking. They look so ordinary. What on earth did he give me?",
     );
-  return `Day ${day} — ${lines.join(" ")}`;
+  if (reflection?.firstHarvest && earned > 0) {
+    const needed = Math.max(0, SURGERY_GOAL - reflection.available);
+    const days = Math.ceil(needed / earned);
+    lines.push(
+      `It really grew money. I pulled ${money(earned)} off those branches today. I keep counting it because I can hardly believe it. Mom’s surgery costs $10,000.00; ${money(earned)} is still a drop in the bucket. ${needed ? `We have ${money(reflection.available)} now, so we still need ${money(needed)}. If I can bring in ${money(earned)} every day, that’s ${days.toLocaleString("en-US")} more ${days === 1 ? "day" : "days"}. That’s a long time, but for the first time I can see a way.` : "We have enough saved. I can finally tell Mom we can pay for her surgery."}`,
+    );
+  } else if (
+    day === 1 &&
+    !harvests.length &&
+    (reflection?.boughtSeeds || count("Bought five"))
+  ) {
+    lines.push(
+      "I keep staring at those crazy seeds. Can money really grow on a tree? They cost $2.00, almost half my $4.33. This better work. If it doesn’t, we’ll have to move in with Auntie. I don’t want Mom to have to worry about that too.",
+    );
+  } else if (day === 1) {
+    lines.push(
+      `I made ${money(earned)} today. It’s only a drop in the bucket compared to the $10,000.00 Mom’s surgery will cost. I have to keep going.`,
+    );
+  }
+  return `Day ${day}\n\n${lines.join("\n\n")}`.replaceAll("—", ". ");
 }
 export function sleep(s: State) {
-  s.journal.push(summarizeDay(s.day, s.events));
+  const firstHarvest =
+    !s.harvestReflected && s.events.some((e) => e.startsWith("Harvested"));
+  s.journal.push(
+    summarizeDay(s.day, s.events, {
+      firstHarvest,
+      available: s.cash + s.bank,
+      boughtSeeds: s.boughtSeeds,
+    }),
+  );
+  if (firstHarvest) s.harvestReflected = true;
   s.events = [];
   s.day++;
   tick(s, 180);
@@ -371,6 +437,22 @@ export function decode(raw: string | null): State | null {
       typeof s.foundCapSeeds !== "boolean"
     )
       return null;
+    s.journal = s.journal.map((entry: string) =>
+      entry.replace(/^Day (\d+) — /, "Day $1\n\n").replaceAll("—", ". "),
+    );
+    s.harvestReflected ??= s.journal.some((entry: string) =>
+      entry.includes("It really grew money."),
+    );
+    if (typeof s.harvestReflected !== "boolean") return null;
+    s.hats ??= [];
+    s.equippedHat ??= null;
+    if (
+      !Array.isArray(s.hats) ||
+      !s.hats.every((id: unknown) => hatById(id)) ||
+      new Set(s.hats).size !== s.hats.length ||
+      (s.equippedHat !== null && !s.hats.includes(s.equippedHat))
+    )
+      return null;
     return s;
   } catch {
     return null;
@@ -480,3 +562,23 @@ export function neighborLine(s: State, id: string) {
     "”",
   );
 }
+
+export function buyHat(s: State, id: HatId) {
+  const hat = hatById(id);
+  if (!hat || s.hats.includes(id) || s.cash < hat.price) return false;
+  s.cash -= hat.price;
+  s.hats.push(id);
+  s.equippedHat = id;
+  s.events.push(`Bought the ${hat.name}.`);
+  return true;
+}
+export function equipHat(s: State, id: HatId | null) {
+  if (id !== null && !s.hats.includes(id)) return false;
+  s.equippedHat = id;
+  return true;
+}
+export const plantingSeconds = (s: State) =>
+  (s.shovel ? 2 : 8) *
+  (s.equippedHat === "hardhat" ? 0.5 : s.equippedHat === "cap" ? 0.85 : 1);
+export const movementSpeed = (s: State, running: boolean) =>
+  (running ? 7 : 4) * (s.equippedHat === "propeller" ? 1.25 : 1);

@@ -83,8 +83,8 @@ test("harvest withers, Robertson stops selling seeds, cap seeds replant once and
     "1 application",
   );
   await page.getByRole("button", { name: "Back to the day" }).click();
-  await page.evaluate(() => (window as any).game.teleport(26, -22.9));
-  await expect(page.locator("#prompt")).toContainText("cap");
+  await page.evaluate(() => (window as any).game.teleport(20.65, -24.6));
+  await expect(page.locator("#prompt")).toContainText("Cap");
   await page.keyboard.press("e");
   await page.keyboard.press("e");
   expect(await page.evaluate(() => (window as any).game.state().seeds)).toBe(5);

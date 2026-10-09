@@ -1,3 +1,5 @@
+import { hats, type HatId } from "./hats";
+import { makeHat } from "./hat-models";
 import * as T from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { type Rect, opening, momStatus } from "./game";
@@ -14,6 +16,7 @@ export function createWorld(scene: T.Scene) {
     { x: -6.25, z: 25, w: 18.5, d: 2 },
     { x: -5, z: 22, w: 8, d: 8 },
     { x: -16, z: 22, w: 2, d: 5 },
+    { x: 24, z: -20, w: 3, d: 9 },
   ];
   const doorways: Rect[] = [];
   const scenery: { x: number; z: number; radius: number; kind: string }[] = [];
@@ -22,8 +25,12 @@ export function createWorld(scene: T.Scene) {
     x - radius < r.x + r.w / 2 &&
     z + radius > r.z - r.d / 2 &&
     z - radius < r.z + r.d / 2;
+  // Reserve the walk-in shop interior before scattering outdoor scenery.
+  const sceneryExclusions: Rect[] = [{ x: 24, z: -29, w: 12, d: 12 }];
   const clearScenery = (x: number, z: number, radius: number) =>
-    !paths.concat(doorways).some((r) => overlaps(x, z, radius, r));
+    !paths
+      .concat(doorways, sceneryExclusions)
+      .some((r) => overlaps(x, z, radius, r));
   const speakers: { id: string; name: string; object: T.Object3D }[] = [];
   const mat = (c: string) =>
     new T.MeshStandardMaterial({ color: c, roughness: 0.9 });
@@ -237,7 +244,10 @@ export function createWorld(scene: T.Scene) {
   // Home: north bedroom, south living room; open doorways on south walls.
   const roofMaterial = mat("#ad7762");
   roofMaterial.transparent = true;
-  const homeRoof = new T.Mesh(new T.ConeGeometry(1, 1, 4).rotateY(Math.PI / 4), roofMaterial);
+  const homeRoof = new T.Mesh(
+    new T.ConeGeometry(1, 1, 4).rotateY(Math.PI / 4),
+    roofMaterial,
+  );
   homeRoof.name = "home-roof";
   homeRoof.position.set(-15, 4.75, 6);
   homeRoof.scale.set(9.8, 2.7, 12);
@@ -610,23 +620,85 @@ export function createWorld(scene: T.Scene) {
     target(id, x, z + 1.1, `Buy ${id}`);
     label(name, x, 2.25, z + 0.4, 2.5);
   }
-  house(24, -29, "#e4bc9e", "THREAD & THIMBLE");
+  // Walk-in hat shop: a wide doorway, clear centre aisle and ten display stands.
+  box(24, -0.02, -29, 12, 0.16, 12, "#c5aa87");
+  box(18, 1.8, -29, 0.25, 3.6, 12, "#e4bc9e", true);
+  box(30, 1.8, -29, 0.25, 3.6, 12, "#e4bc9e", true);
+  box(24, 1.8, -35, 12, 3.6, 0.25, "#e4bc9e", true);
+  box(19.9, 1.8, -23, 3.8, 3.6, 0.25, "#e4bc9e", true);
+  box(28.1, 1.8, -23, 3.8, 3.6, 0.25, "#e4bc9e", true);
+  box(24, 3.25, -23, 4.4, 0.7, 0.25, "#e4bc9e");
+  label("THREAD & THIMBLE", 24, 3.2, -22.8, 4.2, "#704a65");
+  doorways.push({ x: 24, z: -23, w: 4.4, d: 5 });
+  box(24, 0.065, -28.3, 4, 0.025, 7, "#a8828b");
+  for (const x of [18.16, 29.84]) {
+    box(x, 2, -28, 0.04, 1.3, 2, "#a5c9ca");
+    box(x, 2, -28, 0.06, 0.06, 2.1, "#79594a");
+    box(x, 2, -28, 0.06, 1.4, 0.06, "#79594a");
+  }
+  label("A hat for every adventure", 24, 2.7, -34.8, 4, "#704a65");
+  const hatShopRoof = box(24, 3.8, -29, 12.5, 0.25, 12.5, "#9e6a80");
+  const roofMat = hatShopRoof.material as T.MeshStandardMaterial;
+  roofMat.transparent = true;
+  box(24, 0.55, -33.4, 3, 1.1, 0.65, "#a48162", true);
   speakers.push({
     id: "haberdashery",
-    name: "Thread & Thimble",
-    object: person(24, -24, "#c7a6cc", "#664b40"),
+    name: "Thimble",
+    object: person(24, -34.3, "#c7a6cc", "#664b40"),
   });
-  // A cap displayed outside the shop; seeds nest visibly in its brim.
-  box(26, 0.45, -24, 1.3, 0.9, 1, "#b2946d", true);
-  const cap = ball(26, 1.15, -24, 0.42, "#8eaaab");
-  cap.scale.y = 0.65;
-  box(26, 1.04, -23.65, 0.8, 0.08, 0.55, "#8eaaab");
+  target("haberdashery", 24, -32.3, "Talk to Thimble");
+  const hatDisplays: T.Group[] = [];
   const capSeeds = new T.Group();
   scene.add(capSeeds);
-  for (let i = 0; i < 5; i++)
-    ball(25.8 + i * 0.09, 1.11, -23.47, 0.035, "#584c2f", capSeeds);
-  target("cap", 26, -22.9, "Examine the cap");
-  target("haberdashery", 24, -24, "Visit the haberdashery");
+  hats.forEach((hat, i) => {
+    const x = i < 5 ? 19.5 : 28.5,
+      z = -24.6 - (i % 5) * 1.85;
+    box(x, 0.47, z, 0.9, 0.94, 0.9, "#b89874", true);
+    cyl(x, 1.03, z, 0.13, 0.22, "#73543c");
+    const model = makeHat(hat.id);
+    model.position.set(x, 1.2, z);
+    scene.add(model);
+    hatDisplays.push(model);
+    label(
+      `${hat.name} · $${hat.price / 100}`,
+      x,
+      0.7,
+      z + 0.48,
+      1.65,
+      "#574431",
+    );
+    target(
+      hat.id === "cap" ? "cap" : `hat-${hat.id}`,
+      x + (i < 5 ? 1.15 : -1.15),
+      z,
+      `Inspect ${hat.name}`,
+    );
+    if (hat.id === "cap")
+      for (let n = 0; n < 5; n++)
+        ball(x - 0.16 + n * 0.08, 1.26, z + 0.56, 0.035, "#584c2f", capSeeds);
+  });
+  const wornHat = new T.Group();
+  wornHat.position.y = 1.93;
+  player.add(wornHat);
+  let wornId: HatId | null = null;
+  function setHat(id: HatId | null) {
+    if (id === wornId) return;
+    wornId = id;
+    wornHat.traverse((o) => {
+      if (o instanceof T.Mesh) {
+        o.geometry.dispose();
+        (o.material as T.Material).dispose();
+      }
+    });
+    wornHat.clear();
+    if (id) {
+      const model = makeHat(id);
+      // Keep tall novelty hats in chibi proportions below the home’s lintels.
+      const height = new T.Box3().setFromObject(model).max.y;
+      if (height > 0.72) model.scale.y = 0.72 / height;
+      wornHat.add(model);
+    }
+  }
   house(-7, -29, "#b5c4cd", "SPOKE & SADDLE");
   speakers.push({
     id: "bicycle",
@@ -790,6 +862,10 @@ export function createWorld(scene: T.Scene) {
   }
   return {
     player,
+    setHat,
+    wornHat,
+    hatDisplays,
+    hatShopRoof,
     homeRoof,
     paths,
     doorways,

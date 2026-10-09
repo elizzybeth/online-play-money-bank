@@ -681,3 +681,92 @@ a.opmb-brand:focus-visible,
   outline-offset: 4px;
   border-radius: 4px;
 }
+.hat-portrait {
+  width: 160px;
+  height: 160px;
+  border-radius: 18px;
+  float: left;
+  margin: 0 24px 15px 0;
+}
+.hat-bag {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 20px;
+}
+.hat-bag button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 145px;
+  font-size: 16px;
+  padding: 10px;
+}
+.hat-bag img {
+  width: 110px;
+  height: 110px;
+  border-radius: 12px;
+}
+#tree-report {
+  position: fixed;
+  right: 18px;
+  top: 95px;
+  background: #f8efd9ed;
+  color: #334a3c;
+  padding: 16px;
+  border: 2px solid #8a9d71;
+  border-radius: 16px;
+  font-size: 15px;
+  pointer-events: none;
+}
+#tree-report strong {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 18px;
+}
+#tree-report div {
+  margin: 5px 0;
+}
+body:has(#intro:not([hidden])) #tree-report {
+  visibility: hidden;
+}
+.inventory-panel {
+  width: min(900px, 94vw);
+}
+.hat-bag small {
+  font:
+    13px/1.35 system-ui,
+    sans-serif;
+  margin: 8px 0;
+}
+.inventory-panel .hat-bag button {
+  flex: 1 0 145px;
+  max-width: 180px;
+}
+.notebook-page h3 {
+  font:
+    700 25px/1.4 Georgia,
+    serif;
+  color: #36513e;
+  margin: 18px 0;
+}
+.notebook-paper .page-number {
+  text-align: right;
+  color: #657d51;
+  font-size: 14px;
+}
+.notebook-page {
+  min-height: 210px;
+}
+@media (min-width: 700px) {
+  .inventory-panel .inventory-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+.notebook-page p {
+  font:
+    italic 18px/32px Georgia,
+    serif;
+  margin: 12px 0 24px;
+}
