@@ -237,10 +237,9 @@ export function createWorld(scene: T.Scene) {
   // Home: north bedroom, south living room; open doorways on south walls.
   const roofMaterial = mat("#ad7762");
   roofMaterial.transparent = true;
-  const homeRoof = new T.Mesh(new T.ConeGeometry(1, 1, 4), roofMaterial);
+  const homeRoof = new T.Mesh(new T.ConeGeometry(1, 1, 4).rotateY(Math.PI / 4), roofMaterial);
   homeRoof.name = "home-roof";
   homeRoof.position.set(-15, 4.75, 6);
-  homeRoof.rotation.y = Math.PI / 4;
   homeRoof.scale.set(9.8, 2.7, 12);
   homeRoof.userData.roof = true;
   homeRoof.castShadow = true;

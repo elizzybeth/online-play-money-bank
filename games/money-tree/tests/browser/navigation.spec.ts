@@ -260,6 +260,8 @@ test("home has a pitched roof that cuts away indoors and returns outside", async
   const roof = await page.evaluate(() => (window as any).game.homeRoof());
   expect(roof.bounds.max[0] - roof.bounds.min[0]).toBeGreaterThan(12);
   expect(roof.bounds.max[2] - roof.bounds.min[2]).toBeGreaterThan(16);
+  expect(roof.bounds.max[0] - roof.bounds.min[0]).toBeLessThan(15);
+  expect(roof.bounds.max[2] - roof.bounds.min[2]).toBeLessThan(19);
   expect(roof.bounds.max[1] - roof.bounds.min[1]).toBeGreaterThan(2);
   await page.getByRole("button", { name: "Wake up" }).click();
   await expect
