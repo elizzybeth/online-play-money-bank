@@ -35,6 +35,7 @@ test("crop clock survives a render stall and respects the pause menu", async ({
       mimeType: "application/json",
       buffer: Buffer.from(JSON.stringify(s)),
     });
+    await expect(page.locator("#modal")).toBeHidden();
     await page.clock.fastForward(16);
     await expect(page.locator("#objective")).toContainText(
       "Let your garden grow",
@@ -80,8 +81,8 @@ test("hand planting takes longer and watering is grey until a can is purchased",
     mimeType: "application/json",
     buffer: Buffer.from(JSON.stringify(s)),
   });
-  await page.clock.fastForward(16);
   await expect(page.locator("#modal")).toBeHidden();
+  await page.clock.fastForward(16);
   await expect(page.locator("#prompt")).toContainText("Plant seeds");
   await page.keyboard.press("e");
   await page.clock.fastForward(16);
