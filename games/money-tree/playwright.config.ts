@@ -13,6 +13,9 @@ export default defineConfig({
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
     launchOptions: {
+      ...(browserName === "firefox"
+        ? { firefoxUserPrefs: { "webgl.force-enabled": true } }
+        : {}),
       ...(process.env.CI || browserName !== "chromium"
         ? {}
         : {
