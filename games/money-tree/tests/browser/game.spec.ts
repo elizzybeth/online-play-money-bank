@@ -80,7 +80,8 @@ test("opening, real controls, economy, gardening, journal and reload", async ({
   await page.getByRole("button", { name: "Sleep until tomorrow" }).click();
   expect((await state(page)).day).toBe(2);
   await page.keyboard.press("j");
-  await expect(page.locator("#modal")).toContainText("Harvested");
+  await expect(page.locator("#modal")).toContainText("Real money");
+  await expect(page.locator("#modal")).toContainText("$10,000.00");
   await page.getByRole("button", { name: "Close notebook" }).click();
   const before = await state(page);
   await page.reload();

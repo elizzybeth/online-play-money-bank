@@ -1,3 +1,10 @@
+import {
+  validJournalContext,
+  validJournalMemory,
+  rememberDay,
+  type JournalMemory,
+  type JournalContext,
+} from "./journal";
 import { hatById, type HatId } from "./hats";
 export type Plot = {
   stage: "empty" | "planted" | "growing" | "ready" | "harvested";
@@ -27,6 +34,8 @@ export type State = {
   plots: Plot[];
   events: string[];
   journal: string[];
+  journalDrafts?: JournalContext[];
+  journalHistory?: JournalMemory[];
   rng: number;
   position: { x: number; z: number };
 };
@@ -85,6 +94,12 @@ export function buy(
   );
   return true;
 }
+export function noteHatPower(s: State, purpose: string) {
+  const hat = hatById(s.equippedHat);
+  if (!hat) return;
+  const event = `Used my ${hat.name} ${purpose}.`;
+  if (!s.events.includes(event)) s.events.push(event);
+}
 export function plant(s: State, i: number) {
   if (
     !s.plots[i] ||
@@ -92,10 +107,15 @@ export function plant(s: State, i: number) {
     s.seeds < 1
   )
     return false;
+  if (s.equippedHat === "cap" || s.equippedHat === "hardhat")
+    noteHatPower(s, "to plant faster");
   s.seeds--;
   s.plots[i].stage = "planted";
   s.events.push("Planted a money seed.");
-  if (s.equippedHat === "rain" && s.can) water(s, i);
+  if (s.equippedHat === "rain" && s.can) {
+    noteHatPower(s, "to water a new seed automatically");
+    water(s, i);
+  }
   return true;
 }
 export function water(s: State, i: number) {
@@ -127,6 +147,8 @@ export function tick(s: State, dt: number) {
   if (!Number.isFinite(dt) || dt < 0) return;
   for (const p of s.plots) {
     if (p.stage === "growing") {
+      if (dt > 0 && s.equippedHat === "wizard")
+        noteHatPower(s, "to help a tree grow faster");
       p.remaining = Math.max(
         0,
         p.remaining - dt * (s.equippedHat === "wizard" ? 1.25 : 1),
@@ -148,6 +170,8 @@ export function harvest(s: State, i: number) {
   const p = s.plots[i];
   if (!p || p.stage !== "ready") return 0;
   const n = Math.min(700, p.yield + (s.equippedHat === "banker" ? 100 : 0));
+  if (s.equippedHat === "banker")
+    noteHatPower(s, "to get an extra dollar from a harvest");
   s.cash += n;
   if (s.equippedHat === "cap") {
     s.seeds++;
@@ -207,7 +231,7 @@ export function summarizeDay(
     supplies.push("fertilizer");
   const newHats = events
     .filter((e) => e.startsWith("Bought the "))
-    .map((e) => e.slice(10, -1));
+    .map((e) => e.slice("Bought the ".length, -1));
   if (newHats.length)
     lines.push(
       `I tried a new look at Thread & Thimble and came home with ${newHats.join(", ")}. There’s more to these hats than meets the eye.`,
@@ -273,6 +297,7 @@ export function summarizeDay(
   return `Day ${day}\n\n${lines.join("\n\n")}`.replaceAll("—", ". ");
 }
 export function sleep(s: State) {
+  (s.journalHistory ??= []).push(rememberDay(s));
   const firstHarvest =
     !s.harvestReflected && s.events.some((e) => e.startsWith("Harvested"));
   s.journal.push(
@@ -401,6 +426,34 @@ export function decode(raw: string | null): State | null {
       !Number.isFinite(s.position.z)
     )
       return null;
+    // Optional writer metadata must never discard otherwise valid game progress.
+    if (s.journalHistory !== undefined)
+      s.journalHistory = Array.isArray(s.journalHistory)
+        ? s.journalHistory.filter(
+            (m: unknown) => validJournalMemory(m) && m.day < s.day,
+          )
+        : [];
+    const pendingPages = new Set<number>();
+    if (s.journalDrafts !== undefined)
+      s.journalDrafts = Array.isArray(s.journalDrafts)
+        ? s.journalDrafts
+            .filter((c: unknown) => {
+              if (
+                !validJournalContext(c) ||
+                c.page >= s.journal.length ||
+                c.day >= s.day ||
+                pendingPages.has(c.page)
+              )
+                return false;
+              pendingPages.add(c.page);
+              return true;
+            })
+            .map((c: JournalContext) => ({
+              ...c,
+              previous: [],
+              history: c.history.slice(-3),
+            }))
+        : [];
     // Preserve the growth percentage of pre-update saves when doubling crop duration.
     if (s.boughtSeeds === undefined)
       for (const plot of s.plots)
@@ -450,8 +503,12 @@ export function decode(raw: string | null): State | null {
         .replace(/^Day (\d+) — /, "Day $1\n\n")
         .replaceAll("—", ". "),
     );
-    s.harvestReflected ??= s.journal.some((entry: string) =>
-      entry.includes("It really grew money."),
+    s.harvestReflected ??= s.journal.some(
+      (entry: string) =>
+        entry.includes("It really grew money.") ||
+        /(?:Harvested|I made|I got|money was|I counted) \$(?!0\.00)[\d,.]+/.test(
+          entry,
+        ),
     );
     if (typeof s.harvestReflected !== "boolean") return null;
     s.hats ??= [];
