@@ -37,7 +37,7 @@ test("watering a seed while standing on it clears the new trunk and allows movem
     .poll(() =>
       page.evaluate(() =>
         (window as any).game.rects.some(
-          (r: any) => r.x === -20 && r.z === 19 && r.w === 0.28,
+          (r: any) => r.x === -20 && r.z === 19 && r.w > 0 && r.w < 1 && r.d > 0 && r.d < 1,
         ),
       ),
     )
@@ -81,6 +81,7 @@ test("unstuck returns home without resetting resources, journal, day or crops; c
   expect(after).toEqual({
     ...s,
     metMom: true,
+    neighborChats: { ...s.neighborChats, "mom-home": 1 },
     events: [
       "Checked in with Mom after coming home.",
       "Heard Mom coughing when I got home.",
@@ -104,8 +105,8 @@ test("Mom and Robertson remind an empty-pocket player about the piggy bank", asy
   await expect(page.locator("#speech-layer")).toContainText("piggy bank");
   await page.evaluate(() => (window as any).game.teleport(-17.2, 10));
   await page.keyboard.press("e");
-  await expect(page.locator(".speech-bubble")).toContainText("piggy bank");
-  await page.getByRole("button", { name: "Love you too" }).click();
+  await expect(page.locator(".speech-bubble")).toContainText("exhausted");
+  await page.getByRole("button", { name: "End conversation" }).click();
   await page.evaluate(() => (window as any).game.teleport(8, -31.7));
   await expect(page.locator("#prompt")).toContainText("Robertson");
   await page.keyboard.press("e");

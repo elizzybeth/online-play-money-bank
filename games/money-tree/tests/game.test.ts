@@ -6,6 +6,11 @@ import {
   summarizeDay,
   momStatus,
   findCapSeeds,
+  findHiddenSeeds,
+  momReply,
+  buyGardenSupply,
+  placeGardenBed,
+  fillGardenBed,
   fresh,
   buy,
   plant,
@@ -88,10 +93,14 @@ test("malformed saves and invalid time are safe", () => {
     JSON.stringify({ ...fresh(), cash: -1 }),
     JSON.stringify({ ...fresh(), position: { x: "x", z: 0 } }),
   ])
-    assert.deepEqual(load(raw), fresh());
+    assert.deepEqual(
+      { ...load(raw), seedStashSpot: 0 },
+      { ...fresh(), seedStashSpot: 0 },
+    );
   const s = fresh();
+  const unchanged = JSON.stringify(s);
   tick(s, NaN);
-  assert.deepEqual(s, fresh());
+  assert.equal(JSON.stringify(s), unchanged);
 });
 test("swept movement cannot tunnel, can slide and traverse doors", () => {
   const wall = [{ x: 0, z: 0, w: 1, d: 8 }];
@@ -162,7 +171,8 @@ test("random actions preserve nonnegative inventory and bounded yields", () => {
 });
 
 test("import decoder accepts formatted fresh saves and rejects invalid data", () => {
-  assert.deepEqual(decode(JSON.stringify(fresh(), null, 2)), fresh());
+  const s = fresh();
+  assert.deepEqual(decode(JSON.stringify(s, null, 2)), s);
   assert.equal(decode("{}"), null);
   assert.equal(decode("bad"), null);
 });
@@ -284,4 +294,65 @@ test("partial piggy-bank transfers use exact cents and reject overdrafts", () =>
   assert.equal(parseAmount(".50"), 50);
   for (const input of ["1.001", "-1", "0", "1e3", "abc"])
     assert.equal(parseAmount(input), null);
+});
+
+test("seed stashes unlock in order, collect once, and persist their random spot", () => {
+  const s = fresh();
+  assert(!findHiddenSeeds(s, "forest"));
+  assert(!findHiddenSeeds(s, "store"));
+  s.boughtSeeds = true;
+  findCapSeeds(s);
+  assert(findHiddenSeeds(s, "forest"));
+  assert(!findHiddenSeeds(s, "forest"));
+  assert(findHiddenSeeds(s, "store"));
+  assert(!findHiddenSeeds(s, "store"));
+  assert.equal(s.seeds, 15);
+  assert.deepEqual(decode(JSON.stringify(s)), s);
+  const legacy = {
+    ...s,
+    seedStashSpot: undefined,
+    foundForestSeeds: undefined,
+    foundStoreSeeds: undefined,
+  };
+  const restored = decode(JSON.stringify(legacy))!;
+  assert.equal(restored.bank, s.bank);
+  assert.equal(restored.foundForestSeeds, false);
+  assert(restored.seedStashSpot! >= 0 && restored.seedStashSpot! < 5);
+});
+test("Mom's replies change on repeat visits and remember their place", () => {
+  for (const day of [1, 2, 4, 6, 8, 10]) {
+    const s = fresh();
+    s.day = day;
+    const lines = Array.from({ length: 4 }, () => momReply(s));
+    assert.equal(new Set(lines).size, 4);
+    assert.equal(momReply(decode(JSON.stringify(s))!), momReply(s));
+  }
+});
+
+test("beds and soil are separate purchases; placement respects property and obstacles", () => {
+  const s = fresh();
+  s.cash = 5000;
+  s.seeds = 1;
+  assert(buyGardenSupply(s, "bed"));
+  assert.equal(s.cash, 2000);
+  assert.equal(s.gardenBeds, 1);
+  assert(buyGardenSupply(s, "soil"));
+  assert.equal(s.cash, 1000);
+  assert.equal(s.soilBags, 1);
+  assert(!placeGardenBed(s, 10, 20, []));
+  assert(!placeGardenBed(s, -20, 19, []));
+  assert(!placeGardenBed(s, -24, 19, [{ x: -24, z: 19, w: 1, d: 1 }]));
+  assert.equal(s.gardenBeds, 1);
+  assert(placeGardenBed(s, -24, 19, []));
+  assert.equal(s.plots.length, 6);
+  assert.equal(s.gardenBeds, 0);
+  assert(!plant(s, 5));
+  assert.equal(s.seeds, 1);
+  assert(fillGardenBed(s, 5));
+  assert.equal(s.soilBags, 0);
+  assert(!fillGardenBed(s, 5));
+  assert(plant(s, 5));
+  assert.deepEqual(decode(JSON.stringify(s)), s);
+  assert(!buyGardenSupply({ ...s, cash: 2999 }, "bed"));
+  assert(!buyGardenSupply({ ...s, cash: 999 }, "soil"));
 });

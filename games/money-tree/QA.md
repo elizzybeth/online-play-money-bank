@@ -51,3 +51,13 @@ Desktop keyboard and mouse. No touch/gamepad support yet. Home and haberdashery 
 - Verify the bundled worker and lazy model module resolve under `/money-tree/` on Pages. Test in isolated browser contexts so the user's real save is untouched.
 
 Browser-model QA on a 16 GB Apple Silicon Mac used real Chrome WebGPU, a 2,048-token context, and two three-day sequences with different seeds. Reviewed entries cover waiting for the first bills, the first successful harvest ($7; $7.33 saved; $9,992.67 remaining; 1,428 further days at that income), and a later $6 day with Whirligig use and Mom painting after a tired day. A model-generated factual critic was tested and removed because it wrongly rejected valid reflections. Production checks use game facts and text guards. Repeat this qualitative check when changing the model or prompt; mocked CI completion is not evidence of prose quality.
+
+## Seed hunt, Mom and surface detail
+- Five saved forest stash candidates are checked for reachable collection, one-time pickup, and progression into a one-time stash inside Robertson's.
+- Repeat Mom visits use saved conversation counters; only tired days cough. E selects the non-destructive speech choice. Seated feet extend beyond the couch and the torso starts above the cushion.
+- Up/down arrows tilt the camera without moving; WASD moves and left/right arrows turn.
+- Cached procedural textures cover paths, grass, bark, foliage, hair, clothing, plaster and shingles. Garden beds include distinct daisies, tulips, lavender, sunflowers and ferns with clear entrances. Wood-grain shop signs use branch ornament and painted lettering.
+- Garden expansion tests cover exact $30/$10 costs, rejected property/obstacle/overlap placements without consuming inventory, soil gating, planting, reload and reset cleanup. Journal contexts carry the actual expanded plot count while older five-plot contexts remain valid.
+- Inspected local screenshots of the textured neighbor gardens, clothing/hair, grass, paths, plaster, roof shingles and readable shop sign. Static garden meshes are merged by material to reduce draw calls.
+- Software-renderer detection lowers render resolution and disables shadows while retaining textures; hardware rendering keeps full quality. Arrow and mouse tilt override the automatic indoor overhead angle, while doorway changes remain eased.
+- Money-tree silhouettes use crooked tapered trunks, thin irregular forks and pointed twigs, with deterministic variation per plot and bills attached to twig tips. Withered trees droop and lose bills. Merged bark geometry keeps draw calls low; bounds/determinism tests and a garden screenshot check the model.

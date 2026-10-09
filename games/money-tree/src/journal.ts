@@ -23,6 +23,7 @@ export type JournalContext = {
   worn: string | null;
   seed: number;
   garden: Record<string, number>;
+  plotCount?: number;
   history: JournalMemory[];
   hasHarvested: boolean;
   inventory: {
@@ -66,6 +67,7 @@ export function journalContext(s: State): JournalContext {
       shovel: s.shovel,
       fertilizer: s.fertilizer,
     },
+    plotCount: s.plots.length,
     garden: Object.fromEntries(
       ["empty", "planted", "growing", "ready", "harvested"].map((stage) => [
         stage,
@@ -90,7 +92,7 @@ export function validJournalContext(c: unknown): c is JournalContext {
     typeof x.hasHarvested === "boolean" &&
     !!x.garden &&
     Object.values(x.garden).every(
-      (n) => Number.isSafeInteger(n) && n >= 0 && n <= 5,
+      (n) => Number.isSafeInteger(n) && n >= 0 && n <= 50,
     ) &&
     [
       x.day,
@@ -133,7 +135,10 @@ export function validJournalContext(c: unknown): c is JournalContext {
     ["empty", "planted", "growing", "ready", "harvested"].every((k) =>
       Number.isSafeInteger(x.garden[k]),
     ) &&
-    Object.values(x.garden).reduce((a, b) => a + b, 0) === 5
+    Number.isSafeInteger(x.plotCount ?? 5) &&
+    (x.plotCount ?? 5) >= 5 &&
+    (x.plotCount ?? 5) <= 50 &&
+    Object.values(x.garden).reduce((a, b) => a + b, 0) === (x.plotCount ?? 5)
   );
 }
 export function validJournalMemory(x: unknown): x is JournalMemory {
@@ -156,7 +161,7 @@ export function rememberDay(s: State): JournalMemory {
     events: [...new Set(c.events)],
   };
 }
-export const journalVoice = `Write a private diary entry by an eleven-year-old boy whose mom is ill. Her operation is expensive. He has found seeds that grow real dollar bills. Write in his voice, with contractions and ordinary words. Let him notice what matters to him and wonder about it. Mix sentence lengths naturally. He does not need to end with a lesson or a promise. It is bedtime at home. The home garden contains only five money-tree plots, with no vegetable crops. Seeds start growing only after watering. Hat powers work only while the hat is worn. He already knows the operation goal, which the notebook includes below; he worries about reaching it, not about what it costs.
+export const journalVoice = `Write a private diary entry by an eleven-year-old boy whose mom is ill. Her operation is expensive. He has found seeds that grow real dollar bills. Write in his voice, with contractions and ordinary words. Let him notice what matters to him and wonder about it. Mix sentence lengths naturally. He does not need to end with a lesson or a promise. It is bedtime at home. The home garden contains money-tree beds, with no vegetable crops. Seeds start growing only after watering. Hat powers work only while the hat is worn. He already knows the operation goal, which the notebook includes below; he worries about reaching it, not about what it costs.
 Stay true to the supplied events. Ordinary details inherent in those actions are allowed, such as looking at a planted garden or counting harvested bills. Do not add conversations, reactions from Mom, symptoms, medical details, purchases, gardening actions, or magic powers. His fears, wishes, and unanswered questions are his own. No headings, em dashes, motivational slogans, or metaphors. Do not repeat earlier wording. Output only the entry body. Use {{income}}, {{total}}, {{cash}}, {{bank}}, or {{goal}} for money amounts. The notebook includes the first-harvest arithmetic and first-night seed costs separately.`;
 
 export function journalPrompt(c: JournalContext): string {

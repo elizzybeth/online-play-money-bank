@@ -20,8 +20,11 @@ for (const [day, activity, phrase] of [
     await page.goto("./?test");
     await page.getByRole("button", { name: "Wake up" }).click();
     await page.evaluate(() => (window as any).game.teleport(-16, 12));
-    await expect(page.locator(".speech-bubble")).toContainText("cough");
-    await page.getByRole("button", { name: "How are you doing?" }).click();
+    if (day % 2)
+      await expect(page.locator(".speech-bubble")).toContainText("cough");
+    else
+      await expect(page.locator(".speech-bubble")).not.toContainText("cough");
+    await page.keyboard.press("e");
     await expect(page.locator(".speech-bubble")).toContainText(phrase);
     await expect(page.locator("#thought")).toBeVisible();
     await expect(page.locator("#thought")).toContainText(
@@ -30,10 +33,22 @@ for (const [day, activity, phrase] of [
     await expect(page.locator(".speech-bubble")).not.toContainText(
       "take these good days",
     );
+    const firstReply = await page.locator(".speech-bubble").textContent();
     // Garden-day Mom moves outside; walk beyond her conversation range.
     await page.evaluate(() => (window as any).game.teleport(-16, 28));
     await expect(page.locator(".speech-bubble")).toHaveCount(0);
     await page.evaluate(() => (window as any).game.teleport(-16, 12));
-    await expect(page.locator(".speech-bubble")).toContainText("cough");
+    if (day % 2)
+      await expect(page.locator(".speech-bubble")).toContainText("cough");
+    else
+      await expect(page.locator(".speech-bubble")).not.toContainText("cough");
+    await page.keyboard.press("e");
+    await expect(page.locator(".speech-bubble")).not.toHaveText(firstReply!);
+    if (activity === "resting" || activity === "reading") {
+      const pose = await page.evaluate(() => (window as any).game.momPose());
+      expect(pose.y).toBe(0.69);
+      expect(pose.scale).toBe(1);
+      for (const foot of pose.feet) expect(foot[0]).toBeGreaterThan(-17.8);
+    }
   });
 }
