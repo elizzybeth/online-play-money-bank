@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#233d34" />
+    <title>Money Tree · Online Play Money Bank</title>
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="world" tabindex="0" aria-label="Money Tree 3D game"></canvas>
+      <header>
+        <div class="brand">
+          <span class="sprout">♧</span>
+          <div>MONEY TREE<small>ONLINE PLAY MONEY BANK</small></div>
+        </div>
+        <div id="stats"></div>
+        <button id="journal">Notebook <kbd>J</kbd></button
+        ><button id="inventory">Bag <kbd>I</kbd></button
+        ><button id="pause" aria-label="Pause game">☰</button>
+      </header>
+      <aside id="quest">
+        <small>A LITTLE HOPE, A LITTLE MAGIC</small>
+        <h2 id="objective"></h2>
+        <p id="hint"></p>
+      </aside>
+      <div id="location"></div>
+      <div id="prompt"></div>
+      <div id="progress" hidden><span></span></div>
+      <div id="toast" role="status"></div>
+      <footer>
+        <span><kbd>W A S D</kbd> Move</span><span>Drag / ← → Look</span
+        ><span><kbd>E</kbd> Interact</span><span><kbd>I</kbd> Bag</span
+        ><span><kbd>Esc</kbd> Pause</span>
+      </footer>
+      <div id="modal" hidden></div>
+      <div id="intro">
+        <div class="intro-card">
+          <small>AN ORDINARY TOWN. AN EXTRAORDINARY GARDEN.</small>
+          <h1>Money<br /><em>Tree.</em></h1>
+          <p>A pocketful of change.<br />A garden full of possibility.</p>
+          <button id="begin">Wake up &nbsp; →</button>
+          <p class="fine">
+            A cozy little adventure · keyboard & mouse<br />Your progress saves
+            on this browser.
+          </p>
+        </div>
+        <div class="intro-note">
+          “Money doesn't grow on trees.<br /><em>Or does it?</em>”
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

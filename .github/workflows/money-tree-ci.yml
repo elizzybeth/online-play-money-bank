@@ -1,0 +1,44 @@
+name: Money Tree checks
+on:
+  pull_request:
+    paths: ['games/money-tree/**', 'money-tree/**', '.github/workflows/money-tree-ci.yml']
+  push:
+    branches: [main]
+    paths: ['games/money-tree/**', 'money-tree/**', '.github/workflows/money-tree-ci.yml']
+permissions:
+  contents: read
+jobs:
+  verify:
+    strategy:
+      matrix:
+        browser: [chromium, firefox, webkit]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: games/money-tree
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: games/money-tree/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+      - run: pnpm exec playwright install --with-deps ${{ matrix.browser }}
+      - run: xvfb-run --auto-servernum pnpm test:e2e --headed
+        timeout-minutes: 10
+        env:
+          MONEY_TREE_BROWSER: ${{ matrix.browser }}
+      - run: pnpm build
+      - name: Verify checked-in Pages artifact
+        run: diff -r dist ../../money-tree
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: money-tree-browser-failures-${{ matrix.browser }}
+          path: games/money-tree/test-results
