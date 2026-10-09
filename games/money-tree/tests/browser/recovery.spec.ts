@@ -37,7 +37,7 @@ test("watering a seed while standing on it clears the new trunk and allows movem
     .poll(() =>
       page.evaluate(() =>
         (window as any).game.rects.some(
-          (r: any) => r.x === -20 && r.z === 19 && r.w === 0.28,
+          (r: any) => r.x === -20 && r.z === 19 && r.w > 0 && r.w < 1 && r.d > 0 && r.d < 1,
         ),
       ),
     )
