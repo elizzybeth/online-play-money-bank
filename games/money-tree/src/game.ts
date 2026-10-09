@@ -261,6 +261,10 @@ export function summarizeDay(
     lines.push(
       "I keep staring at those crazy seeds. Can money really grow on a tree? They cost $2.00, almost half my $4.33. This better work. If it doesn’t, we’ll have to move in with Auntie. I don’t want Mom to have to worry about that too.",
     );
+  } else if (earned === 0) {
+    lines.push(
+      "I haven’t earned anything today. Mom still needs $10,000.00 for her surgery, and I haven’t brought us any closer. I need to find a way to help her.",
+    );
   } else if (day === 1) {
     lines.push(
       `I made ${money(earned)} today. It’s only a drop in the bucket compared to the $10,000.00 Mom’s surgery will cost. I have to keep going.`,
@@ -438,7 +442,13 @@ export function decode(raw: string | null): State | null {
     )
       return null;
     s.journal = s.journal.map((entry: string) =>
-      entry.replace(/^Day (\d+) — /, "Day $1\n\n").replaceAll("—", ". "),
+      entry
+        .replace(
+          /I made \$0\.00 today\. It[’']s only a drop in the bucket compared to (?:what Mom[’']s surgery will cost|the \$10,000\.00 Mom[’']s surgery will cost)\.\s*(?:Still, it[’']s a beginning\.\s*)?(?:I have to keep going\.)?/g,
+          "I haven’t earned anything today. Mom still needs $10,000.00 for her surgery, and I haven’t brought us any closer. I need to find a way to help her.",
+        )
+        .replace(/^Day (\d+) — /, "Day $1\n\n")
+        .replaceAll("—", ". "),
     );
     s.harvestReflected ??= s.journal.some((entry: string) =>
       entry.includes("It really grew money."),

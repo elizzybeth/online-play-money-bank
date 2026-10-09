@@ -47,3 +47,37 @@ test("legacy diary pages shed em dashes and reflection flag migrates", () => {
   assert(s.journal.every((p) => !p.includes("—")));
   assert(!s.harvestReflected);
 });
+
+test("a day without earnings does not celebrate financial progress", () => {
+  const s = fresh();
+  sleep(s);
+  assert(s.journal[1].includes("haven’t earned anything"));
+  assert(!s.journal[1].includes("drop in the bucket"));
+  assert(!s.journal[1].includes("beginning"));
+  const seeded = fresh();
+  withdraw(seeded);
+  buy(seeded, "seeds");
+  sleep(seeded);
+  assert(seeded.journal[1].includes("This better work"));
+  assert(!seeded.journal[1].includes("drop in the bucket"));
+});
+test("saved zero-income prose is corrected without changing progress", () => {
+  for (const comparison of [
+    "what Mom’s surgery will cost",
+    "the $10,000.00 Mom’s surgery will cost",
+  ]) {
+    const old = fresh();
+    old.journal.push(
+      `Day 1 — I planted five seeds. I made $0.00 today. It’s only a drop in the bucket compared to ${comparison}. Still, it’s a beginning. I have to keep going.`,
+    );
+    const restored = decode(JSON.stringify(old))!;
+    assert(restored.journal[1].includes("I planted five seeds."));
+    assert(restored.journal[1].includes("haven’t earned anything"));
+    assert(!restored.journal[1].includes("drop in the bucket"));
+    assert(!restored.journal[1].includes("beginning"));
+    assert.equal(restored.bank, old.bank);
+    assert.equal(restored.day, old.day);
+    assert.deepEqual(restored.plots, old.plots);
+    assert.deepEqual(decode(JSON.stringify(restored)), restored);
+  }
+});

@@ -40,3 +40,27 @@ test("notebook opens latest entry, turns pages with buttons and arrows, and reop
     path: "../../outputs/money-tree-notebook-pages.png",
   });
 });
+test("saved zero-income entry shows an honest reflection", async ({ page }) => {
+  const s = fresh();
+  s.awake = true;
+  s.journal.push(
+    "Day 1 — I planted five seeds. I made $0.00 today. It’s only a drop in the bucket compared to what Mom’s surgery will cost. Still, it’s a beginning. I have to keep going.",
+  );
+  await page.addInitScript(
+    (s) => localStorage.setItem("money-tree-v1", JSON.stringify(s)),
+    s,
+  );
+  await page.goto("./?test");
+  await page.getByRole("button", { name: "Wake up" }).click();
+  await page.keyboard.press("j");
+  await expect(page.locator(".notebook-page")).toContainText(
+    "I planted five seeds.",
+  );
+  await expect(page.locator(".notebook-page")).toContainText(
+    "haven’t earned anything",
+  );
+  await expect(page.locator(".notebook-page")).not.toContainText(
+    "drop in the bucket",
+  );
+  await expect(page.locator(".notebook-page")).not.toContainText("beginning");
+});
