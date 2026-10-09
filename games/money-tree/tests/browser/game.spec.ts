@@ -152,3 +152,34 @@ test("Mom greets you in the living room, rather than through the outside wall", 
   await expect.poll(async () => (await state(page)).metMom).toBe(true);
   await expect(page.locator("#toast")).toContainText("love you");
 });
+
+test("starting a new garden cancels planting and lets you get out of bed", async ({
+  page,
+}) => {
+  await page.goto("./?test");
+  await page.getByRole("button", { name: "Wake up" }).click();
+  await page.keyboard.press("e");
+  const s = await state(page);
+  Object.assign(s, { seeds: 1, position: { x: -20, z: 20.6 } });
+  await page.getByRole("button", { name: "Pause game" }).click();
+  const chooser = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "Import save" }).click();
+  await (
+    await chooser
+  ).setFiles({
+    name: "reset-garden.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(s)),
+  });
+  await expect(page.locator("#modal")).toBeHidden();
+  await expect(page.locator("#prompt")).toContainText("Plant seeds");
+  await page.keyboard.press("e");
+  await expect(page.locator("#prompt")).toContainText("Planting");
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Start a new garden" }).click();
+  await page.getByRole("button", { name: "Start fresh" }).click();
+  await expect(page.locator("#prompt")).toContainText("Get out of bed");
+  await page.keyboard.press("e");
+  expect((await state(page)).awake).toBe(true);
+  expect((await state(page)).bank).toBe(433);
+});

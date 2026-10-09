@@ -362,3 +362,9 @@ footer {
 canvas:focus {
   outline: none;
 }
+
+#prompt.unavailable {
+  background: #e1e3da;
+  color: #72796e;
+  opacity: 0.7;
+}

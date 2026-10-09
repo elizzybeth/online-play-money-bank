@@ -349,6 +349,9 @@ function pauseMenu() {
               );
               return;
             }
+            action = undefined;
+            momSpoke = false;
+            world.player.userData.farewell = false;
             s = next;
             if (
               blocked(s.position.x, s.position.z, world.rects) ||
@@ -375,6 +378,9 @@ function pauseMenu() {
               {
                 label: "Start fresh",
                 run: () => {
+                  action = undefined;
+                  momSpoke = false;
+                  world.player.userData.farewell = false;
                   s = fresh();
                   plotVersions.length = 0;
                   save();
@@ -677,6 +683,7 @@ function updateUI() {
             : "Willow lane";
   near = selectTarget();
   let prompt = "";
+  let unavailable = false;
   if (!s.awake) prompt = "<kbd>E</kbd> Get out of bed";
   else if (action)
     prompt = `Planting… ${Math.ceil(action.duration - action.elapsed)}s · move to cancel`;
@@ -684,6 +691,9 @@ function updateUI() {
     let label = near.label;
     if (near.id.startsWith("plot")) {
       const p = s.plots[+near.id.slice(4)];
+      unavailable =
+        (p.stage === "empty" && !s.seeds) ||
+        (["planted", "harvested"].includes(p.stage) && !s.can);
       label =
         p.stage === "empty"
           ? s.seeds
@@ -702,6 +712,8 @@ function updateUI() {
     prompt = `<kbd>E</kbd> ${label}`;
   }
   $("#prompt").innerHTML = prompt;
+  $("#prompt").classList.toggle("unavailable", unavailable);
+  $("#prompt").setAttribute("aria-disabled", String(unavailable));
   $("#progress").hidden = !action;
   if (action)
     $("#progress span").style.width =
@@ -911,6 +923,25 @@ if (new URLSearchParams(location.search).has("test")) {
     advance: (dt: number) => tick(s, dt),
     rects: world.rects,
     targets: world.targets,
+    npcHeadPenetrations: () => {
+      const sphere = (g: T.Object3D) => {
+        const head = g.getObjectByName("head") as T.Mesh;
+        head.geometry.computeBoundingSphere();
+        return head.geometry
+          .boundingSphere!.clone()
+          .applyMatrix4(head.matrixWorld);
+      };
+      const player = sphere(world.player);
+      return scene.children
+        .filter((g) => g.userData.isNPC)
+        .filter((g) => {
+          const npc = sphere(g);
+          return (
+            npc.center.distanceTo(player.center) <
+            npc.radius + player.radius - 0.01
+          );
+        }).length;
+    },
     frame: () => frameNumber,
     camera: () => ({
       position: camera.position.toArray(),

@@ -147,3 +147,19 @@ test("camera stays outside walls and furniture during doorway and corner sweeps"
     }
   }
 });
+
+test("approaching a neighbor does not intersect their rendered head", async ({
+  page,
+}) => {
+  await page.goto("./?test");
+  await page.getByRole("button", { name: "Wake up" }).click();
+  await page.keyboard.press("e");
+  await page.evaluate(() => (window as any).game.teleport(10, 21.4));
+  await page.keyboard.down("w");
+  await page.waitForTimeout(1200);
+  await page.keyboard.up("w");
+  await expect(page.locator("#prompt")).toContainText("Bea");
+  expect(
+    await page.evaluate(() => (window as any).game.npcHeadPenetrations()),
+  ).toBe(0);
+});

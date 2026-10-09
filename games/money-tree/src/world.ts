@@ -122,12 +122,14 @@ export function createWorld(scene: T.Scene) {
     old = false,
     solid = true,
   ) {
-    if (solid) rects.push({ x, z, w: 0.65, d: 0.65 });
+    if (solid) rects.push({ x, z, w: 0.96, d: 0.96 });
     const g = new T.Group();
     scene.add(g);
     g.position.set(x, 0, z);
+    g.userData.isNPC = solid;
     ball(0, 0.77, 0, 0.4, c, g).scale.set(0.9, 1.15, 0.7);
-    ball(0, 1.47, 0, 0.48, "#f3cfb0", g);
+    const head = ball(0, 1.47, 0, 0.48, "#f3cfb0", g);
+    head.name = "head";
     ball(0, 1.7, -0.05, 0.47, hair, g).scale.set(1, 0.66, 1);
     for (const a of [-1, 1]) {
       ball(a * 0.15, 0.16, 0, 0.16, "#544c41", g).scale.set(1, 1, 1.5);
