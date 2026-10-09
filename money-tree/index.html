@@ -5,17 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#233d34" />
     <title>Money Tree · Online Play Money Bank</title>
-    <script type="module" crossorigin src="./assets/index-Boj3Ttvw.js"></script>
+    <script type="module" crossorigin src="./assets/index-DoQAFcQe.js"></script>
     <link rel="modulepreload" crossorigin href="./assets/three-BFna5-hl.js">
-    <link rel="stylesheet" crossorigin href="./assets/index-DSFJ9cbi.css">
+    <link rel="stylesheet" crossorigin href="./assets/index-6COLtkxF.css">
   </head>
   <body>
     <div id="app">
       <canvas id="world" tabindex="0" aria-label="Money Tree 3D game"></canvas>
       <header>
         <div class="brand">
-          <span class="sprout">♧</span>
-          <div>MONEY TREE<small>ONLINE PLAY MONEY BANK</small></div>
+          <img src="./money-tree-logo.webp" alt="Money Tree" />
         </div>
         <div id="stats"></div>
         <button id="journal">Notebook <kbd>J</kbd></button
@@ -23,7 +22,6 @@
         ><button id="pause" aria-label="Pause game">☰</button>
       </header>
       <aside id="quest">
-        <small>A LITTLE HOPE, A LITTLE MAGIC</small>
         <h2 id="objective"></h2>
         <p id="hint"></p>
       </aside>
@@ -40,10 +38,18 @@
       <div id="modal" hidden></div>
       <div id="intro">
         <div class="intro-card">
-          <small>AN ORDINARY TOWN. AN EXTRAORDINARY GARDEN.</small>
-          <h1>Money<br /><em>Tree.</em></h1>
+          <h1>
+            <img
+              class="title-logo"
+              src="./money-tree-logo.webp"
+              alt="Money Tree"
+            />
+          </h1>
           <p>A pocketful of change.<br />A garden full of possibility.</p>
-          <button id="begin">Wake up &nbsp; →</button>
+          <div class="intro-actions">
+            <button id="begin">Wake up &nbsp; →</button>
+            <button id="new-game">Start new game</button>
+          </div>
           <p class="fine">
             A cozy little adventure · keyboard & mouse<br />Your progress saves
             on this browser.

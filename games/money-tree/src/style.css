@@ -45,23 +45,11 @@ header {
   align-items: center;
   gap: 10px;
 }
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 20px;
-  letter-spacing: 2px;
-  text-shadow: 0 2px 8px #20362d;
-}
-.brand small {
-  font: 9px Arial;
-  letter-spacing: 2px;
+.brand img {
   display: block;
-  margin-top: 5px;
-}
-.sprout {
-  font-size: 42px;
-  color: #def0b7;
+  width: 112px;
+  height: auto;
+  filter: drop-shadow(0 2px 2px #20362d70);
 }
 #stats {
   margin-left: auto;
@@ -93,11 +81,6 @@ kbd {
   padding: 22px;
   border-radius: 4px 22px 22px 22px;
   box-shadow: 0 5px 20px #152f2420;
-}
-small {
-  font: 10px Arial;
-  letter-spacing: 1.6px;
-  color: #c6d5aa;
 }
 h2 {
   font-size: 23px;
@@ -199,9 +182,6 @@ footer {
   border-radius: 24px;
   box-shadow: 0 24px 70px #122d2844;
 }
-.panel small {
-  color: #71805c;
-}
 .panel h2 {
   font-size: 32px;
 }
@@ -252,22 +232,30 @@ footer {
   padding-left: 9vw;
 }
 .intro-card {
-  max-width: 410px;
+  max-width: 440px;
 }
 .intro-card h1 {
-  font-size: clamp(70px, 9vw, 135px);
-  line-height: 0.87;
-  font-weight: normal;
-  letter-spacing: -6px;
-  margin: 28px 0;
+  margin: 0 0 22px;
+  line-height: 1;
 }
-.intro-card em {
-  color: #d9e7ae;
+.title-logo {
+  display: block;
+  width: min(440px, 72vw);
+  height: auto;
+  filter: drop-shadow(0 5px 4px #102a2350);
 }
 .intro-card p {
   font-size: 20px;
   line-height: 1.7;
   color: #e5e5d1;
+}
+.intro-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.intro-card #new-game {
+  background: #faf5e7;
 }
 .intro-card button {
   padding: 18px 35px;
@@ -656,4 +644,19 @@ canvas:focus {
     sans-serif;
   margin: 8px 0;
   min-height: 1em;
+}
+
+body:has(#intro:not([hidden]))
+  :is(
+    header,
+    #quest,
+    #location,
+    #prompt,
+    #progress,
+    #toast,
+    footer,
+    #speech-layer,
+    #thought
+  ) {
+  visibility: hidden;
 }

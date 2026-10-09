@@ -136,3 +136,69 @@ test("piggy bank accepts partial amounts and prevents an overdraft", async ({
     300,
   );
 });
+
+test("title-screen new game preserves saves until explicit confirmation", async ({
+  page,
+}) => {
+  await page.goto("./?test");
+  await page.getByRole("button", { name: "Wake up" }).click();
+  await page.keyboard.press("e");
+  await page.evaluate(() => (window as any).game.teleport(-10.8, 1.4));
+  await expect(page.locator("#prompt")).toContainText("piggy bank");
+  await page.keyboard.press("e");
+  await page
+    .getByRole("button", { name: "Withdraw amount", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Close", exact: true }).click();
+  const saved = await page.evaluate(() => (window as any).game.state());
+  await page.reload();
+  const newGame = page.locator("#new-game");
+  await expect(newGame).toBeVisible();
+  await expect(page.locator("small")).toHaveCount(0);
+  await expect(page.locator(".title-logo")).toHaveAttribute(
+    "alt",
+    "Money Tree",
+  );
+  const layout = await page.locator(".intro-actions").evaluate((el) => {
+    const [a, b] = Array.from(el.children).map((e) =>
+      e.getBoundingClientRect(),
+    );
+    return {
+      sameRow: Math.abs(a.top - b.top) < 1,
+      sideBySide: b.left > a.right,
+    };
+  });
+  expect(layout).toEqual({ sameRow: true, sideBySide: true });
+  await newGame.click();
+  await expect(
+    page.getByRole("dialog", { name: "Start a new game?" }),
+  ).toBeVisible();
+  await page.keyboard.press("e");
+  await expect(newGame).toBeVisible();
+  expect(await page.evaluate(() => (window as any).game.state())).toEqual(
+    saved,
+  );
+  await newGame.click();
+  await page.keyboard.press("Escape");
+  await expect(newGame).toBeVisible();
+  expect(await page.evaluate(() => (window as any).game.state())).toEqual(
+    saved,
+  );
+  await newGame.click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Start new game", exact: true })
+    .click();
+  await expect(page.locator("#intro")).toBeHidden();
+  await expect(page.locator("#prompt")).toContainText("Get out of bed");
+  const reset = await page.evaluate(() => (window as any).game.state());
+  expect(reset.awake).toBe(false);
+  expect(reset.cash).toBe(0);
+  expect(reset.bank).toBe(433);
+  expect(reset.day).toBe(1);
+  expect(reset.plots.every((p: any) => p.stage === "empty")).toBe(true);
+  await page.reload();
+  expect(await page.evaluate(() => (window as any).game.state())).toEqual(
+    reset,
+  );
+});
