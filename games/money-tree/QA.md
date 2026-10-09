@@ -42,3 +42,12 @@ Desktop keyboard and mouse. No touch/gamepad support yet. Home and haberdashery 
 - Sweep shop entrance, aisles and counter cameras through eight yaw angles; flood-fill all interaction targets to ensure reachability.
 - Validate first-night doubts before harvest, first-harvest reflection after day one, exact remaining-goal arithmetic and ceiling to whole days, no em dashes, and legacy diary migration.
 - Open latest notebook page by default, turn both directions with buttons and arrows, check first/last-page disabled controls and safe E-to-close, then reopen to latest.
+
+### Journal release checks
+- Unit checks cover event snapshots, exact first-harvest math, immutable facts, phrase reuse, style lint, words-as-money, invalid drafts and persistent jobs.
+- Browser checks exercise sleep-to-generation, page numbering, retry after failure/reload, saved output and ignoring responses after reset.
+- Evaluate the actual model on a seed-only night, the first harvested night and a later day with a new hat and a different observed Mom activity. Review voice and chronology; reject invented money, dialogue, repeated discoveries, adult motivational endings and repeated phrases.
+- Confirm loading is visible, closing the notebook keeps gameplay responsive, unsupported GPU or network failure leaves an honest temporary entry, and no generated text affects gameplay resources.
+- Verify the bundled worker and lazy model module resolve under `/money-tree/` on Pages. Test in isolated browser contexts so the user's real save is untouched.
+
+Browser-model QA on a 16 GB Apple Silicon Mac used real Chrome WebGPU, a 2,048-token context, and two three-day sequences with different seeds. Reviewed entries cover waiting for the first bills, the first successful harvest ($7; $7.33 saved; $9,992.67 remaining; 1,428 further days at that income), and a later $6 day with Whirligig use and Mom painting after a tired day. A model-generated factual critic was tested and removed because it wrongly rejected valid reflections. Production checks use game facts and text guards. Repeat this qualitative check when changing the model or prompt; mocked CI completion is not evidence of prose quality.

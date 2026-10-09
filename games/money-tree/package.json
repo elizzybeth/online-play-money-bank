@@ -12,6 +12,7 @@
     "test:visual": "MONEY_TREE_VISUAL=1 playwright test visual.spec.ts"
   },
   "dependencies": {
+    "@mlc-ai/web-llm": "0.2.82",
     "three": "^0.180.0"
   },
   "devDependencies": {

@@ -17,25 +17,26 @@ test("notebook opens latest entry, turns pages with buttons and arrows, and reop
   await page.goto("./?test");
   await page.getByRole("button", { name: "Wake up" }).click();
   await page.keyboard.press("j");
-  await expect(page.locator(".notebook-page")).toContainText("Day 2");
-  await expect(page.locator(".notebook-page")).not.toContainText("Day 1");
+  await expect(page.locator(".notebook-page")).toContainText("Day 3");
+  await expect(page.locator(".notebook-page")).not.toContainText("Day 2");
   await expect(page.getByRole("button", { name: "Next page" })).toBeDisabled();
   await expect(page.locator(".page-number")).toHaveText("Page 3 of 3");
   await page.getByRole("button", { name: "Previous page" }).click();
-  await expect(page.locator(".notebook-page")).toContainText("Day 1");
+  await expect(page.locator(".notebook-page")).toContainText("Day 2");
   await page.keyboard.press("ArrowLeft");
   await expect(page.locator(".notebook-page")).toContainText("Need $ for mom");
+  await expect(page.locator(".notebook-page h3")).toHaveText("Day 1");
   await expect(
     page.getByRole("button", { name: "Previous page" }),
   ).toBeDisabled();
   await page.keyboard.press("ArrowRight");
-  await expect(page.locator(".notebook-page")).toContainText("Day 1");
-  await page.getByRole("button", { name: "Next page" }).click();
   await expect(page.locator(".notebook-page")).toContainText("Day 2");
+  await page.getByRole("button", { name: "Next page" }).click();
+  await expect(page.locator(".notebook-page")).toContainText("Day 3");
   await page.keyboard.press("e");
   await expect(page.locator("#modal")).toBeHidden();
   await page.keyboard.press("j");
-  await expect(page.locator(".notebook-page")).toContainText("Day 2");
+  await expect(page.locator(".notebook-page")).toContainText("Day 3");
   await page.screenshot({
     path: "../../outputs/money-tree-notebook-pages.png",
   });
