@@ -10,7 +10,7 @@ test("buy a bed and soil, freely place on property, fill and plant, then reload"
     cash: 4500,
     seeds: 1,
     shovel: true,
-    position: { x: 8, z: -31.7 },
+    position: { x: 3, z: -32.45 },
   });
   await page.addInitScript((s) => {
     if (!localStorage.getItem("money-tree-v1"))
@@ -20,15 +20,11 @@ test("buy a bed and soil, freely place on property, fill and plant, then reload"
   await page.getByRole("button", { name: "Wake up" }).click();
   await page.keyboard.press("e");
   await page
-    .getByRole("button", { name: "Garden bed · $30", exact: true })
-    .click();
-  await page
     .getByRole("button", { name: "Buy garden bed · $30", exact: true })
     .click();
+  await page.evaluate(() => (window as any).game.teleport(12, -33.4));
+  await expect(page.locator("#prompt")).toContainText("soil");
   await page.keyboard.press("e");
-  await page
-    .getByRole("button", { name: "Soil for one bed · $10", exact: true })
-    .click();
   await page
     .getByRole("button", { name: "Buy soil · $10", exact: true })
     .click();
@@ -51,6 +47,9 @@ test("buy a bed and soil, freely place on property, fill and plant, then reload"
   await expect
     .poll(() => page.evaluate(() => (window as any).game.bedPreview().valid))
     .toBe(true);
+  const placement = await page.evaluate(
+    () => (window as any).game.bedPreview().position,
+  );
   await page.keyboard.press("e");
   expect(
     await page.evaluate(() => (window as any).game.state().plots.length),
@@ -70,8 +69,8 @@ test("buy a bed and soil, freely place on property, fill and plant, then reload"
   expect(saved.cash).toBe(500);
   expect(saved.soilBags).toBe(0);
   expect(saved.plots[5]).toMatchObject({
-    x: -24,
-    z: 19,
+    x: placement.x,
+    z: placement.z,
     soilFilled: true,
     stage: "planted",
   });

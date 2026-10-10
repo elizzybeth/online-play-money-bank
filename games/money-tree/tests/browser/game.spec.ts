@@ -1,3 +1,4 @@
+import { walkTo } from "./movement";
 import { test, expect, type Page } from "@playwright/test";
 const state = (p: Page) => p.evaluate(() => (window as any).game.state());
 async function at(p: Page, x: number, z: number) {
@@ -25,11 +26,8 @@ test("opening, real controls, economy, gardening, journal and reload", async ({
   await expect(page.locator("#objective")).toContainText("Take a look around");
   await expect(page.locator("#toast")).not.toContainText("Robertson");
   // Actual input drives the player from bedroom through the living room door.
-  await page.keyboard.down("s");
-  await expect
-    .poll(async () => (await state(page)).position.z)
-    .toBeGreaterThan(12);
-  await page.keyboard.up("s");
+  await walkTo(page, -16, 5.3);
+  await walkTo(page, -16, 12.5);
   expect((await state(page)).position.z).toBeGreaterThan(12);
   await expect(page.locator("#speech-layer")).toContainText("love you");
   await at(page, -10.8, 1.4);

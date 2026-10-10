@@ -1,3 +1,4 @@
+import { signCanvas } from "./signage";
 import * as T from "three";
 import { surfaceMaterial } from "./textures";
 import type { Rect } from "./game";
@@ -51,24 +52,13 @@ export function createSigmaWorld(
     parent: T.Object3D = town,
   ) => mesh(new T.SphereGeometry(r, 12, 8), c, x, y, z, parent);
   function sign(text: string, x: number, y: number, z: number, w = 5) {
-    const c = document.createElement("canvas");
-    c.width = 768;
-    c.height = 192;
-    const ctx = c.getContext("2d")!;
-    ctx.fillStyle = "#252a31";
-    ctx.fillRect(0, 0, 768, 192);
-    ctx.strokeStyle = "#c8af64";
-    ctx.lineWidth = 12;
-    ctx.strokeRect(8, 8, 752, 176);
-    ctx.fillStyle = "#ecdba7";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.font = "bold 70px Georgia";
-    ctx.fillText(text, 384, 100, 710);
+    const c = signCanvas(text);
+    const texture = new T.CanvasTexture(c);
+    texture.colorSpace = T.SRGBColorSpace;
     const m = new T.Mesh(
       new T.PlaneGeometry(w, w / 4),
       new T.MeshBasicMaterial({
-        map: new T.CanvasTexture(c),
+        map: texture,
         side: T.DoubleSide,
       }),
     );
@@ -201,6 +191,8 @@ export function createSigmaWorld(
     box(x, 1.15, z + 3.35, 1.9, 2.3, 0.04, "#c7b88f").visible = false;
     return { x, z };
   }
+  const memeStart = town.children.length,
+    memeRectStart = rects.length;
   const dog = shell(-3, -49, "#c9a369");
   const dogHead = ball(dog.x, 3.6, dog.z, 4, "#c49653");
   dogHead.scale.set(1, 0.8, 0.9);
@@ -261,6 +253,56 @@ export function createSigmaWorld(
   sign("Hawk Tuah", -3, 2.4, -77.35, 3.6);
   sign("Doge", -3, 2.4, -45.35, 3);
   sign("Pepe", -3, 2.4, -62.35, 3);
+  // Enlarge each house around its own center and move the row west for clear space.
+  for (const object of town.children.slice(memeStart)) {
+    const oldZ = object.position.z;
+    const centerZ = oldZ > -57.5 ? -49 : oldZ > -73.5 ? -66 : -81;
+    const newZ = centerZ === -66 ? -65 : centerZ;
+    object.position.set(
+      -18 + (object.position.x + 3) * 2,
+      object.position.y * 2,
+      newZ + (oldZ - centerZ) * 2,
+    );
+    object.scale.multiplyScalar(2);
+  }
+  for (const r of rects.slice(memeRectStart)) {
+    const centerZ = r.z > -57.5 ? -49 : r.z > -73.5 ? -66 : -81;
+    r.x = -18 + (r.x + 3) * 2;
+    r.z = (centerZ === -66 ? -65 : centerZ) + (r.z - centerZ) * 2;
+    r.w *= 2;
+    r.d *= 2;
+  }
+  for (const [i, h] of houseBounds.entries()) {
+    h.x = -18;
+    h.z = [-49, -65, -81][i];
+    h.w = h.d = 14;
+  }
+  const meditators: T.Group[] = [];
+  for (const [i, [x, z]] of [
+    [-21, -51],
+    [-15, -51],
+    [-18, -53],
+  ].entries()) {
+    const cushion = ball(x, 0.16, z, 0.7, "#b57c96");
+    cushion.scale.set(1, 0.25, 1);
+    const npc = chad(`doge-meditator-${i}`, x, z);
+    npc.position.y = 0.15;
+    // Short folded legs with feet pointing forward on the cushion.
+    npc.children
+      .filter((o) => o.position.y < 0.4)
+      .forEach((o) => {
+        o.position.y = 0.22;
+        o.position.z = 0.4;
+      });
+    meditators.push(npc);
+  }
+  ball(-18, 0.16, -47, 0.7, "#7ca493").scale.set(1, 0.25, 1);
+  targets.push({
+    id: "meditate",
+    x: -18,
+    z: -47,
+    label: "Join the meditation",
+  });
   // Coffee kiosk with an open counter, striped canopy and oversized mug.
   box(32, 1.15, -79, 8, 2.3, 3, "#544638").material = surfaceMaterial(
     "#544638",
@@ -334,12 +376,13 @@ export function createSigmaWorld(
   ball(23, 4.65, -67.8, 0.65, "#e0d9bb");
   sign("Lone Wolf · $1 for luck", 23, 1, -65.1, 3.7);
   targets.push({ id: "wolf", x: 23, z: -64.4, label: "Toss $1 for luck" });
-  sign("Community Garden", 10, 1.5, -55.7, 6);
+  sign("Community Garden", 10, 5.1, -80, 12);
+  for (const x of [3.8, 16.2]) box(x, 3.1, -80, 0.18, 6.2, 0.18, "#a48162");
   // Visible perimeter and a gap aligned with the lane entrance.
   for (const r of [
-    { x: -39, z: -62, w: 1, d: 44 },
-    { x: 39, z: -62, w: 1, d: 44 },
-    { x: 0, z: -85, w: 80, d: 1 },
+    { x: -39, z: -67.25, w: 1, d: 44.5, clearHeight: 2.1 },
+    { x: 39, z: -67.25, w: 1, d: 44.5, clearHeight: 2.1 },
+    { x: 0, z: -90, w: 77, d: 1, clearHeight: 2.1 },
   ]) {
     const hedge = box(r.x, 1.05, r.z, r.w, 2.1, r.d, "#658464");
     hedge.material = surfaceMaterial("#658464", "leaf", 8, 2);
@@ -349,6 +392,7 @@ export function createSigmaWorld(
   return {
     town,
     houseBounds,
+    meditators,
     walkway,
     paths,
     roofs,
@@ -359,10 +403,10 @@ export function createSigmaWorld(
       roofs.forEach((r) => {
         const near = houseBounds.some(
           (h) =>
-            Math.abs(x - h.x) < 3.6 &&
-            Math.abs(z - h.z) < 3.6 &&
-            Math.abs(r.position.x - h.x) < 7 &&
-            Math.abs(r.position.z - h.z) < 7,
+            Math.abs(x - h.x) < h.w / 2 + 0.1 &&
+            Math.abs(z - h.z) < h.d / 2 + 0.1 &&
+            Math.abs(r.position.x - h.x) < 14 &&
+            Math.abs(r.position.z - h.z) < 14,
         );
         const m = r.material as T.MeshStandardMaterial;
         m.transparent = true;

@@ -3,22 +3,38 @@ async function pos(p: Page) {
   return p.evaluate(() => (window as any).game.state().position);
 }
 async function axis(p: Page, dimension: "x" | "z", destination: number) {
-  // Keep real keyboard input, but pause the browser clock between samples.
-  // Slow software renderers must not keep walking while Playwright reads state.
-  for (let step = 0; step < 120; step++) {
+  const origin = await pos(p);
+  for (let step = 0; step < 360; step++) {
     const current = await pos(p);
-    const delta = destination - current[dimension];
-    if (Math.abs(delta) < 0.08) return;
-    const key =
-      dimension === "x" ? (delta > 0 ? "d" : "a") : delta > 0 ? "s" : "w";
-    await p.keyboard.down(key);
-    try {
-      await p.clock.fastForward(
-        Math.min(250, Math.ceil((Math.abs(delta) / 4) * 1000)),
-      );
-    } finally {
-      await p.keyboard.up(key);
-    }
+    const goal = {
+      ...origin,
+      [dimension]:
+        current[dimension] +
+        Math.max(-1, Math.min(1, destination - current[dimension])),
+    };
+    const delta = { x: goal.x - current.x, z: goal.z - current.z };
+    const distance = Math.hypot(delta.x, delta.z);
+    if (
+      Math.abs(destination - current[dimension]) < 0.08 &&
+      Math.abs(
+        current[dimension === "x" ? "z" : "x"] -
+          origin[dimension === "x" ? "z" : "x"],
+      ) < 0.08
+    )
+      return;
+    const [fx, , fz] = await p.evaluate(
+      () => (window as any).game.camera().forward,
+    );
+    const forward = delta.x * fx + delta.z * fz,
+      right = -delta.x * fz + delta.z * fx;
+    const keys: string[] = [];
+    if (Math.abs(forward) > distance * 0.38) keys.push(forward > 0 ? "w" : "s");
+    if (Math.abs(right) > distance * 0.38) keys.push(right > 0 ? "d" : "a");
+    for (const key of keys) await p.keyboard.down(key);
+    await p.clock.fastForward(
+      Math.min(100, Math.max(16, Math.ceil((distance / 4) * 1000))),
+    );
+    for (const key of keys) await p.keyboard.up(key);
   }
   throw new Error(
     `Could not walk to ${dimension}=${destination}; stopped at ${JSON.stringify(await pos(p))}`,
@@ -34,6 +50,7 @@ test("whole town traversal through actual doors and fence gate", async ({
   await page.goto("./?test");
   await page.getByRole("button", { name: "Wake up" }).click();
   await page.keyboard.press("e");
+  await axis(page, "x", -16);
   await axis(page, "z", 25);
   await axis(page, "x", 3);
   await axis(page, "z", -16);
@@ -198,6 +215,7 @@ test("approaching a neighbor does not intersect their rendered head", async ({
   await page.getByRole("button", { name: "Wake up" }).click();
   await page.keyboard.press("e");
   await page.evaluate(() => (window as any).game.teleport(10, 21.4));
+  await page.waitForTimeout(1800);
   await page.keyboard.down("w");
   await page.waitForTimeout(1200);
   await page.keyboard.up("w");
@@ -269,9 +287,22 @@ test("camera eases through the front doorway without jumps or wall penetration",
     () => (window as any).game.camera().position,
   );
   let maxShift = 0;
-  await page.keyboard.down("s");
   try {
-    for (let i = 0; i < 55; i++) {
+    for (let i = 0; i < 100; i++) {
+      const current = await pos(page);
+      if (current.z > 14.5) break;
+      const [fx, , fz] = await page.evaluate(
+        () => (window as any).game.camera().forward,
+      );
+      const dx = -16 - current.x,
+        dz = 16 - current.z,
+        distance = Math.hypot(dx, dz);
+      const f = dx * fx + dz * fz,
+        r = -dx * fz + dz * fx;
+      const pressed: string[] = [];
+      if (Math.abs(f) > distance * 0.38) pressed.push(f > 0 ? "w" : "s");
+      if (Math.abs(r) > distance * 0.38) pressed.push(r > 0 ? "d" : "a");
+      for (const key of pressed) await page.keyboard.down(key);
       await page.clock.fastForward(16);
       const camera = await page.evaluate(() => (window as any).game.camera());
       expect(camera.penetrations).toBe(0);
@@ -282,9 +313,11 @@ test("camera eases through the front doorway without jumps or wall penetration",
         ),
       );
       previous = camera.position;
+      for (const key of pressed) await page.keyboard.up(key);
     }
   } finally {
     await page.keyboard.up("s");
+    await page.keyboard.up("w");
   }
   expect(maxShift).toBeLessThan(0.75);
   expect(

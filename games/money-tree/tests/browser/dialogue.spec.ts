@@ -20,6 +20,8 @@ test("NPC speech is anchored and does not pause movement", async ({ page }) => {
   await expect(page.locator("#modal")).toBeHidden();
   const firstLine = await page.locator(".speech-bubble").innerText();
   await page.keyboard.press("e");
+  await expect(page.locator(".speech-bubble")).toHaveCount(0);
+  await page.keyboard.press("e");
   await expect(page.locator(".speech-bubble")).not.toHaveText(firstLine);
   await expect(page.locator(".speech-bubble")).toContainText(
     "strange rustling",
@@ -28,6 +30,7 @@ test("NPC speech is anchored and does not pause movement", async ({ page }) => {
   const before = await page.evaluate(
     () => (window as any).game.state().position.x,
   );
+  await page.waitForTimeout(2400);
   await page.keyboard.down("s");
   await expect
     .poll(() => page.evaluate(() => (window as any).game.state().position.x))
@@ -79,9 +82,7 @@ test("harvest withers, Robertson stops selling seeds, cap seeds replant once and
   await page.getByRole("button", { name: "Buy · $5.00" }).click();
   await page.keyboard.press("i");
   await expect(page.locator(".inventory-card svg")).toHaveCount(7);
-  await expect(page.locator("[data-item=fertilizer]")).toContainText(
-    "1 application",
-  );
+  await expect(page.locator("[data-item=fertilizer]")).toContainText("5 doses");
   await page.getByRole("button", { name: "Back to the day" }).click();
   await page.evaluate(() => (window as any).game.teleport(20.65, -24.6));
   await expect(page.locator("#prompt")).toContainText("Cap");
@@ -106,13 +107,13 @@ test("harvest withers, Robertson stops selling seeds, cap seeds replant once and
   ).toBe(false);
   expect(
     await page.evaluate(() => (window as any).game.state().fertilizer),
-  ).toBe(1);
+  ).toBe(5);
   await page.keyboard.press("e");
   const state = await page.evaluate(() => (window as any).game.state());
   expect(state.seeds).toBe(4);
   expect(state.foundCapSeeds).toBe(true);
   expect(state.plots[0].fertilized).toBe(true);
-  expect(state.fertilizer).toBe(0);
+  expect(state.fertilizer).toBe(4);
 
   await page.reload();
   await page.getByRole("button", { name: "Wake up" }).click();
