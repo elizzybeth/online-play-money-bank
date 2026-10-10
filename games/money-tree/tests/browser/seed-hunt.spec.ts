@@ -50,13 +50,17 @@ test("up and down arrows tilt the camera without walking", async ({ page }) => {
   await page.getByRole("button", { name: "Wake up" }).click();
   const initial = await page.evaluate(() => (window as any).game.cameraPitch());
   await page.keyboard.down("ArrowUp");
-  await expect.poll(() => page.evaluate(() => (window as any).game.cameraPitch())).toBeLessThan(initial - 0.05);
+  await expect
+    .poll(() => page.evaluate(() => (window as any).game.cameraPitch()))
+    .toBeLessThan(initial - 0.05);
   await page.keyboard.up("ArrowUp");
   expect(
     await page.evaluate(() => (window as any).game.cameraPitch()),
   ).toBeLessThan(initial);
   await page.keyboard.down("ArrowDown");
-  await expect.poll(() => page.evaluate(() => (window as any).game.cameraPitch())).toBeGreaterThan(initial + 0.05);
+  await expect
+    .poll(() => page.evaluate(() => (window as any).game.cameraPitch()))
+    .toBeGreaterThan(initial + 0.05);
   await page.keyboard.up("ArrowDown");
   expect(
     await page.evaluate(() => (window as any).game.cameraPitch()),

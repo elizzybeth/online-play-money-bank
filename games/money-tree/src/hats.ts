@@ -5,7 +5,7 @@ export const hats = [
     price: 200,
     color: "#5a9c87",
     power:
-      "Plant 15% faster and recover one seed per harvest. Check the brim for a surprise.",
+      "Plant 15% faster and have a 50% chance to recover one seed per harvest. Check the brim for a surprise.",
   },
   {
     id: "propeller",

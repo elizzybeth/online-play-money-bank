@@ -62,6 +62,38 @@ test("whole town traversal through actual doors and fence gate", async ({
 test("all required interaction targets are reachable in scene collision geometry", async ({
   page,
 }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "money-tree-v1",
+      JSON.stringify({
+        version: 1,
+        hats: [],
+        equippedHat: null,
+        day: 1,
+        cash: 0,
+        bank: 433,
+        seeds: 5,
+        shovel: false,
+        can: false,
+        fertilizer: 0,
+        awake: false,
+        metMom: false,
+        metRobertson: false,
+        recovered: false,
+        foundTVSeeds: true,
+        plots: Array.from({ length: 5 }, () => ({
+          stage: "empty",
+          remaining: 0,
+          fertilized: false,
+          yield: 0,
+        })),
+        events: [],
+        journal: [],
+        rng: 48271,
+        position: { x: -16, z: 4 },
+      }),
+    );
+  });
   await page.goto("./?test");
   const unreachable = await page.evaluate(() => {
     const { rects, targets } = (window as any).game;
@@ -89,7 +121,7 @@ test("all required interaction targets are reachable in scene collision geometry
         if (
           a < -76 ||
           a > 76 ||
-          b < -78 ||
+          b < -168 ||
           b > 76 ||
           seen.has(k) ||
           blocked(a * 0.5, b * 0.5)
@@ -198,8 +230,8 @@ test("scenery clears paths and doors; visible hedges cover world boundaries", as
         if (connected.has(i))
           g.paths.forEach((b: any, j: number) => {
             if (
-              Math.abs(a.x - b.x) < (a.w + b.w) / 2 &&
-              Math.abs(a.z - b.z) < (a.d + b.d) / 2
+              Math.abs(a.x - b.x) <= (a.w + b.w) / 2 + 0.001 &&
+              Math.abs(a.z - b.z) <= (a.d + b.d) / 2 + 0.001
             )
               connected.add(j);
           });
@@ -212,13 +244,13 @@ test("scenery clears paths and doors; visible hedges cover world boundaries", as
   });
   expect(result.obstructions).toEqual([]);
   expect(result.allPathsConnected).toBe(true);
-  expect(result.hedges).toHaveLength(4);
+  expect(result.hedges).toHaveLength(5);
   for (const bounds of result.hedges)
     expect(bounds.max[1] - bounds.min[1]).toBeGreaterThan(2);
   expect(result.hedges[0].min[0]).toBeLessThan(-38);
   expect(result.hedges[1].max[0]).toBeGreaterThan(38);
   expect(result.hedges[2].min[2]).toBeLessThan(-39);
-  expect(result.hedges[3].max[2]).toBeGreaterThan(38);
+  expect(result.hedges[4].max[2]).toBeGreaterThan(38);
 });
 
 test("camera eases through the front doorway without jumps or wall penetration", async ({

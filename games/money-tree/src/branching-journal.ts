@@ -80,7 +80,7 @@ const count = (c: JournalContext, prefix: string) =>
 const has = (c: JournalContext, pattern: RegExp) =>
   c.events.some((e) => pattern.test(e));
 const powers: Record<string, string> = {
-  cap: "plant a little faster and save a seed from each harvest",
+  cap: "plant a little faster and have a one-in-two chance to save a seed at harvest",
   propeller: "walk and run faster",
   rabbit: "jump",
   inspector: "see how all my trees are growing",
@@ -197,8 +197,22 @@ export function constructJournal(
         return slots[k];
       }),
     }));
+    const existing = paragraphs.map(normalize);
+    const repeatedWithinPage = (text: string) => {
+      const words = normalize(text).split(" ");
+      return words.some(
+        (_, i) =>
+          i + 3 <= words.length &&
+          existing.some((p) =>
+            ` ${p} `.includes(` ${words.slice(i, i + 3).join(" ")} `),
+          ),
+      );
+    };
     const fresh = candidates.filter(
-      (p) => !repeatsPhrase(p.text) && !paragraphs.includes(p.text),
+      (p) =>
+        !repeatsPhrase(p.text) &&
+        !paragraphs.includes(p.text) &&
+        !repeatedWithinPage(p.text),
     );
     if (!fresh.length && !required) return false;
     const pool = fresh.length ? fresh : candidates;
@@ -226,6 +240,21 @@ export function constructJournal(
     choose("first", undefined, true);
     memory.firstHarvestWritten = true;
   } else if (c.earned) choose("income", undefined, true);
+  else if (has(c, /^Sold my pretend coin/))
+    choose(
+      "sigmaSale",
+      [
+        "I sold the coin and got money back in my pocket. I can stop watching the tracker for a while.",
+        "My coins are sold now. I want to get back to something I can plant and water.",
+        "I turned the coin holding into pocket money. I need to think about what to save before I spend it.",
+        "Chad bought my coins back. Holding real bills feels different from watching that number.",
+        "I sold my coins today. I am glad I could get the money out when I wanted it.",
+        "The coins are gone from my holding. I keep checking my pocket to make sure the money is there.",
+        "I sold what I had in the coin. At least I know how much money I actually have now.",
+        "My money came out of the coin today. I would rather count it at home than listen to another speech from Chad.",
+      ],
+      true,
+    );
   else if (c.hasHarvested) {
     if (!choose("noIncome")) choose("quiet", undefined, true);
   } else if (has(c, /^Bought five mysterious seeds/))
@@ -241,7 +270,13 @@ export function constructJournal(
   // Observations are the only source of claims about Mom's health and activity.
   const momParagraphs = paragraphs.length;
   if (tired) {
-    choose(cough ? "cough" : "tired");
+    choose(
+      has(c, /^Mom was exhausted in bed/)
+        ? "momBed"
+        : cough
+          ? "cough"
+          : "tired",
+    );
     if (memory.lastMom === "good" && memory.lastMomDay === c.day - 1)
       choose("setback");
   } else if (good) {
@@ -254,7 +289,17 @@ export function constructJournal(
           ? "reading"
           : /garden/.test(activity)
             ? "garden"
-            : "cooking";
+            : /mending/.test(activity)
+              ? "mending"
+              : /jigsaw/.test(activity)
+                ? "puzzles"
+                : /music/.test(activity)
+                  ? "music"
+                  : /letter/.test(activity)
+                    ? "letters"
+                    : /feeding/.test(activity)
+                      ? "feeding"
+                      : "cooking";
     choose(family);
     if (family === "garden" && has(c, /^Heard Mom:.*ugly.*(?:thank|Thank)/))
       choose("ugly");
@@ -288,8 +333,85 @@ export function constructJournal(
     hats.find((h) => c.events.some((x) => x.startsWith(`Used my ${h.name} `)));
   const limit = paragraphs.length < 4;
   if (limit) {
-    if (has(c, /^Found five money seeds among/)) choose("forest");
+    if (has(c, /^Named my pretend coin/))
+      choose("sigmaCoin", [
+        "Chad let me name a coin. I wanted to name something besides a tree for once. I still do not know if his idea is any good.",
+        "I picked a name for Chad’s coin. That part was fun. Deciding what to do with my money is harder.",
+        "There is a coin with a name I chose now. Mom needs real money, so I have to remember the difference.",
+        "Chad says my coin could be a big deal. He says that about his coffee too.",
+        "Naming the coin made it feel like mine. That does not mean it will go up.",
+        "I chose a coin name at Grindset. I wish knowing what happens next was as easy as naming it.",
+        "My coin has a name now. It looks strange seeing something I made up on that little tracker.",
+        "Chad gave me a coin to name. I am pretty sure he would call anything a business opportunity.",
+      ]);
+    else if (has(c, /^Invested .*pretend coin/))
+      choose("sigmaInvest", [
+        "I put some money into Chad’s coin. Watching the number change makes me nervous. I need to keep enough for the garden.",
+        "Chad talks like his coin cannot lose. The price still goes down sometimes. I can see it myself.",
+        "I tried investing at Grindset. Trees take water and time. This thing just changes numbers.",
+        "Part of my money is in the coin now. I am not counting that as money for Mom until I sell it.",
+        "I bought some of the coin. Chad smiled a lot. I will have to watch it myself.",
+        "The coin price goes both ways. I wish Chad spent more time explaining that part.",
+        "Investing felt exciting for about a minute. Then I started thinking about the things I could have bought instead.",
+        "I tried Chad’s investment. It is strange hoping for a number to change instead of a seed to grow.",
+      ]);
+    else if (has(c, /^Planted in Sigma Town/))
+      choose("sigmaGarden", [
+        "I planted in the community garden. A Chad said sharing soil was not sigma. The seeds did not seem to mind.",
+        "There were ten dead trees in that garden. I gave one plot a new seed. I would rather try than argue with Chad.",
+        "The garden beds make a big funny shape. I planted there anyway. Empty soil is still soil.",
+        "Chad does not like the word community. I do not think he has figured out the word garden either.",
+        "I used a community plot today. If the trees grow money there too, maybe other people can use them.",
+        "I started a tree on the other side of the hedge. Chad made a face when I told him where.",
+        "Those dead trees looked like ours after a harvest. It felt good putting a fresh seed in one of the beds.",
+        "The community garden has room to grow things. I took care of a plot while the Chads talked about success.",
+      ]);
+    else if (has(c, /^Bought .* at Grindset/))
+      choose("sigmaCoffee", [
+        "I bought a drink at Grindset. It helped for a little while. Chad acted like he had invented drinking.",
+        "The coffee shop sells drinks with strange powers. At least I can tell when one is working.",
+        "My drink will wear off in a few minutes. I should plan the garden work before buying one.",
+        "I tried one of Chad’s drinks. Three minutes is not very long, but a little help is useful.",
+        "Grindset has a whole menu of helpful drinks. I still have to do the work myself.",
+        "I paid for a drink in Sigma Town. There are easier ways to get advice than listening to Chad over the counter.",
+        "The drink gives me a short bonus. I want to use those minutes well.",
+        "Chad calls the drinks productivity tools. I call them expensive if I forget to use the bonus.",
+      ]);
+    else if (has(c, /^Stopped to talk with Chad/))
+      choose("sigmaVisit", [
+        "Everyone I met in Sigma Town was called Chad. It makes remembering names easy, at least.",
+        "Sigma Town is on the other side of the hedge. The Chads have a lot of advice. None of them asked about Mom.",
+        "One house looks like a dog and another looks like a frog. The people there still act very serious.",
+        "I talked to some Chads. They kept saying lone wolf. I wondered who they talk to when they feel scared.",
+        "The houses in Sigma Town are ridiculous. I tried not to laugh while Chad explained success to me.",
+        "Chad told me to work harder. I have already been digging all day. Maybe he should try it.",
+        "I visited the new town. Everybody has an answer for how to make money, but their garden is dead.",
+        "The Chads talk about winning a lot. I mostly want Mom to get better.",
+      ]);
+    else if (has(c, /^Found five money seeds among/)) choose("forest");
     else if (has(c, /^Found five money seeds hidden/)) choose("store");
+    else if (has(c, /^Found five money seeds in a neighbor/))
+      choose("neighborSeeds", [
+        "I found money seeds in a neighbor's flowerbed. I almost walked right past them.",
+        "A neighbor's flowers were hiding another packet of money seeds. I wonder who put it there.",
+        "I spotted money seeds between the flowers next door. I should look more carefully when I walk around.",
+        "There were seeds tucked into a neighbor's flowerbed. I took the packet and left the flowers alone.",
+        "I found another five seeds by the flowers. This town keeps hiding them in odd places.",
+        "The next packet was in a flowerbed. I was looking at the plants when I noticed it.",
+        "I came home with money seeds from a neighbor's garden. I still don't know why they were there.",
+        "Somebody left money seeds among the flowers. I am glad I looked closely enough to find them.",
+      ]);
+    else if (has(c, /^Found five money seeds behind the TV/))
+      choose("tvSeeds", [
+        "I found money seeds behind our TV. How long had they been in our house?",
+        "Another packet was hiding behind the television. I was home the whole time and never noticed.",
+        "There were five money seeds behind the TV. I do not know how they got there.",
+        "I checked behind the television and found more seeds. Even our living room has surprises.",
+        "The next seeds were at home, behind the TV. I had been walking past them every day.",
+        "I came looking for seeds and found them behind our own television. That is a strange place for them.",
+        "I found a packet behind the TV today. I thought I knew where everything was in this house.",
+        "Our television was hiding money seeds. I keep wondering who could have left them there.",
+      ]);
     else if (has(c, /^Found five.*(?:cap|brim)/i)) choose("cap");
     else if (hat) {
       const used = c.events.some((x) => x.startsWith(`Used my ${hat.name} `));
@@ -306,7 +428,9 @@ export function constructJournal(
         `${action} I don't want it to sit in my bag doing nothing.`,
         `${action} There's a lot about this town I still don't understand.`,
       ]);
-    } else if (has(c, /^Placed a new garden bed/)) choose("expansion");
+    } else if (has(c, /^Saw Mom’s finished birdhouses/))
+      choose("finishedBirdhouses");
+    else if (has(c, /^Placed a new garden bed/)) choose("expansion");
     else if (planted) choose("planting");
     else if (fed) choose("fertilizer");
     else if (watered) choose("watering");

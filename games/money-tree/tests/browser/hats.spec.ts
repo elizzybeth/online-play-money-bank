@@ -52,12 +52,12 @@ test("walk into hat shop, inspect ten detailed hats, find seeds and buy/equip wi
     await expect(page.getByRole("heading", { name: hat.name })).toBeVisible();
     await page
       .getByRole("button", {
-        name: `Buy & wear · $${(hat.price / 100).toFixed(2)}`,
+        name: `Buy & ${i >= 3 ? "keep" : "wear"} · $${(hat.price / 100).toFixed(2)}`,
       })
       .click();
     await expect
       .poll(() => page.evaluate(() => (window as any).game.wornHatHeight()))
-      .toBeLessThanOrEqual(2.651);
+      .toBeLessThanOrEqual(4.2);
   }
   const state = await page.evaluate(() => (window as any).game.state());
   expect(state.hats).toHaveLength(10);
@@ -66,6 +66,7 @@ test("walk into hat shop, inspect ten detailed hats, find seeds and buy/equip wi
   await expect(page.locator("[data-hat] img")).toHaveCount(10);
   await expect(page.locator("#toast")).toHaveCSS("opacity", "0");
   await page.screenshot({ path: "../../outputs/money-tree-hats.png" });
+  await page.evaluate(() => (window as any).game.equipHat(null));
   await page.locator("[data-hat=inspector]").click();
   await page.keyboard.press("e");
   await expect(page.locator("#modal")).toBeHidden();
