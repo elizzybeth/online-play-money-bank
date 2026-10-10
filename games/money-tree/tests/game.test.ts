@@ -179,6 +179,7 @@ test("import decoder accepts formatted fresh saves and rejects invalid data", ()
   assert.deepEqual(decode(JSON.stringify(s, null, 2)), s);
   assert.equal(decode("{}"), null);
   assert.equal(decode("bad"), null);
+  assert.equal(decode(JSON.stringify({ ...s, journal: [] })), null);
 });
 
 test("legacy saves migrate seed progression without losing balances", () => {

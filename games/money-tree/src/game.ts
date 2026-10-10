@@ -538,6 +538,7 @@ export function decode(raw: string | null): State | null {
           Array.isArray(s[k]) &&
           s[k].every((x: unknown) => typeof x === "string"),
       ) ||
+      !s.journal.length ||
       !Number.isSafeInteger(s.rng) ||
       s.rng <= 0 ||
       s.rng >= 2147483647 ||
