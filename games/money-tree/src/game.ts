@@ -1,4 +1,9 @@
 import {
+  writeBranchedDay,
+  validNarrativeMemory,
+  type NarrativeMemory,
+} from "./branching-journal";
+import {
   validJournalContext,
   validJournalMemory,
   rememberDay,
@@ -42,6 +47,7 @@ export type State = {
   plots: Plot[];
   events: string[];
   journal: string[];
+  journalNarrative?: NarrativeMemory;
   journalDrafts?: JournalContext[];
   journalHistory?: JournalMemory[];
   rng: number;
@@ -311,16 +317,11 @@ export function summarizeDay(
   return `Day ${day}\n\n${lines.join("\n\n")}`.replaceAll("—", ". ");
 }
 export function sleep(s: State) {
+  const entry = writeBranchedDay(s);
   (s.journalHistory ??= []).push(rememberDay(s));
   const firstHarvest =
     !s.harvestReflected && s.events.some((e) => e.startsWith("Harvested"));
-  s.journal.push(
-    summarizeDay(s.day, s.events, {
-      firstHarvest,
-      available: s.cash + s.bank,
-      boughtSeeds: s.boughtSeeds,
-    }),
-  );
+  s.journal.push(entry);
   if (firstHarvest) s.harvestReflected = true;
   s.events = [];
   s.day++;
@@ -442,6 +443,12 @@ export function decode(raw: string | null): State | null {
     )
       return null;
     // Optional writer metadata must never discard otherwise valid game progress.
+    if (
+      !validNarrativeMemory(s.journalNarrative) ||
+      s.journalNarrative.lastMomDay >= s.day
+    )
+      delete s.journalNarrative;
+    if (s.journalDrafts !== undefined) s.journalDrafts = []; // Preserve pages, retire model jobs.
     if (s.journalHistory !== undefined)
       s.journalHistory = Array.isArray(s.journalHistory)
         ? s.journalHistory.filter(
