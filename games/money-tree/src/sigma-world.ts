@@ -64,6 +64,7 @@ export function createSigmaWorld(
     );
     m.position.set(x, y, z);
     town.add(m);
+    if (["Doge", "Pepe", "Hawk Tuah"].includes(text)) m.userData.houseSign = true;
     return m;
   }
   // One union mesh, lifted above the grass: no coplanar seams or overlapping tiles.
@@ -413,6 +414,8 @@ export function createSigmaWorld(
       town.visible = value;
     },
     updateRoofs(x: number, z: number) {
+      const inside = houseBounds.find(h => Math.abs(x-h.x) < h.w/2 && Math.abs(z-h.z) < h.d/2);
+      for (const sign of town.children.filter(o => o.userData.houseSign)) sign.visible = !inside || Math.abs(sign.position.z - inside.z) > 10;
       roofs.forEach((r) => {
         const near = houseBounds.some(
           (h) =>

@@ -2414,7 +2414,7 @@ function frame(now: number) {
     const target = new T.Vector3(
         s.position.x,
         1.4 + jumpHeight * 0.7,
-        s.position.z,
+        s.position.z - (speaking?.id.startsWith("doge-meditator-") || meditationTime > 0 ? 3 : 0),
       ),
       desired = target
         .clone()
