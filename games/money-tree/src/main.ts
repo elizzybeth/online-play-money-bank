@@ -927,7 +927,7 @@ function pauseMenu() {
             {
               label: "I'm stuck — return home",
               run: () => {
-                action = undefined;
+                resetTransientMotion();
                 sitting = false;
                 world.setPlayerSeated(false);
                 s.position = { x: -16, z: 4 };
@@ -1003,6 +1003,7 @@ function pauseMenu() {
             world.player.userData.farewell = false;
 
             s = next;
+            resetTransientMotion();
             wasHome = atHome();
             visitedOutside = s.awake && !wasHome;
             if (
@@ -1036,6 +1037,7 @@ function pauseMenu() {
                   world.player.userData.farewell = false;
 
                   s = fresh();
+                  resetTransientMotion();
                   sitting = false;
                   world.setPlayerSeated(false);
                   wasHome = true;
@@ -1653,6 +1655,7 @@ $("#new-game").onclick = () => {
           world.player.userData.farewell = false;
 
           s = fresh();
+          resetTransientMotion();
           sitting = false;
           world.setPlayerSeated(false);
           wasHome = true;
@@ -1840,6 +1843,22 @@ function updateRollPose() {
     world.player.remove(rollPose);
     rollPose = undefined;
   }
+}
+function resetTransientMotion() {
+  action = undefined;
+  pepeViewHold = 0;
+  pepeReturning = false;
+  pepeGreeted = false;
+  dogeGreeted = false;
+  meditationTime = 0;
+  rollTime = 0;
+  rollCooldown = 0;
+  jumpHeight = 0;
+  jumpVelocity = 0;
+  updateRollPose();
+  sitting = false;
+  world.setPlayerSeated(false);
+  keys.clear();
 }
 let dragging = false,
   intentionalUnlock = false,
@@ -2994,6 +3013,7 @@ if (new URLSearchParams(location.search).has("test")) {
       placingBed = false;
 
       s = fresh();
+      resetTransientMotion();
       sitting = false;
       world.setPlayerSeated(false);
       close();

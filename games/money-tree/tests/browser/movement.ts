@@ -14,8 +14,9 @@ export async function walkTo(page: Page, x: number, z: number) {
       tx = dx * scale,
       tz = dz * scale,
       [fx, , fz] = info.forward;
-    const f = tx * fx + tz * fz,
-      r = -tx * fz + tz * fx,
+    const horizontal = Math.hypot(fx, fz) || 1,
+      f = (tx * fx + tz * fz) / horizontal,
+      r = (-tx * fz + tz * fx) / horizontal,
       n = Math.hypot(tx, tz),
       keys: string[] = [];
     if (Math.abs(f) > n * 0.38) keys.push(f > 0 ? "w" : "s");

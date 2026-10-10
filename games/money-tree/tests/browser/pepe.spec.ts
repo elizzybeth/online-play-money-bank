@@ -91,3 +91,35 @@ test("the Pepe doorway remains physically closed before meeting Stacy and comple
     await page.evaluate(() => (window as any).game.state().pepeShowStarted),
   ).toBe(false);
 });
+test("starting fresh immediately after the balloon pops releases cinematic controls", async ({
+  page,
+}) => {
+  await page.clock.install({ time: new Date("2026-01-01T00:00:00Z") });
+  await page.clock.pauseAt(new Date("2026-01-02T00:00:00Z"));
+  const s = fresh();
+  Object.assign(s, {
+    awake: true,
+    foundTVSeeds: true,
+    metStacy: true,
+    foundMeditationSeeds: true,
+    pepeShowStarted: true,
+    pepeInflation: 11.9,
+    position: { x: -18, z: -60 },
+  });
+  await page.addInitScript(
+    (s) => localStorage.setItem("money-tree-v1", JSON.stringify(s)),
+    s,
+  );
+  await page.goto("./?test");
+  await page.getByRole("button", { name: "Wake up" }).click();
+  for (let i = 0; i < 4; i++) await page.clock.fastForward(100);
+  expect(
+    await page.evaluate(() => (window as any).game.state().pepePopped),
+  ).toBe(true);
+  await page.evaluate(() => (window as any).game.reset());
+  await page.keyboard.press("e");
+  for (let i = 0; i < 4; i++) await page.clock.fastForward(16);
+  expect(await page.evaluate(() => (window as any).game.state().awake)).toBe(
+    true,
+  );
+});

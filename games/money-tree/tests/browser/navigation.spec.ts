@@ -25,8 +25,9 @@ async function axis(p: Page, dimension: "x" | "z", destination: number) {
     const [fx, , fz] = await p.evaluate(
       () => (window as any).game.camera().forward,
     );
-    const forward = delta.x * fx + delta.z * fz,
-      right = -delta.x * fz + delta.z * fx;
+    const horizontal = Math.hypot(fx, fz) || 1,
+      forward = (delta.x * fx + delta.z * fz) / horizontal,
+      right = (-delta.x * fz + delta.z * fx) / horizontal;
     const keys: string[] = [];
     if (Math.abs(forward) > distance * 0.38) keys.push(forward > 0 ? "w" : "s");
     if (Math.abs(right) > distance * 0.38) keys.push(right > 0 ? "d" : "a");
