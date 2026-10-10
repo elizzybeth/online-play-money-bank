@@ -67,7 +67,8 @@ test("whole town traversal through actual doors and fence gate", async ({
     "How’s the garden going",
   );
   await page.getByRole("button", { name: "Look around" }).click();
-  if (!process.env.CI) await page.screenshot({ path: "../../work/robertsons.png" });
+  if (!process.env.CI)
+    await page.screenshot({ path: "../../work/robertsons.png" });
   await axis(page, "x", 7);
   await axis(page, "z", -16);
   await axis(page, "x", 3);
@@ -76,7 +77,8 @@ test("whole town traversal through actual doors and fence gate", async ({
   await axis(page, "z", 4);
   await page.clock.fastForward(16);
   await expect(page.locator("#location")).toContainText("Home");
-  if (!process.env.CI) await page.screenshot({ path: "../../work/bedroom-third-person.png" });
+  if (!process.env.CI)
+    await page.screenshot({ path: "../../work/bedroom-third-person.png" });
 });
 test("all required interaction targets are reachable in scene collision geometry", async ({
   page,
@@ -165,8 +167,10 @@ test("all required interaction targets are reachable in scene collision geometry
 test("camera stays outside walls and furniture during doorway and corner sweeps", async ({
   page,
 }) => {
-  // 144 rendered camera samples include the hat shop; software WebKit needs more time.
+  // Sample all 144 views without unbounded background software-rendered frames.
   test.setTimeout(240000);
+  await page.clock.install({ time: new Date("2026-01-01T00:00:00Z") });
+  await page.clock.pauseAt(new Date("2026-01-02T00:00:00Z"));
   await page.goto("./?test");
   await page.getByRole("button", { name: "Wake up" }).click();
   await page.keyboard.press("e");
@@ -199,11 +203,10 @@ test("camera stays outside walls and furniture during doorway and corner sweeps"
         (window as any).game.setYaw((i * Math.PI) / 4);
         return (window as any).game.frame();
       }, i);
-      await expect
-        .poll(() => page.evaluate(() => (window as any).game.frame()), {
-          intervals: [50],
-        })
-        .toBeGreaterThan(frame);
+      await page.clock.fastForward(32);
+      expect(
+        await page.evaluate(() => (window as any).game.frame()),
+      ).toBeGreaterThan(frame);
       expect(
         await page.evaluate(() => (window as any).game.camera().penetrations),
         `camera at ${x},${z}, angle ${i}`,
