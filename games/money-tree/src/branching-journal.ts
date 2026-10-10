@@ -1,6 +1,7 @@
 import { journalContext, type JournalContext } from "./journal";
 import type { State } from "./game";
 import { hats } from "./hats";
+import { bikes } from "./bikes";
 import { passages } from "./journal-passages";
 export const emotionNames = [
   "worry",
@@ -333,8 +334,41 @@ export function constructJournal(
     ) ??
     hats.find((h) => c.events.some((x) => x.startsWith(`Used my ${h.name} `)));
   const limit = paragraphs.length < 4;
+  const bicycle = bikes.find((b) =>
+    c.events.some(
+      (x) =>
+        x === `Bought the ${b.name} bicycle.` ||
+        x === `Rode my ${b.name} bicycle.`,
+    ),
+  );
   if (limit) {
-    if (has(c, /^Named my pretend coin/))
+    if (bicycle) {
+      const rode = c.events.includes(`Rode my ${bicycle.name} bicycle.`);
+      choose(
+        "bicycle",
+        rode
+          ? [
+              `I rode the ${bicycle.name}. I can get around town faster now.`,
+              `I took the ${bicycle.name} out today. I still have to stop and look after the trees.`,
+              `The ${bicycle.name} is quicker than running. Getting home to Mom takes less time.`,
+              `I like having the ${bicycle.name}. I can ring the bell with both hands on the bars.`,
+              `I rode my ${bicycle.name} today. The houses look different when they go past that fast.`,
+              `The ${bicycle.name} helps me get around. I need to slow down when I look for little packets.`,
+              `My ${bicycle.name} has a little screen that shows my speed. I kept checking it.`,
+              `I have the ${bicycle.name} now. I want to use it for trips between the gardens.`,
+            ]
+          : [
+              `I bought the ${bicycle.name}. That was a lot of money. I hope it helps with trips around town.`,
+              `The ${bicycle.name} is mine now. I want to try it outside.`,
+              `I picked the ${bicycle.name} at Spoke & Saddle. I kept looking at the other bikes too.`,
+              `I have a ${bicycle.name} now. It should make the trip home quicker.`,
+              `I paid for the ${bicycle.name} today. I need to earn that money back.`,
+              `I chose the ${bicycle.name}. There were seven different bikes in the shop.`,
+              `I bought a ${bicycle.name}. I hope I chose a good one.`,
+              `Spoke & Saddle sold me the ${bicycle.name}. I want to use it for the garden trips.`,
+            ],
+      );
+    } else if (has(c, /^Named my pretend coin/))
       choose("sigmaCoin", [
         "Chad let me name a coin. Picking a name was more fun than I expected. I still do not know if his idea is any good.",
         "I picked a name for Chad’s coin. That part was fun. Deciding what to do with my money is harder.",

@@ -1,4 +1,5 @@
 import { extraTownLines } from "./town-dialogue";
+import { bikeById, type BikeId } from "./bikes";
 import {
   buff,
   healthDay,
@@ -36,6 +37,8 @@ export type Plot = {
 };
 export type State = {
   version: 1;
+  bikes?: BikeId[];
+  selectedBike?: BikeId | null;
   coin?: Coin;
   drink?: { id: DrinkId; remaining: number };
   communityPlanted?: boolean;
@@ -88,6 +91,8 @@ export const opening =
   "Need $ for mom's operation. Money doesn't grow on trees. Or does it? Ol' Man Robertson said something strange today. He said he'd have some seeds for me next time I see him.";
 export const fresh = (): State => ({
   version: 1,
+  bikes: [],
+  selectedBike: null,
   communityPlanted: false,
   totalEarned: 0,
   hats: [],
@@ -680,6 +685,14 @@ export function decode(raw: string | null): State | null {
         ),
     );
     if (typeof s.harvestReflected !== "boolean") return null;
+    // Bicycle ownership is optional in older saves. Invalid optional data must
+    // not discard the player's money, journal, or garden.
+    s.bikes = Array.isArray(s.bikes)
+      ? [...new Set(s.bikes.filter((id: unknown) => bikeById(id)))]
+      : [];
+    s.selectedBike = s.bikes.includes(s.selectedBike)
+      ? s.selectedBike
+      : (s.bikes[0] ?? null);
     s.hats ??= [];
     s.equippedHat ??= null;
     if (

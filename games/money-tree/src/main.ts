@@ -1,4 +1,14 @@
 import { notebookDoodles } from "./notebook-doodles";
+import {
+  bikes,
+  bikeById,
+  buyBike,
+  selectBike,
+  inBikeShop,
+  bikeShopBounds,
+  type BikeId,
+} from "./bikes";
+import { makeBike, makeBikeCockpit } from "./bike-models";
 import { seedPacketImage } from "./seed-packet";
 import {
   canEnterPepe,
@@ -6,7 +16,11 @@ import {
   tickPepeShow,
   collectPepePacket,
 } from "./pepe-event";
-import { enableBalloonAudio, balloonSound } from "./balloon-audio";
+import {
+  enableBalloonAudio,
+  balloonSound,
+  setBalloonMuted,
+} from "./balloon-audio";
 import { stacyStory } from "./stacy-dialogue";
 import { SeedSearchClock } from "./seed-hints";
 import {
@@ -157,6 +171,144 @@ if (
   s.position = { x: -16, z: 4 };
 world.player.position.set(s.position.x, 0, s.position.z);
 world.setMomDay(s.day, homeContains(s.position));
+scene.add(camera);
+const bikeCockpit = makeBikeCockpit();
+camera.add(bikeCockpit.object);
+let riding = false,
+  rideSpeed = 0,
+  actualRideSpeed = 0,
+  bellRings = 0;
+let rideTransition = 0;
+const rideEyeHeight = () => (s.selectedBike === "penny" ? 2.45 : 1.7);
+const rideCameraOffset = new T.Vector3();
+let parkedBike: T.Group | undefined, parkedBikeId: BikeId | undefined;
+const ridingIndoors = () =>
+  atHome() ||
+  inBikeShop(s.position) ||
+  (s.position.x > -4 &&
+    s.position.x < 16 &&
+    s.position.z > -39 &&
+    s.position.z < -21) ||
+  (s.position.x > 18 &&
+    s.position.x < 30 &&
+    s.position.z > -36 &&
+    s.position.z < -22) ||
+  !!world.sigma.houseBounds.find(
+    (h) =>
+      Math.abs(s.position.x - h.x) < h.w / 2 &&
+      Math.abs(s.position.z - h.z) < h.d / 2,
+  );
+function dismountBike() {
+  if (!riding) return;
+  riding = false;
+  rideSpeed = actualRideSpeed = 0;
+  bikeCockpit.object.visible = false;
+  if (parkedBike) {
+    parkedBike.position.set(s.position.x, 0, s.position.z);
+    const side = new T.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+    for (const sign of [1, -1]) {
+      const x = s.position.x + side.x * sign * 1.1,
+        z = s.position.z + side.z * sign * 1.1;
+      if (!blocked(x, z, world.rects, 0.85)) {
+        parkedBike.position.set(x, 0, z);
+        break;
+      }
+    }
+    parkedBike.rotation.y = yaw;
+    parkedBike.visible = true;
+  }
+}
+function mountBike() {
+  if (riding) {
+    dismountBike();
+    return;
+  }
+  if (!s.selectedBike)
+    return toast(
+      "Spoke & Saddle sells bicycles. Buy one, then press H to ride.",
+    );
+  if (
+    !s.awake ||
+    sitting ||
+    action ||
+    jumpHeight > 0 ||
+    rollTime > 0 ||
+    placingBed
+  )
+    return toast("Stand on clear ground before mounting your bike.");
+  if (ridingIndoors())
+    return toast("Walk outside, then press H to mount your bicycle.");
+  if (parkedBikeId !== s.selectedBike) {
+    if (parkedBike) {
+      scene.remove(parkedBike);
+      parkedBike.traverse((o) => {
+        if (o instanceof T.Mesh) {
+          o.geometry.dispose();
+          (o.material as T.Material).dispose();
+        }
+      });
+    }
+    parkedBike = makeBike(s.selectedBike);
+    parkedBikeId = s.selectedBike;
+    scene.add(parkedBike);
+  }
+  parkedBike!.visible = false;
+  riding = true;
+  rideSpeed = actualRideSpeed = 0;
+  rideTransition = 0;
+  rideCameraOffset
+    .copy(camera.position)
+    .sub(new T.Vector3(s.position.x, rideEyeHeight(), s.position.z));
+  dismissSpeech();
+  visit(`Rode my ${bikeById(s.selectedBike)!.name} bicycle.`);
+  toast(
+    "W/S to pedal or brake. A/D to steer. H to dismount. B rings the bell.",
+  );
+}
+function ringBikeBell() {
+  if (!riding) return;
+  bellRings++;
+  if (!audio || muted) return;
+  const t = audio.currentTime;
+  for (const frequency of [880, 1320]) {
+    const tone = audio.createOscillator(),
+      gain = audio.createGain();
+    tone.type = "sine";
+    tone.frequency.value = frequency;
+    gain.gain.setValueAtTime(0.055, t);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.75);
+    tone.connect(gain);
+    gain.connect(audio.destination);
+    tone.start(t);
+    tone.stop(t + 0.75);
+  }
+}
+function showBike(id: BikeId) {
+  const bike = bikeById(id)!;
+  const owned = (s.bikes ?? []).includes(id);
+  panel(
+    bike.name,
+    `<img class="bike-portrait" src="${hatPortrait(id)}" alt="${bike.name} bicycle"><p>${bike.description}</p><p>${money(bike.price)} · ${Math.round(bike.speed * 3.6)} km/h</p><p>H mounts or dismounts. B rings your bell. Every bicycle is faster than running.</p>`,
+    [
+      {
+        label: owned
+          ? "Choose this bicycle"
+          : `Buy bicycle · ${money(bike.price)}`,
+        disabled: !owned && s.cash < bike.price,
+        run: () => {
+          const ok = owned ? selectBike(s, id) : buyBike(s, id);
+          if (ok) {
+            dismountBike();
+            save();
+            close();
+            toast(`${bike.name} ready. Press H outside to ride.`);
+          }
+        },
+      },
+      { label: "Keep looking", run: close },
+    ],
+  );
+}
 
 let frameNumber = 0;
 let followAngle = 0.42;
@@ -530,8 +682,8 @@ function notebook(page = s.journal.length - 1, direction = 0) {
     .querySelector(".notebook-left")!
     .insertAdjacentHTML("beforeend", notebookDoodles(page));
 }
-const hatPortraits = new Map<HatId, string>();
-function hatPortrait(id: HatId) {
+const hatPortraits = new Map<HatId | BikeId, string>();
+function hatPortrait(id: HatId | BikeId) {
   if (hatPortraits.has(id)) return hatPortraits.get(id)!;
   const preview = new T.Scene();
   preview.background = new T.Color("#f1e4c9");
@@ -539,11 +691,12 @@ function hatPortrait(id: HatId) {
   const light = new T.DirectionalLight("#fff3d2", 3);
   light.position.set(-3, 5, 4);
   preview.add(light);
-  const model = makeHat(id);
+  const model = bikeById(id) ? makeBike(id as BikeId) : makeHat(id as HatId);
   preview.add(model);
   const cam = new T.PerspectiveCamera(35, 1, 0.1, 20);
-  cam.position.set(1.5, 1.3, 2.6);
-  cam.lookAt(0, 0.2, 0);
+  const viewpoint = bikeById(id) ? [3.2, 2.1, 3.6] : [1.5, 1.3, 2.6];
+  cam.position.set(viewpoint[0], viewpoint[1], viewpoint[2]);
+  cam.lookAt(0, bikeById(id) ? 0.85 : 0.2, 0);
   const target = new T.WebGLRenderTarget(160, 160);
   target.texture.colorSpace = T.SRGBColorSpace;
   const old = renderer.getRenderTarget();
@@ -622,6 +775,7 @@ function showHat(id: HatId) {
   );
 }
 function beginBedPlacement() {
+  dismountBike();
   close();
   placingBed = true;
   toast(
@@ -701,7 +855,26 @@ function bag() {
     ],
     "YOUR LITTLE COLLECTION",
   );
-  if (s.hats.length) $("#modal .panel").classList.add("inventory-panel");
+  if (s.hats.length || s.bikes?.length)
+    $("#modal .panel").classList.add("inventory-panel");
+  const bicycleCards = document.createElement("div");
+  bicycleCards.className = "hat-bag";
+  for (const id of s.bikes ?? []) {
+    const bike = bikeById(id)!;
+    const card = document.createElement("button");
+    card.type = "button";
+    card.dataset.bicycle = id;
+    card.innerHTML = `<img src="${hatPortrait(id)}" alt=""><span>${bike.name}</span><small>${Math.round(bike.speed * 3.6)} km/h</small><b>${s.selectedBike === id ? "Selected · Ride" : "Choose and ride"}</b>`;
+    card.onclick = () => {
+      dismountBike();
+      selectBike(s, id);
+      save();
+      close();
+      mountBike();
+    };
+    bicycleCards.append(card);
+  }
+  document.querySelector("#modal .hat-bag")!.after(bicycleCards);
   const bedCard =
     document.querySelector<HTMLButtonElement>('[data-item="bed"]');
   if (bedCard) bedCard.onclick = beginBedPlacement;
@@ -925,7 +1098,7 @@ const bedObstacles = () =>
 function pauseMenu() {
   panel(
     "Take a little breather",
-    `<p>Day ${s.day} · Your progress saves automatically.</p><p class="fine">WASD to walk. Click the game to capture the mouse and look around; left/right arrows turn; up/down arrows tilt the camera. Hold Shift to run. Q dodge-rolls. With Spring Hare equipped, Space jumps over beds and hedges. Escape releases the mouse. E interacts. J opens the notebook. I opens your bag.<br>Growth pauses while menus are open or the tab is hidden.</p>`,
+    `<p>Day ${s.day} · Your progress saves automatically.</p><p class="fine">WASD to walk. Click the game to capture the mouse and look around; left/right arrows turn; up/down arrows tilt the camera. Hold Shift to run. Q dodge-rolls. H mounts or dismounts a bicycle; B rings its bell. With Spring Hare equipped, Space jumps over beds and hedges. Escape releases the mouse. E interacts. J opens the notebook. I opens your bag.<br>Growth pauses while menus are open or the tab is hidden.</p>`,
     [
       { label: "Keep playing", run: close },
       ...(s.awake
@@ -952,6 +1125,7 @@ function pauseMenu() {
         label: muted ? "Sound: off" : "Sound: on",
         run: () => {
           muted = !muted;
+          setBalloonMuted(muted);
           if (audio) muted ? audio.suspend() : audio.resume();
           pauseMenu();
         },
@@ -1369,6 +1543,7 @@ function finishMeditation() {
 }
 function interact() {
   if (!begun || paused || action || meditationTime > 0) return;
+  if (riding) dismountBike();
   if (!s.awake) {
     s.awake = true;
     s.position = { x: -16, z: 4 };
@@ -1383,6 +1558,16 @@ function interact() {
   near = selectTarget();
   if (!near) return;
   const id = near.id;
+  if (id.startsWith("bike-")) return showBike(id.slice(5) as BikeId);
+  if (id === "bicycle") {
+    const line = neighborLine(s, "bicycle");
+    save();
+    return speak(
+      "bicycle",
+      `<p>${line}</p><p>“Seven bikes to try. Take a look around! H to ride once you own one, B for your bell.”</p>`,
+      [{ label: "I’ll have a look", run: dismissSpeech }],
+    );
+  }
   if (id === "couch") {
     sitting = true;
     yaw = Math.PI / 2;
@@ -1748,10 +1933,19 @@ addEventListener("keydown", (e) => {
   }
   if (!begun) return;
   if ((s.pepeShowStarted && !s.pepePopped) || pepeViewHold > 0) return;
+  if (key === "h") {
+    mountBike();
+    return;
+  }
+  if (key === "b") {
+    ringBikeBell();
+    return;
+  }
   if (
     key === " " &&
     s.awake &&
     !sitting &&
+    !riding &&
     wearing(s, "rabbit") &&
     jumpHeight === 0 &&
     rollTime <= 0 &&
@@ -1763,6 +1957,7 @@ addEventListener("keydown", (e) => {
     key === "q" &&
     s.awake &&
     !sitting &&
+    !riding &&
     jumpHeight === 0 &&
     rollCooldown <= 0
   ) {
@@ -1851,6 +2046,8 @@ function updateRollPose() {
   }
 }
 function resetTransientMotion() {
+  dismountBike();
+  if (parkedBike) parkedBike.visible = false;
   action = undefined;
   pepeViewHold = 0;
   pepeReturning = false;
@@ -2231,6 +2428,26 @@ function frame(now: number) {
     if (roofIndex < 0) world.occluders.push(world.homeRoof);
   } else if (roofIndex >= 0) world.occluders.splice(roofIndex, 1);
   const active = begun && !paused && !document.hidden;
+  const bikeDistance = Math.hypot(
+    Math.max(
+      bikeShopBounds.left - s.position.x,
+      0,
+      s.position.x - bikeShopBounds.right,
+    ),
+    Math.max(
+      bikeShopBounds.north - s.position.z,
+      0,
+      s.position.z - bikeShopBounds.south,
+    ),
+  );
+  const bikeRoofMat = world.bikeShopRoof.material as T.MeshStandardMaterial;
+  bikeRoofMat.opacity +=
+    ((begun ? Math.min(1, bikeDistance / 1.5) : 1) - bikeRoofMat.opacity) *
+    (reducedMotion ? 1 : 1 - Math.exp(-dt * 9));
+  world.bikeShopRoof.visible = bikeRoofMat.opacity > 0.02;
+  bikeRoofMat.depthWrite = bikeRoofMat.opacity > 0.95;
+  world.bikeShopRoof.castShadow = bikeRoofMat.opacity > 0.95;
+  world.bikeShopSign.visible = !inBikeShop(s.position);
   const balloonView =
     !!s.pepeShowStarted && (!s.pepePopped || pepeViewHold > 0);
   const fog = scene.fog as T.Fog;
@@ -2332,8 +2549,31 @@ function frame(now: number) {
           s.foundTVSeeds ? -89 : -39,
         );
       const rolling = rollTime > 0;
+      if (riding) {
+        yaw -= r * dt * 1.6;
+        const wanted = f * bikeById(s.selectedBike)!.speed * (f < 0 ? 0.45 : 1);
+        rideSpeed += (wanted - rideSpeed) * (1 - Math.exp(-dt * (f ? 4 : 10)));
+        const origin = { ...s.position },
+          forward = viewForward();
+        move(
+          s.position,
+          forward.x * rideSpeed * dt,
+          forward.z * rideSpeed * dt,
+          world.rects,
+        );
+        actualRideSpeed =
+          dt > 0
+            ? Math.hypot(s.position.x - origin.x, s.position.z - origin.z) / dt
+            : 0;
+        if (actualRideSpeed < Math.abs(rideSpeed) * 0.2) rideSpeed = 0;
+        if (ridingIndoors()) {
+          dismountBike();
+          toast("Hop off your bike to go inside. H mounts it again outside.");
+        }
+      }
       const n =
         sitting ||
+        riding ||
         rolling ||
         (s.pepeShowStarted && !s.pepePopped) ||
         pepeViewHold > 0
@@ -2455,7 +2695,11 @@ function frame(now: number) {
   );
   world.player.position.x = s.position.x;
   world.player.position.z = s.position.z;
-  world.player.visible = s.awake || !begun;
+  world.player.visible = (s.awake || !begun) && !riding;
+  bikeCockpit.object.visible = begun && riding;
+  document.body.classList.toggle("riding", riding);
+  $("#bike-bell-help").hidden = !riding;
+  if (riding) bikeCockpit.update(active ? actualRideSpeed : 0, s.selectedBike!);
   world.sleeping.visible = begun && !s.awake;
   world.setSigmaUnlocked(!!s.foundTVSeeds);
   world.sigma.updateRoofs(s.position.x, s.position.z);
@@ -2544,6 +2788,28 @@ function frame(now: number) {
     camera.position.set(-16.8, 3.8, 4.2);
     cameraAim.set(-19.1, 1.35, 0.75);
     camera.lookAt(cameraAim);
+  } else if (riding) {
+    rideTransition = Math.min(1, rideTransition + dt / 0.4);
+    const eye = new T.Vector3(s.position.x, rideEyeHeight(), s.position.z);
+    camera.position
+      .copy(eye)
+      .addScaledVector(
+        rideCameraOffset,
+        reducedMotion ? 0 : Math.pow(1 - rideTransition, 3),
+      );
+    const tilt = T.MathUtils.clamp((pitch - 0.42) * 0.9, -0.35, 0.6),
+      forward = viewForward();
+    const aim = eye
+      .clone()
+      .add(
+        new T.Vector3(
+          forward.x * Math.cos(tilt),
+          -Math.sin(tilt),
+          forward.z * Math.cos(tilt),
+        ).multiplyScalar(6),
+      );
+    cameraAim.lerp(aim, reducedMotion ? 1 : 1 - Math.exp(-dt * 16));
+    camera.lookAt(cameraAim);
   } else {
     const sigmaRoom = s.foundTVSeeds
       ? world.sigma.houseBounds.find(
@@ -2559,7 +2825,8 @@ function frame(now: number) {
         s.position.x < 16 &&
         s.position.z < -21 &&
         s.position.z > -39) ||
-      inHatShop;
+      inHatShop ||
+      inBikeShop(s.position);
     const wantedAngle = indoors ? Math.max(0.65, pitch) : pitch;
     const easing = reducedMotion
       ? 1
@@ -2814,6 +3081,17 @@ requestAnimationFrame(frame);
 // Explicitly enabled diagnostic harness; absent from ordinary production sessions.
 if (new URLSearchParams(location.search).has("test")) {
   (window as unknown as { game: unknown }).game = {
+    bicycle: () => ({
+      riding,
+      speed: actualRideSpeed,
+      bellRings,
+      firstPerson: bikeCockpit.object.visible,
+      displays: world.bikeDisplays.map((g) => ({
+        id: g.userData.bikeId,
+        hung: g.userData.hung,
+        position: g.position.toArray(),
+      })),
+    }),
     state: () => structuredClone(s),
     seated: () => sitting,
     playerVisibility: () =>

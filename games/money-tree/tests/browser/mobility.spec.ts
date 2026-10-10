@@ -14,7 +14,7 @@ test("Spring Hare clears the hedge into Sigma and Q rolls without crossing walls
     hats: ["rabbit"],
     equippedHat: "rabbit",
     equippedHats: ["rabbit"],
-    position: { x: -25, z: -37.5 },
+    position: { x: -30, z: -37.5 },
   });
   await page.addInitScript(
     (s) => localStorage.setItem("money-tree-v1", JSON.stringify(s)),
@@ -47,7 +47,7 @@ test("Spring Hare clears the hedge into Sigma and Q rolls without crossing walls
   const p = await page.evaluate(() => (window as any).game.state().position);
   expect(Math.hypot(p.x - 3, p.z - 25)).toBeGreaterThan(4);
   expect(Math.hypot(p.x - 3, p.z - 25)).toBeLessThan(4.6);
-  await page.evaluate(() => (window as any).game.teleport(-25, -37.5));
+  await page.evaluate(() => (window as any).game.teleport(-30, -37.5));
   for (let i = 0; i < 30; i++) await page.clock.fastForward(32);
   await page.keyboard.press("q");
   for (let i = 0; i < 16; i++) await page.clock.fastForward(32);

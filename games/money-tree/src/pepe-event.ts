@@ -11,6 +11,7 @@ export function startPepeShow(s: State) {
   return true;
 }
 export function tickPepeShow(s: State, seconds: number) {
+  if (!Number.isFinite(seconds) || seconds <= 0) return false;
   if (!s.pepeShowStarted || s.pepePopped) return false;
   s.pepeInflation = Math.min(12, (s.pepeInflation ?? 0) + Math.max(0, seconds));
   if (s.pepeInflation < 12) return false;

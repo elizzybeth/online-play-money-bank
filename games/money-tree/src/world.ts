@@ -1,4 +1,6 @@
 import { createWildlife } from "./wildlife";
+import { bikes } from "./bikes";
+import { makeBike } from "./bike-models";
 import { notebookSketches } from "./notebook-doodles";
 import { makeSeedPacket } from "./seed-packet";
 import { makeGardenTool } from "./tool-models";
@@ -26,6 +28,8 @@ export function createWorld(scene: T.Scene) {
     { x: -16, z: 20, w: 2, d: 12 },
     { x: 24, z: -20, w: 3, d: 9 },
     { x: 34, z: -29.25, w: 3, d: 26.5 },
+    { x: -7.5, z: -19.25, w: 21, d: 2.5 },
+    { x: -18, z: -20.5, w: 3, d: 2.5 },
   ];
   const doorways: Rect[] = [];
   const scenery: {
@@ -51,7 +55,7 @@ export function createWorld(scene: T.Scene) {
     { x: 12, z: 15, w: 7, d: 6 },
     { x: 12, z: 1, w: 7, d: 6 },
     { x: -14, z: -13, w: 7, d: 6 },
-    { x: -7, z: -29, w: 7, d: 6 },
+    { x: -18, z: -30, w: 21, d: 19 },
   ];
   const clearScenery = (x: number, z: number, radius: number) =>
     !paths
@@ -1180,18 +1184,80 @@ export function createWorld(scene: T.Scene) {
     box(-20.2 + side * 0.3, 1.7, 4.8, 0.6, 0.09, 0.09, "#a48162");
   box(-20.2, 0.09, 4.8, 0.9, 0.18, 0.65, "#a48162");
   target("hat-rack", -19.5, 4.8, "Manage your hats");
-  house(-7, -29, "#b5c4cd", "SPOKE & SADDLE");
+  // A walk-in showroom with wide aisles and wall-mounted bicycles.
+  box(-18, 0.025, -30, 20, 0.05, 18, "#b5c4cd");
+  box(-28, 1.8, -30, 0.25, 3.6, 18, "#b5c4cd", true);
+  box(-8, 1.8, -30, 0.25, 3.6, 18, "#b5c4cd", true);
+  box(-18, 1.8, -39, 20, 3.6, 0.25, "#b5c4cd", true);
+  for (const x of [-24.25, -11.75])
+    box(x, 1.8, -21, 7.5, 3.6, 0.25, "#b5c4cd", true);
+  box(-18, 3.35, -21, 5, 0.5, 0.25, "#b5c4cd");
+  const bikeShopRoof = box(-18, 3.85, -30, 20.5, 0.25, 18.5, "#647a84");
+  bikeShopRoof.material = surfaceMaterial("#647a84", "shingles", 6, 5);
+  (bikeShopRoof.material as T.MeshStandardMaterial).transparent = true;
+  const bikeShopSign = label("SPOKE & SADDLE", -18, 3.1, -20.75, 6);
+  box(-9, 0.65, -34.5, 1, 1.3, 3, "#947859", true);
+  box(-9, 1.35, -34.5, 1.2, 0.12, 3.2, "#8f9ea2");
+  for (const z of [-35.4, -34.5, -33.6])
+    box(-9, 1.55, z, 0.55, 0.35, 0.5, "#e5b567");
+  for (const x of [-24, -18, -12]) {
+    cyl(x, 3.35, -29, 0.055, 0.6, "#657075");
+    const lamp = new T.Mesh(
+      new T.ConeGeometry(0.45, 0.25, 12),
+      new T.MeshStandardMaterial({
+        color: "#f2deac",
+        emissive: "#d4b868",
+        emissiveIntensity: 0.2,
+      }),
+    );
+    lamp.position.set(x, 3.08, -29);
+    scene.add(lamp);
+  }
+  doorways.push({ x: -18, z: -21, w: 5, d: 5 });
+  const bikeDisplays = bikes.map((bike, i) => {
+    const hung = i >= 4;
+    const x = hung ? -24 + (i - 4) * 6 : i % 2 ? -12 : -24;
+    const z = hung ? -37.7 : i < 2 ? -25.5 : -31.5;
+    const model = makeBike(bike.id);
+    model.position.set(x, hung ? 1.5 : 0.14, z);
+    model.rotation.y = hung ? Math.PI / 2 : Math.PI / 6;
+    scene.add(model);
+    if (hung) {
+      for (const a of [-0.8, 0.8])
+        box(x + a, 1.7, -38.25, 0.08, 0.9, 0.8, "#647a84");
+    } else box(x, 0.07, z, 2.9, 0.14, 3.3, "#8f9ea2");
+    rects.push({ x, z, w: hung ? 3 : 2.3, d: hung ? 1.1 : 2.8 });
+    const signZ = hung ? -36.6 : z + 1.65;
+    label(
+      `${bike.name} · $${bike.price / 100}`,
+      x,
+      hung ? 1.15 : 0.6,
+      signZ,
+      2.8,
+      "#334a3c",
+    );
+    target(
+      `bike-${bike.id}`,
+      x,
+      hung ? -35.6 : z + 2.2,
+      `Inspect ${bike.name}`,
+    );
+    model.userData.hung = hung;
+    return model;
+  });
   speakers.push({
     id: "bicycle",
     name: "Spoke & Saddle",
-    object: person(-7, -24, "#aec3a1", "#79584b"),
+    object: person(-18, -32.5, "#aec3a1", "#79584b"),
   });
-  target("bicycle", -7, -24, "Visit the bicycle shop");
+  target("bicycle", -18, -31, "Talk to Spoke & Saddle");
   for (let i = 0; i < 30; i++) {
     const x = i % 2 ? -28 - (i % 4) * 2 : 30 + (i % 4) * 2,
       z = -38 + i * 2.5;
     foliage(x, z, 1.7);
   }
+  for (let i = 0; i < 16; i++)
+    foliage(-34 + (i % 2) * 2, -35 + Math.floor(i / 2) * 8, 1.15);
   for (const [x, z] of [
     [-5, 10],
     [-4, -5],
@@ -1783,6 +1849,9 @@ export function createWorld(scene: T.Scene) {
   target("forest-seeds", 29, -35, "Search the seed packet");
   target("store-seeds", 12, -31.5, "Search behind the tins");
   return {
+    bikeShopRoof,
+    bikeShopSign,
+    bikeDisplays,
     wildlife,
     diggingTool,
     updateCartoon,

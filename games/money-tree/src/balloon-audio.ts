@@ -1,5 +1,11 @@
 let context: AudioContext | undefined;
+let muted = false;
+export function setBalloonMuted(value: boolean) {
+  muted = value;
+  if (context) void (muted ? context.suspend() : context.resume());
+}
 export function enableBalloonAudio() {
+  if (muted) return;
   try {
     context ??= new AudioContext();
     void context.resume();
@@ -8,7 +14,7 @@ export function enableBalloonAudio() {
   }
 }
 export function balloonSound(pop = false) {
-  if (!context || context.state !== "running") return;
+  if (muted || !context || context.state !== "running") return;
   const duration = pop ? 0.4 : 0.3,
     t = context.currentTime;
   const gain = context.createGain();

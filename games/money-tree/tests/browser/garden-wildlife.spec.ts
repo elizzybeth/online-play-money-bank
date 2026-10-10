@@ -40,11 +40,12 @@ test("distinct neighborhood gardens and wildlife visit existing birdhouses", asy
     expect(types).toContain(type);
   expect(before.birds).toHaveLength(10);
   expect(before.butterflies).toHaveLength(20);
-  await page.waitForTimeout(500);
+  await expect
+    .poll(() =>
+      page.evaluate(() => (window as any).game.wildlife().butterflies[0].position),
+    )
+    .not.toEqual(before.butterflies[0].position);
   const after = await page.evaluate(() => (window as any).game.wildlife());
-  expect(after.butterflies[0].position).not.toEqual(
-    before.butterflies[0].position,
-  );
   expect(after.birds.some((b: any) => b.perch === "birdhouse")).toBe(true);
   const perched = after.birds.filter(
     (b: any) => b.state === "perched" && b.perch === "tree",
