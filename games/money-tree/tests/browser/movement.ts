@@ -22,8 +22,16 @@ export async function walkTo(page: Page, x: number, z: number) {
     if (Math.abs(f) > n * 0.38) keys.push(f > 0 ? "w" : "s");
     if (Math.abs(r) > n * 0.38) keys.push(r > 0 ? "d" : "a");
     for (const key of keys) await page.keyboard.down(key);
-    await page.waitForTimeout(Math.min(80, Math.max(16, (d / 4) * 1000)));
+    // Controlled frames keep real keyboard input active even on slow CI GPUs.
+    await page.clock.fastForward(
+      Math.min(80, Math.max(16, Math.ceil((d / 4) * 1000))),
+    );
     for (const key of keys) await page.keyboard.up(key);
   }
-  throw Error(`Keyboard walk failed to reach ${x},${z}`);
+  const stopped = await page.evaluate(
+    () => (window as any).game.state().position,
+  );
+  throw Error(
+    `Keyboard walk failed to reach ${x},${z}; stopped at ${JSON.stringify(stopped)}`,
+  );
 }
