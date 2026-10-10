@@ -101,7 +101,7 @@ test("hand planting takes longer and watering is grey until a can is purchased",
   await expect(page.locator("#prompt")).toContainText("need watering can");
   await page.keyboard.press("e");
   expect((await state()).plots[0].stage).toBe("planted");
-  await page.evaluate(() => (window as any).game.teleport(5, -24.9));
+  await page.evaluate(() => (window as any).game.teleport(2, -26.9));
   await page.clock.fastForward(16);
   await page.keyboard.press("e");
   await page.getByRole("button", { name: "Buy · $1.00" }).click();

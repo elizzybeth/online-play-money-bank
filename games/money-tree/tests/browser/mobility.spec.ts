@@ -3,6 +3,7 @@ import { fresh } from "../../src/game";
 test("Spring Hare clears the hedge into Sigma and Q rolls without crossing walls", async ({
   page,
 }) => {
+  // Keep the full jump/roll assertions with fewer software-rendered frames.
   await page.clock.install({ time: new Date("2026-01-01T00:00:00Z") });
   await page.clock.pauseAt(new Date("2026-01-02T00:00:00Z"));
   const s = fresh();
@@ -22,12 +23,12 @@ test("Spring Hare clears the hedge into Sigma and Q rolls without crossing walls
   await page.goto("./?test");
   await page.getByRole("button", { name: "Wake up" }).click();
   await page.evaluate(() => (window as any).game.setYaw(0));
-  for (let i = 0; i < 120; i++) await page.clock.fastForward(16);
+  for (let i = 0; i < 30; i++) await page.clock.fastForward(32);
   await page.keyboard.press("Space");
   await page.keyboard.down("w");
   let peak = 0;
-  for (let i = 0; i < 110; i++) {
-    await page.clock.fastForward(16);
+  for (let i = 0; i < 55; i++) {
+    await page.clock.fastForward(32);
     peak = Math.max(
       peak,
       await page.evaluate(() => (window as any).game.jumpHeight()),
@@ -40,16 +41,16 @@ test("Spring Hare clears the hedge into Sigma and Q rolls without crossing walls
   ).toBeLessThan(-41);
   expect(await page.evaluate(() => (window as any).game.jumpHeight())).toBe(0);
   await page.evaluate(() => (window as any).game.teleport(3, 25));
-  for (let i = 0; i < 120; i++) await page.clock.fastForward(16);
+  for (let i = 0; i < 30; i++) await page.clock.fastForward(32);
   await page.keyboard.press("q");
-  for (let i = 0; i < 30; i++) await page.clock.fastForward(16);
+  for (let i = 0; i < 16; i++) await page.clock.fastForward(32);
   const p = await page.evaluate(() => (window as any).game.state().position);
   expect(Math.hypot(p.x - 3, p.z - 25)).toBeGreaterThan(4);
   expect(Math.hypot(p.x - 3, p.z - 25)).toBeLessThan(4.6);
   await page.evaluate(() => (window as any).game.teleport(-25, -37.5));
-  for (let i = 0; i < 120; i++) await page.clock.fastForward(16);
+  for (let i = 0; i < 30; i++) await page.clock.fastForward(32);
   await page.keyboard.press("q");
-  for (let i = 0; i < 30; i++) await page.clock.fastForward(16);
+  for (let i = 0; i < 16; i++) await page.clock.fastForward(32);
   expect(
     await page.evaluate(() => (window as any).game.state().position.z),
   ).toBeGreaterThan(-39.1);

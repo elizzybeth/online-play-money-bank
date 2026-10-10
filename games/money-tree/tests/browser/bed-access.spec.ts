@@ -77,7 +77,7 @@ test("a fertilizer box contains five doses", async ({ page }) => {
     metMom: true,
     boughtSeeds: true,
     cash: 500,
-    position: { x: 11, z: -28.9 },
+    position: { x: 13, z: -28.9 },
   });
   await page.addInitScript(
     (s) => localStorage.setItem("money-tree-v1", JSON.stringify(s)),

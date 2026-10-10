@@ -76,3 +76,10 @@ Desktop keyboard and mouse. No touch/gamepad support yet. Home and haberdashery 
 - Full browser loop: walk through hedge, get fresh Chad lines, plant a public seed while stationary, type a coin name containing E without triggering gameplay, invest a partial amount, buy coffee, reload, and throw $1 to the statue.
 - Unit tests cover conservative buy/sell balances, invalid names and optional-save data, deterministic market/reload, bounded history/prices, actual engagement signals, coffee replacement/expiration, and grounded public-garden journal text.
 - Manually inspect the Σ silhouette, meme-house doorways/cutaways, barista counter and howling-wolf statue before release.
+
+### Gardens, wildlife, and stable headings
+- Verify seventeen neighbor beds include flytrap/pitcher/sundew, rosette/aloe/cactus, sunflower, vegetable and tropical families. Confirm more than 35 trees with four crown varieties.
+- Birds must use real tree anchors and visit visible completed birdhouses; butterflies stay attached to garden centers and animate over time. Reduced-motion settings freeze wildlife without changing resources.
+- Hold W crossing the home and shop doorways in both directions: wall avoidance must preserve the input heading. Sweep corners to confirm camera clearance, visibility and gradual travel.
+- Open a long notebook entry at a short viewport: scrolling the spread must not move the page controls. Adjacent pages have different sketches, and revisiting a page restores its sketches.
+- The HUD seed packet has loaded artwork and the exact inventory count. Store display interactions and every hidden seed pickup remain reachable after expanding the shop.
