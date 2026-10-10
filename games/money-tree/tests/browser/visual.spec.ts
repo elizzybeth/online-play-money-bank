@@ -105,7 +105,7 @@ test("pictorial inventory with quantities", async ({ page }) => {
   await page.goto("./?test");
   await page.getByRole("button", { name: "Wake up" }).click();
   await page.keyboard.press("i");
-  await expect(page.locator(".inventory-card svg")).toHaveCount(5);
+  await expect(page.locator(".inventory-card svg")).toHaveCount(7);
   await expect(page.locator("[data-item=fertilizer]")).toContainText(
     "1 application",
   );

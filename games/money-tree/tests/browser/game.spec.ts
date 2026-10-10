@@ -82,7 +82,9 @@ test("opening, real controls, economy, gardening, journal and reload", async ({
   await page.keyboard.press("j");
   const written = await state(page);
   expect(written.journalNarrative?.firstHarvestWritten).toBe(true);
-  await expect(page.locator("#modal")).toContainText(`I harvested $${(written.journalHistory!.at(-1)!.earned / 100).toFixed(2)} today.`);
+  await expect(page.locator("#modal")).toContainText(
+    `I harvested $${(written.journalHistory!.at(-1)!.earned / 100).toFixed(2)} today.`,
+  );
   await expect(page.locator("#modal")).toContainText("$10,000.00");
   await page.getByRole("button", { name: "Close notebook" }).click();
   const before = await state(page);

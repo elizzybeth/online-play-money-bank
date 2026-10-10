@@ -59,3 +59,20 @@ Desktop keyboard and mouse. No touch/gamepad support yet. Home and haberdashery 
 - Inspected local screenshots of the textured neighbor gardens, clothing/hair, grass, paths, plaster, roof shingles and readable shop sign. Static garden meshes are merged by material to reduce draw calls.
 - Software-renderer detection lowers render resolution and disables shadows while retaining textures; hardware rendering keeps full quality. Arrow and mouse tilt override the automatic indoor overhead angle, while doorway changes remain eased.
 - Money-tree silhouettes use crooked tapered trunks, thin irregular forks and pointed twigs, with deterministic variation per plot and bills attached to twig tips. Withered trees droop and lose bills. Merged bark geometry keeps draw calls low; bounds/determinism tests and a garden screenshot check the model.
+
+### Family, clothing, and town regression checks
+- 200 distinct thoughts are selected only from eligible situations and do not repeat before exhaustion. Mom's 200 added dialogue lines remain activity-compatible.
+- Three hat slots preserve all powers, cap the stack, migrate old equipped hats, and allow individual rack swaps. Sprout Cap is tested over 10,000 harvests for a 50% seed-return distribution and no duplicate reward.
+- Sit/stand uses real E input; seated heads do not intersect; standing restores movement. Check sleeping and seated screenshots against compact chibi references.
+- Enter Mom's bedroom, observe a bed day, check grounded journal wording, and verify finished birdhouses persist.
+- Collect fourth/fifth hidden packets once, in order, and reload without losing their flags.
+- Inspect the rebuilt home sidewalk L connection, texture alignment, vegetable rows, tropical planting, and absent residential signs.
+- Check doorway cameras above walls in the home, Mom's room, hardware store, and hat shop.
+- Journal regression covers repeated “I liked that” across health/activity passages over 199 seeds, alongside the 10,000-night coherence simulation.
+
+### Sigma Town regression coverage
+- Locked hedge rejects walking north; fifth packet opens the lane and creates ten unique Σ plots without resetting owned beds or resources.
+- Flood-fill reachability now includes the unlocked north extension and all Chad, barista, statue and public-bed targets.
+- Full browser loop: walk through hedge, get fresh Chad lines, plant a public seed while stationary, type a coin name containing E without triggering gameplay, invest a partial amount, buy coffee, reload, and throw $1 to the statue.
+- Unit tests cover conservative buy/sell balances, invalid names and optional-save data, deterministic market/reload, bounded history/prices, actual engagement signals, coffee replacement/expiration, and grounded public-garden journal text.
+- Manually inspect the Σ silhouette, meme-house doorways/cutaways, barista counter and howling-wolf statue before release.

@@ -1,4 +1,16 @@
 import {
+  buff,
+  healthDay,
+  tickSigma,
+  unlockSigma,
+  validCoin,
+  drinks,
+  sigmaPlots,
+  type Coin,
+  type DrinkId,
+} from "./sigma";
+import { momDialogue } from "./mom-dialogue";
+import {
   writeBranchedDay,
   validNarrativeMemory,
   type NarrativeMemory,
@@ -15,6 +27,7 @@ export type Plot = {
   x?: number;
   z?: number;
   soilFilled?: boolean;
+  community?: boolean;
   stage: "empty" | "planted" | "growing" | "ready" | "harvested";
   remaining: number;
   fertilized: boolean;
@@ -22,8 +35,17 @@ export type Plot = {
 };
 export type State = {
   version: 1;
+  coin?: Coin;
+  drink?: { id: DrinkId; remaining: number };
+  communityPlanted?: boolean;
+  totalEarned?: number;
   hats: HatId[];
   equippedHat: HatId | null;
+  equippedHats?: HatId[];
+  momThoughts?: string[];
+  birdhousesBuilt?: number;
+  foundGardenSeeds?: boolean;
+  foundTVSeeds?: boolean;
   harvestReflected: boolean;
   day: number;
   cash: number;
@@ -57,8 +79,15 @@ export const opening =
   "Need $ for mom's operation. Money doesn't grow on trees. Or does it? Ol' Man Robertson said something strange today. He said he'd have some seeds for me next time I see him.";
 export const fresh = (): State => ({
   version: 1,
+  communityPlanted: false,
+  totalEarned: 0,
   hats: [],
   equippedHat: null,
+  equippedHats: [],
+  momThoughts: [],
+  birdhousesBuilt: 0,
+  foundGardenSeeds: false,
+  foundTVSeeds: false,
   harvestReflected: false,
   day: 1,
   cash: 0,
@@ -113,8 +142,8 @@ export function buy(
   );
   return true;
 }
-export function noteHatPower(s: State, purpose: string) {
-  const hat = hatById(s.equippedHat);
+export function noteHatPower(s: State, purpose: string, id?: HatId) {
+  const hat = hatById(id ?? s.equippedHat);
   if (!hat) return;
   const event = `Used my ${hat.name} ${purpose}.`;
   if (!s.events.includes(event)) s.events.push(event);
@@ -127,13 +156,21 @@ export function plant(s: State, i: number) {
     s.seeds < 1
   )
     return false;
-  if (s.equippedHat === "cap" || s.equippedHat === "hardhat")
-    noteHatPower(s, "to plant faster");
+  if (wearing(s, "cap") || wearing(s, "hardhat"))
+    noteHatPower(
+      s,
+      "to plant faster",
+      wearing(s, "hardhat") ? "hardhat" : "cap",
+    );
   s.seeds--;
   s.plots[i].stage = "planted";
   s.events.push("Planted a money seed.");
-  if (s.equippedHat === "rain" && s.can) {
-    noteHatPower(s, "to water a new seed automatically");
+  if (s.plots[i].community) {
+    s.communityPlanted = true;
+    s.events.push("Planted in Sigma Town’s community garden.");
+  }
+  if (wearing(s, "rain") && s.can) {
+    noteHatPower(s, "to water a new seed automatically", "rain");
     water(s, i);
   }
   return true;
@@ -167,11 +204,14 @@ export function tick(s: State, dt: number) {
   if (!Number.isFinite(dt) || dt < 0) return;
   for (const p of s.plots) {
     if (p.stage === "growing") {
-      if (dt > 0 && s.equippedHat === "wizard")
-        noteHatPower(s, "to help a tree grow faster");
+      if (dt > 0 && wearing(s, "wizard"))
+        noteHatPower(s, "to help a tree grow faster", "wizard");
       p.remaining = Math.max(
         0,
-        p.remaining - dt * (s.equippedHat === "wizard" ? 1.25 : 1),
+        p.remaining -
+          (dt +
+            (buff(s, "growth") ? Math.min(dt, s.drink!.remaining) * 0.5 : 0)) *
+            (wearing(s, "wizard") ? 1.25 : 1),
       );
       if (!p.remaining) {
         p.stage = "ready";
@@ -180,7 +220,7 @@ export function tick(s: State, dt: number) {
         p.yield =
           (p.fertilized ? 4 + Math.floor(r * 4) : 2 + Math.floor(r * r * 6)) *
           100;
-        if (s.equippedHat === "beekeeper" && p.fertilized)
+        if (wearing(s, "beekeeper") && p.fertilized)
           p.yield = Math.max(600, p.yield);
       }
     }
@@ -189,13 +229,20 @@ export function tick(s: State, dt: number) {
 export function harvest(s: State, i: number) {
   const p = s.plots[i];
   if (!p || p.stage !== "ready") return 0;
-  const n = Math.min(700, p.yield + (s.equippedHat === "banker" ? 100 : 0));
-  if (s.equippedHat === "banker")
-    noteHatPower(s, "to get an extra dollar from a harvest");
+  const n = Math.min(
+    700,
+    p.yield + (wearing(s, "banker") ? 100 : 0) + (buff(s, "yield") ? 100 : 0),
+  );
+  if (wearing(s, "banker"))
+    noteHatPower(s, "to get an extra dollar from a harvest", "banker");
   s.cash += n;
-  if (s.equippedHat === "cap") {
-    s.seeds++;
-    s.events.push("Saved a fresh seed in my Sprout Cap.");
+  s.totalEarned = (s.totalEarned ?? 0) + n;
+  if (wearing(s, "cap")) {
+    s.rng = (s.rng * 16807) % 2147483647;
+    if (s.rng / 2147483647 < 0.5) {
+      s.seeds++;
+      s.events.push("Saved a fresh seed in my Sprout Cap.");
+    }
   }
   p.stage = "harvested";
   p.yield = 0;
@@ -323,9 +370,12 @@ export function sleep(s: State) {
     !s.harvestReflected && s.events.some((e) => e.startsWith("Harvested"));
   s.journal.push(entry);
   if (firstHarvest) s.harvestReflected = true;
+  if (momStatus(s.day).activity === "birdhouses")
+    s.birdhousesBuilt = Math.min(12, (s.birdhousesBuilt ?? 0) + 1);
   s.events = [];
   s.day++;
   tick(s, 180);
+  tickSigma(s, 180);
 }
 export function momStatus(day: number) {
   const activities = [
@@ -334,12 +384,32 @@ export function momStatus(day: number) {
     "painting",
     "reading",
     "garden",
+    "mending",
+    "puzzles",
+    "music",
+    "letters",
+    "feeding",
   ] as const;
-  const energetic = day % 2 === 0;
+  const health = healthDay(day);
+  const energetic = health.good;
   const activity = energetic
-    ? activities[(Math.floor(day / 2) - 1) % activities.length]
-    : "resting";
+    ? activities[(health.ordinal - 1) % activities.length]
+    : day % 4 === 3
+      ? ("bedrest" as const)
+      : ("resting" as const);
   const replies = {
+    mending:
+      "“I felt up to sewing today. I am fixing a loose button. Come choose some thread with me.”",
+    puzzles:
+      "“I am working on a puzzle today. Want to help me find an edge piece?”",
+    music:
+      "“I have a little energy for music today. I am trying a tune on my little keyboard.”",
+    letters:
+      "“I am writing a letter to Auntie. Is there anything you want me to tell her?”",
+    feeding:
+      "“I felt well enough to put some seed out for the birds. Let us see who visits.”",
+    bedrest:
+      "“I need to stay in bed today, sweetheart. Come sit nearby and tell me how you are.”",
     cooking:
       "“It’s a good day, sweetheart. I’ve got a little energy, so I thought I’d make us something warm. Smells good, doesn’t it?”",
     birdhouses:
@@ -354,6 +424,12 @@ export function momStatus(day: number) {
       "“I’m exhausted today, love. I just need to rest here a while. I’m glad you’re home.”",
   };
   const journal = {
+    mending: "mending clothes",
+    puzzles: "doing a jigsaw puzzle",
+    music: "playing music",
+    letters: "writing a letter",
+    feeding: "feeding birds",
+    bedrest: "resting in bed",
     cooking: "cooking",
     birdhouses: "building birdhouses",
     painting: "painting",
@@ -416,7 +492,7 @@ export function decode(raw: string | null): State | null {
       ) ||
       !Array.isArray(s.plots) ||
       s.plots.length < 5 ||
-      s.plots.length > 50 ||
+      s.plots.length > 60 ||
       !s.plots.every(
         (p: Plot) =>
           ["empty", "planted", "growing", "ready", "harvested"].includes(
@@ -513,7 +589,9 @@ export function decode(raw: string | null): State | null {
           (i < 5 ||
             (Number.isFinite(p.x) &&
               Number.isFinite(p.z) &&
-              withinProperty(p.x!, p.z!))),
+              (p.community === true
+                ? sigmaPlots.some((q) => q.x === p.x && q.z === p.z)
+                : withinProperty(p.x!, p.z!)))),
       )
     )
       return null;
@@ -524,8 +602,16 @@ export function decode(raw: string | null): State | null {
       typeof s.neighborChats !== "object" ||
       !Object.entries(s.neighborChats).every(
         ([key, value]) =>
-          (["npc1", "npc2", "npc3", "mom-home", "mom-greeting"].includes(key) ||
-            /^mom-reply-(resting|cooking|birdhouses|painting|reading|garden)$/.test(
+          ([
+            "npc1",
+            "npc2",
+            "npc3",
+            "mom-home",
+            "mom-greeting",
+            "grindset",
+          ].includes(key) ||
+            /^sigma-chad-[0-5]$/.test(key) ||
+            /^mom-reply-(resting|bedrest|cooking|birdhouses|painting|reading|garden|mending|puzzles|music|letters|feeding)$/.test(
               key,
             )) &&
           Number.isSafeInteger(value) &&
@@ -576,6 +662,72 @@ export function decode(raw: string | null): State | null {
       (s.equippedHat !== null && !s.hats.includes(s.equippedHat))
     )
       return null;
+    s.equippedHats ??= s.equippedHat ? [s.equippedHat] : [];
+    if (
+      Array.isArray(s.equippedHats) &&
+      !s.equippedHats.length &&
+      s.equippedHat
+    )
+      s.equippedHats = [s.equippedHat];
+    if (
+      !Array.isArray(s.equippedHats) ||
+      s.equippedHats.length > 3 ||
+      new Set(s.equippedHats).size !== s.equippedHats.length ||
+      !s.equippedHats.every((id: HatId) => s.hats.includes(id))
+    )
+      return null;
+    s.birdhousesBuilt ??= Math.max(
+      0,
+      Math.min(12, Math.floor((s.day - 5) / 20) + 1),
+    );
+    if (
+      !Number.isInteger(s.birdhousesBuilt) ||
+      s.birdhousesBuilt < 0 ||
+      s.birdhousesBuilt > 12
+    )
+      return null;
+    s.foundGardenSeeds ??= false;
+    s.foundTVSeeds ??= false;
+    if (
+      typeof s.foundGardenSeeds !== "boolean" ||
+      typeof s.foundTVSeeds !== "boolean"
+    )
+      return null;
+    if (
+      !Array.isArray(s.momThoughts) ||
+      !s.momThoughts.every((id: unknown) => typeof id === "string")
+    )
+      s.momThoughts = [];
+    s.momThoughts = s.momThoughts.slice(-200);
+    if (s.coin !== undefined && !validCoin(s.coin)) delete s.coin;
+    if (
+      s.drink &&
+      (!drinks.some((d) => d.id === s.drink.id) ||
+        !Number.isFinite(s.drink.remaining) ||
+        s.drink.remaining <= 0 ||
+        s.drink.remaining > 180)
+    )
+      delete s.drink;
+    s.communityPlanted = !!s.communityPlanted;
+    s.totalEarned =
+      Number.isSafeInteger(s.totalEarned) && s.totalEarned >= 0
+        ? s.totalEarned
+        : (s.journalHistory ?? []).reduce(
+            (sum: number, m: JournalMemory) => sum + m.earned,
+            0,
+          );
+    if (s.plots.some((p: Plot) => p.community) && !s.foundTVSeeds) return null;
+    if (
+      s.plots.filter((p: Plot) => p.community).length &&
+      (s.plots.filter((p: Plot) => p.community).length !== 10 ||
+        new Set(
+          s.plots
+            .filter((p: Plot) => p.community)
+            .map((p: Plot) => `${p.x},${p.z}`),
+        ).size !== 10)
+    )
+      return null;
+    unlockSigma(s);
     return s;
   } catch {
     return null;
@@ -596,9 +748,13 @@ export function blocked(x: number, z: number, rects: Rect[], radius = 0.48) {
 }
 // A new tree collider can appear around the player. Find nearby clear ground
 // instead of trapping movement inside the expanded collision volume.
-export function clearPosition(pos: { x: number; z: number }, rects: Rect[]) {
+export function clearPosition(
+  pos: { x: number; z: number },
+  rects: Rect[],
+  north = -39,
+) {
   const clear = (x: number, z: number) =>
-    Math.abs(x) <= 38 && z >= -39 && z <= 38 && !blocked(x, z, rects);
+    Math.abs(x) <= 38 && z >= north && z <= 38 && !blocked(x, z, rects);
   if (clear(pos.x, pos.z)) return pos;
   for (let radius = 0.15; radius <= 3; radius += 0.15) {
     for (let step = 0; step < 32; step++) {
@@ -686,25 +842,46 @@ export function neighborLine(s: State, id: string) {
   );
 }
 
+export function wornHats(s: State): HatId[] {
+  return s.equippedHats?.length
+    ? s.equippedHats
+    : s.equippedHat
+      ? [s.equippedHat]
+      : [];
+}
+export const wearing = (s: State, id: HatId) => wornHats(s).includes(id);
+export function removeHat(s: State, id: HatId) {
+  s.equippedHats = wornHats(s).filter((h) => h !== id);
+  s.equippedHat = s.equippedHats.at(-1) ?? null;
+}
 export function buyHat(s: State, id: HatId) {
   const hat = hatById(id);
   if (!hat || s.hats.includes(id) || s.cash < hat.price) return false;
   s.cash -= hat.price;
   s.hats.push(id);
-  s.equippedHat = id;
+  equipHat(s, id);
   s.events.push(`Bought the ${hat.name}.`);
   return true;
 }
 export function equipHat(s: State, id: HatId | null) {
   if (id !== null && !s.hats.includes(id)) return false;
-  s.equippedHat = id;
+  const stack = [...wornHats(s)];
+  if (id === null) s.equippedHats = [];
+  else {
+    if (!stack.includes(id) && stack.length >= 3) return false;
+    s.equippedHats = stack.includes(id) ? stack : [...stack, id];
+  }
+  s.equippedHat = s.equippedHats.at(-1) ?? null;
   return true;
 }
 export const plantingSeconds = (s: State) =>
   (s.shovel ? 2 : 8) *
-  (s.equippedHat === "hardhat" ? 0.5 : s.equippedHat === "cap" ? 0.85 : 1);
+  (wearing(s, "hardhat") ? 0.5 : wearing(s, "cap") ? 0.85 : 1) *
+  (buff(s, "dig") ? 0.5 : 1);
 export const movementSpeed = (s: State, running: boolean) =>
-  (running ? 7 : 4) * (s.equippedHat === "propeller" ? 1.25 : 1);
+  (running ? 7 : 4) *
+  (wearing(s, "propeller") ? 1.25 : 1) *
+  (buff(s, "sprint") ? 1.3 : 1);
 
 export const seedStashSpots = [
   { x: -29, z: -33 },
@@ -713,26 +890,68 @@ export const seedStashSpots = [
   { x: -29, z: 7 },
   { x: -29, z: 27 },
 ];
-export function findHiddenSeeds(s: State, location: "forest" | "store") {
-  if (
-    location === "forest"
-      ? !s.foundCapSeeds || s.foundForestSeeds
-      : !s.foundForestSeeds || s.foundStoreSeeds
-  )
-    return false;
-  if (location === "forest") s.foundForestSeeds = true;
-  else s.foundStoreSeeds = true;
+export function findHiddenSeeds(
+  s: State,
+  location: "forest" | "store" | "garden" | "tv",
+) {
+  const fields = {
+    forest: "foundForestSeeds",
+    store: "foundStoreSeeds",
+    garden: "foundGardenSeeds",
+    tv: "foundTVSeeds",
+  } as const;
+  const previous = {
+    forest: s.foundCapSeeds,
+    store: s.foundForestSeeds,
+    garden: s.foundStoreSeeds,
+    tv: s.foundGardenSeeds,
+  };
+  if (!previous[location] || s[fields[location]]) return false;
+  s[fields[location]] = true;
+  if (location === "tv") unlockSigma(s);
   s.seeds += 5;
-  s.events.push(
-    location === "forest"
-      ? "Found five money seeds among the trees."
-      : "Found five money seeds hidden in Robertson’s store.",
-  );
+  const places = {
+    forest: "among the trees",
+    store: "hidden in Robertson’s store",
+    garden: "in a neighbor’s flowerbed",
+    tv: "behind the TV at home",
+  };
+  s.events.push(`Found five money seeds ${places[location]}.`);
   return true;
 }
 export function momReply(s: State) {
   const status = momStatus(s.day);
   const alternatives: Record<string, string[]> = {
+    bedrest: [
+      "I am having a bed day. You can pull up a chair, love.",
+      "I need a quiet room today. I am glad you came to see me.",
+      "I wish I could get up. Tell me what is happening outside.",
+    ],
+    mending: [
+      "A button came loose. I can manage a little sewing today.",
+      "Do you like this thread color? I want your opinion.",
+      "This is a small job. It feels good to finish something.",
+    ],
+    puzzles: [
+      "I am looking for the piece with a bit of blue on it.",
+      "Come help me find the corners. We do not need to finish today.",
+      "It is nice to work on something with you.",
+    ],
+    music: [
+      "I keep missing that note. I will try it slowly.",
+      "Would you like to try a few notes with me?",
+      "I am enjoying making a little music today.",
+    ],
+    letters: [
+      "I want Auntie to hear from us. What should I tell her?",
+      "Would you draw something to put in this letter?",
+      "I like taking time to write to somebody.",
+    ],
+    feeding: [
+      "We can watch quietly and see whether a bird comes.",
+      "I like having the birds visit outside the window.",
+      "A little seed and a little patience. That is all we need.",
+    ],
     resting: [
       "I’m tired, love. Will you sit with me for a minute?",
       "I wanted to get up, but the couch won today. Tell me what you’ve been doing.",
@@ -767,15 +986,22 @@ export function momReply(s: State) {
   const key = `mom-reply-${status.activity}`,
     count = s.neighborChats[key] ?? 0;
   s.neighborChats[key] = count + 1;
-  return count === 0
-    ? status.reply
-    : `“${alternatives[status.activity][(count - 1) % 3]}”`;
+  const additional =
+    (momDialogue as Record<string, readonly string[]>)[
+      status.activity === "bedrest" ? "resting" : status.activity
+    ] ?? [];
+  const pool = [...alternatives[status.activity], ...additional].filter(
+    (line) =>
+      status.activity !== "bedrest" ||
+      !/couch|television|feet up|sofa/.test(line),
+  );
+  return count === 0 ? status.reply : `“${pool[(count - 1) % pool.length]}”`;
 }
 
 export const withinProperty = (x: number, z: number) =>
   Number.isFinite(x) &&
   Number.isFinite(z) &&
-  x >= -25.1 &&
+  x >= -30.1 &&
   x <= -8.9 &&
   z >= -4.4 &&
   z <= 22.4;
@@ -783,7 +1009,8 @@ export function buyGardenSupply(s: State, item: "bed" | "soil") {
   const cost = item === "bed" ? 3000 : 1000;
   if (
     s.cash < cost ||
-    (item === "bed" && s.plots.length + (s.gardenBeds ?? 0) >= 50) ||
+    (item === "bed" &&
+      s.plots.filter((p) => !p.community).length + (s.gardenBeds ?? 0) >= 50) ||
     (item === "soil" && (s.soilBags ?? 0) >= 1000)
   )
     return false;
@@ -800,7 +1027,7 @@ export function buyGardenSupply(s: State, item: "bed" | "soil") {
 export function canPlaceBed(s: State, x: number, z: number, obstacles: Rect[]) {
   return (
     withinProperty(x, z) &&
-    s.plots.length < 50 &&
+    s.plots.filter((p) => !p.community).length < 50 &&
     !obstacles.some(
       (r) =>
         Math.abs(x - r.x) < 0.9 + r.w / 2 && Math.abs(z - r.z) < 1.6 + r.d / 2,

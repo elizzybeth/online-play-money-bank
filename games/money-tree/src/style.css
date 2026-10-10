@@ -519,22 +519,45 @@ canvas:focus {
 
 #thought {
   position: fixed;
-  bottom: 142px;
-  left: 50%;
-  transform: translateX(-50%);
+  transform: translate(-50%, -100%);
   z-index: 5;
-  max-width: min(520px, 85vw);
-  padding: 13px 22px;
-  border: 1px dashed #728664;
-  border-radius: 24px;
-  background: #f8f1dded;
-  color: #52694c;
+  width: min(300px, 70vw);
+  min-height: 112px;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  padding: 24px 28px;
+  border: 0;
+  border-radius: 0;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 180' preserveAspectRatio='none'%3E%3Cpath d='M35 48 C25 18 65 5 89 24 C95 -2 132 0 150 21 C171 0 205 8 211 31 C249 7 286 27 282 57 C319 52 331 89 306 106 C329 129 296 153 269 145 C265 177 224 180 207 163 C179 188 146 176 133 163 C104 182 68 174 65 151 C28 163 3 135 23 111 C-8 94 4 57 35 48 Z' fill='%23fffdf6' stroke='%23334338' stroke-width='4'/%3E%3C/svg%3E")
+    center / 100% 100% no-repeat;
+  color: #344638;
   text-align: center;
   font:
-    italic 17px/1.5 Georgia,
+    17px/1.35 Georgia,
     serif;
-  box-shadow: 0 3px 12px #334d4020;
+  filter: drop-shadow(0 3px 0 #33433830);
   pointer-events: none;
+}
+#thought::before,
+#thought::after {
+  content: "";
+  position: absolute;
+  background: #fffdf6;
+  border: 3px solid #334338;
+  border-radius: 50%;
+}
+#thought::before {
+  width: 17px;
+  height: 13px;
+  bottom: -22px;
+  left: var(--tail-large, 54%);
+}
+#thought::after {
+  width: 8px;
+  height: 7px;
+  bottom: -37px;
+  left: var(--tail-small, 51%);
 }
 
 .inventory-grid {
@@ -770,3 +793,10 @@ body:has(#intro:not([hidden])) #tree-report {
     serif;
   margin: 12px 0 24px;
 }
+
+#thought[hidden] {
+  display: none;
+}
+#coin-tracker {position:fixed;right:18px;top:170px;max-width:240px;background:#293f35ed;color:#fff3cc;padding:12px 16px;border:2px solid #c5b379;border-radius:18px;font:16px Georgia;z-index:4;pointer-events:none;}
+#coin-tracker[hidden]{display:none;}
+@media(max-width:600px){#coin-tracker{right:10px;top:180px;font-size:13px;max-width:160px;}}

@@ -57,6 +57,7 @@ test("hat powers change planting, movement, irrigation, growth and harvest", () 
   buyHat(s, "propeller");
   assert.equal(movementSpeed(s, false), 5);
   assert.equal(movementSpeed(s, true), 8.75);
+  equipHat(s, null);
   buyHat(s, "rain");
   assert(plant(s, 0));
   assert.equal(s.plots[0].stage, "growing");
@@ -68,6 +69,7 @@ test("hat powers change planting, movement, irrigation, growth and harvest", () 
   s.plots[0].fertilized = true;
   tick(s, 80);
   assert(s.plots[0].yield >= 600);
+  equipHat(s, null);
   buyHat(s, "banker");
   assert.equal(harvest(s, 0), 700);
   assert.equal(harvest(s, 0), 0);
@@ -77,15 +79,21 @@ test("hat powers change planting, movement, irrigation, growth and harvest", () 
   assert.equal(s.plots[1].stage, "planted");
 });
 
-test("Sprout Cap harvests replenish seeds once, allowing renewable growing", () => {
+test("Sprout Cap recovers seeds on only half of harvests and never twice", () => {
   const s = fresh();
   s.cash = 200;
   buyHat(s, "cap");
-  s.plots[0] = { stage: "ready", remaining: 0, fertilized: false, yield: 200 };
-  harvest(s, 0);
-  assert.equal(s.seeds, 1);
-  harvest(s, 0);
-  assert.equal(s.seeds, 1);
-  assert(plant(s, 0));
-  assert.equal(s.seeds, 0);
+  for (let i = 0; i < 10000; i++) {
+    s.plots[0] = {
+      stage: "ready",
+      remaining: 0,
+      fertilized: false,
+      yield: 200,
+    };
+    harvest(s, 0);
+    const count = s.seeds;
+    harvest(s, 0);
+    assert.equal(s.seeds, count);
+  }
+  assert(s.seeds > 4800 && s.seeds < 5200, `Got ${s.seeds} seeds`);
 });

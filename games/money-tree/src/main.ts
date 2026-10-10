@@ -1,3 +1,17 @@
+import {
+  buff,
+  unlockSigma,
+  buyDrink,
+  drinks,
+  chadLine,
+  createCoin,
+  investCoin,
+  sellCoin,
+  coinValue,
+  marketSignals,
+  tickSigma,
+} from "./sigma";
+import { chooseMomThought } from "./mom-thoughts";
 import { journalContext } from "./journal";
 import { constructJournal } from "./branching-journal";
 import { hats, hatById, type HatId } from "./hats";
@@ -13,6 +27,9 @@ import {
   noteHatPower,
   buyHat,
   equipHat,
+  wornHats,
+  wearing,
+  removeHat,
   plantingSeconds,
   movementSpeed,
   parseAmount,
@@ -104,21 +121,23 @@ scene.add(sun);
 const world = createWorld(scene),
   camera = new T.PerspectiveCamera(52, innerWidth / innerHeight, 0.08, 110),
   ray = new T.Raycaster();
+unlockSigma(s);
+world.setSigmaUnlocked(!!s.foundTVSeeds);
 world.syncBeds(s.plots);
 if (
   blocked(s.position.x, s.position.z, world.rects) ||
   Math.abs(s.position.x) > 38 ||
   s.position.z > 38 ||
-  s.position.z < -39
+  s.position.z < (s.foundTVSeeds ? -84 : -39)
 )
   s.position = { x: -16, z: 4 };
 world.player.position.set(s.position.x, 0, s.position.z);
 world.setMomDay(
   s.day,
   s.position.x < -9 &&
-    s.position.x > -22 &&
+    s.position.x > -29 &&
     s.position.z > -2 &&
-    s.position.z < 14,
+    s.position.z < (s.position.x < -21 ? 6 : 14),
 );
 let frameNumber = 0;
 let followAngle = 0.42;
@@ -147,9 +166,9 @@ let begun = false,
   walk = 0;
 const atHome = () =>
   s.position.x < -9 &&
-  s.position.x > -22 &&
+  s.position.x > -29 &&
   s.position.z > -2 &&
-  s.position.z < 14;
+  s.position.z < (s.position.x < -21 ? 6 : 14);
 let wasHome = atHome(),
   visitedOutside = s.awake && !wasHome;
 const thought = document.createElement("div");
@@ -158,18 +177,28 @@ thought.setAttribute("role", "status");
 thought.hidden = true;
 document.body.append(thought);
 let thoughtTime = 0;
+let sitting = false;
+function standUp() {
+  sitting = false;
+  s.position = clearPosition({ x: -17.1, z: 11.2 }, world.rects);
+  world.setPlayerSeated(false);
+  save();
+}
 function askMom() {
   const status = momStatus(s.day);
   const reply = momReply(s);
   visit(
     status.energetic
       ? `Mom had energy for ${status.journal} today.`
-      : `Mom was exhausted on the couch when I ${visitedOutside ? "came home" : "checked on her"}.`,
+      : `Mom was exhausted ${status.activity === "bedrest" ? "in bed" : "on the couch"} when I ${visitedOutside ? "came home" : "checked on her"}.`,
   );
   visit(`Heard Mom: ${reply}`);
   save();
-  speak("mom", `<p>${reply}</p>`);
-  thought.textContent = `Your thought: ${status.thought}`;
+  speak("mom", `<p>${reply}</p>`, [
+    { label: "Love you too", run: dismissSpeech },
+  ]);
+  thought.textContent = chooseMomThought(s);
+  save();
   thought.hidden = false;
   thoughtTime = 9;
 }
@@ -543,18 +572,22 @@ function showHat(id: HatId) {
         : []),
       {
         label: s.hats.includes(id)
-          ? s.equippedHat === id
+          ? wearing(s, id)
             ? "Already wearing"
             : "Put on this hat"
-          : `Buy & wear · ${money(hat.price)}`,
+          : `Buy & ${wornHats(s).length >= 3 ? "keep" : "wear"} · ${money(hat.price)}`,
         disabled: s.hats.includes(id)
-          ? s.equippedHat === id
+          ? wearing(s, id) || wornHats(s).length >= 3
           : s.cash < hat.price,
         run: () => {
           if (s.hats.includes(id) ? equipHat(s, id) : buyHat(s, id)) {
             save();
             close();
-            toast(`Wearing ${hat.name}. ${hat.power}`);
+            toast(
+              wearing(s, id)
+                ? `Wearing ${hat.name}. ${hat.power}`
+                : `${hat.name} is in your bag. Visit your bedroom hat rack to swap hats.`,
+            );
           }
         },
       },
@@ -609,12 +642,12 @@ function bag() {
   ];
   panel(
     "Your bag",
-    `<div class="inventory-grid">${items.map((item) => `<div class="inventory-card ${item.available ? "" : "empty"}" data-item="${item.id}">${inventoryIcon(item.id)}<span>${item.label}</span><b>${item.value}</b></div>`).join("")}</div><div class="hat-bag">${s.hats.map((id) => `<button type="button" data-hat="${id}"><img src="${hatPortrait(id)}" alt=""><span>${hatById(id)!.name}</span><small>${hatById(id)!.power}</small><b>${s.equippedHat === id ? "Wearing" : "Equip"}</b></button>`).join("")}</div>`,
+    `<div class="inventory-grid">${items.map((item) => `<div class="inventory-card ${item.available ? "" : "empty"}" data-item="${item.id}">${inventoryIcon(item.id)}<span>${item.label}</span><b>${item.value}</b></div>`).join("")}</div><div class="hat-bag">${s.hats.map((id) => `<button type="button" data-hat="${id}"><img src="${hatPortrait(id)}" alt=""><span>${hatById(id)!.name}</span><small>${hatById(id)!.power}</small><b>${wearing(s, id) ? "Wearing" : "Equip"}</b></button>`).join("")}</div>`,
     [
       ...(s.equippedHat
         ? [
             {
-              label: "Take off hat",
+              label: "Take off hats",
               run: () => {
                 equipHat(s, null);
                 save();
@@ -645,9 +678,28 @@ function bag() {
   document.querySelectorAll<HTMLButtonElement>("[data-hat]").forEach(
     (b) =>
       (b.onclick = () => {
-        equipHat(s, b.dataset.hat as HatId);
+        if (!equipHat(s, b.dataset.hat as HatId))
+          toast("Three hats already! Visit your bedroom hat rack.");
         save();
         bag();
+      }),
+  );
+}
+function hatRack() {
+  panel(
+    "Your hat rack",
+    `<p>Wear up to three hats. Their powers work together.</p><div class="hat-bag">${s.hats.map((id) => `<button data-rack-hat="${id}"><img src="${hatPortrait(id)}" alt=""><span>${hatById(id)!.name}</span><b>${wearing(s, id) ? "Hang on rack" : "Put on"}</b></button>`).join("") || "<p>Your rack is waiting for its first hat.</p>"}</div>`,
+    [{ label: "Back to the day", default: true, run: close }],
+  );
+  document.querySelectorAll<HTMLButtonElement>("[data-rack-hat]").forEach(
+    (button) =>
+      (button.onclick = () => {
+        const id = button.dataset.rackHat as HatId;
+        if (wearing(s, id)) removeHat(s, id);
+        else if (!equipHat(s, id))
+          toast("Three hats already! Hang one on the rack first.");
+        save();
+        hatRack();
       }),
   );
 }
@@ -733,7 +785,7 @@ function shop(item: "seeds" | "can" | "shovel" | "fertilizer") {
             if (item === "seeds")
               speak(
                 "robertson",
-                "<p>“You seem pretty new to this. You might want some other supplies. Want to take a look around?”</p>",
+                "<p>“That’s all the seeds I have for you. When you need more, you’ll have to look around town. Check the brim of a cap at the haberdasher’s.”</p><p>“You might want some other supplies. Want to take a look around?”</p>",
               );
           }
         },
@@ -832,7 +884,11 @@ const bedPosition = () => ({
   x: Math.round((s.position.x - Math.sin(yaw) * 2.5) * 4) / 4,
   z: Math.round((s.position.z - Math.cos(yaw) * 2.5) * 4) / 4,
 });
-const bedObstacles = () => world.rects.concat(world.paths, world.doorways);
+const bedObstacles = () =>
+  world.rects.concat(world.paths, world.doorways, [
+    { x: -15, z: 6, w: 12, d: 16 },
+    { x: -25, z: 2, w: 8, d: 8 },
+  ]);
 function pauseMenu() {
   panel(
     "Take a little breather",
@@ -845,6 +901,8 @@ function pauseMenu() {
               label: "I'm stuck — return home",
               run: () => {
                 action = undefined;
+                sitting = false;
+                world.setPlayerSeated(false);
                 s.position = { x: -16, z: 4 };
                 yaw = 0;
                 pitch = 0.42;
@@ -924,7 +982,7 @@ function pauseMenu() {
               blocked(s.position.x, s.position.z, world.rects) ||
               Math.abs(s.position.x) > 38 ||
               s.position.z > 38 ||
-              s.position.z < -39
+              s.position.z < (s.foundTVSeeds ? -84 : -39)
             )
               s.position = { x: -16, z: 4 };
             plotVersions.length = 0;
@@ -951,6 +1009,8 @@ function pauseMenu() {
                   world.player.userData.farewell = false;
 
                   s = fresh();
+                  sitting = false;
+                  world.setPlayerSeated(false);
                   wasHome = true;
                   visitedOutside = false;
                   plotVersions.length = 0;
@@ -965,6 +1025,138 @@ function pauseMenu() {
     "PAUSED",
   );
 }
+
+const escapeHTML = (text: string) =>
+  text.replace(
+    /[&<>"']/g,
+    (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
+        c
+      ]!,
+  );
+function grindset() {
+  visit("Stopped to talk with Chad in Sigma Town.");
+  const line = chadLine(s, "grindset");
+  visit(`Heard Chad: ${line}`);
+  save();
+  const choices: Choice[] = [{ label: "See the drinks", run: coffeeMenu }];
+  if (s.communityPlanted)
+    choices.push({
+      label: s.coin ? "My coin" : "Your entrepreneurial spirit?",
+      run: coinMenu,
+    });
+  choices.push({ label: "See you around", run: dismissSpeech });
+  speak(
+    "grindset",
+    `<p>${line}</p>${s.communityPlanted && !s.coin ? "<p>I noticed your entrepreneurial spirit in the community garden. Want to name my brand-new cryptocurrency and invest?</p>" : ""}`,
+    choices,
+  );
+}
+function coffeeMenu() {
+  panel(
+    "Grindset drinks",
+    `<p>Pocket: ${money(s.cash)}. Each drink lasts 3 minutes of active play. A new drink replaces the current bonus.</p>${s.drink ? `<p>Current: ${drinks.find((d) => d.id === s.drink!.id)!.name}, ${Math.ceil(s.drink.remaining)} seconds left.</p>` : ""}`,
+    [
+      ...drinks.map((d) => ({
+        label: `${d.name} · ${money(d.cost)} · ${d.effect}`,
+        disabled: s.cash < d.cost,
+        destructive: true,
+        run: () => {
+          if (buyDrink(s, d.id)) {
+            save();
+            close();
+            toast(`${d.name}: ${d.effect}`);
+          }
+        },
+      })),
+      { label: "Back", run: grindsetClose },
+    ],
+  );
+}
+function grindsetClose() {
+  close();
+  grindset();
+}
+function coinMenu() {
+  if (!s.communityPlanted) return;
+  if (!s.coin) {
+    panel(
+      "Name your coin",
+      `<p>Chad calls it entrepreneurial spirit. You still get to choose the name.</p><label>Coin name <input id="coin-name" maxlength="24" autocomplete="off" placeholder="Up to 24 characters"></label><p id="coin-error" role="status"></p>`,
+      [
+        {
+          label: "Name it",
+          run: () => {
+            const name = ($("#coin-name") as HTMLInputElement).value;
+            if (!createCoin(s, name)) {
+              $("#coin-error").textContent =
+                "Start with a letter or number. Use up to 24 letters, numbers, spaces, periods, apostrophes or hyphens.";
+              return;
+            }
+            save();
+            coinMenu();
+          },
+        },
+        { label: "Maybe later", run: close },
+      ],
+    );
+    ($("#coin-name") as HTMLInputElement).focus();
+    return;
+  }
+  const c = s.coin,
+    q = marketSignals(s);
+  panel(
+    `${escapeHTML(c.name)} coin`,
+    `<p>Chad’s coin price: ${money(c.price)}. Your holding: ${money(coinValue(s))} (${(c.units / 1e6).toFixed(4)} coins).</p><p>Invested so far: ${money(c.invested)}. Pocket: ${money(s.cash)}.</p><p>Price moves every 15 seconds of game time, with random swings and small effects from earnings, savings, Mom’s health, conversations, growing trees and good-day streaks. It can fall.</p><p>Current signals: ${money(q.earned)} earned, ${money(q.saved)} saved, ${q.neighbors} neighbors met, ${q.trees} trees growing, Mom has a ${q.health ? "good" : "tired"} day, longest good streak ${q.longestGoodStreak}.</p><label>Investment amount $ <input id="coin-amount" inputmode="decimal" value="1.00"></label><p id="coin-error" role="status"></p>`,
+    [
+      {
+        label: "Invest this amount",
+        destructive: true,
+        run: () => {
+          const amount = parseAmount(
+            ($("#coin-amount") as HTMLInputElement).value,
+          );
+          if (amount === null || !investCoin(s, amount)) {
+            $("#coin-error").textContent =
+              "Enter an amount you have in your pocket.";
+            return;
+          }
+          save();
+          coinMenu();
+        },
+      },
+      {
+        label: "Sell all my coins",
+        disabled: !c.units,
+        destructive: true,
+        run: () => {
+          if (sellCoin(s)) {
+            save();
+            coinMenu();
+          }
+        },
+      },
+      { label: "Leave", run: close },
+    ],
+  );
+}
+const coinTracker = document.createElement("aside");
+coinTracker.id = "coin-tracker";
+coinTracker.hidden = true;
+document.body.append(coinTracker);
+function updateCoinTracker() {
+  coinTracker.hidden = !begun || !s.coin;
+  if (!s.coin) return;
+  const c = s.coin,
+    old = c.history.at(-2) ?? c.price,
+    trend = c.price > old ? "▲" : c.price < old ? "▼" : "•";
+  coinTracker.innerHTML = `<strong>${escapeHTML(c.name)}</strong><br>${trend} ${money(c.price)} / coin<br>Holding ${money(coinValue(s))}`;
+  coinTracker.title =
+    "An in-game coin. Talk to Chad at Grindset to invest or sell.";
+  if (s.drink)
+    coinTracker.innerHTML += `<br>${drinks.find((d) => d.id === s.drink!.id)!.name}: ${Math.ceil(s.drink.remaining)}s`;
+}
+
 function interact() {
   if (!begun || paused || action) return;
   if (!s.awake) {
@@ -974,10 +1166,63 @@ function interact() {
     toast("Take a look around your room. Your notebook is open on the desk.");
     return;
   }
+  if (sitting) {
+    standUp();
+    return;
+  }
   near = selectTarget();
   if (!near) return;
   const id = near.id;
+  if (id === "couch") {
+    sitting = true;
+    yaw = Math.PI / 2;
+    pitch = 0.75;
+    cameraTilted = true;
+    jumpHeight = jumpVelocity = 0;
+    s.position = { x: -18.9, z: 11.15 };
+    world.setPlayerSeated(true);
+    visit(
+      momStatus(s.day).activity === "resting" ||
+        momStatus(s.day).activity === "reading"
+        ? "Sat beside Mom on the couch."
+        : "Sat on the couch for a while.",
+    );
+    if (
+      momStatus(s.day).activity === "resting" ||
+      momStatus(s.day).activity === "reading"
+    ) {
+      thought.textContent = chooseMomThought(s, "sitting");
+      thought.hidden = false;
+      thoughtTime = 9;
+    }
+    toast("E to stand up. You can stay a while.");
+    save();
+    return;
+  }
+  if (id === "wolf") {
+    if (s.cash < 100)
+      return toast("The wolf wants $1. It offers no guarantees.");
+    s.cash -= 100;
+    visit("Threw $1.00 to the lone wolf statue. Nothing happened.");
+    save();
+    toast("The dollar drops in. Nothing happens.");
+    return;
+  }
+  if (id === "grindset") return grindset();
+  if (id.startsWith("sigma-chad-")) {
+    visit("Stopped to talk with Chad in Sigma Town.");
+    const line = chadLine(s, id);
+    visit(`Heard Chad: ${line}`);
+    save();
+    return speak(id, `<p>${line}</p>`, [
+      { label: "See you around", run: dismissSpeech },
+    ]);
+  }
   if (id === "notebook") return notebook();
+  if (id === "hat-rack") {
+    hatRack();
+    return;
+  }
   if (id === "bank") return bank();
   if (id === "robertson") return robertson();
   if (["can", "shovel", "fertilizer"].includes(id))
@@ -1006,15 +1251,30 @@ function interact() {
       ],
       "YOUR BED",
     );
-  if (id === "forest-seeds" || id === "store-seeds") {
-    if (findHiddenSeeds(s, id === "forest-seeds" ? "forest" : "store")) {
+  if (
+    ["forest-seeds", "store-seeds", "garden-seeds", "tv-seeds"].includes(id)
+  ) {
+    if (
+      findHiddenSeeds(
+        s,
+        id.split("-")[0] as "forest" | "store" | "garden" | "tv",
+      )
+    ) {
       save();
-      toast("Five money seeds! Another chance for the garden.");
+      world.setSigmaUnlocked(!!s.foundTVSeeds);
+      world.syncBeds(s.plots);
+      toast(
+        id === "tv-seeds"
+          ? "Five seeds! A path has opened past Thread & Thimble. Sigma Town is through the hedge."
+          : "Five money seeds! Another chance for the garden.",
+      );
     }
     return;
   }
   if (id === "mom") {
+    const metBefore = s.metMom;
     s.metMom = true;
+    if (metBefore || momStatus(s.day).activity === "bedrest") return askMom();
     visit("Talked with Mom before heading out.");
     const greeting = momGreeting();
     visit(`Heard Mom: ${greeting}`);
@@ -1146,6 +1406,8 @@ $("#new-game").onclick = () => {
           world.player.userData.farewell = false;
 
           s = fresh();
+          sitting = false;
+          world.setPlayerSeated(false);
           wasHome = true;
           visitedOutside = false;
           yaw = 0;
@@ -1200,6 +1462,12 @@ $("#pause").onclick = () => {
   if (begun) pauseMenu();
 };
 addEventListener("keydown", (e) => {
+  if (
+    e.target instanceof HTMLElement &&
+    (e.target.matches("input,textarea") || e.target.isContentEditable) &&
+    e.key !== "Escape"
+  )
+    return;
   if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(e.key))
     e.preventDefault();
   if (e.repeat) return;
@@ -1226,12 +1494,13 @@ addEventListener("keydown", (e) => {
   if (
     key === " " &&
     s.awake &&
-    s.equippedHat === "rabbit" &&
+    !sitting &&
+    wearing(s, "rabbit") &&
     jumpHeight === 0 &&
     !action
   ) {
     jumpVelocity = 5.5;
-    noteHatPower(s, "to jump");
+    noteHatPower(s, "to jump", "rabbit");
   } else if (key === "e") {
     if (placingBed) {
       const p = bedPosition();
@@ -1249,6 +1518,10 @@ addEventListener("keydown", (e) => {
       return;
     }
 
+    if (sitting) {
+      standUp();
+      return;
+    }
     const choice = speaking?.element.querySelector<HTMLButtonElement>(
       ".choices button:not(:disabled)",
     );
@@ -1354,12 +1627,19 @@ function selectTarget() {
   return world.targets
     .filter(
       (t) =>
+        (s.foundTVSeeds ||
+          (!t.id.startsWith("sigma-chad-") &&
+            t.id !== "grindset" &&
+            t.id !== "wolf")) &&
         (t.id !== "forest-seeds" ||
           (!!s.foundCapSeeds && !s.foundForestSeeds)) &&
         (t.id !== "store-seeds" ||
           (!!s.foundForestSeeds && !s.foundStoreSeeds)) &&
+        (t.id !== "garden-seeds" ||
+          (!!s.foundStoreSeeds && !s.foundGardenSeeds)) &&
+        (t.id !== "tv-seeds" || (!!s.foundGardenSeeds && !s.foundTVSeeds)) &&
         Math.hypot(x - t.x, z - t.z) <
-          (s.equippedHat === "lantern" ? 3 : 2.1) &&
+          (wearing(s, "lantern") || buff(s, "reach") ? 3 : 2.1) &&
         hasSight(t),
     )
     .sort(
@@ -1383,14 +1663,23 @@ treeReport.id = "tree-report";
 treeReport.setAttribute("aria-label", "Tree growth report");
 document.body.append(treeReport);
 function updateUI() {
-  treeReport.hidden = !begun || !s.awake || s.equippedHat !== "inspector";
+  treeReport.hidden = !begun || !s.awake || !wearing(s, "inspector");
   if (!treeReport.hidden && !paused)
-    noteHatPower(s, "to check how my trees were growing");
+    noteHatPower(s, "to check how my trees were growing", "inspector");
   if (!treeReport.hidden)
     treeReport.innerHTML = `<strong>Garden report</strong>${s.plots.map((p, i) => `<div>Tree ${i + 1} · ${p.stage === "growing" ? `${Math.floor(Math.ceil(p.remaining) / 60)}:${String(Math.ceil(p.remaining) % 60).padStart(2, "0")} remaining` : p.stage === "harvested" ? "Withered" : p.stage === "ready" ? "Ready to harvest!" : p.stage === "planted" ? "Needs water" : "Empty planter"}</div>`).join("")}`;
   const total = s.cash + s.bank;
+  updateCoinTracker();
   $("#stats").innerHTML =
-    `Day ${s.day} &nbsp; ☀<br><b>${money(s.cash)}</b> pocket &nbsp; ${money(s.bank)} saved${s.equippedHat ? `<br><span class="equipped-hat">${hatById(s.equippedHat)!.name}${s.equippedHat === "rabbit" ? " · Space to jump" : ""}</span>` : ""}`;
+    `Day ${s.day} &nbsp; ☀${s.drink ? `<br>${drinks.find((d) => d.id === s.drink!.id)!.name} · ${Math.ceil(s.drink.remaining)}s` : ""}<br><b>${money(s.cash)}</b> pocket &nbsp; ${money(s.bank)} saved${
+      s.equippedHat
+        ? `<br><span class="equipped-hat">${wornHats(s)
+            .map((id) => hatById(id)!.name)
+            .join(
+              " + ",
+            )}${wearing(s, "rabbit") ? " · Space to jump" : ""}</span>`
+        : ""
+    }`;
   let objective = "Visit Ol’ Man Robertson",
     hint =
       "Take your $4.33 from the piggy bank, then follow the lane north into town.";
@@ -1425,7 +1714,11 @@ function updateUI() {
     hint = s.foundCapSeeds
       ? s.foundForestSeeds
         ? s.foundStoreSeeds
-          ? "Your Sprout Cap can find seeds when you harvest. Keep exploring."
+          ? !s.foundGardenSeeds
+            ? "Look closely in your neighbors’ flowerbeds."
+            : !s.foundTVSeeds
+              ? "Something may be tucked behind the TV at home."
+              : "Your Sprout Cap has a 50% chance to save a seed at harvest. Keep exploring."
           : "Look carefully around Robertson’s shelves for another seed packet."
         : "Look for a small seed packet out among the trees."
       : "Robertson has no more seeds. Look in the brim of a cap at Thread & Thimble.";
@@ -1433,21 +1726,33 @@ function updateUI() {
     objective = "Seeds of possibility";
     hint = "Buy five seeds for $2. A shovel makes planting quicker.";
   }
+  if (
+    s.awake &&
+    s.foundTVSeeds &&
+    !s.communityPlanted &&
+    !s.plots.some((p) => p.stage === "ready")
+  ) {
+    objective = "A path through the hedge";
+    hint =
+      "Past Thread & Thimble, the lane opens into Sigma Town. Its ten community beds need fresh seeds.";
+  }
   $("#objective").textContent = objective;
   $("#hint").textContent = hint;
   const { x, z } = s.position;
   $("#location").textContent =
-    x < -9 && x > -22 && z > -2 && z < 14
-      ? "Home, sweet home"
-      : x < -8 && x > -23 && z >= 14 && z < 24
-        ? "Your little garden"
-        : z < -22 && x > 2 && x < 14
-          ? "Robertsons"
-          : z < -23 && z > -35 && x > 18 && x < 30
-            ? "Thread & Thimble"
-            : z < -13
-              ? "Market lane"
-              : "Willow lane";
+    s.foundTVSeeds && z < -40
+      ? "Sigma Town"
+      : atHome()
+        ? "Home, sweet home"
+        : x < -8 && x > -23 && z >= 14 && z < 24
+          ? "Your little garden"
+          : z < -22 && x > 2 && x < 14
+            ? "Robertsons"
+            : z < -23 && z > -35 && x > 18 && x < 30
+              ? "Thread & Thimble"
+              : z < -13
+                ? "Market lane"
+                : "Willow lane";
   near = selectTarget();
   let prompt = "";
   let unavailable = false;
@@ -1487,6 +1792,7 @@ function updateUI() {
     prompt = canPlaceBed(s, bedPosition().x, bedPosition().z, bedObstacles())
       ? "<kbd>E</kbd> Place garden bed · Escape cancels"
       : "Find clear ground on your property · Escape cancels";
+  if (sitting) prompt = "<kbd>E</kbd> Stand up";
   $("#prompt").innerHTML = prompt;
   $("#prompt").classList.toggle("unavailable", unavailable);
   $("#prompt").setAttribute("aria-disabled", String(unavailable));
@@ -1497,7 +1803,21 @@ function updateUI() {
 }
 function frame(now: number) {
   frameNumber++;
-  world.setHat(s.equippedHat);
+  world.setHat(wornHats(s));
+  world.showBirdhouses(s.birdhousesBuilt ?? 0);
+  if (
+    begun &&
+    s.awake &&
+    world.outdoorBirdhouses.some(
+      (g) =>
+        g.visible &&
+        Math.hypot(g.position.x - s.position.x, g.position.z - s.position.z) <
+          7,
+    )
+  )
+    visit("Saw Mom’s finished birdhouses hanging in the trees.");
+  world.gardenSeeds.visible = !!s.foundStoreSeeds && !s.foundGardenSeeds;
+  world.tvSeeds.visible = !!s.foundGardenSeeds && !s.foundTVSeeds;
   const inHatShop =
     s.position.x > 18 &&
     s.position.x < 30 &&
@@ -1533,12 +1853,27 @@ function frame(now: number) {
   if (
     world.setMomDay(s.day, atHome()) &&
     s.awake &&
+    !sitting &&
     blocked(s.position.x, s.position.z, world.rects)
   )
-    s.position = clearPosition(s.position, world.rects);
-  const homeDistance = Math.hypot(
-    Math.max(-21 - s.position.x, 0, s.position.x + 9),
-    Math.max(-2 - s.position.z, 0, s.position.z - 14),
+    s.position = clearPosition(
+      s.position,
+      world.rects,
+      s.foundTVSeeds ? -84 : -39,
+    );
+  const distanceToRoom = (
+    left: number,
+    right: number,
+    north: number,
+    south: number,
+  ) =>
+    Math.hypot(
+      Math.max(left - s.position.x, 0, s.position.x - right),
+      Math.max(north - s.position.z, 0, s.position.z - south),
+    );
+  const homeDistance = Math.min(
+    distanceToRoom(-21, -9, -2, 14),
+    distanceToRoom(-29, -21, -2, 6),
   );
   const wantedRoof = begun ? Math.min(1, homeDistance / 1.2) : 1;
   const roofMaterial = world.homeRoof.material as T.MeshStandardMaterial;
@@ -1547,6 +1882,8 @@ function frame(now: number) {
     (reducedMotion ? 1 : 1 - Math.exp(-dt * 9));
   world.homeRoof.visible = roofMaterial.opacity > 0.02;
   world.homeRoof.castShadow = roofMaterial.opacity > 0.95;
+  world.momRoof.visible = world.homeRoof.visible;
+  world.momRoof.castShadow = world.homeRoof.castShadow;
   roofMaterial.depthWrite = roofMaterial.opacity > 0.95;
   const roofIndex = world.occluders.indexOf(world.homeRoof);
   if (wantedRoof > 0.95 && roofMaterial.opacity > 0.95) {
@@ -1568,10 +1905,10 @@ function frame(now: number) {
       );
       let f = (keys.has("w") ? 1 : 0) - (keys.has("s") ? 1 : 0),
         r = (keys.has("d") ? 1 : 0) - (keys.has("a") ? 1 : 0);
-      const n = Math.hypot(f, r);
+      const n = sitting ? 0 : Math.hypot(f, r);
       if (n) {
-        if (s.equippedHat === "propeller")
-          noteHatPower(s, "to get around faster");
+        if (wearing(s, "propeller"))
+          noteHatPower(s, "to get around faster", "propeller");
         f /= n;
         r /= n;
         const dx =
@@ -1586,7 +1923,7 @@ function frame(now: number) {
         world.player.rotation.y = Math.atan2(dx, dz);
         walk += dt * (keys.has("shift") ? 17.5 : 10);
         world.player.position.y = reducedMotion ? 0 : Math.sin(walk) * 0.045;
-      } else world.player.position.y = 0;
+      } else world.player.position.y = sitting ? 0.69 : 0;
       if (
         s.position.z > 17.3 &&
         s.position.z < 20.7 &&
@@ -1624,6 +1961,7 @@ function frame(now: number) {
         }
       }
       tick(s, elapsed);
+      tickSigma(s, elapsed);
       const homeNow = atHome();
       if (wasHome && !homeNow) visitedOutside = true;
       if (!wasHome && homeNow && visitedOutside) {
@@ -1638,13 +1976,7 @@ function frame(now: number) {
         );
         world.mom.rotation.z = Math.sin(now * 0.035) * 0.07;
       } else world.mom.rotation.z = 0;
-      if (
-        !momSpoke &&
-        s.position.z > 6 &&
-        s.position.z < 14 &&
-        s.position.x < -9 &&
-        s.position.x > -21
-      ) {
+      if (!momSpoke && atHome() && s.position.z > 6) {
         momSpoke = true;
         s.metMom = true;
         visit("Talked with Mom before heading out.");
@@ -1677,6 +2009,8 @@ function frame(now: number) {
   world.player.position.z = s.position.z;
   world.player.visible = s.awake || !begun;
   world.sleeping.visible = begun && !s.awake;
+  world.setSigmaUnlocked(!!s.foundTVSeeds);
+  world.sigma.updateRoofs(s.position.x, s.position.z);
   if (world.syncBeds(s.plots)) plotVersions.splice(5);
   while (timers.length < s.plots.length) {
     const el = document.createElement("div");
@@ -1710,9 +2044,14 @@ function frame(now: number) {
   if (
     treesChanged &&
     s.awake &&
+    !sitting &&
     blocked(s.position.x, s.position.z, world.rects)
   ) {
-    s.position = clearPosition(s.position, world.rects);
+    s.position = clearPosition(
+      s.position,
+      world.rects,
+      s.foundTVSeeds ? -84 : -39,
+    );
     world.player.position.set(s.position.x, 0, s.position.z);
     save();
   }
@@ -1733,15 +2072,20 @@ function frame(now: number) {
     cameraAim.set(-7, 1, 10);
     camera.lookAt(cameraAim);
   } else if (!s.awake) {
-    camera.position.set(-19.1, 1.85, -0.75);
-    cameraAim.set(-19.1, 1.1, 1.05);
+    camera.position.set(-16.8, 3.8, 4.2);
+    cameraAim.set(-19.1, 1.35, 0.75);
     camera.lookAt(cameraAim);
   } else {
+    const sigmaRoom = s.foundTVSeeds
+      ? world.sigma.houseBounds.find(
+          (h) =>
+            Math.abs(s.position.x - h.x) < 3.5 &&
+            Math.abs(s.position.z - h.z) < 3.5,
+        )
+      : undefined;
     const indoors =
-      (s.position.x < -9 &&
-        s.position.x > -22 &&
-        s.position.z > -2 &&
-        s.position.z < 14) ||
+      !!sigmaRoom ||
+      atHome() ||
       (s.position.x > 2 && s.position.x < 14 && s.position.z < -23) ||
       inHatShop;
     const wantedAngle =
@@ -1782,9 +2126,61 @@ function frame(now: number) {
         distance = Math.min(distance, Math.max(0.4, hits[0].distance - 0.4));
     }
     const ideal = target.clone().addScaledVector(direction, distance);
+    if (indoors) {
+      // Aim inside the building and lift above its walls before moving inward.
+      const bounds = sigmaRoom
+        ? [
+            sigmaRoom.x - 2.9,
+            sigmaRoom.x + 2.9,
+            sigmaRoom.z - 2.9,
+            sigmaRoom.z + 2.9,
+          ]
+        : inHatShop
+          ? [18.6, 29.4, -35.4, -22.6]
+          : s.position.x > 2
+            ? [2.6, 13.4, -35.4, -23.6]
+            : s.position.x < -21
+              ? [-28.4, -21.6, -1.4, 5.4]
+              : s.position.z < 6
+                ? [-20.4, -9.6, -1.4, 5.4]
+                : [-20.4, -9.6, 6.6, 13.4];
+      ideal.set(
+        T.MathUtils.clamp(desired.x, bounds[0], bounds[1]),
+        Math.max(desired.y, 5.2),
+        T.MathUtils.clamp(desired.z, bounds[2], bounds[3]),
+      );
+      if (Math.hypot(ideal.x - target.x, ideal.z - target.z) < 2.8) {
+        const alternatives = [
+          yaw + Math.PI / 2,
+          yaw - Math.PI / 2,
+          yaw + Math.PI,
+        ].map(
+          (a) =>
+            new T.Vector3(
+              T.MathUtils.clamp(
+                target.x + Math.sin(a) * 3.5,
+                bounds[0],
+                bounds[1],
+              ),
+              ideal.y,
+              T.MathUtils.clamp(
+                target.z + Math.cos(a) * 3.5,
+                bounds[2],
+                bounds[3],
+              ),
+            ),
+        );
+        alternatives.sort(
+          (a, b) =>
+            Math.hypot(b.x - target.x, b.z - target.z) -
+            Math.hypot(a.x - target.x, a.z - target.z),
+        );
+        ideal.copy(alternatives[0]);
+      }
+    }
     // Gradually lift above nearby obstacles instead of switching to a top-down view.
     const overhead = T.MathUtils.smoothstep(distance, 1.0, 3.0);
-    if (overhead < 1) {
+    if (overhead < 1 && !indoors) {
       const up = new T.Vector3(0, 5.8, 0.25),
         upLength = up.length();
       up.normalize();
@@ -1877,7 +2273,63 @@ function frame(now: number) {
     thoughtTime -= dt;
     if (thoughtTime <= 0) thought.hidden = true;
   }
-  thought.style.display = paused ? "none" : "";
+  if (thoughtTime > 0) {
+    const anchor = world.player.position
+      .clone()
+      .add(
+        new T.Vector3(
+          0,
+          2.35 +
+            new T.Box3().setFromObject(world.wornHat).getSize(new T.Vector3())
+              .y,
+          0,
+        ),
+      );
+    anchor.project(camera);
+    const anchorX = (anchor.x * 0.5 + 0.5) * innerWidth;
+    const anchorY = Math.max(
+      140,
+      Math.min(innerHeight - 80, (-anchor.y * 0.5 + 0.5) * innerHeight),
+    );
+    const width = thought.offsetWidth || 300,
+      height = thought.offsetHeight || 112;
+    let center = Math.max(
+      width / 2 + 20,
+      Math.min(innerWidth - width / 2 - 20, anchorX),
+    );
+    const spoken = speaking?.element.getBoundingClientRect();
+    if (
+      spoken &&
+      center + width / 2 > spoken.left &&
+      center - width / 2 < spoken.right &&
+      anchorY > spoken.top &&
+      anchorY - height < spoken.bottom
+    ) {
+      center = Math.max(
+        width / 2 + 20,
+        Math.min(
+          innerWidth - width / 2 - 20,
+          anchorX >= (spoken.left + spoken.right) / 2
+            ? spoken.right + width / 2 + 12
+            : spoken.left - width / 2 - 12,
+        ),
+      );
+    }
+    const left = center - width / 2;
+    const edge = Math.max(left + 20, Math.min(left + width - 20, anchorX));
+    thought.style.setProperty(
+      "--tail-large",
+      `${edge + (anchorX - edge) * 0.4 - left}px`,
+    );
+    thought.style.setProperty(
+      "--tail-small",
+      `${edge + (anchorX - edge) * 0.8 - left}px`,
+    );
+    thought.style.left = `${center}px`;
+    thought.style.top = `${anchorY}px`;
+    thought.style.display = paused || anchor.z > 1 ? "none" : "";
+  }
+  $("#quest").style.visibility = speaking || thoughtTime > 0 ? "hidden" : "";
   updateSpeech(active ? dt : 0);
   updateUI();
   if (toastTime > 0) {
@@ -1891,6 +2343,37 @@ requestAnimationFrame(frame);
 if (new URLSearchParams(location.search).has("test")) {
   (window as unknown as { game: unknown }).game = {
     state: () => structuredClone(s),
+    seated: () => sitting,
+    playerVisibility: () =>
+      ["head", "body"].map((name) => {
+        const point = world.player
+          .getObjectByName(name)!
+          .getWorldPosition(new T.Vector3());
+        const direction = point.clone().sub(camera.position);
+        const distance = direction.length();
+        const sight = new T.Raycaster(
+          camera.position,
+          direction.normalize(),
+          0,
+          distance - 0.08,
+        );
+        return (
+          sight.intersectObjects(
+            world.occluders.filter((o) => !o.userData.roof),
+            false,
+          ).length === 0
+        );
+      }),
+    birdhouses: () => world.outdoorBirdhouses.filter((g) => g.visible).length,
+    hatStack: () =>
+      world.wornHat.children.map((o) => ({
+        id: o.userData.hatId,
+        y: o.position.y,
+      })),
+    sleepingBounds: () => {
+      const b = new T.Box3().setFromObject(world.sleeping);
+      return { min: b.min.toArray(), max: b.max.toArray() };
+    },
     journalContext: () => journalContext(s),
     writeJournal: (context: ReturnType<typeof journalContext>) =>
       Promise.resolve(constructJournal(context).entry),
@@ -1898,7 +2381,24 @@ if (new URLSearchParams(location.search).has("test")) {
       if (blocked(x, z, world.rects)) throw Error("Blocked test position");
       s.position = { x, z };
     },
-    advance: (dt: number) => tick(s, dt),
+    advance: (dt: number) => {
+      tick(s, dt);
+      tickSigma(s, dt);
+    },
+    sigmaOverview: () => {
+      camera.position.set(17, 30, -53);
+      camera.lookAt(10, 0, -67);
+      renderer.render(scene, camera);
+    },
+    sigma: () => ({
+      visible: world.sigma.town.visible,
+      paths: world.sigma.paths,
+      pavement: Array.from(
+        world.sigma.walkway.geometry.attributes.position.array,
+      ),
+      plots: s.plots.filter((p) => p.community),
+      signals: marketSignals(s),
+    }),
     hatDisplays: () =>
       world.hatDisplays.map((o) => ({
         name: o.name,
@@ -1916,7 +2416,7 @@ if (new URLSearchParams(location.search).has("test")) {
     },
     rects: world.rects,
     scenery: world.scenery,
-    paths: world.paths,
+    paths: world.paths.concat(world.sigma.paths),
     doorways: world.doorways,
     boundaryHedges: () =>
       world.boundaryHedges.map((mesh) => {
@@ -2000,6 +2500,8 @@ if (new URLSearchParams(location.search).has("test")) {
       placingBed = false;
 
       s = fresh();
+      sitting = false;
+      world.setPlayerSeated(false);
       close();
     },
     setYaw: (n: number) => (yaw = n),

@@ -34,11 +34,11 @@ Visual tests are opt-in: `pnpm test:visual` compares against reviewed macOS Chro
 See QA.md for the release checklist, automated coverage, and remaining scope. This is an initial playable release. Mobile touch controls, full voiceover, real multiplayer, disease, pests, extra shop systems, and the surgery funding ending are future work.
 
 ## Thread & Thimble
-Walk through the shop’s doorway from Market Lane. Ten original procedural hats have distinct stitching, brims, bands, lenses, ears, stars, veil, feather and lamp details. Inspect a stand to read the price and ability; buy to wear it, or equip/take off owned hats from the illustrated bag. Ownership and the one equipped hat persist in saves. Old saves migrate with no hats.
+Walk through the shop’s doorway from Market Lane. Ten original procedural hats have distinct stitching, brims, bands, lenses, ears, stars, veil, feather and lamp details. Inspect a stand to read the price and ability; buy to wear it, or equip/take off owned hats from the illustrated bag. Ownership and up to three equipped hats persist in saves. Their powers work together. The bedroom hat rack lets you hang up individual hats and put others on. Taller hats sit higher, with rabbit ears and the whirligig prioritized at the top. Old saves retain their previously equipped hat.
 
 | Hat | Price | Power while worn |
 | --- | ---: | --- |
-| Sprout Cap | $2 | Plant 15% faster and recover one seed per harvest; its brim hides the second seed batch |
+| Sprout Cap | $2 | Plant 15% faster and have a 50% chance of recovering one seed per harvest; its brim hides the second seed batch |
 | Whirligig | $8 | Walk/run 25% faster |
 | Spring Hare | $12 | Jump with Space |
 | Garden Inspector | $15 | On-screen stages and countdowns for all five plots |
@@ -63,3 +63,21 @@ Tests simulate 10,000 nights across varied seeds and check facts, narrative mile
 Garden expansion: Robertson sells a portable wooden bed for $30 and a bag of soil for $10. Open the bag and choose Place a garden bed, walk to clear ground on your property, then press E while the preview is green. Escape keeps the bed in your bag. Paths, doors, scenery and existing beds are reserved. Press E at the empty bed to use one soil bag before planting. Bed positions and supplies persist in saves.
 
 After the cap seeds, a one-time five-seed packet appears at a saved random spot in the western trees. Collecting it unlocks another five-seed packet behind tins in Robertson's store. Up/down arrows tilt the camera; WASD walks. Mom's saved conversation counters provide changing replies, with coughing restricted to tired days.
+
+## Family and town update
+Mom has ten good-day activities: cooking, birdhouses, painting, reading, gardening, mending, jigsaws, music, letters, and feeding birds. Some tired days she rests in her new bedroom. Completed birdhouses remain hanging in outdoor trees. E at the couch sits the player beside Mom or alone; E again stands. The wake-up scene shows the complete character lying down in third person.
+
+Mom has 200 additional authored activity-specific replies in `src/mom-dialogue.ts`. The 200 authored thoughts in `src/mom-thoughts.ts` use observed health/activity, gardening progress, money, and occasion; saved selection history prevents repeats until eligible lines are exhausted. Thoughts appear in a cloud with round trailing bubbles anchored above the player's head.
+
+Hidden seed packets progress through the cap, the woods, Robertson's shelves, a neighbor's flowerbed, and behind the TV. Each gives five seeds once. Robertson explains the search immediately after the initial purchase. Neighbor gardens include distinct vegetable rows and tropical clusters. A single union mesh with world-aligned UVs prevents sidewalk overlap flicker. Indoor cameras rise above exterior walls and aim within the current building.
+
+Journal selection rejects repeated three-word phrases within the same page, in addition to tracking recent passages across days. Additional journal families cover the new activities, bedroom rest, observed birdhouses, and the two new seed discoveries. Existing pages and balances remain intact when saves migrate.
+
+## Sigma Town
+The fifth hidden packet (behind the home TV) opens the hedge at the end of the lane past Thread & Thimble. A new footpath leads to Sigma Town. Its seven male Chads have grayscale, broad-shouldered chibi models and independent dialogue counters: each pool has 144 distinct combinations of twelve role-specific jokes and twelve closing quips. The community-garden Chad criticizes sharing, while Grindset's barista calls the same work entrepreneurial.
+
+Ten public beds form a large Σ. They start with withered money trees and use the normal seed, watering, fertilizer and harvest rules. Existing saves get the beds once when unlocked; up to fifty home plots can coexist with ten community plots. The Doge, Pepe and Hawk Tuah houses are original modeled silhouettes with walk-in doorways and roof cutaways. The lone wolf statue takes exactly $1 without granting any luck or changing yields.
+
+Grindset sells five drinks, each lasting 180 seconds of active play: $2 Hustle Espresso (30% movement), $3 Deep Work Mocha (half planting time), $4 Compound Cold Brew (50% growth), $5 Bull Market Latte (+$1 harvest, capped at $7), $2 Networking Tea (three-meter interaction reach). A new drink replaces the previous effect. Effects persist in saves, pause with the game, and advance overnight.
+
+Planting a public bed unlocks the barista's coin offer. The player chooses a validated 1–24-character name and gets a top-right tracker. Investments spend pocket cash at the displayed price; selling realizes the current value. Prices move every fifteen active seconds using a separate saved RNG, bounded at $0.01–$1,000.00. Random moves outweigh the small drift from total harvest earnings, bank savings, Mom's current health, unique neighbors met, active trees and her longest good-day streak. After the original twenty-day activity rotation, Mom's health schedule includes varied runs of good and bad days. This system is entirely in-game and has no wallets, tokens, network calls or real purchases. New journal branches respond to actual visits, public planting, drinks, naming and investing.
