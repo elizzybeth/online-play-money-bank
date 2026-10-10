@@ -44,6 +44,7 @@ async function axis(p: Page, dimension: "x" | "z", destination: number) {
 test("whole town traversal through actual doors and fence gate", async ({
   page,
 }) => {
+  test.setTimeout(240000);
   // Pause on the blank page before expensive WebGL loading. A fixed future
   // target cannot race slow CI rendering or a Date.now() round trip.
   await page.clock.install({ time: new Date("2026-01-01T00:00:00Z") });
@@ -66,7 +67,7 @@ test("whole town traversal through actual doors and fence gate", async ({
     "How’s the garden going",
   );
   await page.getByRole("button", { name: "Look around" }).click();
-  await page.screenshot({ path: "../../work/robertsons.png" });
+  if (!process.env.CI) await page.screenshot({ path: "../../work/robertsons.png" });
   await axis(page, "x", 7);
   await axis(page, "z", -16);
   await axis(page, "x", 3);
@@ -75,7 +76,7 @@ test("whole town traversal through actual doors and fence gate", async ({
   await axis(page, "z", 4);
   await page.clock.fastForward(16);
   await expect(page.locator("#location")).toContainText("Home");
-  await page.screenshot({ path: "../../work/bedroom-third-person.png" });
+  if (!process.env.CI) await page.screenshot({ path: "../../work/bedroom-third-person.png" });
 });
 test("all required interaction targets are reachable in scene collision geometry", async ({
   page,
