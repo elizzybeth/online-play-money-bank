@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { fresh } from "../../src/game";
-async function frames(page: Page, n = 60) {
+async function frames(page: Page, n = 30) {
   for (let i = 0; i < n; i++) await page.clock.fastForward(32);
 }
 async function start(page: Page, x: number, z: number, pepe = false) {
@@ -117,7 +117,7 @@ test("walls disappear near the camera without compressing the boom, then restore
   await page.keyboard.down("ArrowUp");
   await frames(page, 40);
   await page.keyboard.up("ArrowUp");
-  await frames(page, 90);
+  await frames(page, 45);
   const walls = await page.evaluate(() => (window as any).game.cameraWalls());
   expect(walls.some((w: any) => !w.visible)).toBe(true);
   const camera = await page.evaluate(
@@ -125,7 +125,7 @@ test("walls disappear near the camera without compressing the boom, then restore
   );
   expect(camera[0]).toBeLessThan(-22);
   await page.evaluate(() => (window as any).game.teleport(3, 30));
-  await frames(page, 120);
+  await frames(page, 60);
   expect(
     await page.evaluate(() =>
       (window as any).game.cameraWalls().every((w: any) => w.visible),
