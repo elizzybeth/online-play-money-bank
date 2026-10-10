@@ -195,9 +195,16 @@ document.body.append(thought);
 let thoughtTime = 0;
 let sitting = false;
 function standUp() {
+  const leavingMeditation = meditationTime > 0;
+  meditationTime = 0;
   sitting = false;
-  s.position = clearPosition({ x: -17.1, z: 11.2 }, world.rects);
+  s.position = clearPosition(
+    leavingMeditation ? { x: -18, z: -45.7 } : { x: -17.1, z: 11.2 },
+    world.rects,
+    s.foundTVSeeds ? -89 : -39,
+  );
   world.setPlayerSeated(false);
+  if (leavingMeditation) toast("You leave the meditation early. No charge.");
   save();
 }
 function askMom() {
@@ -1584,7 +1591,7 @@ function interact() {
       toast(
         s.shovel
           ? `Digging… Stand still for ${plantingSeconds(s)} seconds to plant.`
-          : "Digging by hand takes 7 seconds. A $1 shovel from Robertsons cuts it to 2 seconds. Stand still to plant.",
+          : `Digging by hand takes ${Number(plantingSeconds(s).toFixed(1))} seconds. A $1 shovel from Robertsons cuts it to ${Number(plantingSeconds({ ...s, shovel: true }).toFixed(1))} seconds. Stand still to plant.`,
       );
     } else if (p.stage === "ready") {
       const n = harvest(s, i);

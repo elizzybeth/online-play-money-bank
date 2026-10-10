@@ -34,6 +34,7 @@ export function createWorld(scene: T.Scene) {
     radius: number;
     kind: string;
     variety?: string;
+    perchY?: number;
   }[] = [];
   const overlaps = (x: number, z: number, radius: number, r: Rect) =>
     x + radius > r.x - r.w / 2 &&
@@ -903,6 +904,11 @@ export function createWorld(scene: T.Scene) {
     branch.rotation.z = -0.7;
     branch.material = surfaceMaterial("#826b50", "bark");
     const variety = Math.abs(Math.round(x * 7 + z * 11)) % 4;
+    // Keep perched birds above the actual crown instead of inside its leaves.
+    scenery[scenery.length - 1].perchY =
+      (variety === 1
+        ? 4
+        : Math.max(2.4 + r, variety === 2 ? 2.7 + r * 0.65 : 0)) + 0.12;
     scenery[scenery.length - 1].kind = "tree";
     if (variety === 1) {
       for (let tier = 0; tier < 3; tier++) {

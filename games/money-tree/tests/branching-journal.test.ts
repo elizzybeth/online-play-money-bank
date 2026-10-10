@@ -232,3 +232,14 @@ test("reaching the surgery goal is a one-time event and does not invent a conver
   const next = constructJournal(journalContext(s), r.memory);
   assert(!next.selections.some((x) => x.startsWith("goal:")));
 });
+test("hat reflections describe the current fertilizer and harvest powers", () => {
+  const wizard = constructJournal(
+    context(["Used my Moonrise Wizard to make my fertilizer last longer."]),
+  );
+  assert.match(wizard.entry, /save a fertilizer dose/);
+  assert.doesNotMatch(wizard.entry, /grow faster/);
+  const banker = constructJournal(
+    context(["Used my Lucky Tallboy to get an extra dollar from a harvest."]),
+  );
+  assert.match(banker.entry, /nine if I fertilized it/);
+});

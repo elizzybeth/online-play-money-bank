@@ -46,6 +46,20 @@ test("distinct neighborhood gardens and wildlife visit existing birdhouses", asy
     before.butterflies[0].position,
   );
   expect(after.birds.some((b: any) => b.perch === "birdhouse")).toBe(true);
+  const perched = after.birds.filter(
+    (b: any) => b.state === "perched" && b.perch === "tree",
+  );
+  expect(perched.length).toBeGreaterThan(0);
+  for (const bird of perched) {
+    const tree = trees.find(
+      (t: any) =>
+        Math.abs(t.x - bird.position[0]) < 0.001 &&
+        Math.abs(t.z - bird.position[2]) < 0.001,
+    );
+    expect(tree).toBeTruthy();
+    expect(bird.position[1]).toBeCloseTo(tree.perchY, 5);
+    expect(bird.position[1]).toBeGreaterThan(3.5);
+  }
   await page.screenshot({ path: "../../outputs/money-tree-new-gardens.png" });
   for (const [x, z, name] of [
     [7, -5, "carnivorous"],
