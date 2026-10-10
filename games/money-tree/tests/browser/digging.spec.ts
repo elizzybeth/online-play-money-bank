@@ -4,6 +4,8 @@ for (const shovel of [false, true])
   test(`planting animates ${shovel ? "a shovel" : "both hands"}`, async ({
     page,
   }) => {
+    await page.clock.install({ time: new Date("2026-01-01T00:00:00Z") });
+    await page.clock.pauseAt(new Date("2026-01-02T00:00:00Z"));
     const s = fresh();
     Object.assign(s, {
       awake: true,
@@ -19,7 +21,9 @@ for (const shovel of [false, true])
     );
     await page.goto("./?test");
     await page.getByRole("button", { name: "Wake up" }).click();
+    for (let i = 0; i < 120; i++) await page.clock.fastForward(16);
     await page.keyboard.press("e");
+    await page.clock.fastForward(16);
     await expect
       .poll(() => page.evaluate(() => (window as any).game.digging().active))
       .toBe(true);
@@ -30,10 +34,11 @@ for (const shovel of [false, true])
     expect(pose.shovel).toBe(shovel);
     expect(pose.hands[0][0] * pose.hands[1][0]).toBeLessThan(0);
     if (!shovel) await expect(page.locator("#toast")).toContainText("shovel");
-    await page.waitForTimeout(150);
+    for (let i = 0; i < 10; i++) await page.clock.fastForward(16);
     const later = await page.evaluate(() => (window as any).game.digging());
     expect(later.hands).not.toEqual(pose.hands);
     await page.keyboard.down("s");
+    for (let i = 0; i < 15; i++) await page.clock.fastForward(16);
     await expect
       .poll(() => page.evaluate(() => (window as any).game.digging().active))
       .toBe(false);

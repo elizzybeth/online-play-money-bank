@@ -1,3 +1,4 @@
+import { stacyStory } from "./stacy-dialogue";
 import { SeedSearchClock } from "./seed-hints";
 import {
   buff,
@@ -1193,6 +1194,74 @@ function updateCoinTracker() {
     coinTracker.innerHTML += `<br>${drinks.find((d) => d.id === s.drink!.id)!.name}: ${Math.ceil(s.drink.remaining)}s`;
 }
 
+function stacyConversation() {
+  const count = s.stacyConversations ?? 0;
+  if (count >= 10) {
+    if (s.foundStacySeeds)
+      return speak(
+        "stacy",
+        "<p>“Good to see you, honey. I hope your mom’s havin’ a gentler day.”</p>",
+        [{ label: "Thanks, Stacy", run: dismissSpeech }],
+      );
+    return speak(
+      "stacy",
+      "<p>“Thanks for bein’ such a good conversationalist, honey. Say, do you do tree?”</p>",
+      [
+        {
+          label: "What do you mean, do tree?",
+          run: () => {
+            if (!s.foundStacySeeds) {
+              s.foundStacySeeds = true;
+              s.seeds += 5;
+              visit(
+                "Stacy thanked me for listening to her story and gave me five money seeds.",
+              );
+              save();
+            }
+            speak(
+              "stacy",
+              `<p>“You know. They say it makes ${escapeHTML(s.coin?.name ?? "your coin")} go up and to the right.”</p><p>She hands me a packet of money seeds.</p>`,
+              [
+                {
+                  label: "Thanks for telling me your story",
+                  run: dismissSpeech,
+                },
+              ],
+            );
+          },
+        },
+      ],
+    );
+  }
+  const chapter = stacyStory[count];
+  speak(
+    "stacy",
+    count === 0
+      ? "<p>“Hey, darlin’. I’m Stacy around here. Pull up a chair. There’s more to a person than one little joke.”</p><p class='fine'>Stacy is a fictional parody. Her dialogue is imagined.</p>"
+      : "<p>“What else would you like to know, honey?”</p>",
+    [
+      {
+        label: chapter.question,
+        run: () => {
+          s.stacyConversations = count + 1;
+          visit(`Asked Stacy: ${chapter.question}`);
+          save();
+          speak("stacy", `<p>“${escapeHTML(chapter.answer)}”</p>`, [
+            {
+              label:
+                count === 9
+                  ? "Thanks for sharing that with me"
+                  : "I’d like to hear more",
+              run: stacyConversation,
+            },
+            { label: "I’ll come back and hear the rest", run: dismissSpeech },
+          ]);
+        },
+      },
+      { label: "Maybe another time", run: dismissSpeech },
+    ],
+  );
+}
 let meditationTime = 0,
   dogeGreeted = false;
 const meditationChants = [
@@ -1242,9 +1311,11 @@ function finishMeditation() {
       {
         label: "Have you really been snorting this shit?",
         run: () =>
-          speak("doge-meditator-0", `<p>“For sure, man. Since I started snorting it, ${escapeHTML(s.coin?.name ?? "my coin")} has been all up and to the right.”</p>`, [
-            { label: "Well thanks man", run: dismissSpeech },
-          ]),
+          speak(
+            "doge-meditator-0",
+            `<p>“For sure, man. Since I started snorting it, ${escapeHTML(s.coin?.name ?? "my coin")} has been all up and to the right.”</p>`,
+            [{ label: "Well thanks man", run: dismissSpeech }],
+          ),
       },
     ],
   );
@@ -1309,6 +1380,7 @@ function interact() {
       );
     return offerMeditation();
   }
+  if (id === "stacy") return stacyConversation();
   if (id === "grindset") return grindset();
   if (id.startsWith("sigma-chad-")) {
     visit("Stopped to talk with Chad in Sigma Town.");
@@ -2427,6 +2499,12 @@ function frame(now: number) {
             blend,
           );
         }
+      }
+      if (sigmaRoom) {
+        // A tall meme building allows an elevated outside-wall camera while looking inward.
+        ideal.x = desired.x;
+        ideal.z = desired.z;
+        ideal.y = Math.max(desired.y, 8.2);
       }
       // Lift first, then travel across walls. The camera never rides a wall face.
       if (!reducedMotion && camera.position.y < (sigmaRoom ? 6.6 : 4.1)) {

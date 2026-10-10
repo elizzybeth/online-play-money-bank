@@ -48,6 +48,8 @@ export type State = {
   foundGardenSeeds?: boolean;
   foundTVSeeds?: boolean;
   foundMeditationSeeds?: boolean;
+  foundStacySeeds?: boolean;
+  stacyConversations?: number;
   harvestReflected: boolean;
   day: number;
   cash: number;
@@ -91,6 +93,8 @@ export const fresh = (): State => ({
   foundGardenSeeds: false,
   foundTVSeeds: false,
   foundMeditationSeeds: false,
+  foundStacySeeds: false,
+  stacyConversations: 0,
   harvestReflected: false,
   day: 1,
   cash: 0,
@@ -702,6 +706,15 @@ export function decode(raw: string | null): State | null {
     s.foundGardenSeeds ??= false;
     s.foundTVSeeds ??= false;
     s.foundMeditationSeeds ??= false;
+    s.foundStacySeeds ??= false;
+    s.stacyConversations ??= 0;
+    if (
+      typeof s.foundStacySeeds !== "boolean" ||
+      !Number.isInteger(s.stacyConversations) ||
+      s.stacyConversations < 0 ||
+      s.stacyConversations > 10
+    )
+      return null;
     if (typeof s.foundMeditationSeeds !== "boolean") return null;
     if (
       typeof s.foundGardenSeeds !== "boolean" ||

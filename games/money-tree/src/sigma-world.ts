@@ -223,33 +223,28 @@ export function createSigmaWorld(
   }
   box(frog.x, 3.85, frog.z + 3.45, 3.2, 0.16, 0.1, "#42593a");
   const hawk = shell(-3, -81, "#e4bea1");
-  const face = ball(hawk.x, 3.7, hawk.z, 3.8, "#e4bea1");
-  face.scale.set(1, 0.7, 1);
-  roofs.push(face);
-  const cap = ball(hawk.x, 5.55, hawk.z - 0.3, 3.5, "#507898");
-  cap.scale.set(1, 0.4, 0.95);
-  roofs.push(cap);
-  const brim = ball(hawk.x, 5.22, hawk.z + 2.6, 2.4, "#41637b");
-  brim.scale.set(1.2, 0.09, 0.7);
-  roofs.push(brim);
-  const patch = box(hawk.x, 5.65, hawk.z + 2.65, 2, 0.7, 0.08, "#ece4c8");
-  roofs.push(patch);
-  for (const side of [-1, 1]) {
-    for (let i = 0; i < 3; i++) {
-      const lock = ball(
-        hawk.x + side * (2.6 + i * 0.18),
-        4.2 - i * 0.6,
-        hawk.z + 1,
-        1,
-        "#d9bd71",
-      );
-      lock.scale.set(0.6, 1.4, 0.9);
-      roofs.push(lock);
-    }
-    roofs.push(ball(hawk.x + side * 0.95, 4.35, hawk.z + 3.1, 0.23, "#353a3e"));
-  }
-  const smile = box(hawk.x, 3.6, hawk.z + 3.4, 1.5, 0.14, 0.1, "#a87363");
-  roofs.push(smile);
+  const cowboyBrim = ball(hawk.x, 3.1, hawk.z, 5.5, "#b58958");
+  cowboyBrim.scale.set(1, 0.055, 0.72);
+  roofs.push(cowboyBrim);
+  const crown = mesh(
+    new T.CylinderGeometry(2.15, 2.7, 3.2, 24),
+    "#bc9365",
+    hawk.x,
+    4.65,
+    hawk.z,
+  );
+  crown.material = surfaceMaterial("#bc9365", "cloth");
+  roofs.push(crown);
+  const hatBand = mesh(
+    new T.CylinderGeometry(2.65, 2.7, 0.36, 24),
+    "#5f4230",
+    hawk.x,
+    3.45,
+    hawk.z,
+  );
+  roofs.push(hatBand);
+  const buckle = box(hawk.x, 3.45, hawk.z + 2.68, 0.8, 0.4, 0.12, "#e5c477");
+  roofs.push(buckle);
   sign("Hawk Tuah", -3, 2.4, -77.35, 3.6);
   sign("Doge", -3, 2.4, -45.35, 3);
   sign("Pepe", -3, 2.4, -62.35, 3);
@@ -303,6 +298,24 @@ export function createSigmaWorld(
     z: -47,
     label: "Join the meditation",
   });
+  const stacy = chad("stacy", -18, -82);
+  speakers.find((s) => s.id === "stacy")!.name = "Stacy";
+  targets.find((t) => t.id === "stacy")!.label = "Talk with Stacy";
+  for (const side of [-1, 1]) {
+    const lock = ball(side * 0.48, 1.35, 0.02, 0.25, "#e5c77c", stacy);
+    lock.scale.set(0.7, 2.1, 0.9);
+  }
+  const brim = ball(0, 2.0, 0, 0.75, "#b58a57", stacy);
+  brim.scale.set(1, 0.09, 0.8);
+  const stacyCrown = mesh(
+    new T.CylinderGeometry(0.32, 0.4, 0.48, 20),
+    "#c9a16f",
+    0,
+    2.22,
+    0,
+    stacy,
+  );
+  stacyCrown.material = surfaceMaterial("#c9a16f", "cloth");
   // Coffee kiosk with an open counter, striped canopy and oversized mug.
   box(32, 1.15, -79, 8, 2.3, 3, "#544638").material = surfaceMaterial(
     "#544638",

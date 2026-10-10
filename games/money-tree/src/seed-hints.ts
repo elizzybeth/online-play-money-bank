@@ -7,6 +7,7 @@ export function nextSeedPacket(s: State): string | null {
   if (!s.foundGardenSeeds) return "garden";
   if (!s.foundTVSeeds) return "tv";
   if (!s.foundMeditationSeeds) return "meditation";
+  if (!s.foundStacySeeds) return "stacy";
   return null;
 }
 export function seedHint(s: State, level: number): string | null {
@@ -20,6 +21,12 @@ export function seedHint(s: State, level: number): string | null {
         ? "west, near the middle of town"
         : "southwest";
   const lines: Record<string, string[]> = {
+    stacy: [
+      "Someone in Sigma might appreciate a good listener.",
+      "Try the big cowboy-hat building.",
+      "Stacy has a story to tell. Ask her about it.",
+      "Listen to all ten parts of Stacy’s story inside the cowboy-hat building for the next seeds.",
+    ],
     meditation: [
       "Maybe someone in Sigma Town knows where to find more seeds.",
       "Try visiting the Doge house.",

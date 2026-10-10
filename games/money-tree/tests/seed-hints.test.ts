@@ -25,6 +25,7 @@ test("seed hints begin after three active minutes and advance every thirty secon
     s.foundTVSeeds =
       true;
   s.foundMeditationSeeds = true;
+  s.foundStacySeeds = true;
   assert.equal(clock.update(s, 999), null);
 });
 test("beekeeper stacking surface excludes its hanging veil", () => {
