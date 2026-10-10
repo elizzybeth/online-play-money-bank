@@ -26,7 +26,12 @@ import {
   marketSignals,
   healthDay,
 } from "../src/sigma";
-import { writeBranchedDay } from "../src/branching-journal";
+import {
+  writeBranchedDay,
+  constructJournal,
+  newNarrativeMemory,
+} from "../src/branching-journal";
+import { journalContext } from "../src/journal";
 const unlocked = () => {
   const s = fresh();
   s.foundGardenSeeds = true;
@@ -152,9 +157,20 @@ test("journal reflects actual community planting and does not pretend investment
   const s = unlocked();
   s.events = [];
   plant(s, 5);
-  const page = writeBranchedDay(s);
-  assert.match(page, /community|Chad|other side of the hedge|garden beds/);
-  assert(!page.includes("—"));
+  const c = journalContext(s);
+  for (let seed = 1; seed <= 1000; seed++) {
+    const result = constructJournal(c, newNarrativeMemory(seed));
+    assert(
+      result.selections.some((id) => id.startsWith("sigmaGarden:")),
+      `Missing public garden branch for seed ${seed}`,
+    );
+    assert(
+      !result.selections.some((id) =>
+        /sigmaCoin|sigmaInvest|sigmaSale/.test(id),
+      ),
+    );
+    assert(!result.entry.includes("—"));
+  }
 });
 
 test("health streak signals count good days across every schedule boundary", () => {
