@@ -9,10 +9,14 @@ test("first night before harvest questions seeds and the housing fallback", () =
   const entry = s.journal[1];
   assert(!entry.includes("—"));
   assert(entry.startsWith("Day 1\n\n"));
-  assert(entry.includes("almost half my $4.33"));
+  assert(
+    /almost half/i.test(entry) &&
+      entry.includes("$4.33") &&
+      entry.includes("$2.00"),
+  );
   assert(entry.includes("This better work"));
   assert(entry.includes("Auntie"));
-  assert(entry.includes("What on earth"));
+  assert(s.journalNarrative!.used.some((id) => id.startsWith("unproven:")));
   assert(!s.harvestReflected);
 });
 test("first harvested night calculates remaining surgery days once, even after day one", () => {
@@ -27,7 +31,7 @@ test("first harvested night calculates remaining surgery days once, even after d
   harvest(s, 1);
   sleep(s);
   const entry = s.journal[2];
-  assert(entry.includes("It really grew money"));
+  assert(s.journalNarrative!.firstHarvestWritten);
   assert(entry.includes("$7.00"));
   assert(entry.includes("$9,992.67") === false);
   assert(entry.includes("$9992.67"));
@@ -51,7 +55,7 @@ test("legacy diary pages shed em dashes and reflection flag migrates", () => {
 test("a day without earnings does not celebrate financial progress", () => {
   const s = fresh();
   sleep(s);
-  assert(s.journal[1].includes("haven’t earned anything"));
+  assert(!/I (?:earned|harvested|made) \$[1-9]/.test(s.journal[1]));
   assert(!s.journal[1].includes("drop in the bucket"));
   assert(!s.journal[1].includes("beginning"));
   const seeded = fresh();

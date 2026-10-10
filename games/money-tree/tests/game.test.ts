@@ -60,7 +60,7 @@ test("opening economy, withering and seed hunt loop", () => {
   assert(s.bank >= 1033);
   sleep(s);
   assert.equal(s.day, 2);
-  assert(s.journal[1].includes("Harvested"));
+  assert(/harvested/i.test(s.journal[1]));
   assert(s.plots.every((p) => p.stage === "ready"));
   assert.deepEqual(load(JSON.stringify(s)), s);
 });

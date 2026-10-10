@@ -1,9 +1,5 @@
-import {
-  generateJournal,
-  journalContext,
-  temporaryEntry,
-  type JournalCompletion,
-} from "./journal";
+import { journalContext } from "./journal";
+import { constructJournal } from "./branching-journal";
 import { hats, hatById, type HatId } from "./hats";
 import { makeHat } from "./hat-models";
 import "./style.css";
@@ -417,104 +413,16 @@ const esc = (str: string) =>
         c
       ]!,
   );
-let journalWriting = false;
-let journalStatus = "";
-let journalRun = 0;
-let stopModel: (() => void) | undefined;
-function cancelJournalWriter() {
-  journalRun++;
-  journalWriting = false;
-  stopModel?.();
-  journalStatus = "";
-}
-function refreshJournalStatus() {
-  const status = document.querySelector<HTMLElement>("#journal-status");
-  if (status) status.textContent = journalStatus;
-}
-async function continueJournalWriting() {
-  if (journalWriting || !s.journalDrafts?.length || !begun) return;
-  const state = s,
-    run = ++journalRun;
-  journalWriting = true;
-  journalStatus = "Getting the journal writer ready...";
-  refreshJournalStatus();
-  try {
-    while (state.journalDrafts?.length && run === journalRun && s === state) {
-      const stored = state.journalDrafts[0];
-      stored.seed = Math.floor(Math.random() * 1_000_000_000);
-      save();
-      const context = {
-        ...stored,
-        previous: state.journal.slice(0, stored.page),
-      };
-      const diagnostic = new URLSearchParams(location.search).has("test");
-      const injected = diagnostic
-        ? (window as unknown as { journalTestComplete?: JournalCompletion })
-            .journalTestComplete
-        : undefined;
-      if (
-        diagnostic &&
-        !injected &&
-        !new URLSearchParams(location.search).has("local-journal")
-      )
-        throw new Error(
-          "The local writer is disabled in this diagnostic session. Your temporary entry is saved.",
-        );
-      let result: string;
-      if (injected) result = await generateJournal(context, injected);
-      else {
-        const backend = await import("./journal-model");
-        if (s !== state || run !== journalRun) return;
-        stopModel = backend.stopJournalModel;
-        result = await backend.writeLocalJournal(context, (text) => {
-          if (run !== journalRun || s !== state) return;
-          journalStatus = text;
-          refreshJournalStatus();
-        });
-      }
-      if (run !== journalRun || s !== state) return;
-      if (state.journalDrafts.some((c) => c.page === context.page)) {
-        state.journal[context.page] = result;
-        state.journalDrafts = state.journalDrafts.filter(
-          (c) => c.page !== context.page,
-        );
-        save();
-        const openPage =
-          document.querySelector<HTMLElement>(".notebook-page")?.dataset.page;
-        if (openPage !== undefined) notebook(Number(openPage));
-      }
-    }
-    journalStatus = "";
-    toast("I've written about today. Your new page is in the notebook.");
-  } catch (error) {
-    if (run !== journalRun || s !== state) return;
-    journalStatus =
-      error instanceof Error
-        ? error.message
-        : "The local writer is unavailable. Your entry is saved; you can retry.";
-  } finally {
-    if (run === journalRun && s === state) {
-      stopModel?.();
-      journalWriting = false;
-      const page =
-        document.querySelector<HTMLElement>(".notebook-page")?.dataset.page;
-      if (page !== undefined) notebook(Number(page));
-    }
-  }
-}
 function notebook(page = s.journal.length - 1, direction = 0) {
   page = T.MathUtils.clamp(page, 0, s.journal.length - 1);
   const entry = s.journal[page];
   const title = `Day ${page + 1}`;
-  const pending = s.journalDrafts?.some((c) => c.page === page);
+
   const paragraphs = entry.replace(/^Day \d+\s*/, "").split(/\n\n/);
   panel(
     "Your notebook",
     `<div class="notebook-page" data-page="${page}"><h3>${title}</h3>${paragraphs.map((e) => `<p>${esc(e)}</p>`).join("")}</div><p class="page-number">Page ${page + 1} of ${s.journal.length}</p>` +
-      `<p class="fine">Today's entry will be written when you go to sleep.</p>` +
-      (pending
-        ? `<p id="journal-status" role="status" class="fine">${esc(journalStatus || "This is a temporary entry. The local writer can make a fresh page from what happened today.")}</p>`
-        : ""),
+      `<p class="fine">Today's entry will be written when you go to sleep.</p>`,
     [
       {
         label: "Previous page",
@@ -526,30 +434,6 @@ function notebook(page = s.journal.length - 1, direction = 0) {
         disabled: page === s.journal.length - 1,
         run: () => notebook(page + 1, 1),
       },
-      ...(pending
-        ? [
-            {
-              label: "Try writing again",
-              disabled: journalWriting,
-              run: () => {
-                void continueJournalWriting();
-                notebook(page);
-              },
-            },
-            {
-              label: "Keep this entry",
-              run: () => {
-                cancelJournalWriter();
-                s.journalDrafts = s.journalDrafts?.filter(
-                  (c) => c.page !== page,
-                );
-                save();
-                notebook(page);
-                void continueJournalWriting();
-              },
-            },
-          ]
-        : []),
       { label: "Close notebook", default: true, run: close },
     ],
     "YOUR NOTEBOOK",
@@ -1032,7 +916,7 @@ function pauseMenu() {
             action = undefined;
             momSpoke = false;
             world.player.userData.farewell = false;
-            cancelJournalWriter();
+
             s = next;
             wasHome = atHome();
             visitedOutside = s.awake && !wasHome;
@@ -1046,7 +930,6 @@ function pauseMenu() {
             plotVersions.length = 0;
             save();
             close();
-            void continueJournalWriting();
           };
           input.click();
         },
@@ -1066,7 +949,7 @@ function pauseMenu() {
                   action = undefined;
                   momSpoke = false;
                   world.player.userData.farewell = false;
-                  cancelJournalWriter();
+
                   s = fresh();
                   wasHome = true;
                   visitedOutside = false;
@@ -1102,15 +985,12 @@ function interact() {
   if (id === "bed")
     return panel(
       "Tomorrow is another chance",
-      "<p>End the day, write in your notebook, and wake up to a fresh morning. Watered trees will finish growing overnight.</p><p class='fine'>Fresh notebook entries are written on your device. The first use downloads a local language model (about 5.2 GB), which needs a browser with WebGPU. You can keep playing while it writes. If it cannot run, your day is saved as a temporary entry with a retry button.</p>",
+      "<p>End the day, write in your notebook, and wake up to a fresh morning. Watered trees will finish growing overnight.</p>",
       [
         {
           label: "Sleep until tomorrow",
           run: () => {
-            const context = journalContext(s);
             sleep(s);
-            s.journal[context.page] = temporaryEntry(context);
-            (s.journalDrafts ??= []).push({ ...context, previous: [] });
             visitedOutside = false;
             wasHome = true;
             momSpoke = false;
@@ -1118,9 +998,8 @@ function interact() {
             save();
             close();
             toast(
-              `Good morning. Day ${s.day} begins. I’m writing in my notebook.`,
+              `Good morning. Day ${s.day} begins. My notebook has a new page.`,
             );
-            void continueJournalWriting();
           },
         },
         { label: "Stay up a little longer", run: close },
@@ -1265,7 +1144,7 @@ $("#new-game").onclick = () => {
           action = undefined;
           momSpoke = false;
           world.player.userData.farewell = false;
-          cancelJournalWriter();
+
           s = fresh();
           wasHome = true;
           visitedOutside = false;
@@ -1284,7 +1163,7 @@ $("#new-game").onclick = () => {
 };
 $("#begin").onclick = () => {
   begun = true;
-  void continueJournalWriting();
+
   last = performance.now();
   $("#intro").hidden = true;
   try {
@@ -2014,12 +1893,7 @@ if (new URLSearchParams(location.search).has("test")) {
     state: () => structuredClone(s),
     journalContext: () => journalContext(s),
     writeJournal: (context: ReturnType<typeof journalContext>) =>
-      import("./journal-model").then((m) =>
-        m.writeLocalJournal(context, (text) => {
-          journalStatus = text;
-          refreshJournalStatus();
-        }),
-      ),
+      Promise.resolve(constructJournal(context).entry),
     teleport: (x: number, z: number) => {
       if (blocked(x, z, world.rects)) throw Error("Blocked test position");
       s.position = { x, z };
@@ -2124,7 +1998,7 @@ if (new URLSearchParams(location.search).has("test")) {
     }),
     reset: () => {
       placingBed = false;
-      cancelJournalWriter();
+
       s = fresh();
       close();
     },
