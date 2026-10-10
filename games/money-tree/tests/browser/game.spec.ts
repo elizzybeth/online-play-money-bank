@@ -1,18 +1,22 @@
 import { walkTo } from "./movement";
 import { test, expect, type Page } from "@playwright/test";
+const controlled = new WeakSet<Page>();
 const state = (p: Page) => p.evaluate(() => (window as any).game.state());
 async function at(p: Page, x: number, z: number) {
   await p.evaluate(([x, z]) => (window as any).game.teleport(x, z), [x, z]);
-  await p.waitForTimeout(150);
+  if (controlled.has(p)) await p.clock.fastForward(32);
+  else await p.waitForTimeout(150);
 }
 async function interact(p: Page) {
   await p.keyboard.press("e");
-  await p.waitForTimeout(150);
+  if (controlled.has(p)) await p.clock.fastForward(32);
+  else await p.waitForTimeout(150);
 }
 test("opening, real controls, economy, gardening, journal and reload", async ({
   page,
 }) => {
   test.setTimeout(240000);
+  controlled.add(page);
   await page.clock.install({ time: new Date("2026-01-01T00:00:00Z") });
   await page.clock.pauseAt(new Date("2026-01-02T00:00:00Z"));
   const errors: string[] = [];
@@ -34,7 +38,6 @@ test("opening, real controls, economy, gardening, journal and reload", async ({
   for (let i = 0; i < 40; i++) await page.clock.fastForward(16);
   await walkTo(page, -16, 5.3);
   await walkTo(page, -16, 12.5);
-  await page.clock.resume();
   expect((await state(page)).position.z).toBeGreaterThan(12);
   await expect(page.locator("#speech-layer")).toContainText("love you");
   await at(page, -10.8, 1.4);
@@ -61,6 +64,7 @@ test("opening, real controls, economy, gardening, journal and reload", async ({
   for (let i = 0; i < 5; i++) {
     await at(page, -20 + i * 2, 20.6);
     await interact(page);
+    for (let frame = 0; frame < 25; frame++) await page.clock.fastForward(100);
     await expect
       .poll(async () => (await state(page)).plots[i].stage)
       .toBe("planted");
