@@ -1,3 +1,10 @@
+import {
+  canEnterPepe,
+  startPepeShow,
+  tickPepeShow,
+  collectPepePacket,
+} from "./pepe-event";
+import { enableBalloonAudio, balloonSound } from "./balloon-audio";
 import { stacyStory } from "./stacy-dialogue";
 import { SeedSearchClock } from "./seed-hints";
 import {
@@ -1195,6 +1202,8 @@ function updateCoinTracker() {
 }
 
 function stacyConversation() {
+  s.metStacy = true;
+  save();
   const count = s.stacyConversations ?? 0;
   if (count >= 10) {
     if (s.foundStacySeeds)
@@ -1261,6 +1270,34 @@ function stacyConversation() {
       { label: "Maybe another time", run: dismissSpeech },
     ],
   );
+}
+let pepeGreeted = false;
+function pepeConversation(step = 0) {
+  const lines = [
+    "Is inflation in our world a good thing or not a good thing?",
+    "Inflation. Would you say that’s a good thing, or not a good thing?",
+    "Okay, okay. What kind of fun are we going to have today?",
+    "Abracadabra, one, two three... now it’s time to see what we see!",
+  ];
+  const replies = [
+    "...",
+    "Um... I guess it depends? I’m not sure...",
+    "Lots of fun?",
+    "Let’s see!",
+  ];
+  speak("pepe-show", `<p>“${lines[step]}”</p>`, [
+    {
+      label: replies[step],
+      run: () => {
+        if (step < 3) pepeConversation(step + 1);
+        else {
+          dismissSpeech();
+          enableBalloonAudio();
+          if (startPepeShow(s)) save();
+        }
+      },
+    },
+  ]);
 }
 let meditationTime = 0,
   dogeGreeted = false;
@@ -1379,6 +1416,29 @@ function interact() {
         [{ label: "I’ll leave you to it", run: dismissSpeech }],
       );
     return offerMeditation();
+  }
+  if (id === "pepe-door")
+    return toast(
+      canEnterPepe(s)
+        ? "Pepe’s door is open."
+        : "Meet Stacy and finish the Doge meditation to enter Pepe.",
+    );
+  if (id === "pepe-show") {
+    if (!canEnterPepe(s)) return;
+    if (s.pepeShowStarted)
+      return toast(
+        s.pepePopped
+          ? "Seed packets are scattered all around Sigma Town!"
+          : "That balloon is still getting bigger...",
+      );
+    return pepeConversation();
+  }
+  if (id.startsWith("pepe-seed-")) {
+    if (collectPepePacket(s, Number(id.slice(10)))) {
+      save();
+      toast("Five money seeds! There are more packets scattered around Sigma.");
+    }
+    return;
   }
   if (id === "stacy") return stacyConversation();
   if (id === "grindset") return grindset();
@@ -1877,6 +1937,10 @@ function selectTarget() {
           (!!s.foundForestSeeds && !s.foundStoreSeeds)) &&
         (t.id !== "garden-seeds" ||
           (!!s.foundStoreSeeds && !s.foundGardenSeeds)) &&
+        (!t.id.startsWith("pepe-seed-") ||
+          (!!s.pepePopped &&
+            !s.pepePackets?.includes(Number(t.id.slice(10))))) &&
+        (t.id !== "pepe-door" || !canEnterPepe(s)) &&
         (t.id !== "tv-seeds" || (!!s.foundGardenSeeds && !s.foundTVSeeds)) &&
         targetDistance(t) <
           (wearing(s, "lantern") || buff(s, "reach") ? 3 : 2.1) &&
@@ -2135,6 +2199,27 @@ function frame(now: number) {
   const active = begun && !paused && !document.hidden;
   if (active) {
     if (s.awake) {
+      const inPepe =
+        canEnterPepe(s) &&
+        Math.abs(s.position.x + 18) < 6.5 &&
+        Math.abs(s.position.z + 65) < 6.5;
+      if (!inPepe) pepeGreeted = false;
+      if (inPepe && !pepeGreeted && !s.pepeShowStarted) {
+        pepeGreeted = true;
+        pepeConversation();
+      }
+      if (s.pepeShowStarted && !s.pepePopped) {
+        const before = s.pepeInflation ?? 0;
+        const popped = tickPepeShow(s, dt);
+        if (popped) {
+          balloonSound(true);
+          save();
+          toast(
+            "POP! Seed packets everywhere. Time to make room for more beds!",
+          );
+        } else if (Math.floor(before) !== Math.floor(s.pepeInflation ?? 0))
+          balloonSound();
+      }
       const inDoge =
         s.foundTVSeeds &&
         Math.abs(s.position.x + 18) < 6.5 &&
@@ -2325,6 +2410,14 @@ function frame(now: number) {
   world.sleeping.visible = begun && !s.awake;
   world.setSigmaUnlocked(!!s.foundTVSeeds);
   world.sigma.updateRoofs(s.position.x, s.position.z);
+  world.sigma.updatePepe(
+    canEnterPepe(s),
+    s.pepeInflation ?? 0,
+    !!s.pepePopped,
+    s.pepePackets ?? [],
+    active ? dt : 0,
+    reducedMotion,
+  );
   if (world.syncBeds(s.plots)) plotVersions.splice(5);
   while (timers.length < s.plots.length) {
     const el = document.createElement("div");
@@ -2414,7 +2507,12 @@ function frame(now: number) {
     const target = new T.Vector3(
         s.position.x,
         1.4 + jumpHeight * 0.7,
-        s.position.z - (speaking?.id.startsWith("doge-meditator-") || meditationTime > 0 ? 3 : 0),
+        s.position.z -
+          (speaking?.id.startsWith("doge-meditator-") ||
+          speaking?.id === "pepe-show" ||
+          meditationTime > 0
+            ? 3
+            : 0),
       ),
       desired = target
         .clone()

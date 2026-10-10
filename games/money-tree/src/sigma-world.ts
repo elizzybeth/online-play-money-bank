@@ -1,3 +1,4 @@
+import { makeSeedPacket } from "./seed-packet";
 import { signCanvas } from "./signage";
 import * as T from "three";
 import { surfaceMaterial } from "./textures";
@@ -64,7 +65,8 @@ export function createSigmaWorld(
     );
     m.position.set(x, y, z);
     town.add(m);
-    if (["Doge", "Pepe", "Hawk Tuah"].includes(text)) m.userData.houseSign = true;
+    if (["Doge", "Pepe", "Hawk Tuah"].includes(text))
+      m.userData.houseSign = true;
     return m;
   }
   // One union mesh, lifted above the grass: no coplanar seams or overlapping tiles.
@@ -213,6 +215,7 @@ export function createSigmaWorld(
   ball(dog.x, 3.9, dog.z + 3, 0.7, "#edcf91").scale.set(1.8, 0.8, 0.65);
   ball(dog.x, 4.16, dog.z + 3.4, 0.24, "#272b28");
   const frog = shell(-3, -66, "#609758");
+  const frogFaceStart = town.children.length;
   const frogRoof = ball(frog.x, 3.6, frog.z, 4, "#609758");
   frogRoof.scale.set(1, 0.6, 0.9);
   roofs.push(frogRoof);
@@ -223,6 +226,7 @@ export function createSigmaWorld(
     ball(frog.x + side * 1.5, 5.2, frog.z + 2.53, 0.18, "#272b28");
   }
   box(frog.x, 3.85, frog.z + 3.45, 3.2, 0.16, 0.1, "#42593a");
+  const frogParts = town.children.slice(frogFaceStart) as T.Mesh[];
   const hawk = shell(-3, -81, "#e4bea1");
   const cowboyBrim = ball(hawk.x, 3.1, hawk.z, 5.5, "#b58958");
   cowboyBrim.scale.set(1, 0.055, 0.72);
@@ -272,6 +276,112 @@ export function createSigmaWorld(
     h.x = -18;
     h.z = [-49, -65, -81][i];
     h.w = h.d = 14;
+  }
+  const frogRest = frogParts.map((object) => ({
+    object,
+    position: object.position.clone(),
+    scale: object.scale.clone(),
+  }));
+  const pepeGateRect = { x: -18, z: -58, w: 4.4, d: 0.35 };
+  rects.push(pepeGateRect);
+  const pepeGate = box(-18, 2.9, -58, 4.4, 5.8, 0.35, "#507749");
+  occluders.push(pepeGate);
+  targets.push({ id: "pepe-door", x: -18, z: -56.7, label: "Enter Pepe" });
+  const presenter = chad("pepe-show", -18, -66);
+  mesh(
+    new T.CylinderGeometry(0.025, 0.025, 0.4, 8),
+    "#30383d",
+    0.45,
+    0.95,
+    0.45,
+    presenter,
+  );
+  ball(0.45, 1.17, 0.45, 0.09, "#919b9d", presenter);
+  const debris = Array.from({ length: 100 }, (_, i) => {
+    const object =
+      i < 25
+        ? makeSeedPacket()
+        : new T.Mesh(
+            new T.SphereGeometry(0.28, 6, 4),
+            new T.MeshStandardMaterial({
+              color: i % 2 ? "#629e54" : "#84b56c",
+              roughness: 0.45,
+            }),
+          );
+    if (i >= 25) object.scale.set(1, 0.2, 0.8);
+    const x = i < 25 ? -6 + (i % 5) * 9 : -8 + ((i * 13.7) % 44);
+    const z = i < 25 ? (i === 24 ? -74 : -47 - Math.floor(i / 5) * 8) : -46 - ((i * 7.3) % 40);
+    object.position.set(x, i < 25 ? 0.3 : 0.15, z);
+    object.visible = false;
+    town.add(object);
+    if (i < 25)
+      targets.push({
+        id: `pepe-seed-${i}`,
+        x,
+        z,
+        label: "Pick up money seeds",
+      });
+    return { object, x, z, phase: i * 2.399 };
+  });
+  let pepeOpen = false,
+    burstTime = 0,
+    wasPopped = false;
+  function updatePepe(
+    open: boolean,
+    seconds: number,
+    popped: boolean,
+    collected: number[],
+    dt: number,
+    reduced: boolean,
+  ) {
+    if (open !== pepeOpen) {
+      pepeOpen = open;
+      pepeGate.visible = !open;
+      const index = rects.indexOf(pepeGateRect);
+      if (open && index >= 0) rects.splice(index, 1);
+      else if (!open && index < 0) rects.push(pepeGateRect);
+      const oi = occluders.indexOf(pepeGate);
+      if (open && oi >= 0) occluders.splice(oi, 1);
+      else if (!open && oi < 0) occluders.push(pepeGate);
+    }
+    const fraction = seconds / 12,
+      factor = 1 + fraction * 2.5,
+      pivot = new T.Vector3(-18, 7.2, -65);
+    for (const r of frogRest) {
+      r.object.visible = !popped;
+      r.object.scale.copy(r.scale).multiplyScalar(factor);
+      r.object.position
+        .copy(r.position)
+        .sub(pivot)
+        .multiplyScalar(factor)
+        .add(pivot);
+      if (seconds > 0) {
+        const material = r.object.material as T.MeshStandardMaterial;
+        material.transparent = true;
+        material.opacity = Math.max(0.12, 1 - fraction * 0.83);
+        material.depthWrite = false;
+      }
+    }
+    if (popped && !wasPopped) burstTime = 0;
+    if (popped) burstTime = Math.min(2, burstTime + dt);
+    wasPopped = popped;
+    const progress = reduced ? 1 : Math.min(1, burstTime / 2);
+    debris.forEach((d, i) => {
+      d.object.visible = popped && (i >= 25 || !collected.includes(i));
+      if (!popped) return;
+      d.object.position.set(
+        T.MathUtils.lerp(-18, d.x, progress),
+        T.MathUtils.lerp(8, i < 25 ? 0.3 : 0.15, progress) +
+          Math.sin(progress * Math.PI) * 5,
+        T.MathUtils.lerp(-65, d.z, progress),
+      );
+      if (i >= 25)
+        d.object.rotation.set(
+          progress * d.phase,
+          progress * 3,
+          progress * d.phase * 0.4,
+        );
+    });
   }
   const meditators: T.Group[] = [];
   for (const [i, [x, z]] of [
@@ -407,6 +517,8 @@ export function createSigmaWorld(
     town,
     houseBounds,
     meditators,
+    updatePepe,
+    debris,
     walkway,
     paths,
     roofs,
@@ -414,8 +526,11 @@ export function createSigmaWorld(
       town.visible = value;
     },
     updateRoofs(x: number, z: number) {
-      const inside = houseBounds.find(h => Math.abs(x-h.x) < h.w/2 && Math.abs(z-h.z) < h.d/2);
-      for (const sign of town.children.filter(o => o.userData.houseSign)) sign.visible = !inside || Math.abs(sign.position.z - inside.z) > 10;
+      const inside = houseBounds.find(
+        (h) => Math.abs(x - h.x) < h.w / 2 && Math.abs(z - h.z) < h.d / 2,
+      );
+      for (const sign of town.children.filter((o) => o.userData.houseSign))
+        sign.visible = !inside || Math.abs(sign.position.z - inside.z) > 10;
       roofs.forEach((r) => {
         const near = houseBounds.some(
           (h) =>

@@ -49,6 +49,11 @@ export type State = {
   foundTVSeeds?: boolean;
   foundMeditationSeeds?: boolean;
   foundStacySeeds?: boolean;
+  metStacy?: boolean;
+  pepeShowStarted?: boolean;
+  pepeInflation?: number;
+  pepePopped?: boolean;
+  pepePackets?: number[];
   stacyConversations?: number;
   harvestReflected: boolean;
   day: number;
@@ -94,6 +99,11 @@ export const fresh = (): State => ({
   foundTVSeeds: false,
   foundMeditationSeeds: false,
   foundStacySeeds: false,
+  metStacy: false,
+  pepeShowStarted: false,
+  pepeInflation: 0,
+  pepePopped: false,
+  pepePackets: [],
   stacyConversations: 0,
   harvestReflected: false,
   day: 1,
@@ -706,6 +716,29 @@ export function decode(raw: string | null): State | null {
     s.foundGardenSeeds ??= false;
     s.foundTVSeeds ??= false;
     s.foundMeditationSeeds ??= false;
+    s.metStacy ??= !!s.stacyConversations;
+    s.pepeShowStarted ??= false;
+    s.pepeInflation ??= 0;
+    s.pepePopped ??= false;
+    s.pepePackets ??= [];
+    if (
+      typeof s.metStacy !== "boolean" ||
+      typeof s.pepeShowStarted !== "boolean" ||
+      typeof s.pepePopped !== "boolean" ||
+      !Number.isFinite(s.pepeInflation) ||
+      s.pepeInflation < 0 ||
+      s.pepeInflation > 12 ||
+      !Array.isArray(s.pepePackets) ||
+      s.pepePackets.length > 25 ||
+      new Set(s.pepePackets).size !== s.pepePackets.length ||
+      s.pepePackets.some(
+        (i: unknown) =>
+          !Number.isInteger(i) || (i as number) < 0 || (i as number) >= 25,
+      ) ||
+      (!s.pepePopped && s.pepePackets.length > 0) ||
+      (s.pepePopped && (!s.pepeShowStarted || s.pepeInflation !== 12))
+    )
+      return null;
     s.foundStacySeeds ??= false;
     s.stacyConversations ??= 0;
     if (
