@@ -83,3 +83,12 @@ Desktop keyboard and mouse. No touch/gamepad support yet. Home and haberdashery 
 - Hold W crossing the home and shop doorways in both directions: wall avoidance must preserve the input heading. Sweep corners to confirm camera clearance, visibility and gradual travel.
 - Open a long notebook entry at a short viewport: scrolling the spread must not move the page controls. Adjacent pages have different sketches, and revisiting a page restores its sketches.
 - The HUD seed packet has loaded artwork and the exact inventory count. Store display interactions and every hidden seed pickup remain reachable after expanding the shop.
+
+## Bicycle release checks
+
+- Walk into the relocated showroom and reach every physical display. Confirm four floor displays, three wall displays, distinct geometry, readable prices, and a clear central aisle.
+- Purchase all seven bikes with sufficient cash, reject an unaffordable purchase and a duplicate, choose previously owned bikes, and reload. Preserve exact cash, ownership, selected bike, existing garden and journal.
+- H mounts outdoors and refuses indoors or while digging, seated, airborne or rolling. Verify cockpit hands, handlebar bell and legible computer. B rings only while mounted and respects sound-off.
+- Test slowest bike against fully boosted running, steering, braking/reverse, wall collision at speed, and automatic dismount through a real shop door. Restore walking and third-person view with H.
+- Journal purchases must not invent a ride. Record riding only after actually mounting outside.
+- Early meditation exit stays in Doge and cancels both fee and reward; normal completion still charges once. Perched birds remain above their actual canopy. Sound-off also silences the balloon audio context, and nonfinite balloon elapsed time leaves saves valid.

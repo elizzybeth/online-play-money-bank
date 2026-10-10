@@ -105,7 +105,7 @@ export const extraTownLines: Record<string, string[]> = {
     "Please do not put a damp hat in a drawer. Let it breathe first.",
   ],
   bicycle: [
-    "A good bike makes a small town feel big. We’ll have something for you soon.",
+    "A good bike makes a small town feel big. There are seven here to choose from.",
     "I can fix a wheel that wobbles. I cannot fix a rider who refuses lunch.",
     "The bell is for letting people know you are there. Not for the whole journey.",
     "I lined up the little parts, and then my elbow moved the whole system.",

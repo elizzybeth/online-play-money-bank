@@ -30,3 +30,14 @@ test("Pepe requires both encounters, bursts once and scatters exactly twenty-fiv
   assert(decode(JSON.stringify(s)));
   assert.equal(decode(JSON.stringify({ ...s, pepePackets: [0, 0] })), null);
 });
+test("invalid balloon elapsed time cannot corrupt a save or pop the balloon", () => {
+  const s = fresh();
+  s.metStacy = true;
+  s.foundMeditationSeeds = true;
+  startPepeShow(s);
+  const before = JSON.stringify(s);
+  for (const dt of [NaN, Infinity, -Infinity, -1, 0])
+    assert(!tickPepeShow(s, dt));
+  assert.equal(JSON.stringify(s), before);
+  assert(decode(JSON.stringify(s)));
+});
