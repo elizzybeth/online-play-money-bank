@@ -213,3 +213,7 @@ export const momDialogue = {
     "Let us look a little longer before we go inside.",
   ],
 } as const;
+
+export function playerMomResponse(_line: string, _energetic: boolean) {
+  return "Love you too";
+}

@@ -70,14 +70,14 @@ export class SeedSearchClock {
   private packet: string | null = null;
   private elapsed = 0;
   private delivered = -1;
-  update(s: State, seconds: number): string | null {
+  update(s: State, seconds: number, suspended = false): string | null {
     const packet = nextSeedPacket(s);
     if (packet !== this.packet) {
       this.packet = packet;
       this.elapsed = 0;
       this.delivered = -1;
     }
-    if (!packet) return null;
+    if (!packet || suspended) return null;
     this.elapsed += Math.max(0, seconds);
     const level = Math.floor((this.elapsed - 180) / 30);
     if (level < 0 || level <= this.delivered) return null;

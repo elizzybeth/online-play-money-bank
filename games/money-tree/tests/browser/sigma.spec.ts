@@ -77,7 +77,7 @@ test("sigma garden, fresh Chads, Grindset name input, investments, coffee and sa
   await page.locator("#coin-name").fill("Seed Fund");
   await page.getByRole("button", { name: "Name it", exact: true }).click();
   await page.locator("#coin-amount").fill("2.00");
-  await page.getByRole("button", { name: "Invest this amount" }).click();
+  await page.getByRole("button", { name: "Buy", exact: true }).click();
   await page.getByRole("button", { name: "Leave", exact: true }).click();
   await expect(page.locator("#coin-tracker")).toContainText("Seed Fund");
   expect((await page.evaluate(() => (window as any).game.state())).cash).toBe(
@@ -148,7 +148,7 @@ test("meme houses have clear doors and interior cameras, statue is solid, paveme
     for (let i = 0; i < 40; i++) await page.waitForTimeout(16);
     expect(
       (await page.evaluate(() => (window as any).game.camera())).position[1],
-    ).toBeGreaterThan(4.5);
+    ).toBeGreaterThan(1.3);
     expect(
       await page.evaluate(() => (window as any).game.playerVisibility()),
     ).toEqual([true, true]);

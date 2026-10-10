@@ -84,7 +84,7 @@ const powers: Record<string, string> = {
   cap: "plant a little faster and have a one-in-two chance to save a seed at harvest",
   propeller: "walk and run faster",
   rabbit: "jump",
-  inspector: "see how all my trees are growing",
+  inspector: "plant two adjoining beds at once",
   hardhat: "plant seeds faster",
   wizard: "have a chance to save a fertilizer dose when I feed a tree",
   rain: "water new seeds automatically when I have my watering can",
@@ -392,6 +392,24 @@ export function constructJournal(
       ]);
     else if (has(c, /^Planted in Sigma Town/)) {
       if (
+        (c.communityDays ??
+          c.history.filter((m) =>
+            m.events.some((e) => e.startsWith("Planted in Sigma Town")),
+          ).length) >= 2
+      )
+        choose("sigmaGardenFamiliar", [
+          "I planted in the shared beds again. I know where to put my things now. It is becoming part of the usual round.",
+          "I went over to the community garden to plant. I checked the beds before heading home. There is always another little job to do.",
+          "The shared beds kept me busy today. I can find my way there without thinking about it now.",
+          "I put more seeds in the community beds. Between those and home, I have a lot to keep track of.",
+          "I spent some time planting in Sigma Town. I want to keep those beds looked after, the same as ours.",
+          "I worked in the shared garden again. I am getting used to doing a round there before I go home.",
+          "I planted in the community garden today. I checked my work before leaving. Tomorrow I will have trees in two places to collect from.",
+          "There was work waiting in the shared beds. I planted some seeds and headed home to check on Mom.",
+          "I used the community beds again. I wish the walk home were shorter when I am tired.",
+          "I planted over in Sigma Town. The familiar work helps me stop worrying for a little while.",
+        ]);
+      else if (
         has(
           c,
           /^Heard Chad:.*(?:not very sigma|Sharing soil|Community soil|collectivist)/i,
@@ -479,6 +497,12 @@ export function constructJournal(
         `${action} I keep wondering who thought of making it.`,
         `${action} I don't want it to sit in my bag doing nothing.`,
         `${action} There's a lot about this town I still don't understand.`,
+      ]);
+    } else if (has(c, /^Picked paint colors for two birdhouses/)) {
+      choose("birdhouse-paint", [
+        "Mom and I picked colors for two birdhouses. We went out and hung them together. I kept looking back at them on the way in.",
+        "We painted the birdhouses and put them in the trees together. Mom held one steady while I helped. I hope the birds like our colors.",
+        "I got to choose the paint for Mom’s birdhouses. Hanging them with her was my favorite part. We stood there a minute to see if a bird would come.",
       ]);
     } else if (has(c, /^Saw Mom’s finished birdhouses/))
       choose("finishedBirdhouses");

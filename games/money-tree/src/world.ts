@@ -1,3 +1,4 @@
+import { type BirdhousePaint } from "./birdhouse-paint";
 import { createWildlife } from "./wildlife";
 import { bikes } from "./bikes";
 import { makeBike } from "./bike-models";
@@ -124,12 +125,26 @@ export function createWorld(scene: T.Scene) {
     );
     if (parent === scene && h >= 2.8 && (w > 2 || d > 2))
       m.material = surfaceMaterial(c, "plaster", Math.max(w, d) / 2, h / 2);
+    if (
+      parent === scene &&
+      Math.min(w, d) <= 0.6 &&
+      ((solid && h >= 2.8) || (y > 2.8 && h < 0.4))
+    )
+      m.userData.cameraWall = true;
     m.position.set(x, y, z);
     m.castShadow = true;
     m.receiveShadow = true;
     parent.add(m);
     if (solid) {
-      rects.push({ x, z, w, d });
+      // Low solid furniture can be cleared by the rabbit-hat jump. Tall
+      // structural walls keep an unbounded collision height.
+      rects.push({
+        x,
+        z,
+        w,
+        d,
+        ...(h <= 2.4 && y + h / 2 <= 2.8 ? { clearHeight: y + h / 2 } : {}),
+      });
       occluders.push(m);
     }
     return m;
@@ -178,6 +193,8 @@ export function createWorld(scene: T.Scene) {
       new T.MeshBasicMaterial({
         map: new T.CanvasTexture(c),
         side: T.DoubleSide,
+        transparent: true,
+        alphaTest: 0.05,
       }),
     );
     mesh.position.set(x, y, z);
@@ -275,6 +292,51 @@ export function createWorld(scene: T.Scene) {
       }
     player.getObjectByName("body")!.rotation.x = active ? 0.16 : 0;
   }
+  const fertilizerBox = new T.Group();
+  player.add(fertilizerBox);
+  box(0, 0, 0, 0.22, 0.32, 0.13, "#e6cc83", false, fertilizerBox);
+  box(0, 0.02, 0.072, 0.18, 0.16, 0.012, "#48764a", false, fertilizerBox);
+  box(0, 0.18, 0, 0.19, 0.035, 0.1, "#f6e7bc", false, fertilizerBox);
+  const fertilizerGrains = new T.Group();
+  scene.add(fertilizerGrains);
+  for (let i = 0; i < 24; i++) {
+    const grain = new T.Mesh(
+      new T.IcosahedronGeometry(0.04, 0),
+      mat(i % 2 ? "#d6b678" : "#6d9c58"),
+    );
+    fertilizerGrains.add(grain);
+  }
+  fertilizerBox.visible = fertilizerGrains.visible = false;
+  function setFertilizing(active: boolean, time: number, x: number, z: number) {
+    fertilizerBox.visible = fertilizerGrains.visible = active;
+    if (!active) return;
+    const shake = Math.sin(time * 22);
+    const hand = player.getObjectByName("hand-1")!;
+    hand.position.set(0.68, 1.02 + shake * 0.025, 0.38);
+    fertilizerBox.position
+      .copy(hand.position)
+      .add(new T.Vector3(0, 0.04, 0.04));
+    fertilizerBox.rotation.set(0.95 + shake * 0.12, 0, -0.25);
+    player.getObjectByName("body")!.rotation.x = 0.12;
+    const source = fertilizerBox.getWorldPosition(new T.Vector3());
+    fertilizerGrains.children.forEach((grain, i) => {
+      const flight = (time * 1.7 + i / 24) % 1;
+      grain.visible = time > 0.15 && time < 1.45;
+      const angle = i * 2.399;
+      const radius = 0.15 + (i % 5) * 0.09;
+      grain.position
+        .copy(source)
+        .lerp(
+          new T.Vector3(
+            x + Math.cos(angle) * radius,
+            0.27,
+            z + Math.sin(angle) * radius,
+          ),
+          flight,
+        );
+      grain.position.y += Math.sin(flight * Math.PI) * 0.2;
+    });
+  }
   const sleeping = new T.Group();
   scene.add(sleeping);
   // The same complete chibi character, lying face-up with head on the pillow.
@@ -346,12 +408,11 @@ export function createWorld(scene: T.Scene) {
   homeRoof.userData.roof = true;
   homeRoof.castShadow = true;
   scene.add(homeRoof);
-  const momRoof = new T.Mesh(
-    new T.ConeGeometry(1, 1, 4).rotateY(Math.PI / 4),
-    roofMaterial,
-  );
-  momRoof.position.set(-5, 4.3, 10);
-  momRoof.scale.set(6.5, 2.2, 6.5);
+  // A lower lean-to extension meets the house beneath its east eave,
+  // rather than intersecting two large pyramid roofs.
+  const momRoof = new T.Mesh(new T.BoxGeometry(8.5, 0.16, 8.9), roofMaterial);
+  momRoof.position.set(-4.85, 3.55, 10);
+  momRoof.rotation.z = -0.018;
   momRoof.name = "mom-bedroom-roof";
   scene.add(momRoof);
   box(-15, -0.02, 6, 12, 0.1, 16, "#dbbe96");
@@ -628,11 +689,11 @@ export function createWorld(scene: T.Scene) {
     }
   }
   let momKey = "";
-  function setMomDay(day: number, playerHome = true) {
+  function setMomDay(day: number, playerHome = true, force = false) {
     const status = momStatus(day),
       garden = status.activity === "garden";
     const key = `${day}-${garden}`;
-    if (key === momKey) return false;
+    if (key === momKey && !force) return false;
     momKey = key;
     const seated =
       status.activity === "resting" || status.activity === "reading";
@@ -710,12 +771,59 @@ export function createWorld(scene: T.Scene) {
   tvScreen.position.set(-10.16, 1.65, 10);
   tvScreen.rotation.y = -Math.PI / 2;
   scene.add(tvScreen);
-  let cartoonFrame = -1;
-  function updateCartoon(time: number) {
-    const frame = Math.floor(time * 8);
+  target("tv", -11.4, 10, "Change TV channel");
+  let cartoonFrame = "";
+  function updateCartoon(
+    time: number,
+    channel: "cartoons" | "news" = "cartoons",
+    headline = "Town News",
+  ) {
+    const frame = `${Math.floor(time * 8)}-${channel}-${headline}`;
     if (frame === cartoonFrame) return;
     cartoonFrame = frame;
     const c = cartoonCanvas.getContext("2d")!;
+    if (channel === "news") {
+      c.fillStyle = "#254c66";
+      c.fillRect(0, 0, 384, 216);
+      c.fillStyle = "#55788b";
+      c.fillRect(210, 22, 155, 110);
+      c.fillStyle = "#f1e9d5";
+      c.font = "bold 23px Nunito";
+      c.fillText("TOWN NEWS", 218, 58);
+      c.fillStyle = "#253440";
+      c.fillRect(76, 106, 112, 75);
+      c.fillStyle = "#e9cba7";
+      c.beginPath();
+      c.ellipse(132, 75, 30, 37, 0, 0, Math.PI * 2);
+      c.fill();
+      c.fillStyle = "#554637";
+      c.beginPath();
+      c.ellipse(132, 47, 31, 13, -0.1, Math.PI, Math.PI * 2);
+      c.fill();
+      c.fillStyle = "#303b3a";
+      for (const x of [122, 143]) {
+        c.beginPath();
+        c.arc(x, 70, 3, 0, 7);
+        c.fill();
+      }
+      c.fillStyle = "#b56a65";
+      c.fillRect(126, 89, 12, Math.floor(time * 4) % 2 ? 5 : 2);
+      c.fillStyle = "#ebdfca";
+      c.beginPath();
+      c.moveTo(111, 107);
+      c.lineTo(132, 131);
+      c.lineTo(153, 107);
+      c.fill();
+      c.fillStyle = "#986c4a";
+      c.fillRect(0, 156, 384, 60);
+      c.fillStyle = "#183748";
+      c.fillRect(0, 174, 384, 42);
+      c.fillStyle = "#fff5dc";
+      c.font = "bold 19px Nunito";
+      c.fillText(headline, 12, 201, 360);
+      cartoonTexture.needsUpdate = true;
+      return;
+    }
     c.fillStyle = "#a4d8ed";
     c.fillRect(0, 0, 384, 216);
     c.fillStyle = "#80b76b";
@@ -1042,9 +1150,13 @@ export function createWorld(scene: T.Scene) {
       const model = makeGardenTool(id);
       model.position.set(x, 0.92, z);
       scene.add(model);
+      model.updateWorldMatrix(true, true);
+      rects.find((r) => r.x === x && r.z === z)!.clearHeight =
+        new T.Box3().setFromObject(model).max.y;
     } else {
       const sack = box(x, 1.35, z, 0.65, 0.85, 0.55, color);
       sack.material = surfaceMaterial(color, "cloth");
+      rects.find((r) => r.x === x && r.z === z)!.clearHeight = 1.775;
       box(x, 1.4, z + 0.285, 0.42, 0.38, 0.018, "#edf0c9");
       for (const side of [-1, 1]) {
         const leaf = ball(x + side * 0.08, 1.43, z + 0.31, 0.08, "#648747");
@@ -1060,11 +1172,13 @@ export function createWorld(scene: T.Scene) {
   for (const x of [1.94, 4.06]) box(x, 0.98, -34, 0.13, 0.4, 1.5, "#c3a176");
   for (const z of [-34.7, -33.3]) box(3, 0.98, z, 2.25, 0.4, 0.13, "#c3a176");
   box(3, 0.79, -34, 2.1, 0.05, 1.35, "#66513c");
+  rects.find((r) => r.x === 3 && r.z === -34)!.clearHeight = 1.18;
   label("Garden bed · $30", 3, 1.7, -32.98, 3);
   target("garden-bed", 3, -32.45, "Inspect garden bed · $30");
   box(12, 0.4, -35, 1.5, 0.8, 1.5, "#b2946d", true);
   const soilSack = box(12, 1.3, -35, 0.9, 1, 0.65, "#c3b295");
   soilSack.material = surfaceMaterial("#c3b295", "cloth");
+  rects.find((r) => r.x === 12 && r.z === -35)!.clearHeight = 1.8;
   box(12, 1.36, -34.66, 0.58, 0.5, 0.015, "#e7dfbe");
   label("Soil · $10", 12, 2.2, -34.55, 2.5);
   target("garden-soil", 12, -33.4, "Inspect soil · $10");
@@ -1076,7 +1190,16 @@ export function createWorld(scene: T.Scene) {
   box(19.9, 1.8, -23, 3.8, 3.6, 0.25, "#e4bc9e", true);
   box(28.1, 1.8, -23, 3.8, 3.6, 0.25, "#e4bc9e", true);
   box(24, 3.25, -23, 4.4, 0.7, 0.25, "#e4bc9e");
-  label("Thread & Thimble", 24, 3.2, -22.8, 4.2, "#704a65");
+  box(28.2, 2.3, -22.55, 0.14, 4.6, 0.16, "#856c50");
+  for (const [text, y, turn] of [
+    ["Thread & Thimble", 4.1, -0.06],
+    ["Angry Milliner", 3.25, 0.08],
+    ["This Way", 2.4, -0.055],
+  ] as const) {
+    const arrow = label(text, 28.2, y, -22.4, 4, "#704a65");
+    arrow.name = `milliner-arrow-${text}`;
+    arrow.rotation.z = turn;
+  }
   doorways.push({ x: 24, z: -23, w: 4.4, d: 5 });
   box(24, 0.065, -28.3, 4, 0.025, 7, "#a8828b");
   for (const x of [18.16, 29.84]) {
@@ -1107,6 +1230,8 @@ export function createWorld(scene: T.Scene) {
     const model = makeHat(hat.id);
     model.position.set(x, 1.2, z);
     scene.add(model);
+    rects.find((r) => r.x === x && r.z === z)!.clearHeight =
+      new T.Box3().setFromObject(model).max.y;
     hatDisplays.push(model);
     label(
       `${hat.name} · $${hat.price / 100}`,
@@ -1195,7 +1320,8 @@ export function createWorld(scene: T.Scene) {
   const bikeShopRoof = box(-18, 3.85, -30, 20.5, 0.25, 18.5, "#647a84");
   bikeShopRoof.material = surfaceMaterial("#647a84", "shingles", 6, 5);
   (bikeShopRoof.material as T.MeshStandardMaterial).transparent = true;
-  const bikeShopSign = label("SPOKE & SADDLE", -18, 3.1, -20.75, 6);
+  // The roof fascia is at z=-20.75. Keep the sign in front of it.
+  const bikeShopSign = label("SPOKE & SADDLE", -18, 3.1, -20.5, 6);
   box(-9, 0.65, -34.5, 1, 1.3, 3, "#947859", true);
   box(-9, 1.35, -34.5, 1.2, 0.12, 3.2, "#8f9ea2");
   for (const z of [-35.4, -34.5, -33.6])
@@ -1226,7 +1352,13 @@ export function createWorld(scene: T.Scene) {
       for (const a of [-0.8, 0.8])
         box(x + a, 1.7, -38.25, 0.08, 0.9, 0.8, "#647a84");
     } else box(x, 0.07, z, 2.9, 0.14, 3.3, "#8f9ea2");
-    rects.push({ x, z, w: hung ? 3 : 2.3, d: hung ? 1.1 : 2.8 });
+    rects.push({
+      x,
+      z,
+      w: hung ? 3 : 2.3,
+      d: hung ? 1.1 : 2.8,
+      clearHeight: new T.Box3().setFromObject(model).max.y,
+    });
     const signZ = hung ? -36.6 : z + 1.65;
     label(
       `${bike.name} · $${bike.price / 100}`,
@@ -1301,14 +1433,22 @@ export function createWorld(scene: T.Scene) {
           color,
         );
     if (i % 3 === 2)
-      for (let flower = 0; flower < 8; flower++)
-        ball(
-          x + Math.sin(flower * 2) * 0.4,
-          0.7,
-          z + Math.cos(flower * 2) * 0.4,
-          0.08,
-          "#d9b7d1",
-        );
+      for (let cluster = 0; cluster < 5; cluster++) {
+        const cx = x + Math.sin(cluster * 2.4) * 0.4;
+        const cz = z + Math.cos(cluster * 2.4) * 0.4;
+        for (let flower = 0; flower < 12; flower++) {
+          const angle = flower * 2.399;
+          const radius = 0.06 + (flower % 3) * 0.035;
+          const bloom = ball(
+            cx + Math.cos(angle) * radius,
+            0.75 + Math.sin(flower * 3) * 0.07,
+            cz + Math.sin(angle) * radius,
+            0.055,
+            ["#b3a0dc", "#9ab9e7", "#dda9cc"][(i + cluster) % 3],
+          );
+          bloom.scale.y = 0.7;
+        }
+      }
     if (i % 3 === 0)
       for (let b = 0; b < 6; b++)
         ball(
@@ -1323,7 +1463,7 @@ export function createWorld(scene: T.Scene) {
       z,
       radius: 0.8,
       kind: "bush",
-      variety: ["berry", "juniper", "flowering"][i % 3],
+      variety: ["berry", "juniper", "hydrangea"][i % 3],
     });
   }
   const outdoorBirdhouses: T.Group[] = [];
@@ -1347,15 +1487,31 @@ export function createWorld(scene: T.Scene) {
       false,
       g,
     );
+    g.children[0].name = "paint-body";
     const roof = box(0, 0.25, 0, 0.55, 0.08, 0.45, "#8e6548", false, g);
+    roof.name = "paint-roof";
     roof.rotation.z = 0.15;
     const hole = ball(0, 0.03, 0.18, 0.075, "#3d392f", g);
     hole.scale.z = 0.1;
     box(0, -0.12, 0.25, 0.04, 0.04, 0.2, "#a48162", false, g);
     outdoorBirdhouses.push(g);
   }
-  function showBirdhouses(count: number) {
-    outdoorBirdhouses.forEach((g, i) => (g.visible = i < count));
+  function showBirdhouses(count: number, paints: BirdhousePaint[] = []) {
+    outdoorBirdhouses.forEach((g, i) => {
+      g.visible = i < count;
+      if (!paints[i]) return;
+      for (const [name, color] of [
+        ["paint-body", paints[i].body],
+        ["paint-roof", paints[i].roof],
+      ]) {
+        const mesh = g.getObjectByName(name) as T.Mesh;
+        if (!mesh.userData.ownPaint) {
+          mesh.material = (mesh.material as T.MeshStandardMaterial).clone();
+          mesh.userData.ownPaint = true;
+        }
+        (mesh.material as T.MeshStandardMaterial).color.set(color);
+      }
+    });
   }
   // Each neighbor has a small planted border, leaving the doorway and lane clear.
   const neighborGardens: T.Group[] = [];
@@ -1470,6 +1626,35 @@ export function createWorld(scene: T.Scene) {
         leaf.scale.set(0.35, 2, 0.4);
         leaf.rotation.z = (i - 2) * 0.25;
       }
+    } else if (type === "gerbera") {
+      // Two offset rings of slender, slightly cupped petals around a dark disk.
+      for (let layer = 0; layer < 2; layer++)
+        for (let i = 0; i < 20; i++) {
+          const a = ((i + layer * 0.5) * Math.PI) / 10;
+          const radius = layer ? 0.18 : 0.23;
+          const petal = ball(
+            Math.cos(a) * radius,
+            height + layer * 0.025,
+            Math.sin(a) * radius,
+            0.12,
+            color,
+            g,
+          );
+          petal.scale.set(1.3, 0.18, 0.36);
+          petal.rotation.y = -a;
+        }
+      ball(0, height + 0.045, 0, 0.1, "#574031", g).scale.set(1, 0.4, 1);
+      for (let i = 0; i < 16; i++) {
+        const a = (i * Math.PI) / 8;
+        ball(
+          Math.cos(a) * 0.11,
+          height + 0.04,
+          Math.sin(a) * 0.11,
+          0.022,
+          "#e7b340",
+          g,
+        );
+      }
     } else if (type === "tomato") {
       cyl(0.09, 0.5, 0, 0.025, 1, "#a48162", g);
       for (let i = 0; i < 5; i++) {
@@ -1515,6 +1700,63 @@ export function createWorld(scene: T.Scene) {
             1.8,
             0.6,
           );
+    } else if (type === "kangaroo-paw") {
+      for (let stem = 0; stem < 3; stem++) {
+        const stalk = cyl(
+          (stem - 1) * 0.09,
+          0.42,
+          0,
+          0.018,
+          0.8 + stem * 0.07,
+          "#77994e",
+          g,
+        );
+        stalk.rotation.z = (stem - 1) * 0.12;
+        for (let bud = 0; bud < 4; bud++) {
+          const paw = ball(
+            (stem - 1) * 0.14 + bud * 0.035,
+            0.78 + stem * 0.07 + bud * 0.045,
+            0,
+            0.055,
+            ["#c95848", "#d88a3e", "#bd4561"][stem],
+            g,
+          );
+          paw.scale.set(0.7, 1.8, 0.65);
+          paw.rotation.z = -0.6;
+          ball(
+            paw.position.x + 0.025,
+            paw.position.y + 0.065,
+            0,
+            0.025,
+            "#b3bd70",
+            g,
+          );
+        }
+      }
+    } else if (type === "orchid") {
+      for (let bloom = 0; bloom < 3; bloom++) {
+        const bx = (bloom - 1) * 0.11,
+          by = 0.55 + bloom * 0.12;
+        for (let petal = 0; petal < 5; petal++) {
+          const angle = (petal * Math.PI * 2) / 5;
+          const lobe = ball(
+            bx + Math.cos(angle) * 0.075,
+            by + Math.sin(angle) * 0.075,
+            0,
+            0.07,
+            bloom % 2 ? "#eee0ed" : "#ba79bd",
+            g,
+          );
+          lobe.scale.set(1, 1.25, 0.3);
+          lobe.rotation.z = angle;
+        }
+        ball(bx, by - 0.035, 0.055, 0.04, "#c85c9f", g).scale.set(
+          1.2,
+          0.8,
+          0.65,
+        );
+        ball(bx, by + 0.005, 0.065, 0.02, "#edc967", g);
+      }
     } else if (type === "tulip") {
       for (let i = 0; i < 5; i++) {
         const a = (i * Math.PI * 2) / 5,
@@ -1588,17 +1830,18 @@ export function createWorld(scene: T.Scene) {
   }
   for (const [x, z, types] of [
     [7.8, 20.8, ["daisy", "tulip", "lavender"]],
+    [7.8, 24, ["gerbera", "gerbera", "gerbera"]],
     [17, 20, ["cabbage", "carrot", "tomato"]],
-    [8.2, 6.2, ["tulip", "lavender", "daisy"]],
+    [8.2, 6.2, ["orchid", "kangaroo-paw", "tulip"]],
     [17, 6, ["banana", "bird-of-paradise", "monstera"]],
     [-19.3, -8.5, ["lavender", "tulip", "fern"]],
     [7, 12, ["sunflower", "sunflower", "sunflower"]],
-    [7, 15, ["daisy", "lavender", "tulip"]],
+    [7, 15, ["kangaroo-paw", "lavender", "orchid"]],
     [17.5, 12, ["rosette", "aloe", "cactus"]],
     [17.5, 15, ["rosette", "cactus", "aloe"]],
     [7, -2, ["flytrap", "pitcher", "sundew"]],
     [7, 1, ["pitcher", "flytrap", "sundew"]],
-    [17.5, -2, ["banana", "bird-of-paradise", "monstera"]],
+    [17.5, -2, ["bird-of-paradise", "orchid", "monstera"]],
     [17.5, 1, ["monstera", "banana", "bird-of-paradise"]],
     [-19.3, -12, ["cabbage", "carrot", "tomato"]],
     [-19.3, -15, ["tomato", "carrot", "cabbage"]],
@@ -1629,20 +1872,89 @@ export function createWorld(scene: T.Scene) {
       for (let col = 0; col < 5; col++)
         plantFlower(
           types[0] === "banana"
-            ? Math.cos(col * 2 + row) * 0.8
-            : -0.9 + col * 0.45,
+            ? Math.cos(col * 2 + row + neighborGardens.length * 0.17) * 0.8
+            : -0.9 +
+                col * 0.45 +
+                Math.sin(col * 2.3 + row + neighborGardens.length) * 0.07,
           types[0] === "banana"
-            ? Math.sin(col * 2 + row) * 0.5
-            : -0.45 + row * 0.9,
+            ? Math.sin(col * 2 + row + neighborGardens.length * 0.17) * 0.5
+            : -0.45 +
+                row * 0.9 +
+                Math.cos(col + row * 3 + neighborGardens.length) * 0.065,
           types[(col + row) % 3],
-          types[0] === "sunflower"
-            ? ["#efce59", "#e8af48", "#f2db87"][(col + row) % 3]
-            : ["#eee8d4", "#d68ca7", "#a493bd", "#e9c766"][(col + row) % 4],
+          types[0] === "gerbera"
+            ? ["#e84c35", "#f49234", "#f2d044"][(col + row) % 3]
+            : types[0] === "sunflower"
+              ? ["#efce59", "#e8af48", "#f2db87"][(col + row) % 3]
+              : ["#eee8d4", "#d68ca7", "#a493bd", "#e9c766"][(col + row) % 4],
           garden,
+        ).scale.setScalar(
+          0.82 +
+            ((col * 3 + row * 7 + neighborGardens.length * 5) % 11) * 0.028,
         );
+    garden.userData.layoutSeed = neighborGardens.length;
+  }
+  const wildflowers = new T.Group();
+  scene.add(wildflowers);
+  wildflowers.name = "wildflowers";
+  for (let i = 0; i < 65; i++) {
+    const x = Math.sin(i * 11.2) * 29,
+      z = Math.cos(i * 3.7) * 35;
+    if (
+      Math.abs(x - 3) < 4 ||
+      (x < -8 && x > -23 && z > -3 && z < 25) ||
+      (x > 1 && x < 15 && z < -22) ||
+      !clearScenery(x, z, 0.25)
+    )
+      continue;
+    const group = new T.Group();
+    group.position.set(x, 0, z);
+    wildflowers.add(group);
+    const variety = i % 3,
+      h = 0.3 + (i % 4) * 0.055;
+    cyl(0, h / 2, 0, 0.012, h, "#507449", group);
+    for (const side of [-1, 1]) {
+      const leaf = ball(side * 0.07, h * 0.4, 0, 0.07, "#638f58", group);
+      leaf.scale.set(1.6, 0.14, 0.5);
+      leaf.rotation.z = side * 0.35;
+    }
+    if (variety === 2) {
+      for (let bloom = 0; bloom < 3; bloom++) {
+        const bell = new T.Mesh(
+          new T.ConeGeometry(0.055, 0.11, 6, 1, true),
+          new T.MeshStandardMaterial({ color: "#8f8ccc", side: T.DoubleSide }),
+        );
+        bell.position.set(0.04 * bloom, h - 0.055 * bloom, 0);
+        bell.rotation.z = Math.PI - 0.35;
+        group.add(bell);
+      }
+    } else {
+      const shape = new T.Shape();
+      shape.moveTo(0, 0);
+      shape.quadraticCurveTo(-0.065, 0.06, -0.035, 0.13);
+      shape.quadraticCurveTo(0, 0.17, 0.035, 0.13);
+      shape.quadraticCurveTo(0.065, 0.06, 0, 0);
+      for (let petal = 0; petal < (variety ? 5 : 8); petal++) {
+        const pivot = new T.Group();
+        pivot.position.y = h;
+        pivot.rotation.x = -Math.PI / 2;
+        pivot.rotation.z = (petal * Math.PI * 2) / (variety ? 5 : 8);
+        const mesh = new T.Mesh(
+          new T.ShapeGeometry(shape, 5),
+          new T.MeshStandardMaterial({
+            color: variety ? "#f0c34d" : i % 2 ? "#f3edcf" : "#df9eae",
+            side: T.DoubleSide,
+          }),
+        );
+        mesh.rotation.x = variety ? 0.35 : 0.1;
+        pivot.add(mesh);
+        group.add(pivot);
+      }
+      cyl(0, h + 0.015, 0, 0.045, 0.028, "#be863d", group);
+    }
   }
   // Merge static garden meshes by surface to keep rich planting inexpensive.
-  for (const garden of neighborGardens) {
+  for (const garden of [...neighborGardens, wildflowers]) {
     garden.updateMatrixWorld(true);
     const inverse = garden.matrixWorld.clone().invert();
     const buckets = new Map<
@@ -1679,19 +1991,6 @@ export function createWorld(scene: T.Scene) {
     neighborGardens,
     outdoorBirdhouses,
   );
-  // Flower clumps, stones, clouds, distant hills.
-  for (let i = 0; i < 65; i++) {
-    const x = Math.sin(i * 11.2) * 29,
-      z = Math.cos(i * 3.7) * 35;
-    if (
-      Math.abs(x - 3) < 4 ||
-      (x < -8 && x > -23 && z > -3 && z < 25) ||
-      (x > 1 && x < 15 && z < -22)
-    )
-      continue;
-    if (!clearScenery(x, z, 0.18)) continue;
-    ball(x, 0.14, z, 0.18, i % 3 ? "#f0d295" : "#dda7ae");
-  }
   for (let i = 0; i < 12; i++) {
     ball(-45 + i * 9, 2, -91, 7, "#93ae82").scale.set(1, 1.3, 1);
     ball(-45 + i * 9, 2, 45, 7, "#93ae82").scale.set(1, 1.3, 1);
@@ -1778,8 +2077,13 @@ export function createWorld(scene: T.Scene) {
       });
     }
     if (stage === "empty") return;
-    if (stage === "planted") {
-      ball(0, 0.12, 0, 0.17, "#94ba77", g);
+    if (stage === "planted" || stage === "growing") {
+      cyl(0, 0.18, 0, 0.025, 0.3, "#444535", g);
+      for (const side of [-1, 1]) {
+        const leaf = ball(side * 0.1, 0.26, 0, 0.1, "#94ba77", g);
+        leaf.scale.set(1.4, 0.25, 0.65);
+        leaf.rotation.z = side * 0.3;
+      }
       return;
     }
     const height = stage === "harvested" ? 1.35 : 2.4;
@@ -1854,6 +2158,9 @@ export function createWorld(scene: T.Scene) {
     bikeDisplays,
     wildlife,
     diggingTool,
+    fertilizerBox,
+    fertilizerGrains,
+    setFertilizing,
     updateCartoon,
     setDigging,
     updateNotebook,

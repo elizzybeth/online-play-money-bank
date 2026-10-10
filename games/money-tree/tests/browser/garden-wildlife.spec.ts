@@ -19,7 +19,7 @@ test("distinct neighborhood gardens and wildlife visit existing birdhouses", asy
   await page.goto("./?test");
   await page.getByRole("button", { name: "Wake up" }).click();
   const before = await page.evaluate(() => (window as any).game.wildlife());
-  expect(before.gardens).toHaveLength(17);
+  expect(before.gardens).toHaveLength(18);
   const trees = await page.evaluate(() =>
     (window as any).game.scenery.filter((o: any) => o.kind === "tree"),
   );

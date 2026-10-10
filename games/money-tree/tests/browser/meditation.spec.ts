@@ -66,6 +66,12 @@ test("Doge meditation lasts thirty seconds, charges once, and rewards a packet",
   );
   expect(await page.evaluate(() => (window as any).game.state().seeds)).toBe(5);
   await expect(page.locator(".speech-bubble")).toContainText("crazy new drug");
+  expect(await page.locator(".speech-bubble").textContent()).not.toMatch(
+    /[“”]/,
+  );
+  expect(await page.evaluate(() => (window as any).game.seedHandoff())).toBe(
+    true,
+  );
   await page.keyboard.press("e");
   await expect(page.locator(".speech-bubble")).toContainText(
     "my coin has been all up and to the right",

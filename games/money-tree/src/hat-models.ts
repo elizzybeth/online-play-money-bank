@@ -83,27 +83,14 @@ export function makeHat(id: HatId) {
     ell(0, 0.14, -0.43, 0.12, 0.12, 0.12, color);
   } else if (id === "inspector") {
     ell(0, 0.15, 0, 0.47, 0.22, 0.43, color);
-    ell(0, 0.03, 0.4, 0.48, 0.045, 0.34, "#3e5949");
+    ell(0, 0.03, 0.4, 0.48, 0.045, 0.34, "#19458e");
     band(0.47, 0.06, "#b7b47f");
     for (const x of [-0.22, 0.22]) {
-      const ring = mesh(
-        new T.TorusGeometry(0.14, 0.035, 8, 24),
-        "#c9ad5c",
-        x,
-        0.15,
-        0.44,
-      );
-      const lens = mesh(
-        new T.CircleGeometry(0.11, 20),
-        "#7ab4b8",
-        x,
-        0.15,
-        0.447,
-      );
-      (lens.material as T.MeshStandardMaterial).metalness = 0.5;
-      ring.rotation.x = 0.1;
+      box(x, 0.42, 0, 0.04, 0.38, 0.04, "#5a9d54");
+      const leaf = ell(x + 0.1, 0.58, 0, 0.15, 0.06, 0.08, "#84be58");
+      leaf.rotation.z = 0.4;
+      ell(x - 0.08, 0.49, 0, 0.12, 0.05, 0.07, "#5a9d54");
     }
-    box(0, 0.15, 0.47, 0.18, 0.025, 0.025, "#c9ad5c");
   } else if (id === "hardhat") {
     brim(0.55);
     ell(0, 0.18, 0, 0.46, 0.32, 0.44, color);

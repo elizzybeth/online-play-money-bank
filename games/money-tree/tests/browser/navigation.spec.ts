@@ -36,6 +36,18 @@ async function axis(p: Page, dimension: "x" | "z", destination: number) {
       Math.min(100, Math.max(16, Math.ceil((distance / 4) * 1000))),
     );
     for (const key of keys) await p.keyboard.up(key);
+    const view = await p.evaluate(() => {
+      const s = (window as any).game.state(),
+        c = (window as any).game.camera();
+      return Math.hypot(
+        c.position[0] - s.position.x,
+        c.position[2] - s.position.z,
+      );
+    });
+    expect(
+      view,
+      "camera follows the player on the home-to-town route",
+    ).toBeLessThan(12);
   }
   throw new Error(
     `Could not walk to ${dimension}=${destination}; stopped at ${JSON.stringify(await pos(p))}`,
@@ -111,7 +123,7 @@ test("all required interaction targets are reachable in scene collision geometry
           yield: 0,
         })),
         events: [],
-        journal: [],
+        journal: ["Notes: Need money for Mom’s operation."],
         rng: 48271,
         position: { x: -16, z: 4 },
       }),

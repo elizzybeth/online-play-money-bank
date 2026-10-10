@@ -129,7 +129,7 @@ test("Mom and Robertson remind an empty-pocket player about the piggy bank", asy
   await expect(page.locator("#prompt")).toContainText("Mom");
   await page.keyboard.press("e");
   await expect(page.locator(".speech-bubble")).not.toContainText("piggy bank");
-  await page.getByRole("button", { name: "Love you too" }).click();
+  await page.locator(".speech-bubble .choices button").last().click();
   await page.evaluate(() => (window as any).game.teleport(8, -31.7));
   await expect(page.locator("#prompt")).toContainText("Robertson");
   await page.keyboard.press("e");

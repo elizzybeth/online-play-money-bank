@@ -23,10 +23,11 @@ export const hats = [
   },
   {
     id: "inspector",
-    name: "Garden Inspector",
+    name: "Twin Planter",
     price: 1500,
-    color: "#597a66",
-    power: "See every tree’s stage and growth countdown on screen.",
+    color: "#2767ce",
+    power:
+      "Plant two adjoining beds in one digging action when you have two seeds.",
   },
   {
     id: "hardhat",
@@ -75,3 +76,10 @@ export const hats = [
 ] as const;
 export type HatId = (typeof hats)[number]["id"];
 export const hatById = (id: unknown) => hats.find((h) => h.id === id);
+
+export function hatPower(id: HatId, foundCapSeeds: boolean) {
+  const power = hatById(id)!.power;
+  return id === "cap" && foundCapSeeds
+    ? power.replace(" Check the brim for a surprise.", "")
+    : power;
+}

@@ -71,7 +71,7 @@ test("opening, real controls, economy, gardening, journal and reload", async ({
     await interact(page);
   }
   expect((await state(page)).seeds).toBe(0);
-  await page.evaluate(() => (window as any).game.advance(180));
+  await page.evaluate(() => (window as any).game.sleep());
   await at(page, -16, 22);
   await page.screenshot({ path: "../../work/garden.png" });
   for (let i = 0; i < 5; i++) {
@@ -87,7 +87,7 @@ test("opening, real controls, economy, gardening, journal and reload", async ({
   await at(page, -17.5, 1);
   await interact(page);
   await page.getByRole("button", { name: "Sleep until tomorrow" }).click();
-  expect((await state(page)).day).toBe(2);
+  expect((await state(page)).day).toBe(3);
   await page.keyboard.press("j");
   const written = await state(page);
   expect(written.journalNarrative?.firstHarvestWritten).toBe(true);
@@ -100,7 +100,7 @@ test("opening, real controls, economy, gardening, journal and reload", async ({
   await page.reload();
   await page.getByRole("button", { name: "Wake up" }).click();
   expect((await state(page)).bank).toBe(before.bank);
-  expect((await state(page)).day).toBe(2);
+  expect((await state(page)).day).toBe(3);
   expect(errors).toEqual([]);
 });
 test("movement blocks walls and interaction cannot cross them", async ({

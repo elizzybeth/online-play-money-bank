@@ -10,6 +10,7 @@ import {
   movementSpeed,
   plant,
   tick,
+  growOvernight,
   harvest,
   fertilize,
 } from "../src/game";
@@ -65,10 +66,10 @@ test("hat powers change planting, movement, irrigation, growth and harvest", () 
   assert.equal(s.plots[0].remaining, 180);
   buyHat(s, "wizard");
   tick(s, 80);
-  assert.equal(s.plots[0].remaining, 100);
+  assert.equal(s.plots[0].remaining, 180);
   buyHat(s, "beekeeper");
   s.plots[0].fertilized = true;
-  tick(s, 100);
+  growOvernight(s);
   assert(s.plots[0].yield >= 600);
   equipHat(s, null);
   buyHat(s, "banker");
@@ -118,7 +119,7 @@ test("Moonrise Wizard conserves about half of fertilizer doses without speeding 
     saved += s.fertilizer;
     assert(!fertilize(s, 0));
     tick(s, 10);
-    assert.equal(s.plots[0].remaining, 110);
+    assert.equal(s.plots[0].remaining, 120);
   }
   assert(saved >= 40 && saved <= 60);
 });

@@ -221,9 +221,9 @@ export function healthDay(day: number) {
   }
   return { good: pattern[tail], ordinal, longest };
 }
-export function tickSigma(s: State, dt: number) {
+export function tickSigma(s: State, dt: number, awakeTime = true) {
   if (!Number.isFinite(dt) || dt <= 0) return;
-  if (s.drink) {
+  if (s.drink && awakeTime) {
     s.drink.remaining = Math.max(0, s.drink.remaining - dt);
     if (!s.drink.remaining) delete s.drink;
   }

@@ -70,17 +70,13 @@ test("walk into hat shop, inspect ten detailed hats, find seeds and buy/equip wi
   await page.locator("[data-hat=inspector]").click();
   await page.keyboard.press("e");
   await expect(page.locator("#modal")).toBeHidden();
-  await expect(page.locator("#tree-report")).toBeVisible();
-  await expect(page.locator("#tree-report")).toContainText("Tree 5");
-  await expect(page.locator("#tree-report")).toContainText("remaining");
-  await page.evaluate(() => (window as any).game.advance(180));
-  await expect(page.locator("#tree-report")).toContainText("Ready to harvest!");
+  await expect(page.locator("#tree-report")).toHaveCount(0);
   await page.reload();
   await page.getByRole("button", { name: "Wake up" }).click();
   expect(
     await page.evaluate(() => (window as any).game.state().equippedHat),
   ).toBe("inspector");
-  await expect(page.locator("#tree-report")).toBeVisible();
+  await expect(page.locator("#tree-report")).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 test("rabbit hat enables an actual jump, landing and collision remain safe", async ({

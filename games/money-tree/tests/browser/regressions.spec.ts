@@ -1,5 +1,44 @@
 import { test, expect, type Page } from "@playwright/test";
 import { fresh, type State } from "../../src/game";
+test("Spoke & Saddle sign stands clear of the roof fascia", async ({
+  page,
+}) => {
+  await start(page, { position: { x: -18, z: -17 } });
+  const [sign, roof] = await page.evaluate(
+    () => (window as any).game.bicycle().facade,
+  );
+  expect(sign.min[2]).toBeGreaterThan(roof.max[2] + 0.15);
+  await page.evaluate(() => (window as any).game.setYaw(0));
+  await expect(page.locator("#toast")).toHaveCSS("opacity", "0");
+  await page.screenshot({ path: "../../outputs/money-tree-bike-facade.png" });
+});
+test("Grindset has a clear customer area and targets the barista from the front and sides", async ({
+  page,
+}) => {
+  await start(page, { foundTVSeeds: true, position: { x: 32, z: -73.6 } });
+  const targets = await page.evaluate(() => (window as any).game.targets);
+  const barista = targets.find((t: any) => t.id === "grindset");
+  for (const chad of targets.filter((t: any) => t.id.startsWith("sigma-chad-")))
+    expect(Math.hypot(chad.x - barista.x, chad.z - barista.z)).toBeGreaterThan(
+      6,
+    );
+  for (const [x, z] of [
+    [32, -73.6],
+    [31.1, -74.7],
+    [33.4, -75.8],
+  ]) {
+    await page.evaluate(
+      ([x, z]) => (window as any).game.teleport(x, z),
+      [x, z],
+    );
+    await expect(page.locator("#prompt")).toContainText("Grindset Chad");
+    await page.keyboard.press("e");
+    await expect(
+      page.getByRole("button", { name: "See the drinks" }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "See you around" }).click();
+  }
+});
 async function start(page: Page, extra: Partial<State>) {
   const s = Object.assign(fresh(), { awake: true }, extra);
   await page.addInitScript(

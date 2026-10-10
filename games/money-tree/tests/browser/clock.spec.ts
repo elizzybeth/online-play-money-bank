@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { fresh } from "../../src/game";
-test("crop clock survives a render stall and respects the pause menu", async ({
+test("crops wait for sleep despite awake time and render stalls", async ({
   page,
 }) => {
   await page.clock.install({ time: new Date("2026-01-01T00:00:00Z") });
@@ -43,7 +43,7 @@ test("crop clock survives a render stall and respects the pause menu", async ({
   }
   await importGarden();
   await page.clock.fastForward(190000);
-  expect((await state()).plots[0].stage).toBe("ready");
+  expect((await state()).plots[0].stage).toBe("growing");
   await importGarden();
   await page.getByRole("button", { name: "Pause game" }).click();
   const before = (await state()).plots[0].remaining;
@@ -51,6 +51,8 @@ test("crop clock survives a render stall and respects the pause menu", async ({
   expect((await state()).plots[0].remaining).toBe(before);
   await page.getByRole("button", { name: "Keep playing" }).click();
   await page.clock.fastForward(190000);
+  expect((await state()).plots[0].stage).toBe("growing");
+  await page.evaluate(() => (window as any).game.sleep());
   expect((await state()).plots[0].stage).toBe("ready");
 });
 
@@ -114,5 +116,5 @@ test("hand planting takes longer and watering is grey until a can is purchased",
   await page.keyboard.press("e");
   expect((await state()).plots[0].stage).toBe("growing");
   await page.clock.fastForward(190000);
-  expect((await state()).plots[0].stage).toBe("ready");
+  expect((await state()).plots[0].stage).toBe("growing");
 });
