@@ -90,5 +90,13 @@ Desktop keyboard and mouse. No touch/gamepad support yet. Home and haberdashery 
 - Purchase all seven bikes with sufficient cash, reject an unaffordable purchase and a duplicate, choose previously owned bikes, and reload. Preserve exact cash, ownership, selected bike, existing garden and journal.
 - H mounts outdoors and refuses indoors or while digging, seated, airborne or rolling. Verify cockpit hands, handlebar bell and legible computer. B rings only while mounted and respects sound-off.
 - Test slowest bike against fully boosted running, steering, braking/reverse, wall collision at speed, and automatic dismount through a real shop door. Restore walking and third-person view with H.
-- Journal purchases must not invent a ride. Record riding only after actually mounting outside.
+- Journal purchases and stationary mounting must not invent a ride. Record riding only after moving at least one world unit on the bicycle.
 - Early meditation exit stays in Doge and cancels both fee and reward; normal completion still charges once. Perched birds remain above their actual canopy. Sound-off also silences the balloon audio context, and nonfinite balloon elapsed time leaves saves valid.
+
+## Save and interaction regressions
+
+- The pre-plant prompt uses the same duration as the digging action, including hand digging and stacked hardhat/mocha bonuses.
+- Start a bed preview, open Pause using the header, and import a valid save that also owns a bed. The previous preview must disappear without consuming either bed.
+- Unlock Sigma and stand east of the original garden. Extra plot indices must not raise the player over empty lawn. A placed bed at another coordinate must raise the feet onto its soil.
+- Import a save with an empty journal. Reject it before replacing the current state; preserve cash and avoid uncaught page errors.
+- Mount a bicycle without moving: no riding journal event. Pedal away: record exactly one event for that bike.

@@ -179,6 +179,7 @@ let riding = false,
   actualRideSpeed = 0,
   bellRings = 0;
 let rideTransition = 0;
+let rideDistance = 0;
 const rideEyeHeight = () => (s.selectedBike === "penny" ? 2.45 : 1.7);
 const rideCameraOffset = new T.Vector3();
 let parkedBike: T.Group | undefined, parkedBikeId: BikeId | undefined;
@@ -256,11 +257,11 @@ function mountBike() {
   riding = true;
   rideSpeed = actualRideSpeed = 0;
   rideTransition = 0;
+  rideDistance = 0;
   rideCameraOffset
     .copy(camera.position)
     .sub(new T.Vector3(s.position.x, rideEyeHeight(), s.position.z));
   dismissSpeech();
-  visit(`Rode my ${bikeById(s.selectedBike)!.name} bicycle.`);
   toast(
     "W/S to pedal or brake. A/D to steer. H to dismount. B rings the bell.",
   );
@@ -2047,6 +2048,10 @@ function updateRollPose() {
 }
 function resetTransientMotion() {
   dismountBike();
+  placingBed = false;
+  bedGhost.visible = false;
+  thoughtTime = 0;
+  thought.hidden = true;
   if (parkedBike) parkedBike.visible = false;
   action = undefined;
   pepeViewHold = 0;
@@ -2297,7 +2302,7 @@ function updateUI() {
         (p.stage === "planted" && !s.can);
       label = ["empty", "harvested"].includes(p.stage)
         ? s.seeds
-          ? `Plant seeds · stand still (${s.shovel ? 2 : 7}s)`
+          ? `Plant seeds · stand still (${Number(plantingSeconds(s).toFixed(1))}s)`
           : "Plant seeds (need seeds)"
         : p.stage === "ready"
           ? "Harvest money tree"
@@ -2565,6 +2570,12 @@ function frame(now: number) {
           dt > 0
             ? Math.hypot(s.position.x - origin.x, s.position.z - origin.z) / dt
             : 0;
+        rideDistance += Math.hypot(
+          s.position.x - origin.x,
+          s.position.z - origin.z,
+        );
+        if (rideDistance >= 1)
+          visit(`Rode my ${bikeById(s.selectedBike)!.name} bicycle.`);
         if (actualRideSpeed < Math.abs(rideSpeed) * 0.2) rideSpeed = 0;
         if (ridingIndoors()) {
           dismountBike();
@@ -2609,9 +2620,12 @@ function frame(now: number) {
         rollTime = Math.max(0, rollTime - dt);
       }
       if (
-        s.position.z > 17.3 &&
-        s.position.z < 20.7 &&
-        s.plots.some((_, i) => Math.abs(s.position.x - (-20 + i * 2)) < 0.85)
+        s.plots.some(
+          (p, i) =>
+            p.soilFilled !== false &&
+            Math.abs(s.position.x - (p.x ?? -20 + i * 2)) < 0.85 &&
+            Math.abs(s.position.z - (p.z ?? 19)) < 1.7,
+        )
       )
         world.player.position.y += 0.29;
       world.player.position.y += jumpHeight;
@@ -3093,6 +3107,7 @@ if (new URLSearchParams(location.search).has("test")) {
       })),
     }),
     state: () => structuredClone(s),
+    playerPosition: () => world.player.position.toArray(),
     seated: () => sitting,
     playerVisibility: () =>
       ["head", "body"].map((name) => {
