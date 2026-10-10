@@ -170,6 +170,11 @@ test("journal reflects actual community planting and does not pretend investment
       ),
     );
     assert(!result.entry.includes("—"));
+    assert(
+      !/A Chad said|heard Chad|Chad made a face|Chad complained|Chad had opinions|Chad is going to complain/i.test(
+        result.entry,
+      ),
+    );
   }
 });
 
@@ -221,4 +226,20 @@ test("low-priced coins retain fractional movement instead of freezing through ro
   }
   assert(prices.size > 1);
   assert(decode(JSON.stringify(s))!.coin);
+});
+
+test("community-garden criticism enters the journal only after hearing the actual dialogue", () => {
+  const s = unlocked();
+  s.events = [];
+  plant(s, 5);
+  s.events.push(
+    "Heard Chad: A community garden? Sharing soil is not very sigma.",
+  );
+  const c = journalContext(s);
+  for (let seed = 1; seed <= 1000; seed++) {
+    const result = constructJournal(c, newNarrativeMemory(seed));
+    assert(
+      result.selections.some((id) => id.startsWith("sigmaGardenCriticism:")),
+    );
+  }
 });

@@ -1037,6 +1037,7 @@ const escapeHTML = (text: string) =>
 function grindset() {
   visit("Stopped to talk with Chad in Sigma Town.");
   const line = chadLine(s, "grindset");
+  visit(`Heard Chad: ${line}`);
   save();
   const choices: Choice[] = [{ label: "See the drinks", run: coffeeMenu }];
   if (s.communityPlanted)
@@ -1211,6 +1212,7 @@ function interact() {
   if (id.startsWith("sigma-chad-")) {
     visit("Stopped to talk with Chad in Sigma Town.");
     const line = chadLine(s, id);
+    visit(`Heard Chad: ${line}`);
     save();
     return speak(id, `<p>${line}</p>`, [
       { label: "See you around", run: dismissSpeech },

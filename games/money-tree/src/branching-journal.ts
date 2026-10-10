@@ -335,10 +335,10 @@ export function constructJournal(
   if (limit) {
     if (has(c, /^Named my pretend coin/))
       choose("sigmaCoin", [
-        "Chad let me name a coin. I wanted to name something besides a tree for once. I still do not know if his idea is any good.",
+        "Chad let me name a coin. Picking a name was more fun than I expected. I still do not know if his idea is any good.",
         "I picked a name for Chad’s coin. That part was fun. Deciding what to do with my money is harder.",
         "There is a coin with a name I chose now. Mom needs real money, so I have to remember the difference.",
-        "Chad says my coin could be a big deal. He says that about his coffee too.",
+        "Chad has coffee and a coin idea. I picked the name for the coin. I wonder what he will think of next.",
         "Naming the coin made it feel like mine. That does not mean it will go up.",
         "I chose a coin name at Grindset. I wish knowing what happens next was as easy as naming it.",
         "My coin has a name now. It looks strange seeing something I made up on that little tracker.",
@@ -346,47 +346,64 @@ export function constructJournal(
       ]);
     else if (has(c, /^Invested .*pretend coin/))
       choose("sigmaInvest", [
-        "I put some money into Chad’s coin. Watching the number change makes me nervous. I need to keep enough for the garden.",
-        "Chad talks like his coin cannot lose. The price still goes down sometimes. I can see it myself.",
+        "I put some money into Chad’s coin. I keep wanting to check the number. I need to leave enough for the garden.",
+        "The coin can lose value. I knew that when I bought it. I still hope I have made a good choice.",
         "I tried investing at Grindset. Trees take water and time. This thing just changes numbers.",
         "Part of my money is in the coin now. I am not counting that as money for Mom until I sell it.",
-        "I bought some of the coin. Chad smiled a lot. I will have to watch it myself.",
-        "The coin price goes both ways. I wish Chad spent more time explaining that part.",
-        "Investing felt exciting for about a minute. Then I started thinking about the things I could have bought instead.",
+        "I bought some of the coin at Grindset. I want to keep an eye on it myself.",
+        "The coin price can go both ways. I am not sure how I will feel if it falls.",
+        "Investing felt exciting. Then I started thinking about the things I could have bought instead.",
         "I tried Chad’s investment. It is strange hoping for a number to change instead of a seed to grow.",
       ]);
-    else if (has(c, /^Planted in Sigma Town/))
-      choose("sigmaGarden", [
-        "I planted in the community garden. A Chad said sharing soil was not sigma. The seeds did not seem to mind.",
-        "There were ten dead trees in that garden. I gave one plot a new seed. I would rather try than argue with Chad.",
-        "The garden beds make a big funny shape. I planted there anyway. Empty soil is still soil.",
-        "Chad does not like the word community. I do not think he has figured out the word garden either.",
-        "I used a community plot today. If the trees grow money there too, maybe other people can use them.",
-        "I started a tree on the other side of the hedge. Chad made a face when I told him where.",
-        "Those dead trees looked like ours after a harvest. It felt good putting a fresh seed in one of the beds.",
-        "The community garden has room to grow things. I took care of a plot while the Chads talked about success.",
-      ]);
-    else if (has(c, /^Bought .* at Grindset/))
+    else if (has(c, /^Planted in Sigma Town/)) {
+      if (
+        has(
+          c,
+          /^Heard Chad:.*(?:not very sigma|Sharing soil|Community soil|collectivist)/i,
+        )
+      )
+        choose("sigmaGardenCriticism", [
+          "A Chad complained about sharing garden space. I planted there today anyway. I do not think a seed cares what he calls it.",
+          "Chad had opinions about community gardening. I had a seed to plant. I am not sure why he makes it sound so bad.",
+          "I heard a Chad complain about the shared garden. There is room for people to grow things there. That seems useful to me.",
+          "One of the Chads does not like sharing garden space. I used a plot today. I wish he would talk about looking after trees instead.",
+          "Why call it a community garden if Chad is going to complain about people using it? I planted there today.",
+          "I planted in the shared beds. Chad made sharing sound like a problem. I do not understand that part.",
+          "Chad had something to say about the community garden. I still put a seed in a bed. I want to see it grow.",
+          "I used a community plot and heard Chad complain about sharing. Growing a tree matters more to me than his opinion.",
+        ]);
+      else
+        choose("sigmaGarden", [
+          "I put a seed in one of the community beds. I want to find out what this seed will do in a bed that is not ours.",
+          "There are ten beds in that garden. I planted there today. It feels strange leaving a seed so far from the house.",
+          "The garden beds make a big funny shape. I planted there anyway. Empty soil is still soil.",
+          "I used a seed away from home. I cannot see that plot from our house. I will have to remember to check it.",
+          "I used a community plot today. There is more room to plant on the other side of the hedge than I expected.",
+          "I started a seed in Sigma Town. Now I have another place to remember when I am looking after the garden.",
+          "The old tree in that bed was bare. I put a fresh seed in the soil. I want to see what happens next.",
+          "I planted in the community garden today. It felt different being away from our fence. I hope I remember to visit the bed.",
+        ]);
+    } else if (has(c, /^Bought .* at Grindset/))
       choose("sigmaCoffee", [
-        "I bought a drink at Grindset. It helped for a little while. Chad acted like he had invented drinking.",
+        "I bought a drink at Grindset. It is supposed to help for a little while. I should make those minutes count.",
         "The coffee shop sells drinks with strange powers. At least I can tell when one is working.",
-        "My drink will wear off in a few minutes. I should plan the garden work before buying one.",
+        "Those drinks only help for a few minutes. I should plan the garden work before buying one.",
         "I tried one of Chad’s drinks. Three minutes is not very long, but a little help is useful.",
         "Grindset has a whole menu of helpful drinks. I still have to do the work myself.",
         "I paid for a drink in Sigma Town. There are easier ways to get advice than listening to Chad over the counter.",
-        "The drink gives me a short bonus. I want to use those minutes well.",
-        "Chad calls the drinks productivity tools. I call them expensive if I forget to use the bonus.",
+        "The drinks give short bonuses. I want to use those minutes well.",
+        "Chad gives the drinks serious names. They are still expensive if I forget to use the bonus.",
       ]);
     else if (has(c, /^Stopped to talk with Chad/))
       choose("sigmaVisit", [
         "Everyone I met in Sigma Town was called Chad. It makes remembering names easy, at least.",
         "Sigma Town is on the other side of the hedge. The Chads have a lot of advice. None of them asked about Mom.",
         "One house looks like a dog and another looks like a frog. The people there still act very serious.",
-        "I talked to some Chads. They kept saying lone wolf. I wondered who they talk to when they feel scared.",
-        "The houses in Sigma Town are ridiculous. I tried not to laugh while Chad explained success to me.",
-        "Chad told me to work harder. I have already been digging all day. Maybe he should try it.",
-        "I visited the new town. Everybody has an answer for how to make money, but their garden is dead.",
-        "The Chads talk about winning a lot. I mostly want Mom to get better.",
+        "I talked to Chad. He seemed very sure of himself. I wondered who he talks to when he feels scared.",
+        "The houses in Sigma Town are ridiculous. Talking to somebody called Chad there makes it even stranger.",
+        "Chad sounds busy to me. I wonder how much he actually gets done.",
+        "The Chads sound certain about money. I do not know if I should believe everything they say.",
+        "I have heard enough advice from Sigma Town today. I mostly want Mom to get better.",
       ]);
     else if (has(c, /^Found five money seeds among/)) choose("forest");
     else if (has(c, /^Found five money seeds hidden/)) choose("store");
