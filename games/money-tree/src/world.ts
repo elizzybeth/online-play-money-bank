@@ -1,3 +1,5 @@
+import { createWildlife } from "./wildlife";
+import { notebookSketches } from "./notebook-doodles";
 import { makeSeedPacket } from "./seed-packet";
 import { makeGardenTool } from "./tool-models";
 import { signCanvas } from "./signage";
@@ -26,7 +28,13 @@ export function createWorld(scene: T.Scene) {
     { x: 34, z: -29.25, w: 3, d: 26.5 },
   ];
   const doorways: Rect[] = [];
-  const scenery: { x: number; z: number; radius: number; kind: string }[] = [];
+  const scenery: {
+    x: number;
+    z: number;
+    radius: number;
+    kind: string;
+    variety?: string;
+  }[] = [];
   const overlaps = (x: number, z: number, radius: number, r: Rect) =>
     x + radius > r.x - r.w / 2 &&
     x - radius < r.x + r.w / 2 &&
@@ -35,8 +43,14 @@ export function createWorld(scene: T.Scene) {
   // Reserve the walk-in shop interior before scattering outdoor scenery.
   const sceneryExclusions: Rect[] = [
     { x: 24, z: -29, w: 12, d: 12 },
-    { x: 8, z: -31, w: 16, d: 16 },
+    { x: 6, z: -30, w: 20, d: 18 },
     { x: -5, z: 10, w: 8, d: 8 },
+    { x: -15, z: 6, w: 12, d: 16 },
+    { x: -15, z: 19, w: 14, d: 8 },
+    { x: 12, z: 15, w: 7, d: 6 },
+    { x: 12, z: 1, w: 7, d: 6 },
+    { x: -14, z: -13, w: 7, d: 6 },
+    { x: -7, z: -29, w: 7, d: 6 },
   ];
   const clearScenery = (x: number, z: number, radius: number) =>
     !paths
@@ -406,14 +420,16 @@ export function createWorld(scene: T.Scene) {
     pc.fillText("for Mom", 68, 436);
     pc.strokeStyle = "#5c7b4d";
     pc.lineWidth = 3;
-    pc.beginPath();
-    pc.moveTo(163, 311);
-    pc.bezierCurveTo(151, 235, 181, 210, 165, 160);
-    pc.moveTo(166, 223);
-    pc.bezierCurveTo(119, 220, 115, 184, 156, 202);
-    pc.moveTo(166, 208);
-    pc.bezierCurveTo(209, 207, 219, 178, 172, 182);
-    pc.stroke();
+    for (const sketch of notebookSketches(day - 1)) {
+      pc.save();
+      pc.translate(35 + sketch.x * 1.7, 100 + sketch.y * 1.7);
+      pc.scale(1.25, 1.25);
+      pc.translate(40, 45);
+      pc.rotate((sketch.rotation * Math.PI) / 180);
+      pc.translate(-40, -45);
+      pc.stroke(new Path2D(sketch.path));
+      pc.restore();
+    }
     pc.font = "32px Gaegu";
     pc.fillText(`Day ${day}`, 432, 49);
     pc.font = "28px Gaegu";
@@ -886,8 +902,29 @@ export function createWorld(scene: T.Scene) {
     const branch = cyl(x + 0.2, 1.4, z, 0.08, 0.7, "#826b50");
     branch.rotation.z = -0.7;
     branch.material = surfaceMaterial("#826b50", "bark");
-    ball(x, 2.4, z, r, "#6f9977");
-    ball(x + 0.55, 2.3, z + 0.2, r * 0.7, "#92b080");
+    const variety = Math.abs(Math.round(x * 7 + z * 11)) % 4;
+    scenery[scenery.length - 1].kind = "tree";
+    if (variety === 1) {
+      for (let tier = 0; tier < 3; tier++) {
+        const crown = new T.Mesh(
+          new T.ConeGeometry(r * (1 - tier * 0.2), 1.6, 9),
+          surfaceMaterial("#466f58", "leaf"),
+        );
+        crown.position.set(x, 2 + tier * 0.6, z);
+        scene.add(crown);
+      }
+    } else {
+      const colors = ["#6f9977", "#86a366", "#b4b771", "#729c91"];
+      ball(x, 2.4, z, r, colors[variety]);
+      ball(x + 0.55, 2.3, z + 0.2, r * 0.7, colors[(variety + 1) % 4]);
+      if (variety === 2)
+        for (const side of [-1, 1])
+          ball(x + side * 0.7, 2.7, z - 0.25, r * 0.65, "#b4b771");
+    }
+    scenery[scenery.length - 1].variety = ["oak", "pine", "maple", "birch"][
+      variety
+    ];
+    if (variety === 3) cyl(x, 0.9, z, 0.18, 1.8, "#ded9c3");
     rects.push({ x, z, w: 0.4, d: 0.4 });
   }
   function house(x: number, z: number, c: string, name: string) {
@@ -908,7 +945,32 @@ export function createWorld(scene: T.Scene) {
     doorways.push({ x, z: z + 4.5, w: 2.4, d: 4 });
     for (const a of [-2.7, -1.8, 1.8, 2.7]) {
       if (!clearScenery(x + a, z + 4.5, 0.45)) continue;
-      ball(x + a, 0.45, z + 4.5, 0.45, "#adc88a");
+      const shrubType = Math.abs(Math.round(x + a)) % 3;
+      if (shrubType === 1) {
+        const shrub = new T.Mesh(
+          new T.ConeGeometry(0.43, 0.95, 9),
+          surfaceMaterial("#68886c", "leaf"),
+        );
+        shrub.position.set(x + a, 0.48, z + 4.5);
+        scene.add(shrub);
+      } else {
+        ball(
+          x + a,
+          0.45,
+          z + 4.5,
+          0.45,
+          shrubType === 2 ? "#a894b7" : "#adc88a",
+        );
+        if (shrubType === 2)
+          for (let j = 0; j < 5; j++)
+            ball(
+              x + a + Math.sin(j * 2) * 0.3,
+              0.65,
+              z + 4.5 + Math.cos(j * 2) * 0.3,
+              0.065,
+              "#dbc1d8",
+            );
+      }
       scenery.push({ x: x + a, z: z + 4.5, radius: 0.45, kind: "bush" });
     }
   }
@@ -936,17 +998,17 @@ export function createWorld(scene: T.Scene) {
   // Robertsons walk-in shop at end of lane, front facing south.
   const sx = 8,
     sz = -31;
-  box(sx, -0.01, sz, 16, 0.12, 16, "#d0b894");
-  box(0, 1.8, sz, 0.25, 3.6, 16, "#a9b9a2", true);
-  box(16, 1.8, sz, 0.25, 3.6, 16, "#a9b9a2", true);
-  box(8, 1.8, -39, 16, 3.6, 0.25, "#a9b9a2", true);
-  box(3, 1.8, -23, 6, 3.6, 0.25, "#a9b9a2", true);
-  box(12, 1.8, -23, 8, 3.6, 0.25, "#a9b9a2", true);
-  occluders.push(box(7, 3.48, -23, 2, 0.24, 0.25, "#a9b9a2"));
-  label("Robertsons", 8, 4.8, -22.7, 8).name = "robertsons-name";
-  label("Hardware & Grocer", 8, 3.1, -22.7, 8, "#334a3c", 8).name =
+  box(6, -0.01, -30, 20, 0.12, 18, "#d0b894");
+  box(-4, 1.8, -30, 0.25, 3.6, 18, "#a9b9a2", true);
+  box(16, 1.8, -30, 0.25, 3.6, 18, "#a9b9a2", true);
+  box(6, 1.8, -39, 20, 3.6, 0.25, "#a9b9a2", true);
+  box(1, 1.8, -21, 10, 3.6, 0.25, "#a9b9a2", true);
+  box(12, 1.8, -21, 8, 3.6, 0.25, "#a9b9a2", true);
+  occluders.push(box(7, 3.48, -21, 2, 0.24, 0.25, "#a9b9a2"));
+  label("Robertsons", 8, 4.8, -20.7, 8).name = "robertsons-name";
+  label("Hardware & Grocer", 8, 3.1, -20.7, 8, "#334a3c", 8).name =
     "robertsons-trade";
-  for (const x of [0.85, 15.15]) {
+  for (const x of [-3.15, 15.15]) {
     box(x, 1, -29, 1, 2, 7, "#947859", true);
     for (let j = 0; j < 6; j++) {
       box(x, 1.3, -32 + j * 1.1, 0.65, 0.5, 0.6, j % 2 ? "#c9b466" : "#c78e6f");
@@ -961,9 +1023,9 @@ export function createWorld(scene: T.Scene) {
   });
   target("robertson", 8, -31.7, "Talk to Ol’ Man Robertson");
   for (const [id, x, z, name, color] of [
-    ["can", 5, -26, "WATERING CAN · $1", "#86ada5"],
-    ["shovel", 10, -26, "SHOVEL · $1", "#9da5a2"],
-    ["fertilizer", 11, -30, "FERTILIZER · 5 DOSES · $5", "#d7c18b"],
+    ["can", 2, -28, "WATERING CAN · $1", "#86ada5"],
+    ["shovel", 10, -28, "SHOVEL · $1", "#9da5a2"],
+    ["fertilizer", 13, -30, "FERTILIZER · 5 DOSES · $5", "#d7c18b"],
   ] as const) {
     box(x, 0.45, z, 1.1, 0.9, 1, "#b2946d", true);
     if (id === "can" || id === "shovel") {
@@ -1133,6 +1195,65 @@ export function createWorld(scene: T.Scene) {
     [28, -19],
   ])
     foliage(x, z, 1.4);
+  // Denser woodland edges, with broad clear approaches to every building.
+  for (let i = 0; i < 48; i++) {
+    const x = -34 + (i % 8) * 9 + Math.sin(i * 4.1) * 1.2;
+    const z = -35 + Math.floor(i / 8) * 13 + Math.cos(i * 2.7);
+    if (scenery.some((o) => Math.hypot(o.x - x, o.z - z) < 3.7)) continue;
+    if ((x > 25 && z < -30) || (x > 5 && x < 22 && z > -5 && z < 23)) continue;
+    foliage(x, z, 1.15 + (i % 3) * 0.22);
+  }
+  for (let i = 0; i < 22; i++) {
+    const x = -33 + (i % 6) * 12,
+      z = -33 + Math.floor(i / 6) * 21;
+    if (
+      !clearScenery(x, z, 0.8) ||
+      scenery.some((o) => Math.hypot(o.x - x, o.z - z) < 2)
+    )
+      continue;
+    const color = ["#648c73", "#88a664", "#b193b5"][i % 3];
+    if (i % 3 === 1) {
+      const shrub = new T.Mesh(
+        new T.ConeGeometry(0.55, 1.2, 9),
+        surfaceMaterial("#68886c", "leaf"),
+      );
+      shrub.position.set(x, 0.6, z);
+      scene.add(shrub);
+    } else
+      for (let l = 0; l < 3; l++)
+        ball(
+          x + Math.sin(l * 2) * 0.3,
+          0.4 + l * 0.08,
+          z + Math.cos(l * 2) * 0.25,
+          0.48,
+          color,
+        );
+    if (i % 3 === 2)
+      for (let flower = 0; flower < 8; flower++)
+        ball(
+          x + Math.sin(flower * 2) * 0.4,
+          0.7,
+          z + Math.cos(flower * 2) * 0.4,
+          0.08,
+          "#d9b7d1",
+        );
+    if (i % 3 === 0)
+      for (let b = 0; b < 6; b++)
+        ball(
+          x + Math.sin(b * 3) * 0.4,
+          0.6,
+          z + Math.cos(b * 3) * 0.4,
+          0.055,
+          "#c47779",
+        );
+    scenery.push({
+      x,
+      z,
+      radius: 0.8,
+      kind: "bush",
+      variety: ["berry", "juniper", "flowering"][i % 3],
+    });
+  }
   const outdoorBirdhouses: T.Group[] = [];
   for (const [i, tree] of scenery
     .filter((o) => o.kind === "tree")
@@ -1185,7 +1306,71 @@ export function createWorld(scene: T.Scene) {
       leaf.scale.set(1.7, 0.3, 0.65);
       leaf.rotation.z = side * 0.45;
     }
-    if (type === "cabbage") {
+    if (
+      ["rosette", "aloe", "cactus", "flytrap", "pitcher", "sundew"].includes(
+        type,
+      )
+    ) {
+      for (let i = 0; i < 6; i++) {
+        const a = (i * Math.PI) / 3;
+        const leaf = ball(
+          Math.cos(a) * 0.13,
+          0.22,
+          Math.sin(a) * 0.13,
+          0.14,
+          type === "rosette" ? "#8eb6ab" : "#709457",
+          g,
+        );
+        leaf.scale.set(0.65, type === "aloe" ? 2.5 : 0.55, 1.6);
+        leaf.rotation.z = Math.cos(a) * 0.4;
+      }
+      if (type === "cactus") {
+        ball(0, 0.4, 0, 0.17, "#6d9a73", g).scale.set(0.8, 2, 0.8);
+        ball(0.16, 0.45, 0, 0.09, "#6d9a73", g).scale.y = 1.6;
+        ball(0, 0.73, 0, 0.07, "#e0a1bd", g);
+      } else if (type === "flytrap") {
+        for (const side of [-1, 1]) {
+          const jaw = ball(side * 0.075, 0.52, 0, 0.13, "#8caa61", g);
+          jaw.scale.set(0.85, 0.45, 1.3);
+          jaw.rotation.z = side * 0.5;
+          ball(side * 0.075, 0.55, 0, 0.08, "#bd7979", g).scale.set(
+            0.8,
+            0.25,
+            1.2,
+          );
+          for (let tooth = 0; tooth < 4; tooth++)
+            cyl(
+              side * 0.16,
+              0.58,
+              -0.1 + tooth * 0.065,
+              0.009,
+              0.1,
+              "#e5d8a1",
+              g,
+            );
+        }
+      } else if (type === "pitcher") {
+        ball(0, 0.46, 0, 0.14, "#bb767e", g).scale.set(0.8, 1.8, 0.8);
+        const rim = new T.Mesh(
+          new T.TorusGeometry(0.105, 0.025, 6, 12),
+          new T.MeshStandardMaterial({ color: "#e3b69a" }),
+        );
+        rim.rotation.x = Math.PI / 2;
+        rim.position.y = 0.69;
+        g.add(rim);
+        ball(0.03, 0.76, -0.07, 0.11, "#81975b", g).scale.set(1, 0.2, 1);
+      } else if (type === "sundew") {
+        for (let j = 0; j < 8; j++)
+          ball(
+            Math.sin(j) * 0.14,
+            0.5 + Math.cos(j) * 0.06,
+            Math.cos(j) * 0.14,
+            0.035,
+            "#d98491",
+            g,
+          );
+      }
+    } else if (type === "cabbage") {
       for (let i = 0; i < 7; i++) {
         const a = (i * Math.PI * 2) / 7;
         const leaf = ball(
@@ -1302,13 +1487,17 @@ export function createWorld(scene: T.Scene) {
         const a = (i * Math.PI * 2) / 9;
         const petal = ball(
           Math.cos(a) * radius,
-          height,
-          Math.sin(a) * radius,
+          height + (type === "sunflower" ? Math.sin(a) * radius : 0),
+          type === "sunflower" ? 0 : Math.sin(a) * radius,
           radius * 0.8,
           color,
           g,
         );
-        petal.scale.set(1, 0.35, 1);
+        petal.scale.set(
+          1,
+          type === "sunflower" ? 1 : 0.35,
+          type === "sunflower" ? 0.35 : 1,
+        );
       }
       ball(
         0,
@@ -1317,7 +1506,11 @@ export function createWorld(scene: T.Scene) {
         radius * 0.62,
         type === "sunflower" ? "#765636" : "#e4b75b",
         g,
-      ).scale.set(1, 0.5, 1);
+      ).scale.set(
+        1,
+        type === "sunflower" ? 1 : 0.5,
+        type === "sunflower" ? 0.4 : 1,
+      );
     }
     return g;
   }
@@ -1327,6 +1520,18 @@ export function createWorld(scene: T.Scene) {
     [8.2, 6.2, ["tulip", "lavender", "daisy"]],
     [17, 6, ["banana", "bird-of-paradise", "monstera"]],
     [-19.3, -8.5, ["lavender", "tulip", "fern"]],
+    [7, 12, ["sunflower", "sunflower", "sunflower"]],
+    [7, 15, ["daisy", "lavender", "tulip"]],
+    [17.5, 12, ["rosette", "aloe", "cactus"]],
+    [17.5, 15, ["rosette", "cactus", "aloe"]],
+    [7, -2, ["flytrap", "pitcher", "sundew"]],
+    [7, 1, ["pitcher", "flytrap", "sundew"]],
+    [17.5, -2, ["banana", "bird-of-paradise", "monstera"]],
+    [17.5, 1, ["monstera", "banana", "bird-of-paradise"]],
+    [-19.3, -12, ["cabbage", "carrot", "tomato"]],
+    [-19.3, -15, ["tomato", "carrot", "cabbage"]],
+    [-8.4, -10, ["sunflower", "sunflower", "sunflower"]],
+    [-8.4, -7, ["fern", "daisy", "lavender"]],
   ] as const) {
     const garden = new T.Group();
     garden.position.set(x, 0, z);
@@ -1358,7 +1563,9 @@ export function createWorld(scene: T.Scene) {
             ? Math.sin(col * 2 + row) * 0.5
             : -0.45 + row * 0.9,
           types[(col + row) % 3],
-          ["#eee8d4", "#d68ca7", "#a493bd", "#e9c766"][(col + row) % 4],
+          types[0] === "sunflower"
+            ? ["#efce59", "#e8af48", "#f2db87"][(col + row) % 3]
+            : ["#eee8d4", "#d68ca7", "#a493bd", "#e9c766"][(col + row) % 4],
           garden,
         );
   }
@@ -1394,6 +1601,12 @@ export function createWorld(scene: T.Scene) {
       garden.add(mesh);
     }
   }
+  const wildlife = createWildlife(
+    scene,
+    scenery.filter((o) => o.kind === "tree"),
+    neighborGardens,
+    outdoorBirdhouses,
+  );
   // Flower clumps, stones, clouds, distant hills.
   for (let i = 0; i < 65; i++) {
     const x = Math.sin(i * 11.2) * 29,
@@ -1564,6 +1777,7 @@ export function createWorld(scene: T.Scene) {
   target("forest-seeds", 29, -35, "Search the seed packet");
   target("store-seeds", 12, -31.5, "Search behind the tins");
   return {
+    wildlife,
     diggingTool,
     updateCartoon,
     setDigging,

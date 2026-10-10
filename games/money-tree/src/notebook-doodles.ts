@@ -1,0 +1,35 @@
+// Original pencil sketches. A page's layout is stable when revisited.
+const sketches = [
+  "M25 75Q19 48 29 25M28 51Q7 50 12 35Q27 31 28 51M28 41Q49 42 49 24Q31 24 28 41M10 77Q29 71 49 77",
+  "M12 49Q10 24 34 25Q56 25 59 44L69 47V59L58 61L54 72H46L44 63H28L24 72H16L14 61Q4 62 5 54Q5 45 12 49M29 25L29 14L42 25M28 34H43M52 40H53",
+  "M14 65V35L39 18L64 35V65ZM8 35L39 12L71 35M27 65V48H49V65M20 38H27V45H20ZM52 38H59V45H52Z",
+  "M39 65V45M39 48L20 33M39 48L57 32M39 48L26 59M39 48L53 60M39 45L31 25M39 45L47 24M18 31Q10 17 20 15Q31 14 31 25M48 24Q52 12 62 16Q70 24 59 31",
+  "M20 63H56V38H20ZM20 40Q2 24 9 48Q12 58 20 54M56 43L74 29L81 35L56 58M29 36V28Q39 12 49 28V36M74 47L77 53M81 44L84 50",
+  "M39 75V40M39 53Q18 55 17 43Q32 37 39 53M39 61Q59 64 62 50Q47 46 39 61M24 26Q17 8 31 14Q38 1 44 14Q60 6 54 25Q69 33 55 39Q53 55 40 44Q26 53 24 39Q8 31 24 26M33 23Q43 16 48 27Q49 39 36 36Q29 32 33 23",
+  "M39 72V24M39 43Q14 39 11 21Q33 17 39 43M39 52Q68 44 66 27Q43 26 39 52M39 64Q12 57 14 44Q34 43 39 64M20 75H57",
+  "M20 59V28L39 12L59 28V59ZM14 29L39 7L66 29M30 36Q39 24 48 36Q49 47 39 47Q28 47 30 36M39 51V64M27 65H51",
+  "M14 51Q10 39 27 35Q28 20 45 27Q62 24 65 42Q73 55 56 59Q39 71 24 59QM17 60 14 51M21 43H57M31 31H44M32 60V72M48 60V72",
+  "M39 73V48M39 51Q15 44 15 22Q33 24 39 51M39 51Q41 23 61 18Q69 41 39 51M39 51Q23 29 33 12Q48 22 39 51M20 73H59",
+  "M16 42Q14 26 29 22Q37 8 47 22Q65 20 65 40Q76 51 59 58Q48 71 36 58Q19 66 16 52Q3 45 16 42M27 34Q38 24 49 36Q57 49 41 52Q25 50 27 34M39 58V77",
+  "M11 50Q13 30 34 36Q40 20 48 29Q65 24 67 43L76 48L66 53Q47 72 26 56L12 63L17 49M43 34H44M29 41Q46 36 48 50Q37 56 29 41M35 61L32 72M46 62L48 72",
+].map((s) => s.replace("QM17", "Q17"));
+export function notebookSketches(page: number) {
+  return [0, 1, 2].map((slot) => ({
+    path: sketches[(page * 5 + slot * 3) % sketches.length],
+    x: 8 + slot * 48,
+    y: 8 + ((page + slot) % 3) * 9,
+    rotation: ((page * 7 + slot * 11) % 19) - 9,
+  }));
+}
+export function notebookDoodles(page: number) {
+  return `<svg class="notebook-doodles" data-sketch-page="${page}" viewBox="0 0 180 110" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${notebookSketches(
+    page,
+  )
+    .map(
+      (s) =>
+        `<g transform="translate(${s.x} ${s.y}) scale(.65) rotate(${s.rotation} 40 45)"><path d="${s.path}"/></g>`,
+    )
+    .join(
+      "",
+    )}<path d="M16 98q28-${3 + (page % 8)} 52 0m14 0h${8 + (page % 17)}"/></svg>`;
+}

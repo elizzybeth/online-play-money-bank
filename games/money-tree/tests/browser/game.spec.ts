@@ -53,8 +53,8 @@ test("opening, real controls, economy, gardening, journal and reload", async ({
   await page.getByRole("button", { name: "Buy · $2.00" }).click();
   await expect(page.locator("#toast")).toContainText("Money seeds?");
   for (const [x, z, price] of [
-    [5, -24.9, "$1.00"],
-    [10, -24.9, "$1.00"],
+    [2, -26.9, "$1.00"],
+    [10, -26.9, "$1.00"],
   ] as const) {
     await at(page, x, z);
     await interact(page);

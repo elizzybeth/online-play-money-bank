@@ -76,7 +76,7 @@ test("harvest withers, Robertson stops selling seeds, cap seeds replant once and
     page.getByRole("button", { name: "Yes, seeds please" }),
   ).toHaveCount(0);
   await page.getByRole("button", { name: "Look around" }).click();
-  await page.evaluate(() => (window as any).game.teleport(11, -28.9));
+  await page.evaluate(() => (window as any).game.teleport(13, -28.9));
   await expect(page.locator("#prompt")).toContainText("fertilizer");
   await page.keyboard.press("e");
   await page.getByRole("button", { name: "Buy · $5.00" }).click();

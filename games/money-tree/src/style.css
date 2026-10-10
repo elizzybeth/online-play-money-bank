@@ -1062,3 +1062,77 @@ body:has(#intro:not([hidden])) #tree-report {
   bottom: 18px;
   transform: none;
 }
+/* Keep page navigation on the book cover while the paper scrolls. */
+.notebook-paper {
+  display: flex;
+  flex-direction: column;
+  max-height: min(90dvh, 900px);
+  overflow: hidden;
+}
+.notebook-spread {
+  min-height: 0;
+  overflow: auto;
+  flex: 1 1 auto;
+  overscroll-behavior: contain;
+}
+.notebook-paper .choices,
+.notebook-paper .page-number,
+.notebook-paper > .fine {
+  flex-shrink: 0;
+}
+.notebook-paper .choices {
+  position: sticky;
+  bottom: 0;
+  background: #5f7450;
+  padding-top: 8px;
+  margin-top: 0;
+  z-index: 2;
+}
+.notebook-paper .page-number {
+  margin: 8px 0 2px;
+}
+.notebook-paper > .fine {
+  margin: 2px 0;
+}
+.notebook-left .notebook-doodles {
+  position: absolute;
+  top: 130px;
+  left: 5%;
+  width: 90%;
+  height: auto;
+}
+#seed-hud {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: #233d34e8;
+  border-radius: 13px;
+  padding: 6px 10px;
+  color: #fff3d5;
+  font:
+    700 20px Nunito,
+    sans-serif;
+}
+#seed-hud img {
+  width: 29px;
+  height: 39px;
+  transform: rotate(-7deg);
+}
+@media (max-width: 650px) {
+  #seed-hud {
+    gap: 3px;
+    padding: 4px;
+    font-size: 14px;
+  }
+  #seed-hud img {
+    width: 21px;
+    height: 28px;
+  }
+  .notebook-paper .choices {
+    gap: 6px;
+  }
+  .notebook-paper .choices button {
+    padding: 10px 7px;
+    font-size: 12px;
+  }
+}

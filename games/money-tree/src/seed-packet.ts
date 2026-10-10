@@ -1,5 +1,5 @@
 import * as T from "three";
-export function makeSeedPacket() {
+function seedPacketArtwork() {
   const canvas = document.createElement("canvas");
   canvas.width = 384;
   canvas.height = 512;
@@ -60,7 +60,13 @@ export function makeSeedPacket() {
   g.fillText("Money Tree", 192, 473);
   g.font = "18px Nunito";
   g.fillText("5 seeds · plant, water, wonder", 192, 499);
-  const texture = new T.CanvasTexture(canvas);
+  return canvas;
+}
+export function seedPacketImage() {
+  return seedPacketArtwork().toDataURL("image/png");
+}
+export function makeSeedPacket() {
+  const texture = new T.CanvasTexture(seedPacketArtwork());
   texture.colorSpace = T.SRGBColorSpace;
   const group = new T.Group();
   group.add(

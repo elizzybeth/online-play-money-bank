@@ -1,3 +1,5 @@
+import { notebookDoodles } from "./notebook-doodles";
+import { seedPacketImage } from "./seed-packet";
 import {
   canEnterPepe,
   startPepeShow,
@@ -73,6 +75,11 @@ import {
 import { createWorld, type Target } from "./world";
 const $ = (s: string) => document.querySelector<HTMLElement>(s)!;
 const SAVE = "money-tree-v1";
+const seedHud = document.createElement("div");
+seedHud.id = "seed-hud";
+seedHud.innerHTML = `<img src="${seedPacketImage()}" alt="Money Tree seed packet"><strong>0</strong>`;
+$("#stats").after(seedHud);
+
 let s: State;
 try {
   s = load(localStorage.getItem(SAVE));
@@ -512,16 +519,9 @@ function notebook(page = s.journal.length - 1, direction = 0) {
   paper.tabIndex = -1;
   paper.focus({ preventScroll: true });
   paper.scrollTop = 0;
-  paper.insertAdjacentHTML(
-    "afterbegin",
-    `<svg class="notebook-doodles" viewBox="0 0 150 90" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M26 72 Q20 54 30 33 M29 51 Q9 49 13 36 Q28 33 29 51 M29 43 Q48 43 48 28 Q31 27 29 43 M13 73 Q28 68 45 73"/>
-    <circle cx="112" cy="24" r="13"/><path d="M112 4v-4 M112 44v5 M91 24h-5 M133 24h5 M97 9l-4-4 M127 9l4-4 M98 39l-4 4 M127 39l4 4 M107 28q5 5 10 0"/>
-    <circle cx="107" cy="22" r="1" fill="currentColor"/><circle cx="117" cy="22" r="1" fill="currentColor"/>
-    <path d="M82 68q-2-14 14-15q17-1 21 12l7 1v10l-8 1l-3 7h-5l-1-6H94l-2 6h-5l-2-9q-9 1-8-5q0-5 5-2 M96 53l-1-7l10 6 M95 58h10"/>
-    <circle cx="113" cy="63" r="1" fill="currentColor"/><path d="M62 18l2 5l5 1l-5 3l-1 5l-3-5l-5-1l5-3z M60 59l2 3l4 1l-3 2l-1 4l-2-3l-4-1l3-2z"/>
-  </svg>`,
-  );
+  paper
+    .querySelector(".notebook-left")!
+    .insertAdjacentHTML("beforeend", notebookDoodles(page));
 }
 const hatPortraits = new Map<HatId, string>();
 function hatPortrait(id: HatId) {
@@ -897,12 +897,11 @@ const bedGhost = new T.Mesh(
 bedGhost.visible = false;
 scene.add(bedGhost);
 function viewForward() {
-  const direction = cameraAim.clone().sub(camera.position);
-  direction.y = 0;
-  return direction.lengthSq() > 0.001
-    ? direction.normalize()
-    : new T.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+  // Only player look input changes the control heading. Wall avoidance and
+  // doorway elevation must never reverse a held movement direction.
+  return new T.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
 }
+
 const bedPosition = () => {
   const direction = viewForward();
   return {
@@ -1994,6 +1993,8 @@ function updateUI() {
     treeReport.innerHTML = `<strong>Garden report</strong>${s.plots.map((p, i) => `<div>Tree ${i + 1} · ${p.stage === "growing" ? `${Math.floor(Math.ceil(p.remaining) / 60)}:${String(Math.ceil(p.remaining) % 60).padStart(2, "0")} remaining` : p.stage === "harvested" ? "Withered" : p.stage === "ready" ? "Ready to harvest!" : p.stage === "planted" ? "Needs water" : "Empty planter"}</div>`).join("")}`;
   const total = s.cash + s.bank;
   updateCoinTracker();
+  seedHud.querySelector("strong")!.textContent = String(s.seeds);
+  seedHud.setAttribute("aria-label", `${s.seeds} money tree seeds`);
   $("#stats").innerHTML =
     `Day ${s.day} &nbsp; ☀${s.drink ? `<br>${drinks.find((d) => d.id === s.drink!.id)!.name} · ${Math.ceil(s.drink.remaining)}s` : ""}<br><b>${money(s.cash)}</b> pocket &nbsp; ${money(s.bank)} saved${
       s.equippedHat
@@ -2070,7 +2071,7 @@ function updateUI() {
         ? "Home, sweet home"
         : x < -8 && x > -23 && z >= 14 && z < 24
           ? "Your little garden"
-          : z < -22 && x > 0 && x < 16
+          : z < -21 && z > -39 && x > -4 && x < 16
             ? "Robertsons"
             : z < -23 && z > -35 && x > 18 && x < 30
               ? "Thread & Thimble"
@@ -2547,9 +2548,9 @@ function frame(now: number) {
     const indoors =
       !!sigmaRoom ||
       atHome() ||
-      (s.position.x > 0 &&
+      (s.position.x > -4 &&
         s.position.x < 16 &&
-        s.position.z < -23 &&
+        s.position.z < -21 &&
         s.position.z > -39) ||
       inHatShop;
     const wantedAngle = indoors ? Math.max(0.65, pitch) : pitch;
@@ -2597,86 +2598,37 @@ function frame(now: number) {
     }
     const ideal = target.clone().addScaledVector(direction, distance);
     if (indoors) {
-      // Aim inside the building and lift above its walls before moving inward.
-      const bounds = sigmaRoom
-        ? [
-            sigmaRoom.x - sigmaRoom.w / 2 + 0.6,
-            sigmaRoom.x + sigmaRoom.w / 2 - 0.6,
-            sigmaRoom.z - sigmaRoom.d / 2 + 0.6,
-            sigmaRoom.z + sigmaRoom.d / 2 - 0.6,
-          ]
-        : inHatShop
-          ? [18.6, 29.4, -35.4, -22.6]
-          : s.position.x > 0
-            ? [0.6, 15.4, -38.4, -23.6]
-            : s.position.x > -9
-              ? [-8.4, -1.6, 6.6, 13.4]
-              : s.position.z < 6
-                ? [-20.4, -9.6, -1.4, 5.4]
-                : [-20.4, -9.6, 6.6, 13.4];
-      ideal.set(
-        T.MathUtils.clamp(desired.x, bounds[0], bounds[1]),
-        Math.max(desired.y, sigmaRoom ? 8.2 : 5.2),
-        T.MathUtils.clamp(desired.z, bounds[2], bounds[3]),
-      );
-      // A continuous pull toward the room center replaces abrupt 90-degree corner swaps.
-      const wallClearance = Math.min(
-        target.x - bounds[0],
-        bounds[1] - target.x,
-        target.z - bounds[2],
-        bounds[3] - target.z,
-      );
-      const pull = (1 - T.MathUtils.smoothstep(wallClearance, 0.2, 1.8)) * 0.5;
-      ideal.x = T.MathUtils.lerp(ideal.x, (bounds[0] + bounds[1]) / 2, pull);
-      ideal.z = T.MathUtils.lerp(ideal.z, (bounds[2] + bounds[3]) / 2, pull);
-      // Keep a useful oblique view when a wall would put the camera directly overhead.
-      const horizontal = Math.hypot(ideal.x - target.x, ideal.z - target.z);
-      if (horizontal < 3) {
-        const inward = new T.Vector3(
-          (bounds[0] + bounds[1]) / 2 - target.x,
-          0,
-          (bounds[2] + bounds[3]) / 2 - target.z,
-        );
-        if (inward.lengthSq() > 0.01) {
-          inward.normalize().multiplyScalar(3.5).add(target);
-          const blend = 1 - T.MathUtils.smoothstep(horizontal, 1.2, 3);
-          ideal.x = T.MathUtils.lerp(
-            ideal.x,
-            T.MathUtils.clamp(inward.x, bounds[0], bounds[1]),
-            blend,
+      // Preserve the orbit side through every doorway and corner. Moving the
+      // camera toward the room center can cross the player and flip the view.
+      ideal.copy(desired);
+      ideal.y = Math.max(desired.y, sigmaRoom ? 8.2 : 5.2);
+      // Resolve visibility by steepening the same orbit, never crossing the
+      // character. Check the torso too, since a visible head is not enough.
+      const walls = world.occluders.filter((o) => !o.userData.roof);
+      for (let attempt = 0; attempt < 14; attempt++) {
+        const hidden = [0.5, 0.77, 1.1, 1.47, 1.9].some((height) => {
+          const body = new T.Vector3(
+            s.position.x,
+            height + jumpHeight,
+            s.position.z,
           );
-          ideal.z = T.MathUtils.lerp(
-            ideal.z,
-            T.MathUtils.clamp(inward.z, bounds[2], bounds[3]),
-            blend,
-          );
-        }
+          const sight = ideal.clone().sub(body);
+          ray.set(body, sight.clone().normalize());
+          ray.far = sight.length() - 0.08;
+          return ray.intersectObjects(walls, false).length > 0;
+        });
+        if (!hidden) break;
+        ideal.x = target.x + (ideal.x - target.x) * 0.82;
+        ideal.z = target.z + (ideal.z - target.z) * 0.82;
+        ideal.y += 0.35;
       }
-      if (sigmaRoom) {
-        // A tall meme building allows an elevated outside-wall camera while looking inward.
-        ideal.x = desired.x;
-        ideal.z = desired.z;
-        ideal.y = Math.max(desired.y, 8.2);
+    } else {
+      const lift = 1 - T.MathUtils.smoothstep(distance, 1.0, 3.0);
+      if (lift > 0) {
+        const raised = desired.clone();
+        raised.y = Math.max(raised.y, target.y + 5.8);
+        ideal.lerp(raised, lift);
       }
-      // Lift first, then travel across walls. The camera never rides a wall face.
-      if (!reducedMotion && camera.position.y < (sigmaRoom ? 6.6 : 4.1)) {
-        ideal.x = camera.position.x;
-        ideal.z = camera.position.z;
-      }
-    }
-    // Gradually lift above nearby obstacles instead of switching to a top-down view.
-    const overhead = T.MathUtils.smoothstep(distance, 1.0, 3.0);
-    if (overhead < 1 && !indoors) {
-      const up = new T.Vector3(0, 5.8, 0.25),
-        upLength = up.length();
-      up.normalize();
-      ray.set(target, up);
-      ray.far = upLength;
-      const above = ray.intersectObjects(world.occluders, false);
-      const clear = above.length
-        ? Math.max(0.12, above[0].distance - 0.35)
-        : upLength;
-      ideal.lerp(target.clone().addScaledVector(up, clear), 1 - overhead);
     }
     if (pepeReturning && camera.position.distanceTo(target) < 12)
       pepeReturning = false;
@@ -2749,7 +2701,16 @@ function frame(now: number) {
     camera.lookAt(cameraAim);
   }
 
+  // Exterior branding stays outside the cutaway interior view.
+  const insideRobertsons =
+    s.position.x > -4 &&
+    s.position.x < 16 &&
+    s.position.z < -21 &&
+    s.position.z > -39;
+  for (const name of ["robertsons-name", "robertsons-trade"])
+    scene.getObjectByName(name)!.visible = !insideRobertsons;
   world.updateCartoon(reducedMotion ? 0 : now / 1000);
+  world.wildlife.update(reducedMotion ? 0 : now / 1000);
   world.setDigging(!!action, !!s.shovel, action?.elapsed ?? 0);
   updateRollPose();
   for (let i = 0; i < s.plots.length; i++) {
@@ -2868,6 +2829,21 @@ if (new URLSearchParams(location.search).has("test")) {
           ).length === 0
         );
       }),
+    wildlife: () => ({
+      birds: world.wildlife.birds.map((b) => ({
+        position: b.object.position.toArray(),
+        state: b.state,
+        perch: b.perch,
+      })),
+      butterflies: world.wildlife.butterflies.map((b) => ({
+        position: b.object.position.toArray(),
+        garden: b.garden,
+      })),
+      gardens: world.neighborGardens.map((g) => ({
+        position: g.position.toArray(),
+        types: g.userData.plantTypes,
+      })),
+    }),
     birdhouses: () => world.outdoorBirdhouses.filter((g) => g.visible).length,
     hatStack: () =>
       world.wornHat.children.map((o) => ({
@@ -2925,7 +2901,11 @@ if (new URLSearchParams(location.search).has("test")) {
     boundaryHedges: () =>
       world.boundaryHedges.map((mesh) => {
         const bounds = new T.Box3().setFromObject(mesh);
-        return { min: bounds.min.toArray(), max: bounds.max.toArray() };
+        return {
+          min: bounds.min.toArray(),
+          max: bounds.max.toArray(),
+          visible: mesh.visible,
+        };
       }),
     targets: world.targets,
     notebookModel: () => world.notebookPages.userData.writingBounds,
@@ -2948,7 +2928,11 @@ if (new URLSearchParams(location.search).has("test")) {
       ["robertsons-name", "robertsons-trade"].map((name) => {
         const mesh = scene.getObjectByName(name) as T.Mesh;
         const bounds = new T.Box3().setFromObject(mesh);
-        return { min: bounds.min.toArray(), max: bounds.max.toArray() };
+        return {
+          min: bounds.min.toArray(),
+          max: bounds.max.toArray(),
+          visible: mesh.visible,
+        };
       }),
     npcHeadPenetrations: () => {
       const sphere = (g: T.Object3D) => {
