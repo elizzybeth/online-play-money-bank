@@ -85,9 +85,10 @@ const powers: Record<string, string> = {
   rabbit: "jump",
   inspector: "see how all my trees are growing",
   hardhat: "plant seeds faster",
-  wizard: "help the trees grow faster while I wear it",
+  wizard: "have a chance to save a fertilizer dose when I feed a tree",
   rain: "water new seeds automatically when I have my watering can",
-  banker: "get an extra dollar from a tree, up to seven dollars",
+  banker:
+    "get an extra dollar from a tree, up to seven dollars or nine if I fertilized it",
   beekeeper:
     "get at least six dollars from a fertilized tree if I wear it when the tree finishes growing",
   lantern: "reach things from farther away and use its light",

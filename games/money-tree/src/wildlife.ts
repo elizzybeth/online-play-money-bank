@@ -3,7 +3,7 @@ import * as T from "three";
 /** Small non-colliding neighbors of the gardens. Perches follow actual trees. */
 export function createWildlife(
   scene: T.Scene,
-  trees: { x: number; z: number }[],
+  trees: { x: number; z: number; perchY?: number }[],
   gardens: T.Group[],
   houses: T.Group[],
 ) {
@@ -83,7 +83,10 @@ export function createWildlife(
           };
         }
         const t = trees[(n * 3 + i * 5) % trees.length];
-        return { point: new T.Vector3(t.x, 3.1, t.z), kind: "tree" };
+        return {
+          point: new T.Vector3(t.x, t.perchY ?? 3.1, t.z),
+          kind: "tree",
+        };
       };
       const a = perch(cycle),
         b = perch(cycle + 1),
