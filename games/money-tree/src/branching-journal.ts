@@ -119,7 +119,12 @@ export function constructJournal(
       ...new Set(
         c.events
           .filter((x) => x.startsWith("Stopped to talk with "))
-          .map((x) => x.slice(21).replace(/\.$/, "")),
+          .map((x) =>
+            x
+              .slice(21)
+              .replace(/\.$/, "")
+              .replace("Thread & Thimble", "the hat-shop owner"),
+          ),
       ),
     ];
   // Carry feelings across days, easing towards a baseline. Today modifies rather than replaces them.
