@@ -48,14 +48,16 @@ export const drinks: {
     name: "Compound Cold Brew",
     cost: 400,
     seconds: 180,
-    effect: "Trees grow 50% faster for 3 minutes.",
+    effect:
+      "50% chance to recover one seed per harvest for 3 minutes. Combines with Sprout Cap for 75%, never more than one seed.",
   },
   {
     id: "yield",
     name: "Bull Market Latte",
     cost: 500,
     seconds: 180,
-    effect: "Harvest an extra $1 for 3 minutes, up to $7 per tree.",
+    effect:
+      "Harvest an extra $1 for 3 minutes, up to $7 normally or $9 for fertilized trees.",
   },
   {
     id: "reach",
@@ -130,12 +132,23 @@ export function investCoin(s: State, amount: number) {
 }
 export const coinValue = (s: State) =>
   s.coin ? Math.floor((s.coin.units * s.coin.price) / 1_000_000) : 0;
-export function sellCoin(s: State) {
+export function sellCoin(s: State, amount?: number) {
   if (!s.coin || !s.coin.units) return false;
-  const value = coinValue(s);
-  if (!Number.isSafeInteger(s.cash + value)) return false;
+  const holding = coinValue(s);
+  const value = amount ?? holding;
+  if (
+    !Number.isSafeInteger(value) ||
+    value <= 0 ||
+    value > holding ||
+    !Number.isSafeInteger(s.cash + value)
+  )
+    return false;
+  const sold =
+    value === holding
+      ? s.coin.units
+      : Math.ceil((value * 1_000_000) / s.coin.price);
   s.cash += value;
-  s.coin.units = 0;
+  s.coin.units -= sold;
   s.events.push(`Sold my pretend coin for $${(value / 100).toFixed(2)}.`);
   return true;
 }
@@ -345,23 +358,80 @@ const roles = [
     "My new cryptocurrency has no caffeine. Very different investment.",
   ],
 ];
-const endings = [
-  "Stay hydrated. That is my entire actionable takeaway.",
-  "My course covers this. It is written on a napkin.",
-  "Consistency matters. I consistently forget where I put my keys.",
-  "The grind continues after a small snack.",
-  "Nobody can outsource your shoelaces.",
-  "I learned that from a motivational mug.",
-  "My lone-wolf newsletter has one subscriber. Me.",
-  "That is step one. I have not worked out step two.",
-  "Remember to blink between goals.",
-  "I am calling this quarter a learning experience.",
-  "My accountant asked me to stop calling everything an asset.",
-  "Believe in yourself. Also read the instructions.",
+const moreRoleLines = [
+  [
+    "I timed my morning stretch. Then spent twice as long writing the result down.",
+    "My to-do list includes making a shorter to-do list.",
+    "I call a nap horizontal strategy.",
+    "The gym mirror does not subscribe to my newsletter.",
+    "I own a stopwatch but still miss the bus.",
+    "I stopped saying hustle to the toaster. It burns the bread anyway.",
+    "A lone wolf needs someone to spot him at the gym. Awkward branding.",
+    "I put my goals on sticky notes. Now I cannot see the window.",
+  ],
+  [
+    "I refuse communal watering cans. Mine is empty, but independent.",
+    "Sharing compost is not very sigma. Buying compost together is apparently a startup.",
+    "I wrote keep off on my plot. Nothing else grows there either.",
+    "I asked these trees for quarterly results. They gave me splinters.",
+    "The community garden has no subscription tier. Missed opportunity.",
+    "I called the soil underperforming. It remained soil.",
+    "I will not join a watering rota. I do keep borrowing the hose.",
+    "The sprouts have no personal brand. Somehow they manage.",
+  ],
+  [
+    "The dog ate my prospectus. His strongest analysis yet.",
+    "My house looks excited when I come home. That helps.",
+    "I tried explaining scarcity to a dog with twelve tennis balls.",
+    "My dog diversifies into every muddy puddle.",
+    "The welcome mat says wow. Saves me a lot of introductions.",
+    "I call fetching sticks asset retrieval.",
+    "The dog sleeps through market updates. I envy him.",
+    "My best business partner works for biscuits.",
+  ],
+  [
+    "My green door is camouflage for unpaid invoices.",
+    "I asked the frog to pivot. It faced the other way.",
+    "A lily pad has an excellent work-life balance.",
+    "My fountain is a cash flow problem without the cash.",
+    "I renamed the pond liquidity management. It still needs cleaning.",
+    "I scheduled a leap of faith. The frog arrived early.",
+    "I do not cry over red candles. I sulk in a green house.",
+    "An amphibian has two habitats. That is diversification.",
+  ],
+  [
+    "A catchy name is easier to make than a useful product.",
+    "I bought a microphone before I worked out what to say.",
+    "My brand strategy is a cap and remarkable confidence.",
+    "I posted a motivational video. My uncle asked me to fix his gutter.",
+    "The house is recognisable. The plumber charged extra for that.",
+    "I tried monetizing an echo. It repeated the offer.",
+    "My audience engagement is mostly people asking about the roof.",
+    "I have a slogan. The rest of the business is still loading.",
+  ],
+  [
+    "The wolf has not answered my business proposal. Excellent boundaries.",
+    "I offered the statue equity. It preferred standing still.",
+    "The moon has never once endorsed my morning routine.",
+    "I howled for motivation. A neighbour shut the window.",
+    "That dollar is a luck budget with no audit trail.",
+    "I track my wishes in a spreadsheet. The returns are unclear.",
+    "A lone wolf statue is heavy. Took several of us to move it.",
+    "I called the moon my north star. Someone corrected me.",
+  ],
+  [
+    "I adjusted the grinder. That is an actual grindset achievement.",
+    "Foam art is branding you can accidentally drink.",
+    "The coffee queue is my only reliable growth chart.",
+    "I tried calling a small cup premium scarcity. Nobody was fooled.",
+    "I name drinks after finance. The sugar still costs extra to buy.",
+    "I rinse the cups myself. A very hands-on founder.",
+    "Customers keep asking for good coffee instead of a motivational speech.",
+    "My most successful investment is the dishcloth.",
+  ],
 ];
-export const chadLibrary = roles.map((lines) =>
-  lines.flatMap((line) => endings.map((end) => `${line} ${end}`)),
-);
+roles.forEach((lines, i) => lines.push(...moreRoleLines[i]));
+export const chadLibrary = roles.map((lines) => [...lines]);
 export function chadLine(s: State, id: string) {
   const role =
     id === "grindset"
@@ -370,7 +440,7 @@ export function chadLine(s: State, id: string) {
   const count = s.neighborChats[id] ?? 0;
   s.neighborChats[id] = count + 1;
   const pool = chadLibrary[role];
-  return pool[(count % 12) * 12 + ((count * 5 + Math.floor(count / 12)) % 12)];
+  return pool[count % pool.length];
 }
 export function validCoin(c: unknown): c is Coin {
   if (!c || typeof c !== "object") return false;

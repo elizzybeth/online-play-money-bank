@@ -126,20 +126,26 @@ test("speed hat increases actual walking and headlamp extends interaction reach"
   );
   await page.goto("./?test");
   await page.getByRole("button", { name: "Wake up" }).click();
+  for (let i = 0; i < 120; i++) await page.clock.fastForward(16);
   await page.keyboard.down("w");
   for (let i = 0; i < 4; i++) await page.clock.fastForward(250);
   await page.keyboard.up("w");
-  const boosted =
-    20 - (await page.evaluate(() => (window as any).game.state().position.z));
+  const boosted = await page.evaluate(() => {
+    const p = (window as any).game.state().position;
+    return Math.hypot(p.x - 3, p.z - 20);
+  });
   await page.evaluate(() => {
     (window as any).game.teleport(3, 20);
     (window as any).game.equipHat(null);
   });
+  for (let i = 0; i < 120; i++) await page.clock.fastForward(16);
   await page.keyboard.down("w");
   for (let i = 0; i < 4; i++) await page.clock.fastForward(250);
   await page.keyboard.up("w");
-  const normal =
-    20 - (await page.evaluate(() => (window as any).game.state().position.z));
+  const normal = await page.evaluate(() => {
+    const p = (window as any).game.state().position;
+    return Math.hypot(p.x - 3, p.z - 20);
+  });
   expect(boosted / normal).toBeCloseTo(1.25, 1);
   await page.evaluate(() => {
     (window as any).game.teleport(22.9, -24.6);

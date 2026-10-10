@@ -1,0 +1,24 @@
+import {test,expect} from '@playwright/test';
+import {fresh} from '../../src/game';
+test('Doge meditation lasts thirty seconds, charges once, and rewards a packet',async({page})=>{
+ await page.clock.install({time:new Date('2026-01-01T00:00:00Z')});await page.clock.pauseAt(new Date('2026-01-02T00:00:00Z'));
+ const s=fresh();Object.assign(s,{awake:true,foundTVSeeds:true,foundGardenSeeds:true,cash:1000,position:{x:30,z:-48}});
+ await page.addInitScript(s=>{if(!localStorage.getItem('money-tree-v1'))localStorage.setItem('money-tree-v1',JSON.stringify(s));},s);
+ await page.goto('./?test');await page.getByRole('button',{name:'Wake up'}).click();
+ await page.evaluate(()=>(window as any).game.teleport(-18,-44));
+ for(let i=0;i<30;i++)await page.clock.fastForward(16);
+ await expect(page.locator('.speech-bubble')).toContainText('Shh');
+ await page.keyboard.press('e');
+ for(let i=0;i<116;i++)await page.clock.fastForward(250);
+ expect(await page.evaluate(()=>(window as any).game.state().cash)).toBe(1000);
+ for(let i=0;i<8;i++)await page.clock.fastForward(250);
+ expect(await page.evaluate(()=>(window as any).game.state().cash)).toBe(700);
+ expect(await page.evaluate(()=>(window as any).game.state().seeds)).toBe(5);
+ await expect(page.locator('.speech-bubble')).toContainText('crazy new drug');
+ await page.keyboard.press('e');
+ await expect(page.locator('.speech-bubble')).toContainText('my coin has been all up and to the right');
+ await page.keyboard.press('e');
+ await page.reload();await page.getByRole('button',{name:'Wake up'}).click();
+ expect(await page.evaluate(()=>(window as any).game.state().foundMeditationSeeds)).toBe(true);
+ expect(await page.evaluate(()=>(window as any).game.state().cash)).toBe(700);
+});

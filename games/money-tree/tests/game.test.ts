@@ -165,7 +165,11 @@ test("random actions preserve nonnegative inventory and bounded yields", () => {
         fertilize(s, i);
     }
     assert(s.cash >= 0 && s.seeds >= 0 && s.fertilizer >= 0);
-    assert(s.plots.every((p) => p.yield >= 0 && p.yield <= 700));
+    assert(
+      s.plots.every(
+        (p) => p.yield >= 0 && p.yield <= (p.fertilized ? 900 : 700),
+      ),
+    );
   }
   assert.deepEqual(load(JSON.stringify(s)), s);
 });
@@ -194,23 +198,36 @@ test("legacy saves migrate seed progression without losing balances", () => {
   assert.equal(JSON.stringify(restored), before);
 });
 
-test("five dollars buys one fertilizer application for exactly one tree", () => {
+test("five dollars buys five doses, each application consumes one", () => {
   const s = fresh();
   s.cash = 500;
   s.can = true;
-  s.seeds = 2;
+  s.seeds = 5;
   assert(buy(s, "fertilizer"));
   assert.equal(s.cash, 0);
-  assert.equal(s.fertilizer, 1);
-  assert(plant(s, 0));
-  assert(plant(s, 1));
-  assert(water(s, 0));
-  assert(water(s, 1));
-  assert.equal(s.fertilizer, 1);
-  assert.equal(s.plots[0].fertilized, false);
-  assert(fertilize(s, 0));
+  assert.equal(s.fertilizer, 5);
+  for (let i = 0; i < 5; i++) {
+    assert(plant(s, i));
+    assert(water(s, i));
+    assert(fertilize(s, i));
+    assert.equal(s.fertilizer, 4 - i);
+    assert(!fertilize(s, i));
+    assert.equal(s.fertilizer, 4 - i);
+  }
   assert.equal(s.fertilizer, 0);
-  assert(!fertilize(s, 1));
+});
+test("fertilized trees can produce nine dollars and decode without losing the save", () => {
+  const amounts = new Set<number>();
+  for (let i = 1; i <= 100; i++) {
+    const s = fresh();
+    s.rng = i * 2147483;
+    s.plots[0] = { stage: "growing", remaining: 1, fertilized: true, yield: 0 };
+    tick(s, 1);
+    assert(s.plots[0].yield >= 400 && s.plots[0].yield <= 900);
+    assert.ok(decode(JSON.stringify(s)));
+    amounts.add(harvest(s, 0));
+  }
+  assert(amounts.has(900));
 });
 
 test("journal groups repeated work and reflects on day-one surgery money", () => {
@@ -355,4 +372,40 @@ test("beds and soil are separate purchases; placement respects property and obst
   assert.deepEqual(decode(JSON.stringify(s)), s);
   assert(!buyGardenSupply({ ...s, cash: 2999 }, "bed"));
   assert(!buyGardenSupply({ ...s, cash: 999 }, "soil"));
+});
+
+test("overlapping furniture collisions recover nearby rather than locking both movement axes", () => {
+  const rects = [
+    { x: 0, z: 0, w: 2, d: 2 },
+    { x: -1.6, z: 0, w: 0.2, d: 4 },
+  ];
+  const pos = { x: -0.99, z: 0.99 };
+  move(pos, 0.12, 0.12, rects);
+  assert(!blocked(pos.x, pos.z, rects));
+  const before = { ...pos };
+  move(pos, 0, 0.6, rects);
+  assert(pos.z > before.z);
+  assert(!blocked(pos.x, pos.z, rects));
+});
+
+test("all town conversation counters survive save decoding", () => {
+  const s = fresh();
+  s.foundCapSeeds = true;
+  for (const id of [
+    "npc1",
+    "npc2",
+    "npc3",
+    "mom-out",
+    "mom-home",
+    "robertson",
+    "haberdashery",
+    "bicycle",
+  ]) {
+    neighborLine(s, id);
+    neighborLine(s, id);
+  }
+  const restored = decode(JSON.stringify(s));
+  assert.ok(restored);
+  assert.deepEqual(restored.neighborChats, s.neighborChats);
+  assert.equal(restored.foundCapSeeds, true);
 });

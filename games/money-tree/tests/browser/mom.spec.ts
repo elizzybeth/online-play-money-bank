@@ -20,6 +20,11 @@ for (const [day, activity, phrase] of [
     await page.goto("./?test");
     await page.getByRole("button", { name: "Wake up" }).click();
     await page.evaluate(() => (window as any).game.teleport(-16, 12));
+    if (activity === "garden") {
+      await expect(page.locator(".speech-bubble")).toHaveCount(0);
+      await page.evaluate(() => (window as any).game.teleport(-10.2, 19.3));
+      await page.keyboard.press("e");
+    }
     if (day % 2)
       await expect(page.locator(".speech-bubble")).toContainText("cough");
     else
@@ -39,11 +44,16 @@ for (const [day, activity, phrase] of [
     await page.evaluate(() => (window as any).game.teleport(-16, 28));
     await expect(page.locator(".speech-bubble")).toHaveCount(0);
     await page.evaluate(() => (window as any).game.teleport(-16, 12));
+    if (activity === "garden") {
+      await expect(page.locator(".speech-bubble")).toHaveCount(0);
+      await page.evaluate(() => (window as any).game.teleport(-10.2, 19.3));
+      await page.keyboard.press("e");
+    }
     if (day % 2)
       await expect(page.locator(".speech-bubble")).toContainText("cough");
     else
       await expect(page.locator(".speech-bubble")).not.toContainText("cough");
-    await page.keyboard.press("e");
+    if (activity !== "garden") await page.keyboard.press("e");
     await expect(page.locator(".speech-bubble")).not.toHaveText(firstReply!);
     if (activity === "resting" || activity === "reading") {
       const pose = await page.evaluate(() => (window as any).game.momPose());

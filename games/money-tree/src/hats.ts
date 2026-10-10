@@ -40,7 +40,7 @@ export const hats = [
     name: "Moonrise Wizard",
     price: 3000,
     color: "#7867ab",
-    power: "Trees grow 25% faster while worn.",
+    power: "50% chance to conserve a fertilizer dose when applying it.",
   },
   {
     id: "rain",
@@ -55,7 +55,8 @@ export const hats = [
     name: "Lucky Tallboy",
     price: 6000,
     color: "#343e49",
-    power: "Add $1 to each harvest, up to $7 per tree.",
+    power:
+      "Add $1 to each harvest, up to $7 normally or $9 for fertilized trees.",
   },
   {
     id: "beekeeper",

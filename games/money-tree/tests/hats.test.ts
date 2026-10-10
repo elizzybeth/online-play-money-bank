@@ -11,6 +11,7 @@ import {
   plant,
   tick,
   harvest,
+  fertilize,
 } from "../src/game";
 import { makeHat } from "../src/hat-models";
 test("ten distinct hats have detailed models, prices and powers", () => {
@@ -64,14 +65,15 @@ test("hat powers change planting, movement, irrigation, growth and harvest", () 
   assert.equal(s.plots[0].remaining, 180);
   buyHat(s, "wizard");
   tick(s, 80);
-  assert.equal(s.plots[0].remaining, 80);
+  assert.equal(s.plots[0].remaining, 100);
   buyHat(s, "beekeeper");
   s.plots[0].fertilized = true;
-  tick(s, 80);
+  tick(s, 100);
   assert(s.plots[0].yield >= 600);
   equipHat(s, null);
   buyHat(s, "banker");
-  assert.equal(harvest(s, 0), 700);
+  const proceeds = harvest(s, 0);
+  assert(proceeds >= 700 && proceeds <= 900);
   assert.equal(harvest(s, 0), 0);
   s.can = false;
   equipHat(s, "rain");
@@ -96,4 +98,27 @@ test("Sprout Cap recovers seeds on only half of harvests and never twice", () =>
     assert.equal(s.seeds, count);
   }
   assert(s.seeds > 4800 && s.seeds < 5200, `Got ${s.seeds} seeds`);
+});
+
+test("Moonrise Wizard conserves about half of fertilizer doses without speeding growth", () => {
+  let saved = 0;
+  for (let i = 1; i <= 100; i++) {
+    const s = fresh();
+    s.hats = ["wizard"];
+    s.equippedHat = "wizard";
+    s.fertilizer = 1;
+    s.rng = i * 2147483;
+    s.plots[0] = {
+      stage: "growing",
+      remaining: 180,
+      fertilized: false,
+      yield: 0,
+    };
+    assert(fertilize(s, 0));
+    saved += s.fertilizer;
+    assert(!fertilize(s, 0));
+    tick(s, 10);
+    assert.equal(s.plots[0].remaining, 110);
+  }
+  assert(saved >= 40 && saved <= 60);
 });

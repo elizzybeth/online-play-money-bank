@@ -1,4 +1,13 @@
 import {
+  canEnterPepe,
+  startPepeShow,
+  tickPepeShow,
+  collectPepePacket,
+} from "./pepe-event";
+import { enableBalloonAudio, balloonSound } from "./balloon-audio";
+import { stacyStory } from "./stacy-dialogue";
+import { SeedSearchClock } from "./seed-hints";
+import {
   buff,
   unlockSigma,
   buyDrink,
@@ -20,6 +29,9 @@ import "./style.css";
 import { inventoryIcon } from "./icons";
 import * as T from "three";
 import {
+  airborneRects,
+  homeContains,
+  seedSearchHint,
   buyGardenSupply,
   canPlaceBed,
   placeGardenBed,
@@ -118,6 +130,11 @@ Object.assign(sun.shadow.camera, {
 });
 sun.shadow.bias = -0.001;
 scene.add(sun);
+await Promise.all(
+  ["Gaegu", "Nunito", "Lobster", "HennyPenny", "Bungee", "BarlowCondensed"].map(
+    (f) => document.fonts.load(`${f === "Nunito" ? "italic " : ""}24px ${f}`),
+  ),
+).catch(() => {});
 const world = createWorld(scene),
   camera = new T.PerspectiveCamera(52, innerWidth / innerHeight, 0.08, 110),
   ray = new T.Raycaster();
@@ -128,17 +145,12 @@ if (
   blocked(s.position.x, s.position.z, world.rects) ||
   Math.abs(s.position.x) > 38 ||
   s.position.z > 38 ||
-  s.position.z < (s.foundTVSeeds ? -84 : -39)
+  s.position.z < (s.foundTVSeeds ? -89 : -39)
 )
   s.position = { x: -16, z: 4 };
 world.player.position.set(s.position.x, 0, s.position.z);
-world.setMomDay(
-  s.day,
-  s.position.x < -9 &&
-    s.position.x > -29 &&
-    s.position.z > -2 &&
-    s.position.z < (s.position.x < -21 ? 6 : 14),
-);
+world.setMomDay(s.day, homeContains(s.position));
+
 let frameNumber = 0;
 let followAngle = 0.42;
 const cameraAim = new T.Vector3(-7, 1, 10);
@@ -150,6 +162,7 @@ let begun = false,
   yaw = 0,
   pitch = 0.42,
   cameraTilted = false,
+  lastLookInput = -Infinity,
   near: Target | undefined,
   action:
     | {
@@ -164,11 +177,7 @@ let begun = false,
   last = performance.now(),
   momSpoke = false,
   walk = 0;
-const atHome = () =>
-  s.position.x < -9 &&
-  s.position.x > -29 &&
-  s.position.z > -2 &&
-  s.position.z < (s.position.x < -21 ? 6 : 14);
+const atHome = () => homeContains(s.position);
 let wasHome = atHome(),
   visitedOutside = s.awake && !wasHome;
 const thought = document.createElement("div");
@@ -206,14 +215,7 @@ function returnToMom() {
   s.metMom = true;
   visit("Checked in with Mom after coming home.");
   const badDay = !momStatus(s.day).energetic;
-  const count = s.neighborChats["mom-home"] ?? 0;
-  s.neighborChats["mom-home"] = count + 1;
-  const greeting = [
-    "You’re home, sweetheart.",
-    "There you are! How was your walk?",
-    "It’s good to see you, love.",
-    "Come tell me what you found today.",
-  ][count % 4];
+  const greeting = neighborLine(s, "mom-home").slice(1, -1);
   if (badDay) visit("Heard Mom coughing when I got home.");
   save();
   world.mom.userData.coughTime = badDay ? 2 : 0;
@@ -278,12 +280,26 @@ function speak(id: string, text: string, choices: Choice[] = []) {
   element.append(content);
   const row = document.createElement("div");
   row.className = "choices";
-  for (const choice of choices) {
+  const explicitDefault = choices.findIndex((c) => c.default);
+  const defaultIndex =
+    explicitDefault >= 0
+      ? explicitDefault
+      : choices.findIndex((c) => !c.disabled && !c.destructive);
+  for (const [index, choice] of choices.entries()) {
     const button = document.createElement("button");
     button.textContent = choice.label;
     button.disabled = !!choice.disabled;
     button.onclick = choice.run;
-    button.dataset.safeDefault = String(!choice.destructive);
+    button.dataset.safeDefault = String(
+      index === defaultIndex && !choice.destructive && !choice.disabled,
+    );
+    if (button.dataset.safeDefault === "true") {
+      button.classList.add("default-action");
+      const hint = document.createElement("kbd");
+      hint.textContent = "E";
+      hint.setAttribute("aria-hidden", "true");
+      button.append(hint);
+    }
     row.append(button);
   }
   const end = document.createElement("button");
@@ -360,6 +376,7 @@ function updateSpeech(dt: number) {
   });
 }
 function save() {
+  world.updateNotebook(s.journal.at(-1)!, s.journal.length);
   try {
     localStorage.setItem(SAVE, JSON.stringify(s));
   } catch {
@@ -371,6 +388,7 @@ function save() {
     }
   }
 }
+const seedSearchClock = new SeedSearchClock();
 function toast(text: string) {
   $("#toast").textContent = text;
   $("#toast").style.opacity = "1";
@@ -450,7 +468,7 @@ function notebook(page = s.journal.length - 1, direction = 0) {
   const paragraphs = entry.replace(/^Day \d+\s*/, "").split(/\n\n/);
   panel(
     "Your notebook",
-    `<div class="notebook-page" data-page="${page}"><h3>${title}</h3>${paragraphs.map((e) => `<p>${esc(e)}</p>`).join("")}</div><p class="page-number">Page ${page + 1} of ${s.journal.length}</p>` +
+    `<div class="notebook-spread"><div class="notebook-left" aria-hidden="true"><span>My notebook</span><span class="pencil-note">for Mom</span></div><div class="notebook-page" data-page="${page}"><h3>${title}</h3>${paragraphs.map((e) => `<p>${esc(e)}</p>`).join("")}</div></div><p class="page-number">Page ${page + 1} of ${s.journal.length}</p>` +
       `<p class="fine">Today's entry will be written when you go to sleep.</p>`,
     [
       {
@@ -467,6 +485,7 @@ function notebook(page = s.journal.length - 1, direction = 0) {
     ],
     "YOUR NOTEBOOK",
   );
+  world.updateNotebook(entry, page + 1);
   const paper = $("#modal .panel");
   paper.classList.add("notebook-paper");
   if (direction && !reducedMotion)
@@ -595,6 +614,13 @@ function showHat(id: HatId) {
     ],
   );
 }
+function beginBedPlacement() {
+  close();
+  placingBed = true;
+  toast(
+    "Walk to a clear spot around your house. E places the bed; Escape cancels. Green means it fits.",
+  );
+}
 function bag() {
   const items = [
     {
@@ -636,13 +662,13 @@ function bag() {
     {
       id: "fertilizer",
       label: "Fertilizer",
-      value: `${s.fertilizer} ${s.fertilizer === 1 ? "application" : "applications"}`,
+      value: `${s.fertilizer} ${s.fertilizer === 1 ? "dose" : "doses"}`,
       available: s.fertilizer > 0,
     },
   ];
   panel(
     "Your bag",
-    `<div class="inventory-grid">${items.map((item) => `<div class="inventory-card ${item.available ? "" : "empty"}" data-item="${item.id}">${inventoryIcon(item.id)}<span>${item.label}</span><b>${item.value}</b></div>`).join("")}</div><div class="hat-bag">${s.hats.map((id) => `<button type="button" data-hat="${id}"><img src="${hatPortrait(id)}" alt=""><span>${hatById(id)!.name}</span><small>${hatById(id)!.power}</small><b>${wearing(s, id) ? "Wearing" : "Equip"}</b></button>`).join("")}</div>`,
+    `<div class="inventory-grid">${items.map((item) => `<${item.id === "bed" ? 'button type="button"' : "div"} class="inventory-card ${item.available ? "" : "empty"}" data-item="${item.id}" ${item.id === "bed" ? `aria-label="Place a garden bed from your bag" ${item.available ? "" : "disabled"}` : ""}>${inventoryIcon(item.id)}<span>${item.label}</span><b>${item.value}</b>${item.id === "bed" && item.available ? "<small>Click to place</small>" : ""}</${item.id === "bed" ? "button" : "div"}>`).join("")}</div><div class="hat-bag">${s.hats.map((id) => `<button type="button" data-hat="${id}"><img src="${hatPortrait(id)}" alt=""><span>${hatById(id)!.name}</span><small>${hatById(id)!.power}</small><b>${wearing(s, id) ? "Wearing" : "Equip"}</b></button>`).join("")}</div>`,
     [
       ...(s.equippedHat
         ? [
@@ -660,13 +686,7 @@ function bag() {
         ? [
             {
               label: "Place a garden bed",
-              run: () => {
-                close();
-                placingBed = true;
-                toast(
-                  "Walk to a clear spot around your house. E places the bed; Escape cancels. Green means it fits.",
-                );
-              },
+              run: beginBedPlacement,
             },
           ]
         : []),
@@ -675,6 +695,9 @@ function bag() {
     "YOUR LITTLE COLLECTION",
   );
   if (s.hats.length) $("#modal .panel").classList.add("inventory-panel");
+  const bedCard =
+    document.querySelector<HTMLButtonElement>('[data-item="bed"]');
+  if (bedCard) bedCard.onclick = beginBedPlacement;
   document.querySelectorAll<HTMLButtonElement>("[data-hat]").forEach(
     (b) =>
       (b.onclick = () => {
@@ -761,12 +784,12 @@ function shop(item: "seeds" | "can" | "shovel" | "fertilizer") {
       seeds: "Five mysterious seeds",
       can: "Watering can",
       shovel: "Shovel",
-      fertilizer: "Fertilizer · one application",
+      fertilizer: "Fertilizer · five doses",
     },
     prices = { seeds: 200, can: 100, shovel: 100, fertilizer: 500 };
   panel(
     names[item],
-    `<p>${item === "seeds" ? "“That'll be $2.” Robertson slides a little paper bag across the counter." : item === "can" ? "A well-loved can. Just what a thirsty seed needs." : item === "shovel" ? "For less time digging and more time dreaming." : "One fertilizer application: faster growth and richer harvests for one tree."}</p><p>Price: <b>${money(prices[item])}</b> · You carry <b>${money(s.cash)}</b>.</p>`,
+    `<p>${item === "seeds" ? "“That'll be $2.” Robertson slides a little paper bag across the counter." : item === "can" ? "A well-loved can. Just what a thirsty seed needs." : item === "shovel" ? "For less time digging and more time dreaming." : "Five doses per box. Each dose feeds one tree for faster growth and harvests up to $9."}</p><p>Price: <b>${money(prices[item])}</b> · You carry <b>${money(s.cash)}</b>.</p>`,
     [
       {
         label: `Buy · ${money(prices[item])}`,
@@ -796,36 +819,29 @@ function shop(item: "seeds" | "can" | "shovel" | "fertilizer") {
   );
 }
 function momGreeting() {
-  const count = s.neighborChats["mom-greeting"] ?? 0;
-  s.neighborChats["mom-greeting"] = count + 1;
-  const lines = [
-    "You headed into town? OK, love you!",
-    "Heading out, sweetheart? Tell me about it when you get back.",
-    "Have a good walk, love. I’ll be here.",
-    "Off exploring again? Love you. See you soon.",
-  ];
+  const line = neighborLine(s, "mom-out").slice(1, -1);
   const reminder =
     s.cash === 0 && s.bank > 0
       ? " Take some money with you. I think you've got some in your piggy bank."
       : "";
-  return `“${lines[count % lines.length]}${reminder}”`;
+  return `“${line}${reminder}”`;
 }
 function robertson() {
   visit("Visited Ol’ Man Robertson at the store.");
   s.metRobertson = true;
+  const greeting = neighborLine(s, "robertson");
   save();
   speak(
     "robertson",
-    s.boughtSeeds
-      ? `<p>“How’s the garden going? Those trees wither after you pick their bills. You’ll need fresh seeds.”</p><p>“I’ve no more to sell you. Go find some yourself! Try the haberdasher’s — check the brim of a cap.”</p><p class="fine">“Fertilizer’s still $5. Take a look around.”</p>`
-      : `<p>“Well, look who it is! Lovely day for a little dirt under your nails.”</p>${s.cash === 0 ? "<p>“No money with you? Head back home and check your piggy bank. You might have some saved in there.”</p>" : ""}<p>“How’s the garden going? You still looking to buy some seeds?”</p><p class="fine">Watering can $1 · Shovel $1 · Fertilizer $5</p>`,
+    `<p>${greeting}</p>` +
+      (s.boughtSeeds
+        ? `<p>“How’s the garden going? Those trees wither after you pick their bills. You’ll need fresh seeds.”</p><p>“I’ve no more to sell you. Go find some yourself! ${seedSearchHint(s)}”</p><p class="fine">“Fertilizer’s still $5. Take a look around.”</p>`
+        : `${s.cash === 0 ? "<p>“No money with you? Head back home and check your piggy bank. You might have some saved in there.”</p>" : ""}<p>“How’s the garden going? You still looking to buy some seeds?”</p><p class="fine">Watering can $1 · Shovel $1 · Fertilizer $5</p>`),
     [
       ...(!s.boughtSeeds
         ? [{ label: "Yes, seeds please · $2", run: () => shop("seeds") }]
         : []),
-      { label: "Garden bed · $30", run: () => gardenSupply("bed") },
-      { label: "Soil for one bed · $10", run: () => gardenSupply("soil") },
-      { label: "Look around", run: dismissSpeech },
+      { label: "Look around", default: !!s.boughtSeeds, run: dismissSpeech },
       ...(!s.can && s.cash + s.bank < 100 && !s.recovered
         ? [
             {
@@ -880,19 +896,30 @@ const bedGhost = new T.Mesh(
 );
 bedGhost.visible = false;
 scene.add(bedGhost);
-const bedPosition = () => ({
-  x: Math.round((s.position.x - Math.sin(yaw) * 2.5) * 4) / 4,
-  z: Math.round((s.position.z - Math.cos(yaw) * 2.5) * 4) / 4,
-});
+function viewForward() {
+  const direction = cameraAim.clone().sub(camera.position);
+  direction.y = 0;
+  return direction.lengthSq() > 0.001
+    ? direction.normalize()
+    : new T.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+}
+const bedPosition = () => {
+  const direction = viewForward();
+  return {
+    x: Math.round((s.position.x + direction.x * 2.5) * 4) / 4,
+    z: Math.round((s.position.z + direction.z * 2.5) * 4) / 4,
+  };
+};
+
 const bedObstacles = () =>
   world.rects.concat(world.paths, world.doorways, [
     { x: -15, z: 6, w: 12, d: 16 },
-    { x: -25, z: 2, w: 8, d: 8 },
+    { x: -5, z: 10, w: 8, d: 8 },
   ]);
 function pauseMenu() {
   panel(
     "Take a little breather",
-    `<p>Day ${s.day} · Your progress saves automatically.</p><p class="fine">WASD to walk. Click the game to capture the mouse and look around; left/right arrows turn; up/down arrows tilt the camera. Hold Shift to run. Escape releases the mouse. E interacts. J opens the notebook. I opens your bag.<br>Growth pauses while menus are open or the tab is hidden.</p>`,
+    `<p>Day ${s.day} · Your progress saves automatically.</p><p class="fine">WASD to walk. Click the game to capture the mouse and look around; left/right arrows turn; up/down arrows tilt the camera. Hold Shift to run. Q dodge-rolls. With Spring Hare equipped, Space jumps over beds and hedges. Escape releases the mouse. E interacts. J opens the notebook. I opens your bag.<br>Growth pauses while menus are open or the tab is hidden.</p>`,
     [
       { label: "Keep playing", run: close },
       ...(s.awake
@@ -900,7 +927,7 @@ function pauseMenu() {
             {
               label: "I'm stuck — return home",
               run: () => {
-                action = undefined;
+                resetTransientMotion();
                 sitting = false;
                 world.setPlayerSeated(false);
                 s.position = { x: -16, z: 4 };
@@ -976,13 +1003,14 @@ function pauseMenu() {
             world.player.userData.farewell = false;
 
             s = next;
+            resetTransientMotion();
             wasHome = atHome();
             visitedOutside = s.awake && !wasHome;
             if (
               blocked(s.position.x, s.position.z, world.rects) ||
               Math.abs(s.position.x) > 38 ||
               s.position.z > 38 ||
-              s.position.z < (s.foundTVSeeds ? -84 : -39)
+              s.position.z < (s.foundTVSeeds ? -89 : -39)
             )
               s.position = { x: -16, z: 4 };
             plotVersions.length = 0;
@@ -1009,6 +1037,7 @@ function pauseMenu() {
                   world.player.userData.farewell = false;
 
                   s = fresh();
+                  resetTransientMotion();
                   sitting = false;
                   world.setPlayerSeated(false);
                   wasHome = true;
@@ -1107,8 +1136,25 @@ function coinMenu() {
     q = marketSignals(s);
   panel(
     `${escapeHTML(c.name)} coin`,
-    `<p>Chad’s coin price: ${money(c.price)}. Your holding: ${money(coinValue(s))} (${(c.units / 1e6).toFixed(4)} coins).</p><p>Invested so far: ${money(c.invested)}. Pocket: ${money(s.cash)}.</p><p>Price moves every 15 seconds of game time, with random swings and small effects from earnings, savings, Mom’s health, conversations, growing trees and good-day streaks. It can fall.</p><p>Current signals: ${money(q.earned)} earned, ${money(q.saved)} saved, ${q.neighbors} neighbors met, ${q.trees} trees growing, Mom has a ${q.health ? "good" : "tired"} day, longest good streak ${q.longestGoodStreak}.</p><label>Investment amount $ <input id="coin-amount" inputmode="decimal" value="1.00"></label><p id="coin-error" role="status"></p>`,
+    `<p>Chad’s coin price: ${money(c.price)}. Your holding: ${money(coinValue(s))} (${(c.units / 1e6).toFixed(4)} coins).</p><p>Invested so far: ${money(c.invested)}. Pocket: ${money(s.cash)}.</p><p>Price moves every 15 seconds of game time, with random swings and small effects from earnings, savings, Mom’s health, conversations, growing trees and good-day streaks. It can fall.</p><p>Current signals: ${money(q.earned)} earned, ${money(q.saved)} saved, ${q.neighbors} neighbors met, ${q.trees} trees growing, Mom has a ${q.health ? "good" : "tired"} day, longest good streak ${q.longestGoodStreak}.</p><label>Investment amount $ <input id="coin-amount" inputmode="decimal" value="1.00"></label><label>Sale amount $ <input id="coin-sell-amount" inputmode="decimal" value="1.00"></label><p id="coin-error" role="status"></p>`,
     [
+      {
+        label: "Sell this amount",
+        destructive: true,
+        disabled: !c.units,
+        run: () => {
+          const amount = parseAmount(
+            ($("#coin-sell-amount") as HTMLInputElement).value,
+          );
+          if (amount === null || !sellCoin(s, amount)) {
+            $("#coin-error").textContent =
+              "Enter an amount within your coin holding.";
+            return;
+          }
+          save();
+          coinMenu();
+        },
+      },
       {
         label: "Invest this amount",
         destructive: true,
@@ -1157,8 +1203,166 @@ function updateCoinTracker() {
     coinTracker.innerHTML += `<br>${drinks.find((d) => d.id === s.drink!.id)!.name}: ${Math.ceil(s.drink.remaining)}s`;
 }
 
+function stacyConversation() {
+  s.metStacy = true;
+  save();
+  const count = s.stacyConversations ?? 0;
+  if (count >= 10) {
+    if (s.foundStacySeeds)
+      return speak(
+        "stacy",
+        "<p>“Good to see you, honey. I hope your mom’s havin’ a gentler day.”</p>",
+        [{ label: "Thanks, Stacy", run: dismissSpeech }],
+      );
+    return speak(
+      "stacy",
+      "<p>“Thanks for bein’ such a good conversationalist, honey. Say, do you do tree?”</p>",
+      [
+        {
+          label: "What do you mean, do tree?",
+          run: () => {
+            if (!s.foundStacySeeds) {
+              s.foundStacySeeds = true;
+              s.seeds += 5;
+              visit(
+                "Stacy thanked me for listening to her story and gave me five money seeds.",
+              );
+              save();
+            }
+            speak(
+              "stacy",
+              `<p>“You know. They say it makes ${escapeHTML(s.coin?.name ?? "your coin")} go up and to the right.”</p><p>She hands me a packet of money seeds.</p>`,
+              [
+                {
+                  label: "Thanks for telling me your story",
+                  run: dismissSpeech,
+                },
+              ],
+            );
+          },
+        },
+      ],
+    );
+  }
+  const chapter = stacyStory[count];
+  speak(
+    "stacy",
+    count === 0
+      ? "<p>“Hey, darlin’. I’m Stacy around here. Pull up a chair. There’s more to a person than one little joke.”</p><p class='fine'>Stacy is a fictional parody. Her dialogue is imagined.</p>"
+      : "<p>“What else would you like to know, honey?”</p>",
+    [
+      {
+        label: chapter.question,
+        run: () => {
+          s.stacyConversations = count + 1;
+          visit(`Asked Stacy: ${chapter.question}`);
+          save();
+          speak("stacy", `<p>“${escapeHTML(chapter.answer)}”</p>`, [
+            {
+              label:
+                count === 9
+                  ? "Thanks for sharing that with me"
+                  : "I’d like to hear more",
+              run: stacyConversation,
+            },
+            { label: "I’ll come back and hear the rest", run: dismissSpeech },
+          ]);
+        },
+      },
+      { label: "Maybe another time", run: dismissSpeech },
+    ],
+  );
+}
+let pepeGreeted = false,
+  pepeViewHold = 0,
+  pepeReturning = false;
+function pepeConversation(step = 0) {
+  const lines = [
+    "Is inflation in our world a good thing or not a good thing?",
+    "Inflation. Would you say that’s a good thing, or not a good thing?",
+    "Okay, okay. What kind of fun are we going to have today?",
+    "Abracadabra, one, two three... now it’s time to see what we see!",
+  ];
+  const replies = [
+    "...",
+    "Um... I guess it depends? I’m not sure...",
+    "Lots of fun?",
+    "Let’s see!",
+  ];
+  speak("pepe-show", `<p>“${lines[step]}”</p>`, [
+    {
+      label: replies[step],
+      run: () => {
+        if (step < 3) pepeConversation(step + 1);
+        else {
+          dismissSpeech();
+          enableBalloonAudio();
+          if (startPepeShow(s)) save();
+        }
+      },
+    },
+  ]);
+}
+let meditationTime = 0,
+  dogeGreeted = false;
+const meditationChants = [
+  "Om. Compound calmly.",
+  "Breathe in. Grind out.",
+  "May all beings find peace. And passive income.",
+  "No thoughts. Only long-term holdings.",
+  "Om. The lone wolf has diversified.",
+  "Let go of attachment. Keep the receipts.",
+];
+function offerMeditation() {
+  speak("doge-meditator-0", "<p>“Shh. Sit down and join the meditation.”</p>", [
+    {
+      label: "Sit down",
+      run: () => {
+        dismissSpeech();
+        if (s.cash < 300) {
+          toast("Chad whispers that you need $3 in your pocket to join.");
+          return;
+        }
+        sitting = true;
+        world.setPlayerSeated(true);
+        s.position = { x: -18, z: -47 };
+        meditationTime = 30;
+        toast(meditationChants[0]);
+      },
+    },
+    { label: "Maybe later", run: dismissSpeech },
+  ]);
+}
+function finishMeditation() {
+  sitting = false;
+  world.setPlayerSeated(false);
+  s.position = { x: -18, z: -45.7 };
+  if (s.foundMeditationSeeds) return;
+  s.cash -= 300;
+  s.seeds += 5;
+  s.foundMeditationSeeds = true;
+  visit(
+    "Joined the Chads for thirty seconds of meditation in Doge. They charged $3.00 afterward and gave me five money seeds.",
+  );
+  save();
+  speak(
+    "doge-meditator-0",
+    "<p>“That’s $3 for the meditation. You did a great job. I found this crazy new drug. You’ve got to try it.”</p><p>He hands me a packet of seeds.</p>",
+    [
+      {
+        label: "Have you really been snorting this shit?",
+        run: () =>
+          speak(
+            "doge-meditator-0",
+            `<p>“For sure, man. Since I started snorting it, ${escapeHTML(s.coin?.name ?? "my coin")} has been all up and to the right.”</p>`,
+            [{ label: "Well thanks man", run: dismissSpeech }],
+          ),
+      },
+    ],
+  );
+}
 function interact() {
-  if (!begun || paused || action) return;
+  if (!begun || paused || action || meditationTime > 0) return;
   if (!s.awake) {
     s.awake = true;
     s.position = { x: -16, z: 4 };
@@ -1208,6 +1412,39 @@ function interact() {
     toast("The dollar drops in. Nothing happens.");
     return;
   }
+  if (id === "meditate" || id.startsWith("doge-meditator-")) {
+    if (s.foundMeditationSeeds)
+      return speak(
+        "doge-meditator-0",
+        "<p>“Quiet gains, brother. Quiet gains.”</p>",
+        [{ label: "I’ll leave you to it", run: dismissSpeech }],
+      );
+    return offerMeditation();
+  }
+  if (id === "pepe-door")
+    return toast(
+      canEnterPepe(s)
+        ? "Pepe’s door is open."
+        : "Meet Stacy and finish the Doge meditation to enter Pepe.",
+    );
+  if (id === "pepe-show") {
+    if (!canEnterPepe(s)) return;
+    if (s.pepeShowStarted)
+      return toast(
+        s.pepePopped
+          ? "Seed packets are scattered all around Sigma Town!"
+          : "That balloon is still getting bigger...",
+      );
+    return pepeConversation();
+  }
+  if (id.startsWith("pepe-seed-")) {
+    if (collectPepePacket(s, Number(id.slice(10)))) {
+      save();
+      toast("Five money seeds! There are more packets scattered around Sigma.");
+    }
+    return;
+  }
+  if (id === "stacy") return stacyConversation();
   if (id === "grindset") return grindset();
   if (id.startsWith("sigma-chad-")) {
     visit("Stopped to talk with Chad in Sigma Town.");
@@ -1225,6 +1462,8 @@ function interact() {
   }
   if (id === "bank") return bank();
   if (id === "robertson") return robertson();
+  if (id === "garden-bed") return gardenSupply("bed");
+  if (id === "garden-soil") return gardenSupply("soil");
   if (["can", "shovel", "fertilizer"].includes(id))
     return shop(id as "can" | "shovel" | "fertilizer");
   if (id === "bed")
@@ -1296,7 +1535,9 @@ function interact() {
     ],
     haberdashery: [
       "Thread & Thimble",
-      "“Try the hats on the stands! Each has a little talent of its own. The green cap has a curious brim…”",
+      s.foundCapSeeds
+        ? "“Try the hats on the stands! Each has a little talent of its own.”"
+        : "“Try the hats on the stands! Each has a little talent of its own. The green cap has a curious brim…”",
     ],
     bicycle: [
       "Spoke & Saddle",
@@ -1305,7 +1546,7 @@ function interact() {
   };
   if (dialogue[id]) {
     visit(`Stopped to talk with ${dialogue[id][0]}.`);
-    const line = id.startsWith("npc") ? neighborLine(s, id) : dialogue[id][1];
+    const line = neighborLine(s, id) || dialogue[id][1];
     save();
     return speak(id, `<p>${line}</p>`, [
       { label: "See you around", run: dismissSpeech },
@@ -1328,7 +1569,7 @@ function interact() {
       if (!s.seeds)
         return toast(
           s.boughtSeeds
-            ? "You need fresh seeds. Try looking around the haberdashery."
+            ? `You need fresh seeds. ${seedSearchHint(s)}`
             : "You need seeds. Robertson sells five for $2.",
         );
       action = {
@@ -1337,7 +1578,15 @@ function interact() {
         duration: plantingSeconds(s),
         origin: { ...s.position },
       };
-      toast(`Digging… Stand still for ${plantingSeconds(s)} seconds to plant.`);
+      world.player.rotation.y = Math.atan2(
+        (p.x ?? -20 + i * 2) - s.position.x,
+        (p.z ?? 19) - s.position.z,
+      );
+      toast(
+        s.shovel
+          ? `Digging… Stand still for ${plantingSeconds(s)} seconds to plant.`
+          : "Digging by hand takes 7 seconds. A $1 shovel from Robertsons cuts it to 2 seconds. Stand still to plant.",
+      );
     } else if (p.stage === "ready") {
       const n = harvest(s, i);
       save();
@@ -1361,7 +1610,7 @@ function interact() {
       save();
       toast(
         s.fertilizer && !p.fertilized
-          ? "Watered! Press E to add fertilizer (one application)."
+          ? "Watered! Press E to add fertilizer (one dose)."
           : "A splash of water… something stirs beneath the soil.",
       );
     }
@@ -1406,6 +1655,7 @@ $("#new-game").onclick = () => {
           world.player.userData.farewell = false;
 
           s = fresh();
+          resetTransientMotion();
           sitting = false;
           world.setPlayerSeated(false);
           wasHome = true;
@@ -1491,17 +1741,29 @@ addEventListener("keydown", (e) => {
     return;
   }
   if (!begun) return;
+  if ((s.pepeShowStarted && !s.pepePopped) || pepeViewHold > 0) return;
   if (
     key === " " &&
     s.awake &&
     !sitting &&
     wearing(s, "rabbit") &&
     jumpHeight === 0 &&
+    rollTime <= 0 &&
     !action
   ) {
-    jumpVelocity = 5.5;
+    jumpVelocity = 10;
     noteHatPower(s, "to jump", "rabbit");
-  } else if (key === "e") {
+  } else if (
+    key === "q" &&
+    s.awake &&
+    !sitting &&
+    jumpHeight === 0 &&
+    rollCooldown <= 0
+  ) {
+    rollDirection.copy(viewForward());
+    rollTime = 0.45;
+    rollCooldown = 1.1;
+  } else if (key === "e" && rollTime <= 0) {
     if (placingBed) {
       const p = bedPosition();
       if (placeGardenBed(s, p.x, p.z, bedObstacles())) {
@@ -1523,7 +1785,7 @@ addEventListener("keydown", (e) => {
       return;
     }
     const choice = speaking?.element.querySelector<HTMLButtonElement>(
-      ".choices button:not(:disabled)",
+      '.choices button[data-safe-default="true"]:not(:disabled)',
     );
     const speaker = world.speakers.find((n) => n.id === speaking?.id);
     const closeEnough =
@@ -1532,14 +1794,12 @@ addEventListener("keydown", (e) => {
         speaker.object.position.x - s.position.x,
         speaker.object.position.z - s.position.z,
       ) < 8;
-    if (
-      choice &&
-      choice.dataset.safeDefault === "true" &&
-      closeEnough &&
-      !speaking!.id.startsWith("npc")
-    )
+    if (choice && choice.dataset.safeDefault === "true" && closeEnough)
       choice.click();
-    else interact();
+    else if (speaking && closeEnough) {
+      if (!choice && !speaking.element.querySelector(".choices"))
+        dismissSpeech();
+    } else interact();
   } else if (key === "j") notebook();
   else if (key === "i") bag();
   else keys.add(key);
@@ -1556,6 +1816,50 @@ document.addEventListener("visibilitychange", () => {
 });
 let jumpHeight = 0,
   jumpVelocity = 0;
+let rollTime = 0,
+  rollCooldown = 0;
+const rollDirection = new T.Vector3();
+let rollPose: T.Group | undefined;
+function updateRollPose() {
+  if (rollTime > 0 && !rollPose) {
+    rollPose = new T.Group();
+    rollPose.position.y = 0.9;
+    rollPose.scale.setScalar(0.65);
+    for (const child of [...world.player.children]) {
+      child.position.y -= 1;
+      rollPose.add(child);
+    }
+    world.player.add(rollPose);
+  }
+  if (rollPose && rollTime > 0)
+    rollPose.rotation.x = reducedMotion
+      ? -0.5
+      : -(1 - rollTime / 0.45) * Math.PI * 2;
+  if (rollPose && rollTime <= 0) {
+    for (const child of [...rollPose.children]) {
+      child.position.y += 1;
+      world.player.add(child);
+    }
+    world.player.remove(rollPose);
+    rollPose = undefined;
+  }
+}
+function resetTransientMotion() {
+  action = undefined;
+  pepeViewHold = 0;
+  pepeReturning = false;
+  pepeGreeted = false;
+  dogeGreeted = false;
+  meditationTime = 0;
+  rollTime = 0;
+  rollCooldown = 0;
+  jumpHeight = 0;
+  jumpVelocity = 0;
+  updateRollPose();
+  sitting = false;
+  world.setPlayerSeated(false);
+  keys.clear();
+}
 let dragging = false,
   intentionalUnlock = false,
   wasMouseCaptured = false;
@@ -1612,6 +1916,7 @@ addEventListener("pointermove", (e) => {
     s.awake &&
     (document.pointerLockElement === $("#world") || dragging)
   ) {
+    lastLookInput = performance.now();
     yaw -= e.movementX * 0.006;
     cameraTilted = true;
     pitch = T.MathUtils.clamp(pitch + e.movementY * 0.004, 0.15, 1.1);
@@ -1622,6 +1927,23 @@ addEventListener("resize", () => {
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
 });
+function interactionPoint(t: Target) {
+  if (!t.id.startsWith("plot")) return t;
+  const bed = world.plots[+t.id.slice(4)].position;
+  return {
+    x: T.MathUtils.clamp(s.position.x, bed.x - 0.8, bed.x + 0.8),
+    z: T.MathUtils.clamp(s.position.z, bed.z - 1.5, bed.z + 1.5),
+  };
+}
+function targetDistance(t: Target) {
+  const point = interactionPoint(t);
+  return Math.hypot(s.position.x - point.x, s.position.z - point.z);
+}
+function targetScore(t: Target) {
+  const ready =
+    t.id.startsWith("plot") && s.plots[+t.id.slice(4)].stage === "ready";
+  return targetDistance(t) - (ready ? 0.35 : 0);
+}
 function selectTarget() {
   const { x, z } = s.position;
   return world.targets
@@ -1637,18 +1959,20 @@ function selectTarget() {
           (!!s.foundForestSeeds && !s.foundStoreSeeds)) &&
         (t.id !== "garden-seeds" ||
           (!!s.foundStoreSeeds && !s.foundGardenSeeds)) &&
+        (!t.id.startsWith("pepe-seed-") ||
+          (!!s.pepePopped &&
+            !s.pepePackets?.includes(Number(t.id.slice(10))))) &&
+        (t.id !== "pepe-door" || !canEnterPepe(s)) &&
         (t.id !== "tv-seeds" || (!!s.foundGardenSeeds && !s.foundTVSeeds)) &&
-        Math.hypot(x - t.x, z - t.z) <
+        targetDistance(t) <
           (wearing(s, "lantern") || buff(s, "reach") ? 3 : 2.1) &&
         hasSight(t),
     )
-    .sort(
-      (a, b) => Math.hypot(x - a.x, z - a.z) - Math.hypot(x - b.x, z - b.z),
-    )[0];
+    .sort((a, b) => targetScore(a) - targetScore(b))[0];
 }
 function hasSight(t: Target) {
   const a = new T.Vector3(s.position.x, 1.1, s.position.z),
-    b = new T.Vector3(t.x, 1.1, t.z),
+    b = new T.Vector3(interactionPoint(t).x, 1.1, interactionPoint(t).z),
     dir = b.sub(a),
     d = dir.length();
   if (d < 0.01) return true;
@@ -1677,7 +2001,7 @@ function updateUI() {
             .map((id) => hatById(id)!.name)
             .join(
               " + ",
-            )}${wearing(s, "rabbit") ? " · Space to jump" : ""}</span>`
+            )} · Q to roll${wearing(s, "rabbit") ? " · Space to jump" : ""}</span>`
         : ""
     }`;
   let objective = "Visit Ol’ Man Robertson",
@@ -1746,7 +2070,7 @@ function updateUI() {
         ? "Home, sweet home"
         : x < -8 && x > -23 && z >= 14 && z < 24
           ? "Your little garden"
-          : z < -22 && x > 2 && x < 14
+          : z < -22 && x > 0 && x < 16
             ? "Robertsons"
             : z < -23 && z > -35 && x > 18 && x < 30
               ? "Thread & Thimble"
@@ -1768,7 +2092,7 @@ function updateUI() {
         (p.stage === "planted" && !s.can);
       label = ["empty", "harvested"].includes(p.stage)
         ? s.seeds
-          ? `Plant seeds · stand still (${s.shovel ? 2 : 8}s)`
+          ? `Plant seeds · stand still (${s.shovel ? 2 : 7}s)`
           : "Plant seeds (need seeds)"
         : p.stage === "ready"
           ? "Harvest money tree"
@@ -1786,15 +2110,24 @@ function updateUI() {
         unavailable = !s.soilBags;
       }
     }
-    prompt = `<kbd>E</kbd> ${label}`;
+    prompt = label.startsWith("Growing ·") ? label : `<kbd>E</kbd> ${label}`;
   }
   if (placingBed)
     prompt = canPlaceBed(s, bedPosition().x, bedPosition().z, bedObstacles())
       ? "<kbd>E</kbd> Place garden bed · Escape cancels"
       : "Find clear ground on your property · Escape cancels";
-  if (sitting) prompt = "<kbd>E</kbd> Stand up";
+  if (sitting)
+    prompt =
+      meditationTime > 0
+        ? `Meditating · ${Math.ceil(meditationTime)}s`
+        : "<kbd>E</kbd> Stand up";
+  if ((s.pepeShowStarted && !s.pepePopped) || pepeViewHold > 0)
+    prompt = s.pepePopped
+      ? "Seed packets are falling!"
+      : `Pepe is inflating · ${Math.ceil(12 - (s.pepeInflation ?? 0))}s`;
   $("#prompt").innerHTML = prompt;
   $("#prompt").classList.toggle("unavailable", unavailable);
+  $("#prompt").classList.toggle("seated", sitting);
   $("#prompt").setAttribute("aria-disabled", String(unavailable));
   $("#progress").hidden = !action;
   if (action)
@@ -1859,7 +2192,7 @@ function frame(now: number) {
     s.position = clearPosition(
       s.position,
       world.rects,
-      s.foundTVSeeds ? -84 : -39,
+      s.foundTVSeeds ? -89 : -39,
     );
   const distanceToRoom = (
     left: number,
@@ -1873,7 +2206,7 @@ function frame(now: number) {
     );
   const homeDistance = Math.min(
     distanceToRoom(-21, -9, -2, 14),
-    distanceToRoom(-29, -21, -2, 6),
+    distanceToRoom(-9, -1, 6, 14),
   );
   const wantedRoof = begun ? Math.min(1, homeDistance / 1.2) : 1;
   const roofMaterial = world.homeRoof.material as T.MeshStandardMaterial;
@@ -1890,8 +2223,77 @@ function frame(now: number) {
     if (roofIndex < 0) world.occluders.push(world.homeRoof);
   } else if (roofIndex >= 0) world.occluders.splice(roofIndex, 1);
   const active = begun && !paused && !document.hidden;
+  const balloonView =
+    !!s.pepeShowStarted && (!s.pepePopped || pepeViewHold > 0);
+  const fog = scene.fog as T.Fog;
+  fog.near += ((balloonView ? 90 : 35) - fog.near) * (1 - Math.exp(-dt * 3));
+  fog.far += ((balloonView ? 220 : 90) - fog.far) * (1 - Math.exp(-dt * 3));
+  speechLayer.style.visibility = balloonView ? "hidden" : "";
   if (active) {
     if (s.awake) {
+      pepeViewHold = Math.max(0, pepeViewHold - dt);
+      const inPepe =
+        canEnterPepe(s) &&
+        Math.abs(s.position.x + 18) < 6.5 &&
+        Math.abs(s.position.z + 65) < 6.5;
+      if (!inPepe) pepeGreeted = false;
+      if (inPepe && !pepeGreeted && !s.pepeShowStarted) {
+        pepeGreeted = true;
+        pepeConversation();
+      }
+      if (s.pepeShowStarted && !s.pepePopped) {
+        const before = s.pepeInflation ?? 0;
+        const popped = tickPepeShow(s, dt);
+        if (popped) {
+          pepeViewHold = 2.25;
+          pepeReturning = true;
+          balloonSound(true);
+          save();
+          toast(
+            "POP! Seed packets everywhere. Time to make room for more beds!",
+          );
+        } else if (Math.floor(before) !== Math.floor(s.pepeInflation ?? 0))
+          balloonSound();
+      }
+      const inDoge =
+        s.foundTVSeeds &&
+        Math.abs(s.position.x + 18) < 6.5 &&
+        s.position.z > -56 &&
+        s.position.z < -42;
+      if (!inDoge) dogeGreeted = false;
+      if (
+        inDoge &&
+        !dogeGreeted &&
+        !s.foundMeditationSeeds &&
+        meditationTime <= 0
+      ) {
+        dogeGreeted = true;
+        toast("Me: Hi, everyone!");
+        offerMeditation();
+      }
+      if (meditationTime > 0) {
+        const previous = meditationTime;
+        meditationTime = Math.max(0, meditationTime - dt);
+        if (
+          Math.floor((30 - previous) / 5) !==
+            Math.floor((30 - meditationTime) / 5) &&
+          meditationTime > 0
+        )
+          toast(
+            meditationChants[
+              Math.min(5, Math.floor((30 - meditationTime) / 5))
+            ],
+          );
+        if (meditationTime === 0) finishMeditation();
+      }
+      const searchHint = seedSearchClock.update(s, elapsed);
+      if (searchHint) toast(searchHint);
+      if (
+        ["arrowleft", "arrowright", "arrowup", "arrowdown"].some((k) =>
+          keys.has(k),
+        )
+      )
+        lastLookInput = now;
       if (keys.has("arrowleft")) yaw += dt * 1.8;
       if (keys.has("arrowright")) yaw -= dt * 1.8;
       if (keys.has("arrowup") || keys.has("arrowdown")) cameraTilted = true;
@@ -1905,34 +2307,65 @@ function frame(now: number) {
       );
       let f = (keys.has("w") ? 1 : 0) - (keys.has("s") ? 1 : 0),
         r = (keys.has("d") ? 1 : 0) - (keys.has("a") ? 1 : 0);
-      const n = sitting ? 0 : Math.hypot(f, r);
+      rollCooldown = Math.max(0, rollCooldown - dt);
+      const wasAirborne = jumpHeight > 0;
+      jumpHeight = Math.max(0, jumpHeight + jumpVelocity * dt);
+      if (jumpHeight > 0) jumpVelocity -= 13 * dt;
+      else jumpVelocity = 0;
+      const movementRects = airborneRects(world.rects, jumpHeight);
+      if (
+        wasAirborne &&
+        jumpHeight === 0 &&
+        blocked(s.position.x, s.position.z, world.rects)
+      )
+        s.position = clearPosition(
+          s.position,
+          world.rects,
+          s.foundTVSeeds ? -89 : -39,
+        );
+      const rolling = rollTime > 0;
+      const n =
+        sitting ||
+        rolling ||
+        (s.pepeShowStarted && !s.pepePopped) ||
+        pepeViewHold > 0
+          ? 0
+          : Math.hypot(f, r);
       if (n) {
         if (wearing(s, "propeller"))
           noteHatPower(s, "to get around faster", "propeller");
         f /= n;
         r /= n;
-        const dx =
-            (r * Math.cos(yaw) - f * Math.sin(yaw)) *
-            dt *
-            movementSpeed(s, keys.has("shift")),
-          dz =
-            (-r * Math.sin(yaw) - f * Math.cos(yaw)) *
-            dt *
-            movementSpeed(s, keys.has("shift"));
-        move(s.position, dx, dz, world.rects);
+        const direction = viewForward(),
+          speed = dt * movementSpeed(s, keys.has("shift"));
+        const dx = (f * direction.x - r * direction.z) * speed,
+          dz = (f * direction.z + r * direction.x) * speed;
+        move(s.position, dx, dz, movementRects);
         world.player.rotation.y = Math.atan2(dx, dz);
         walk += dt * (keys.has("shift") ? 17.5 : 10);
         world.player.position.y = reducedMotion ? 0 : Math.sin(walk) * 0.045;
-      } else world.player.position.y = sitting ? 0.69 : 0;
+      } else
+        world.player.position.y = sitting
+          ? meditationTime > 0
+            ? 0.15
+            : 0.69
+          : 0;
+      if (rolling) {
+        move(
+          s.position,
+          rollDirection.x * Math.min(dt, rollTime) * 10,
+          rollDirection.z * Math.min(dt, rollTime) * 10,
+          world.rects,
+        );
+        world.player.rotation.y = Math.atan2(rollDirection.x, rollDirection.z);
+        rollTime = Math.max(0, rollTime - dt);
+      }
       if (
         s.position.z > 17.3 &&
         s.position.z < 20.7 &&
         s.plots.some((_, i) => Math.abs(s.position.x - (-20 + i * 2)) < 0.85)
       )
         world.player.position.y += 0.29;
-      jumpHeight = Math.max(0, jumpHeight + jumpVelocity * dt);
-      if (jumpHeight > 0) jumpVelocity -= 13 * dt;
-      else jumpVelocity = 0;
       world.player.position.y += jumpHeight;
       if (action) {
         if (
@@ -1963,8 +2396,9 @@ function frame(now: number) {
       tick(s, elapsed);
       tickSigma(s, elapsed);
       const homeNow = atHome();
+      const momInside = momStatus(s.day).activity !== "garden";
       if (wasHome && !homeNow) visitedOutside = true;
-      if (!wasHome && homeNow && visitedOutside) {
+      if (!wasHome && homeNow && visitedOutside && momInside) {
         momSpoke = true;
         returnToMom();
       }
@@ -1976,7 +2410,7 @@ function frame(now: number) {
         );
         world.mom.rotation.z = Math.sin(now * 0.035) * 0.07;
       } else world.mom.rotation.z = 0;
-      if (!momSpoke && atHome() && s.position.z > 6) {
+      if (!momSpoke && atHome() && s.position.z > 6 && momInside) {
         momSpoke = true;
         s.metMom = true;
         visit("Talked with Mom before heading out.");
@@ -2005,12 +2439,26 @@ function frame(now: number) {
       saveTime = 0;
     }
   }
+  s.position.x = T.MathUtils.clamp(s.position.x, -38, 38);
+  s.position.z = T.MathUtils.clamp(
+    s.position.z,
+    s.foundTVSeeds ? -89 : -39,
+    38,
+  );
   world.player.position.x = s.position.x;
   world.player.position.z = s.position.z;
   world.player.visible = s.awake || !begun;
   world.sleeping.visible = begun && !s.awake;
   world.setSigmaUnlocked(!!s.foundTVSeeds);
   world.sigma.updateRoofs(s.position.x, s.position.z);
+  world.sigma.updatePepe(
+    canEnterPepe(s),
+    s.pepeInflation ?? 0,
+    !!s.pepePopped,
+    s.pepePackets ?? [],
+    active ? dt : 0,
+    reducedMotion,
+  );
   if (world.syncBeds(s.plots)) plotVersions.splice(5);
   while (timers.length < s.plots.length) {
     const el = document.createElement("div");
@@ -2050,7 +2498,7 @@ function frame(now: number) {
     s.position = clearPosition(
       s.position,
       world.rects,
-      s.foundTVSeeds ? -84 : -39,
+      s.foundTVSeeds ? -89 : -39,
     );
     world.player.position.set(s.position.x, 0, s.position.z);
     save();
@@ -2071,6 +2519,19 @@ function frame(now: number) {
     camera.position.set(-5, 15, 35);
     cameraAim.set(-7, 1, 10);
     camera.lookAt(cameraAim);
+  } else if (s.pepeShowStarted && (!s.pepePopped || pepeViewHold > 0)) {
+    const fraction = (s.pepeInflation ?? 0) / 12;
+    const ease = reducedMotion ? 1 : 1 - Math.exp(-dt * 4);
+    camera.position.lerp(
+      new T.Vector3(
+        18 + fraction * 32,
+        24 + fraction * 25,
+        -33 + fraction * 24,
+      ),
+      ease,
+    );
+    cameraAim.lerp(new T.Vector3(-18, 7.2, -65), ease);
+    camera.lookAt(cameraAim);
   } else if (!s.awake) {
     camera.position.set(-16.8, 3.8, 4.2);
     cameraAim.set(-19.1, 1.35, 0.75);
@@ -2079,24 +2540,33 @@ function frame(now: number) {
     const sigmaRoom = s.foundTVSeeds
       ? world.sigma.houseBounds.find(
           (h) =>
-            Math.abs(s.position.x - h.x) < 3.5 &&
-            Math.abs(s.position.z - h.z) < 3.5,
+            Math.abs(s.position.x - h.x) < h.w / 2 &&
+            Math.abs(s.position.z - h.z) < h.d / 2,
         )
       : undefined;
     const indoors =
       !!sigmaRoom ||
       atHome() ||
-      (s.position.x > 2 && s.position.x < 14 && s.position.z < -23) ||
+      (s.position.x > 0 &&
+        s.position.x < 16 &&
+        s.position.z < -23 &&
+        s.position.z > -39) ||
       inHatShop;
-    const wantedAngle =
-      indoors && !cameraTilted ? Math.max(0.95, pitch) : pitch;
-    const easing = reducedMotion ? 1 : 1 - Math.exp(-dt * 6);
+    const wantedAngle = indoors ? Math.max(0.65, pitch) : pitch;
+    const easing = reducedMotion
+      ? 1
+      : 1 - Math.exp(-dt * (now - lastLookInput < 500 ? 16 : 6));
     followAngle += (wantedAngle - followAngle) * easing;
     const angle = followAngle;
     const target = new T.Vector3(
         s.position.x,
         1.4 + jumpHeight * 0.7,
-        s.position.z,
+        s.position.z -
+          (speaking?.id.startsWith("doge-meditator-") ||
+          speaking?.id === "pepe-show" ||
+          meditationTime > 0
+            ? 3
+            : 0),
       ),
       desired = target
         .clone()
@@ -2130,52 +2600,68 @@ function frame(now: number) {
       // Aim inside the building and lift above its walls before moving inward.
       const bounds = sigmaRoom
         ? [
-            sigmaRoom.x - 2.9,
-            sigmaRoom.x + 2.9,
-            sigmaRoom.z - 2.9,
-            sigmaRoom.z + 2.9,
+            sigmaRoom.x - sigmaRoom.w / 2 + 0.6,
+            sigmaRoom.x + sigmaRoom.w / 2 - 0.6,
+            sigmaRoom.z - sigmaRoom.d / 2 + 0.6,
+            sigmaRoom.z + sigmaRoom.d / 2 - 0.6,
           ]
         : inHatShop
           ? [18.6, 29.4, -35.4, -22.6]
-          : s.position.x > 2
-            ? [2.6, 13.4, -35.4, -23.6]
-            : s.position.x < -21
-              ? [-28.4, -21.6, -1.4, 5.4]
+          : s.position.x > 0
+            ? [0.6, 15.4, -38.4, -23.6]
+            : s.position.x > -9
+              ? [-8.4, -1.6, 6.6, 13.4]
               : s.position.z < 6
                 ? [-20.4, -9.6, -1.4, 5.4]
                 : [-20.4, -9.6, 6.6, 13.4];
       ideal.set(
         T.MathUtils.clamp(desired.x, bounds[0], bounds[1]),
-        Math.max(desired.y, 5.2),
+        Math.max(desired.y, sigmaRoom ? 8.2 : 5.2),
         T.MathUtils.clamp(desired.z, bounds[2], bounds[3]),
       );
-      if (Math.hypot(ideal.x - target.x, ideal.z - target.z) < 2.8) {
-        const alternatives = [
-          yaw + Math.PI / 2,
-          yaw - Math.PI / 2,
-          yaw + Math.PI,
-        ].map(
-          (a) =>
-            new T.Vector3(
-              T.MathUtils.clamp(
-                target.x + Math.sin(a) * 3.5,
-                bounds[0],
-                bounds[1],
-              ),
-              ideal.y,
-              T.MathUtils.clamp(
-                target.z + Math.cos(a) * 3.5,
-                bounds[2],
-                bounds[3],
-              ),
-            ),
+      // A continuous pull toward the room center replaces abrupt 90-degree corner swaps.
+      const wallClearance = Math.min(
+        target.x - bounds[0],
+        bounds[1] - target.x,
+        target.z - bounds[2],
+        bounds[3] - target.z,
+      );
+      const pull = (1 - T.MathUtils.smoothstep(wallClearance, 0.2, 1.8)) * 0.5;
+      ideal.x = T.MathUtils.lerp(ideal.x, (bounds[0] + bounds[1]) / 2, pull);
+      ideal.z = T.MathUtils.lerp(ideal.z, (bounds[2] + bounds[3]) / 2, pull);
+      // Keep a useful oblique view when a wall would put the camera directly overhead.
+      const horizontal = Math.hypot(ideal.x - target.x, ideal.z - target.z);
+      if (horizontal < 3) {
+        const inward = new T.Vector3(
+          (bounds[0] + bounds[1]) / 2 - target.x,
+          0,
+          (bounds[2] + bounds[3]) / 2 - target.z,
         );
-        alternatives.sort(
-          (a, b) =>
-            Math.hypot(b.x - target.x, b.z - target.z) -
-            Math.hypot(a.x - target.x, a.z - target.z),
-        );
-        ideal.copy(alternatives[0]);
+        if (inward.lengthSq() > 0.01) {
+          inward.normalize().multiplyScalar(3.5).add(target);
+          const blend = 1 - T.MathUtils.smoothstep(horizontal, 1.2, 3);
+          ideal.x = T.MathUtils.lerp(
+            ideal.x,
+            T.MathUtils.clamp(inward.x, bounds[0], bounds[1]),
+            blend,
+          );
+          ideal.z = T.MathUtils.lerp(
+            ideal.z,
+            T.MathUtils.clamp(inward.z, bounds[2], bounds[3]),
+            blend,
+          );
+        }
+      }
+      if (sigmaRoom) {
+        // A tall meme building allows an elevated outside-wall camera while looking inward.
+        ideal.x = desired.x;
+        ideal.z = desired.z;
+        ideal.y = Math.max(desired.y, 8.2);
+      }
+      // Lift first, then travel across walls. The camera never rides a wall face.
+      if (!reducedMotion && camera.position.y < (sigmaRoom ? 6.6 : 4.1)) {
+        ideal.x = camera.position.x;
+        ideal.z = camera.position.z;
       }
     }
     // Gradually lift above nearby obstacles instead of switching to a top-down view.
@@ -2192,14 +2678,28 @@ function frame(now: number) {
         : upLength;
       ideal.lerp(target.clone().addScaledVector(up, clear), 1 - overhead);
     }
-    const next = camera.position.clone().lerp(ideal, easing);
+    if (pepeReturning && camera.position.distanceTo(target) < 12)
+      pepeReturning = false;
+    const cameraJump =
+      camera.position.distanceTo(target) > 20 && !pepeReturning;
+    const next = cameraJump
+      ? ideal.clone()
+      : camera.position.clone().lerp(ideal, easing);
+    if (
+      !reducedMotion &&
+      (camera.position.distanceTo(target) < 20 || pepeReturning)
+    ) {
+      const travel = next.clone().sub(camera.position);
+      if (travel.length() > dt * 12)
+        next.copy(camera.position).add(travel.setLength(dt * 12));
+    }
     // Sweep the camera itself and slide along obstacles. Clamping the sightline
     // back toward the player would cause a sudden zoom under doorway lintels.
     const bounds = world.occluders.map((o) => {
       o.updateWorldMatrix(true, false);
       return new T.Box3().setFromObject(o).expandByScalar(0.14);
     });
-    for (let pass = 0; pass < 3; pass++)
+    for (let pass = 0; !cameraJump && pass < 3; pass++)
       for (const box of bounds) {
         const step = next.clone().sub(camera.position),
           length = step.length();
@@ -2244,10 +2744,14 @@ function frame(now: number) {
         }
       }
     camera.position.copy(next);
-    cameraAim.lerp(target, easing);
+    if (cameraJump) cameraAim.copy(target);
+    else cameraAim.lerp(target, easing);
     camera.lookAt(cameraAim);
   }
 
+  world.updateCartoon(reducedMotion ? 0 : now / 1000);
+  world.setDigging(!!action, !!s.shovel, action?.elapsed ?? 0);
+  updateRollPose();
   for (let i = 0; i < s.plots.length; i++) {
     const p = s.plots[i],
       el = timers[i];
@@ -2424,6 +2928,14 @@ if (new URLSearchParams(location.search).has("test")) {
         return { min: bounds.min.toArray(), max: bounds.max.toArray() };
       }),
     targets: world.targets,
+    notebookModel: () => world.notebookPages.userData.writingBounds,
+    digging: () => ({
+      active: !!action,
+      shovel: world.diggingTool.visible,
+      hands: world.player.children
+        .filter((o) => o.name.startsWith("hand-"))
+        .map((o) => o.position.toArray()),
+    }),
     homeRoof: () => ({
       opacity: (world.homeRoof.material as T.MeshStandardMaterial).opacity,
       visible: world.homeRoof.visible,
@@ -2472,6 +2984,7 @@ if (new URLSearchParams(location.search).has("test")) {
     frame: () => frameNumber,
     camera: () => ({
       position: camera.position.toArray(),
+      forward: viewForward().toArray(),
       near: camera.near,
       penetrationDetails: world.occluders
         .filter(
@@ -2500,6 +3013,7 @@ if (new URLSearchParams(location.search).has("test")) {
       placingBed = false;
 
       s = fresh();
+      resetTransientMotion();
       sitting = false;
       world.setPlayerSeated(false);
       close();

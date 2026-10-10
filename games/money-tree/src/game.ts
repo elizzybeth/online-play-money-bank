@@ -1,3 +1,4 @@
+import { extraTownLines } from "./town-dialogue";
 import {
   buff,
   healthDay,
@@ -46,6 +47,14 @@ export type State = {
   birdhousesBuilt?: number;
   foundGardenSeeds?: boolean;
   foundTVSeeds?: boolean;
+  foundMeditationSeeds?: boolean;
+  foundStacySeeds?: boolean;
+  metStacy?: boolean;
+  pepeShowStarted?: boolean;
+  pepeInflation?: number;
+  pepePopped?: boolean;
+  pepePackets?: number[];
+  stacyConversations?: number;
   harvestReflected: boolean;
   day: number;
   cash: number;
@@ -88,6 +97,14 @@ export const fresh = (): State => ({
   birdhousesBuilt: 0,
   foundGardenSeeds: false,
   foundTVSeeds: false,
+  foundMeditationSeeds: false,
+  foundStacySeeds: false,
+  metStacy: false,
+  pepeShowStarted: false,
+  pepeInflation: 0,
+  pepePopped: false,
+  pepePackets: [],
+  stacyConversations: 0,
   harvestReflected: false,
   day: 1,
   cash: 0,
@@ -135,10 +152,10 @@ export function buy(
   if (item === "seeds") {
     s.seeds += 5;
     s.boughtSeeds = true;
-  } else if (item === "fertilizer") s.fertilizer += 1;
+  } else if (item === "fertilizer") s.fertilizer += 5;
   else s[item] = true;
   s.events.push(
-    `Bought ${item === "can" ? "a watering can" : item === "seeds" ? "five mysterious seeds" : item === "shovel" ? "a shovel" : "one fertilizer application"}.`,
+    `Bought ${item === "can" ? "a watering can" : item === "seeds" ? "five mysterious seeds" : item === "shovel" ? "a shovel" : "a box of five fertilizer doses"}.`,
   );
   return true;
 }
@@ -194,7 +211,14 @@ export function fertilize(s: State, i: number) {
     !s.fertilizer
   )
     return false;
-  s.fertilizer--;
+  let conserve = false;
+  if (wearing(s, "wizard")) {
+    s.rng = (s.rng * 16807) % 2147483647;
+    conserve = s.rng / 2147483647 < 0.5;
+    noteHatPower(s, "to make my fertilizer last longer", "wizard");
+  }
+  if (!conserve) s.fertilizer--;
+  else s.events.push("Saved a fertilizer dose with my Moonrise Wizard.");
   p.fertilized = true;
   if (p.stage === "growing") p.remaining *= 2 / 3;
   s.events.push("Fed a tree with fertilizer.");
@@ -204,21 +228,13 @@ export function tick(s: State, dt: number) {
   if (!Number.isFinite(dt) || dt < 0) return;
   for (const p of s.plots) {
     if (p.stage === "growing") {
-      if (dt > 0 && wearing(s, "wizard"))
-        noteHatPower(s, "to help a tree grow faster", "wizard");
-      p.remaining = Math.max(
-        0,
-        p.remaining -
-          (dt +
-            (buff(s, "growth") ? Math.min(dt, s.drink!.remaining) * 0.5 : 0)) *
-            (wearing(s, "wizard") ? 1.25 : 1),
-      );
+      p.remaining = Math.max(0, p.remaining - dt);
       if (!p.remaining) {
         p.stage = "ready";
         s.rng = (s.rng * 16807) % 2147483647;
         const r = s.rng / 2147483647;
         p.yield =
-          (p.fertilized ? 4 + Math.floor(r * 4) : 2 + Math.floor(r * r * 6)) *
+          (p.fertilized ? 4 + Math.floor(r * 6) : 2 + Math.floor(r * r * 6)) *
           100;
         if (wearing(s, "beekeeper") && p.fertilized)
           p.yield = Math.max(600, p.yield);
@@ -230,18 +246,25 @@ export function harvest(s: State, i: number) {
   const p = s.plots[i];
   if (!p || p.stage !== "ready") return 0;
   const n = Math.min(
-    700,
+    p.fertilized ? 900 : 700,
     p.yield + (wearing(s, "banker") ? 100 : 0) + (buff(s, "yield") ? 100 : 0),
   );
   if (wearing(s, "banker"))
     noteHatPower(s, "to get an extra dollar from a harvest", "banker");
   s.cash += n;
   s.totalEarned = (s.totalEarned ?? 0) + n;
-  if (wearing(s, "cap")) {
+  if (wearing(s, "cap") || buff(s, "growth")) {
     s.rng = (s.rng * 16807) % 2147483647;
-    if (s.rng / 2147483647 < 0.5) {
+    if (
+      s.rng / 2147483647 <
+      (wearing(s, "cap") && buff(s, "growth") ? 0.75 : 0.5)
+    ) {
       s.seeds++;
-      s.events.push("Saved a fresh seed in my Sprout Cap.");
+      s.events.push(
+        wearing(s, "cap")
+          ? "Saved a fresh seed in my Sprout Cap."
+          : "Recovered a fresh seed after drinking Compound Cold Brew.",
+      );
     }
   }
   p.stage = "harvested";
@@ -503,7 +526,7 @@ export function decode(raw: string | null): State | null {
           typeof p.fertilized === "boolean" &&
           Number.isSafeInteger(p.yield) &&
           p.yield >= 0 &&
-          p.yield <= 700,
+          p.yield <= (p.fertilized ? 900 : 700),
       ) ||
       !["events", "journal"].every(
         (k) =>
@@ -608,6 +631,10 @@ export function decode(raw: string | null): State | null {
             "npc3",
             "mom-home",
             "mom-greeting",
+            "mom-out",
+            "robertson",
+            "haberdashery",
+            "bicycle",
             "grindset",
           ].includes(key) ||
             /^sigma-chad-[0-5]$/.test(key) ||
@@ -688,6 +715,40 @@ export function decode(raw: string | null): State | null {
       return null;
     s.foundGardenSeeds ??= false;
     s.foundTVSeeds ??= false;
+    s.foundMeditationSeeds ??= false;
+    s.metStacy ??= !!s.stacyConversations;
+    s.pepeShowStarted ??= false;
+    s.pepeInflation ??= 0;
+    s.pepePopped ??= false;
+    s.pepePackets ??= [];
+    if (
+      typeof s.metStacy !== "boolean" ||
+      typeof s.pepeShowStarted !== "boolean" ||
+      typeof s.pepePopped !== "boolean" ||
+      !Number.isFinite(s.pepeInflation) ||
+      s.pepeInflation < 0 ||
+      s.pepeInflation > 12 ||
+      !Array.isArray(s.pepePackets) ||
+      s.pepePackets.length > 25 ||
+      new Set(s.pepePackets).size !== s.pepePackets.length ||
+      s.pepePackets.some(
+        (i: unknown) =>
+          !Number.isInteger(i) || (i as number) < 0 || (i as number) >= 25,
+      ) ||
+      (!s.pepePopped && s.pepePackets.length > 0) ||
+      (s.pepePopped && (!s.pepeShowStarted || s.pepeInflation !== 12))
+    )
+      return null;
+    s.foundStacySeeds ??= false;
+    s.stacyConversations ??= 0;
+    if (
+      typeof s.foundStacySeeds !== "boolean" ||
+      !Number.isInteger(s.stacyConversations) ||
+      s.stacyConversations < 0 ||
+      s.stacyConversations > 10
+    )
+      return null;
+    if (typeof s.foundMeditationSeeds !== "boolean") return null;
     if (
       typeof s.foundGardenSeeds !== "boolean" ||
       typeof s.foundTVSeeds !== "boolean"
@@ -736,7 +797,17 @@ export function decode(raw: string | null): State | null {
 export function load(raw: string | null): State {
   return decode(raw) ?? fresh();
 }
-export type Rect = { x: number; z: number; w: number; d: number };
+export type Rect = {
+  x: number;
+  z: number;
+  w: number;
+  d: number;
+  clearHeight?: number;
+};
+export const airborneRects = (rects: Rect[], height: number) =>
+  rects.filter(
+    (r) => r.clearHeight === undefined || height <= r.clearHeight + 0.1,
+  );
 export function blocked(x: number, z: number, rects: Rect[], radius = 0.48) {
   return rects.some(
     (r) =>
@@ -772,6 +843,8 @@ export function move(
   dz: number,
   rects: Rect[],
 ) {
+  if (blocked(pos.x, pos.z, rects))
+    Object.assign(pos, clearPosition(pos, rects, Math.min(-39, pos.z - 3)));
   const n = Math.max(1, Math.ceil(Math.hypot(dx, dz) / 0.12));
   for (let i = 0; i < n; i++) {
     const x = pos.x + dx / n,
@@ -825,21 +898,21 @@ const neighborLines: Record<string, string[]> = {
   ],
 };
 export function neighborLine(s: State, id: string) {
-  const lines = neighborLines[id];
-  if (!lines) return "";
-  const count = s.neighborChats[id] ?? 0;
-  const extras = [
-    "",
-    "Have a lovely walk.",
-    "There’s always something new around here.",
-    "I wonder what tomorrow will bring.",
-    "It’s nice to see you again.",
-  ];
-  s.neighborChats[id] = count >= Number.MAX_SAFE_INTEGER ? 1 : count + 1;
-  return `“${lines[count % lines.length]} ${extras[Math.floor(count / lines.length) % extras.length]}”`.replace(
-    " ”",
-    "”",
+  const lines = [
+    ...(neighborLines[id] ?? []),
+    ...(extraTownLines[id] ?? []),
+  ].filter(
+    (line) =>
+      !(
+        id === "haberdashery" &&
+        s.foundCapSeeds &&
+        line.includes("curious brim")
+      ),
   );
+  if (!lines.length) return "";
+  const count = s.neighborChats[id] ?? 0;
+  s.neighborChats[id] = count >= Number.MAX_SAFE_INTEGER ? 1 : count + 1;
+  return `“${lines[count % lines.length]}”`;
 }
 
 export function wornHats(s: State): HatId[] {
@@ -1066,4 +1139,24 @@ export function fillGardenBed(s: State, i: number) {
   p.soilFilled = true;
   s.events.push("Filled a new garden bed with soil.");
   return true;
+}
+
+export function homeContains(p: { x: number; z: number }) {
+  return (
+    (p.x >= -21 && p.x <= -9 && p.z > -2 && p.z < 14) ||
+    (p.x >= -9 && p.x < -1 && p.z > 6 && p.z < 14)
+  );
+}
+export function seedSearchHint(s: State) {
+  if (!s.foundCapSeeds)
+    return "Try the haberdasher’s — check the brim of a cap.";
+  if (!s.foundForestSeeds)
+    return "You already found the cap packet. Try looking among the trees around town.";
+  if (!s.foundStoreSeeds)
+    return "A packet might have slipped behind the groceries. Take a careful look around my store.";
+  if (!s.foundGardenSeeds)
+    return "Have a look around the neighbors’ flowerbeds. Little things turn up in surprising places.";
+  if (!s.foundTVSeeds)
+    return "You might find something you missed at home. Try looking behind the furniture.";
+  return "Keep exploring. A Sprout Cap sometimes saves a seed when you harvest, too.";
 }

@@ -10,19 +10,25 @@ test("Shift runs faster than walking without crossing colliders", async ({
   await page.getByRole("button", { name: "Wake up" }).click();
   await page.keyboard.press("e");
   await page.evaluate(() => (window as any).game.teleport(3, 25));
+  for (let i = 0; i < 120; i++) await page.clock.fastForward(16);
   await page.keyboard.down("w");
   await page.clock.fastForward(1000);
   await page.keyboard.up("w");
-  const walk =
-    25 - (await page.evaluate(() => (window as any).game.state().position.z));
+  const walk = await page.evaluate(() => {
+    const p = (window as any).game.state().position;
+    return Math.hypot(p.x - 3, p.z - 25);
+  });
   await page.evaluate(() => (window as any).game.teleport(3, 25));
   await page.keyboard.down("Shift");
+  for (let i = 0; i < 120; i++) await page.clock.fastForward(16);
   await page.keyboard.down("w");
   await page.clock.fastForward(1000);
   await page.keyboard.up("w");
   await page.keyboard.up("Shift");
-  const run =
-    25 - (await page.evaluate(() => (window as any).game.state().position.z));
+  const run = await page.evaluate(() => {
+    const p = (window as any).game.state().position;
+    return Math.hypot(p.x - 3, p.z - 25);
+  });
   expect(run / walk).toBeCloseTo(1.75, 1);
 });
 test("click captures mouse; NPC replies and menus release it", async ({

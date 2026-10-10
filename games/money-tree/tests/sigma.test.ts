@@ -132,7 +132,7 @@ test("coffee bonuses apply, replace and expire without corrupting standard growt
   plant(s, 5);
   water(s, 5);
   tick(s, 60);
-  assert.equal(s.plots[5].remaining, 90);
+  assert.equal(s.plots[5].remaining, 120);
   assert(buyDrink(s, "yield"));
   s.plots[5].stage = "ready";
   s.plots[5].yield = 700;
@@ -141,14 +141,14 @@ test("coffee bonuses apply, replace and expire without corrupting standard growt
   assert(!s.drink);
   assert.equal(plantingSeconds(s), 2);
 });
-test("every Chad has 144 distinct authored combinations, fresh until pool exhaustion", () => {
+test("every Chad has 20 distinct standalone lines, fresh until pool exhaustion", () => {
   assert.equal(chadLibrary.length, 7);
   for (let i = 0; i < 6; i++) {
-    assert.equal(new Set(chadLibrary[i]).size, 144);
+    assert.equal(new Set(chadLibrary[i]).size, 20);
     const s = fresh();
     const seen = new Set();
-    for (let n = 0; n < 144; n++) seen.add(chadLine(s, `sigma-chad-${i}`));
-    assert.equal(seen.size, 144);
+    for (let n = 0; n < 20; n++) seen.add(chadLine(s, `sigma-chad-${i}`));
+    assert.equal(seen.size, 20);
     assert(decode(JSON.stringify(s)));
   }
   assert(chadLibrary[1].some((t) => t.includes("not very sigma")));
@@ -187,7 +187,7 @@ test("health streak signals count good days across every schedule boundary", () 
     assert.equal(healthDay(day).longest, best);
   }
 });
-test("growth coffee only speeds the portion of elapsed time before it expires", () => {
+test("seed-recovery coffee does not accelerate tree growth", () => {
   const s = unlocked();
   s.can = true;
   s.cash = 1000;
@@ -196,7 +196,7 @@ test("growth coffee only speeds the portion of elapsed time before it expires", 
   buyDrink(s, "growth");
   s.drink!.remaining = 1;
   tick(s, 60);
-  assert.equal(s.plots[5].remaining, 119.5);
+  assert.equal(s.plots[5].remaining, 120);
   tickSigma(s, 60);
   assert(!s.drink);
 });
@@ -242,4 +242,50 @@ test("community-garden criticism enters the journal only after hearing the actua
       result.selections.some((id) => id.startsWith("sigmaGardenCriticism:")),
     );
   }
+});
+
+test("cold brew recovers seeds at harvest, with at most one even when stacked with Sprout Cap", () => {
+  for (const cap of [false, true]) {
+    let recovered = 0;
+    for (let i = 1; i <= 100; i++) {
+      const s = unlocked();
+      s.drink = { id: "growth", remaining: 180 };
+      s.rng = i * 2147483;
+      if (cap) {
+        s.hats = ["cap"];
+        s.equippedHat = "cap";
+      }
+      s.plots[5] = { ...s.plots[5], stage: "ready", yield: 200 };
+      const before = s.seeds;
+      harvest(s, 5);
+      const gained = s.seeds - before;
+      assert(gained === 0 || gained === 1);
+      recovered += gained;
+      assert(decode(JSON.stringify(s)));
+    }
+    assert(recovered >= (cap ? 65 : 40) && recovered <= (cap ? 85 : 60));
+  }
+});
+test("partial coin sales retain remaining units without creating money", () => {
+  const s = unlocked();
+  s.cash = 10000;
+  s.communityPlanted = true;
+  assert(createCoin(s, "Test"));
+  assert(investCoin(s, 5000));
+  s.coin!.price = 137;
+  const before = coinValue(s),
+    units = s.coin!.units,
+    cash = s.cash;
+  assert(sellCoin(s, 1234));
+  assert.equal(s.cash, cash + 1234);
+  assert(s.coin!.units > 0 && s.coin!.units < units);
+  assert(coinValue(s) + 1234 <= before);
+  assert(decode(JSON.stringify(s)));
+  const snapshot = JSON.stringify(s);
+  assert(!sellCoin(s, coinValue(s) + 1));
+  assert(!sellCoin(s, -1));
+  assert(!sellCoin(s, 1.5));
+  assert.equal(JSON.stringify(s), snapshot);
+  assert(sellCoin(s));
+  assert.equal(s.coin!.units, 0);
 });

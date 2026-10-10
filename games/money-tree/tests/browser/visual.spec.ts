@@ -107,7 +107,7 @@ test("pictorial inventory with quantities", async ({ page }) => {
   await page.keyboard.press("i");
   await expect(page.locator(".inventory-card svg")).toHaveCount(7);
   await expect(page.locator("[data-item=fertilizer]")).toContainText(
-    "1 application",
+    "1 dose",
   );
   await expect(page.locator("#modal .panel")).toHaveScreenshot("bag.png", {
     maxDiffPixelRatio: 0.01,

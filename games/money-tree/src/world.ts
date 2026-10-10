@@ -1,3 +1,6 @@
+import { makeSeedPacket } from "./seed-packet";
+import { makeGardenTool } from "./tool-models";
+import { signCanvas } from "./signage";
 import { createSigmaWorld } from "./sigma-world";
 import { moneySkeleton } from "./money-tree-model";
 import { surfaceMaterial, surfaceTexture } from "./textures";
@@ -30,7 +33,11 @@ export function createWorld(scene: T.Scene) {
     z + radius > r.z - r.d / 2 &&
     z - radius < r.z + r.d / 2;
   // Reserve the walk-in shop interior before scattering outdoor scenery.
-  const sceneryExclusions: Rect[] = [{ x: 24, z: -29, w: 12, d: 12 }];
+  const sceneryExclusions: Rect[] = [
+    { x: 24, z: -29, w: 12, d: 12 },
+    { x: 8, z: -31, w: 16, d: 16 },
+    { x: -5, z: 10, w: 8, d: 8 },
+  ];
   const clearScenery = (x: number, z: number, radius: number) =>
     !paths
       .concat(doorways, sceneryExclusions)
@@ -146,54 +153,7 @@ export function createWorld(scene: T.Scene) {
     color = "#334a3c",
     aspect = 4,
   ) {
-    const c = document.createElement("canvas");
-    c.width = 128 * aspect;
-    c.height = 128;
-    const ctx = c.getContext("2d")!;
-    ctx.fillStyle = "#e6cea0";
-    ctx.fillRect(0, 0, c.width, 128);
-    ctx.globalAlpha = 0.24;
-    ctx.drawImage(
-      surfaceTexture("wood").image as HTMLCanvasElement,
-      0,
-      0,
-      c.width,
-      128,
-    );
-    ctx.globalAlpha = 1;
-    for (const side of [1, -1]) {
-      const bx = side === 1 ? 24 : c.width - 24;
-      ctx.strokeStyle = "#785734";
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(bx, 110);
-      ctx.quadraticCurveTo(bx + side * 6, 65, bx, 18);
-      ctx.stroke();
-      for (const y of [32, 52, 83]) {
-        ctx.fillStyle = "#708a4e";
-        ctx.beginPath();
-        ctx.ellipse(bx + side * 8, y, 10, 5, side * 0.6, 0, 7);
-        ctx.fill();
-      }
-    }
-
-    ctx.strokeStyle = "#af996b";
-    ctx.lineWidth = 9;
-    ctx.strokeRect(5, 5, c.width - 10, 118);
-    ctx.fillStyle = color;
-    ctx.font = "bold 43px Georgia";
-    for (
-      let size = 43;
-      ctx.measureText(text).width > c.width - 100 && size > 12;
-    ) {
-      ctx.font = `bold ${--size}px Georgia`;
-    }
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.shadowColor = "#fbefc9";
-    ctx.shadowBlur = 0;
-    ctx.shadowOffsetY = 2;
-    ctx.fillText(text, c.width / 2, 66);
+    const c = signCanvas(text, 128 * aspect, 128);
     const mesh = new T.Mesh(
       new T.PlaneGeometry(width, width / aspect),
       new T.MeshBasicMaterial({
@@ -242,7 +202,7 @@ export function createWorld(scene: T.Scene) {
       const foot = ball(a * 0.15, 0.16, 0, 0.16, "#544c41", g);
       foot.name = "foot";
       foot.scale.set(1, 1, 1.5);
-      ball(a * 0.43, 0.79, 0, 0.15, "#f3cfb0", g);
+      ball(a * 0.43, 0.79, 0, 0.15, "#f3cfb0", g).name = `hand-${a}`;
       ball(a * 0.16, 1.49, 0.427, 0.04, "#343630", g);
     }
     if (old) {
@@ -269,6 +229,33 @@ export function createWorld(scene: T.Scene) {
     transparent: true,
   });
   const player = person(-15, 5, "#dfae6b", "#594637", false, false);
+  const diggingTool = makeGardenTool("shovel");
+  diggingTool.scale.setScalar(0.7);
+  diggingTool.visible = false;
+  player.add(diggingTool);
+  function setDigging(active: boolean, shovel: boolean, time: number) {
+    diggingTool.visible = active && shovel;
+    const stroke = Math.sin(time * Math.PI * 3);
+    for (const hand of player.children.filter((o) =>
+      o.name.startsWith("hand-"),
+    )) {
+      const side = hand.name === "hand--1" ? -1 : 1;
+      hand.position.set(
+        side * 0.43,
+        active ? (shovel ? 0.71 : 0.5) + stroke * 0.13 : 0.79,
+        active ? 0.3 + stroke * 0.09 : 0,
+      );
+    }
+    diggingTool.rotation.x = active ? -0.9 - stroke * 0.25 : 0;
+    diggingTool.position.set(0.2, active ? 0.8 : 0, 0.24);
+    // Shift the shaft's grip to the hands; blade swings down into the soil.
+    for (const child of diggingTool.children)
+      if (!child.userData.gripAdjusted) {
+        child.position.y -= 0.9;
+        child.userData.gripAdjusted = true;
+      }
+    player.getObjectByName("body")!.rotation.x = active ? 0.16 : 0;
+  }
   const sleeping = new T.Group();
   scene.add(sleeping);
   // The same complete chibi character, lying face-up with head on the pillow.
@@ -344,26 +331,26 @@ export function createWorld(scene: T.Scene) {
     new T.ConeGeometry(1, 1, 4).rotateY(Math.PI / 4),
     roofMaterial,
   );
-  momRoof.position.set(-25, 4.3, 2);
+  momRoof.position.set(-5, 4.3, 10);
   momRoof.scale.set(6.5, 2.2, 6.5);
   momRoof.name = "mom-bedroom-roof";
   scene.add(momRoof);
   box(-15, -0.02, 6, 12, 0.1, 16, "#dbbe96");
-  box(-21, 1.7, -0.5, 0.25, 3.4, 3, "#e8d2b3", true);
-  box(-21, 1.7, 8.5, 0.25, 3.4, 11, "#e8d2b3", true);
-  occluders.push(box(-21, 3.28, 2, 0.25, 0.24, 2, "#e8d2b3"));
-  box(-25, -0.02, 2, 8, 0.1, 8, "#dbbe96");
-  box(-29, 1.7, 2, 0.25, 3.4, 8, "#e8d2b3", true);
-  for (const z of [-2, 6]) box(-25, 1.7, z, 8, 3.4, 0.25, "#e8d2b3", true);
-  box(-26, 0.3, 2, 2, 0.6, 3.5, "#9a755b", true);
-  box(-26, 0.69, 2, 2, 0.25, 3.3, "#f0e5cf");
-  box(-26, 0.87, 2.5, 2, 0.14, 2.2, "#b5a4b5");
-  box(-26, 0.91, 0.95, 1.5, 0.2, 0.7, "#ffefd3");
-  box(-23.1, 0.6, -0.8, 1.2, 1.2, 0.7, "#a48162", true);
-  ball(-23.1, 1.6, -0.8, 0.25, "#ead596").scale.set(1, 0.7, 1);
-  box(-28, 1.8, 2, 0.08, 1.2, 1.5, "#bce0d9");
-  doorways.push({ x: -21, z: 2, w: 2, d: 2.4 });
-  box(-9, 1.7, 6, 0.25, 3.4, 16, "#e8d2b3", true);
+  box(-21, 1.7, 6, 0.25, 3.4, 16, "#e8d2b3", true);
+  box(-5, -0.02, 10, 8, 0.1, 8, "#dbbe96");
+  box(-1, 1.7, 10, 0.25, 3.4, 8, "#e8d2b3", true);
+  for (const z of [6, 14]) box(-5, 1.7, z, 8, 3.4, 0.25, "#e8d2b3", true);
+  box(-4, 0.3, 10, 2, 0.6, 3.5, "#9a755b", true);
+  box(-4, 0.69, 10, 2, 0.25, 3.3, "#f0e5cf");
+  box(-4, 0.87, 10.5, 2, 0.14, 2.2, "#b5a4b5");
+  box(-4, 0.91, 8.95, 1.5, 0.2, 0.7, "#ffefd3");
+  box(-2.4, 0.6, 7.2, 1.2, 1.2, 0.7, "#a48162", true);
+  ball(-2.4, 1.6, 7.2, 0.25, "#ead596").scale.set(1, 0.7, 1);
+  box(-1.15, 1.8, 10, 0.08, 1.2, 1.5, "#bce0d9");
+  doorways.push({ x: -9, z: 7.5, w: 2, d: 2.4 });
+  box(-9, 1.7, 2.25, 0.25, 3.4, 8.5, "#e8d2b3", true);
+  box(-9, 1.7, 11.25, 0.25, 3.4, 5.5, "#e8d2b3", true);
+  occluders.push(box(-9, 3.28, 7.5, 0.25, 0.24, 2, "#e8d2b3"));
   box(-15, 1.7, -2, 12, 3.4, 0.25, "#e8d2b3", true);
   for (const z of [6, 14]) {
     box(-19, 1.7, z, 4, 3.4, 0.25, "#e8d2b3", true);
@@ -380,62 +367,78 @@ export function createWorld(scene: T.Scene) {
   box(-12, 1.52, 0.15, 0.7, 0.06, 0.5, "#fff9e9");
   box(-12, 1.56, 0.15, 0.025, 0.02, 0.5, "#c0ad89");
   const paper = document.createElement("canvas");
-  paper.width = 512;
-  paper.height = 384;
+  paper.width = 768;
+  paper.height = 512;
   const pc = paper.getContext("2d")!;
-  pc.fillStyle = "#fff1b6";
-  pc.fillRect(0, 0, 512, 384);
-  pc.strokeStyle = "#91a777";
-  pc.lineWidth = 1;
-  for (let y = 51; y < 384; y += 30) {
-    pc.beginPath();
-    pc.moveTo(0, y);
-    pc.lineTo(512, y);
-    pc.stroke();
-  }
-  pc.beginPath();
-  pc.moveTo(20, 0);
-  pc.lineTo(20, 384);
-  pc.stroke();
-  pc.fillStyle = "#425b3e";
-  pc.font = "italic 23px Georgia";
-  let line = "",
-    py = 45;
-  for (const word of opening.split(" ")) {
-    if (pc.measureText(line + word).width > 450) {
-      pc.fillText(line, 28, py);
-      line = "";
-      py += 30;
+  const notebookMap = new T.CanvasTexture(paper);
+  notebookMap.colorSpace = T.SRGBColorSpace;
+  let lastNotebook = "";
+  function updateNotebook(entry: string, day: number) {
+    const key = day + entry;
+    if (key === lastNotebook) return;
+    lastNotebook = key;
+    pc.fillStyle = "#fff1b6";
+    pc.fillRect(0, 0, 768, 512);
+    for (const side of [0, 384]) {
+      pc.strokeStyle = "#92aa7270";
+      pc.lineWidth = 1;
+      for (let y = 58; y < 500; y += 32) {
+        pc.beginPath();
+        pc.moveTo(side + 18, y);
+        pc.lineTo(side + 366, y);
+        pc.stroke();
+      }
+      pc.strokeStyle = "#7c9c7466";
+      pc.beginPath();
+      pc.moveTo(side + 38, 15);
+      pc.lineTo(side + 38, 496);
+      pc.stroke();
     }
-    line += word + " ";
-  }
-  pc.fillText(line, 28, py);
-  pc.lineWidth = 3;
-  pc.beginPath();
-  pc.moveTo(62, 366);
-  pc.quadraticCurveTo(55, 345, 65, 323);
-  pc.moveTo(62, 347);
-  pc.quadraticCurveTo(39, 342, 44, 327);
-  pc.quadraticCurveTo(64, 328, 62, 347);
-  pc.moveTo(63, 337);
-  pc.quadraticCurveTo(83, 336, 85, 320);
-  pc.quadraticCurveTo(63, 319, 63, 337);
-  pc.stroke();
-  pc.beginPath();
-  pc.arc(438, 336, 16, 0, Math.PI * 2);
-  pc.stroke();
-  pc.beginPath();
-  pc.arc(438, 338, 7, 0, Math.PI);
-  pc.stroke();
-  for (const x of [432, 444]) {
+    const fold = pc.createLinearGradient(365, 0, 403, 0);
+    fold.addColorStop(0, "#846c3900");
+    fold.addColorStop(0.5, "#846c3977");
+    fold.addColorStop(1, "#846c3900");
+    pc.fillStyle = fold;
+    pc.fillRect(365, 0, 38, 512);
+    pc.fillStyle = "#425b3e";
+    pc.font = "34px Gaegu";
+    pc.fillText("My notebook", 48, 49);
+    pc.fillText("for Mom", 68, 436);
+    pc.strokeStyle = "#5c7b4d";
+    pc.lineWidth = 3;
     pc.beginPath();
-    pc.arc(x, 332, 2, 0, Math.PI * 2);
-    pc.fill();
+    pc.moveTo(163, 311);
+    pc.bezierCurveTo(151, 235, 181, 210, 165, 160);
+    pc.moveTo(166, 223);
+    pc.bezierCurveTo(119, 220, 115, 184, 156, 202);
+    pc.moveTo(166, 208);
+    pc.bezierCurveTo(209, 207, 219, 178, 172, 182);
+    pc.stroke();
+    pc.font = "32px Gaegu";
+    pc.fillText(`Day ${day}`, 432, 49);
+    pc.font = "28px Gaegu";
+    let line = "",
+      py = 88;
+    const words = entry.replace(/^Day \d+\s*/, "").split(/\s+/);
+    for (const word of words) {
+      if (pc.measureText(line + word).width > 295) {
+        pc.fillText(line, 432, py);
+        line = "";
+        py += 32;
+        if (py > 464) break;
+      }
+      line += word + " ";
+    }
+    if (py <= 464) pc.fillText(line, 432, py);
+    notebookMap.needsUpdate = true;
   }
+  updateNotebook(opening, 1);
   const page = new T.Mesh(
     new T.PlaneGeometry(0.69, 0.49),
-    new T.MeshBasicMaterial({ map: new T.CanvasTexture(paper) }),
+    new T.MeshBasicMaterial({ map: notebookMap }),
   );
+  page.name = "open-notebook-pages";
+  page.userData.writingBounds = { left: 432, right: 727, gutter: 384 };
   page.rotation.x = -Math.PI / 2;
   page.position.set(-12, 1.565, 0.15);
   scene.add(page);
@@ -606,7 +609,7 @@ export function createWorld(scene: T.Scene) {
   let momKey = "";
   function setMomDay(day: number, playerHome = true) {
     const status = momStatus(day),
-      garden = status.activity === "garden" && !playerHome;
+      garden = status.activity === "garden";
     const key = `${day}-${garden}`;
     if (key === momKey) return false;
     momKey = key;
@@ -616,7 +619,7 @@ export function createWorld(scene: T.Scene) {
     mom.rotation.x = inBed ? -Math.PI / 2 : 0;
     mom.position.set(
       inBed
-        ? -26
+        ? -4
         : garden
           ? -10.2
           : seated
@@ -626,7 +629,7 @@ export function createWorld(scene: T.Scene) {
               : -12.5,
       inBed ? 1.14 : seated ? 0.69 : 0,
       inBed
-        ? 3.7
+        ? 10.75
         : garden
           ? 18
           : seated
@@ -658,10 +661,10 @@ export function createWorld(scene: T.Scene) {
     const interaction = targets.find((t) => t.id === "mom");
     if (interaction) {
       interaction.x = inBed
-        ? -24.5
+        ? -2.5
         : mom.position.x +
           (seated || status.activity === "garden" ? 1.3 : -1.3);
-      interaction.z = inBed ? 2 : mom.position.z;
+      interaction.z = inBed ? 10 : mom.position.z;
       if (garden) {
         interaction.x = mom.position.x;
         interaction.z = mom.position.z + 1.3;
@@ -674,7 +677,73 @@ export function createWorld(scene: T.Scene) {
   target("mom", -17.4, 10, "Talk to Mom");
   box(-10.1, 0.6, 10, 1.1, 1.2, 3, "#9b805f", true);
   box(-10, 1.65, 10, 0.23, 1.2, 2, "#434b45");
-  box(-10.14, 1.65, 10, 0.03, 0.92, 1.65, "#93c7c8");
+  const cartoonCanvas = document.createElement("canvas");
+  cartoonCanvas.width = 384;
+  cartoonCanvas.height = 216;
+  const cartoonTexture = new T.CanvasTexture(cartoonCanvas);
+  cartoonTexture.colorSpace = T.SRGBColorSpace;
+  const tvScreen = new T.Mesh(
+    new T.PlaneGeometry(1.65, 0.92),
+    new T.MeshBasicMaterial({ map: cartoonTexture }),
+  );
+  tvScreen.position.set(-10.16, 1.65, 10);
+  tvScreen.rotation.y = -Math.PI / 2;
+  scene.add(tvScreen);
+  let cartoonFrame = -1;
+  function updateCartoon(time: number) {
+    const frame = Math.floor(time * 8);
+    if (frame === cartoonFrame) return;
+    cartoonFrame = frame;
+    const c = cartoonCanvas.getContext("2d")!;
+    c.fillStyle = "#a4d8ed";
+    c.fillRect(0, 0, 384, 216);
+    c.fillStyle = "#80b76b";
+    c.fillRect(0, 160, 384, 56);
+    const circle = (x: number, y: number, r: number, color: string) => {
+      c.fillStyle = color;
+      c.beginPath();
+      c.arc(x, y, r, 0, Math.PI * 2);
+      c.fill();
+    };
+    circle(330, 38, 23, "#ffe49b");
+    for (const x of [50, 215]) {
+      circle(x, 42, 16, "#fff7e8");
+      circle(x + 18, 40, 20, "#fff7e8");
+      circle(x + 36, 45, 14, "#fff7e8");
+    }
+    // Original little rabbits chasing a carrot, animated at eight frames per second.
+    for (let i = 0; i < 2; i++) {
+      const x = 100 + i * 130 + Math.sin(time * 1.2 + i) * 20,
+        y = 135 - Math.abs(Math.sin(time * 3 + i)) * 18,
+        color = i ? "#e2b2cf" : "#fff0ce";
+      circle(x - 11, y - 42, 10, color);
+      circle(x + 11, y - 42, 10, color);
+      circle(x, y, 26, color);
+      circle(x, y - 19, 24, color);
+      circle(x - 8, y - 22, 3, "#374344");
+      circle(x + 8, y - 22, 3, "#374344");
+      circle(x, y - 12, 3, "#ce8b9c");
+      circle(x - 18, y + 20, 10, color);
+      circle(x + 18, y + 20, 10, color);
+    }
+    const carrot = 192 + Math.sin(time) * 36;
+    c.fillStyle = "#ef9853";
+    c.beginPath();
+    c.moveTo(carrot - 14, 176);
+    c.lineTo(carrot + 16, 181);
+    c.lineTo(carrot - 14, 188);
+    c.fill();
+    c.strokeStyle = "#49815a";
+    c.lineWidth = 4;
+    c.beginPath();
+    c.moveTo(carrot - 14, 181);
+    c.lineTo(carrot - 24, 173);
+    c.moveTo(carrot - 14, 181);
+    c.lineTo(carrot - 27, 186);
+    c.stroke();
+    cartoonTexture.needsUpdate = true;
+  }
+  updateCartoon(0);
   box(-14, 0.03, 10, 4, 0.04, 4, "#d1a38a");
 
   // Repeating canvas texture: soil grains, clods and tiny stones.
@@ -866,18 +935,18 @@ export function createWorld(scene: T.Scene) {
   target("npc3", -10, -8, "Talk to Mabel");
   // Robertsons walk-in shop at end of lane, front facing south.
   const sx = 8,
-    sz = -29;
-  box(sx, -0.01, sz, 12, 0.12, 12, "#d0b894");
-  box(2, 1.8, sz, 0.25, 3.6, 12, "#a9b9a2", true);
-  box(14, 1.8, sz, 0.25, 3.6, 12, "#a9b9a2", true);
-  box(8, 1.8, -35, 12, 3.6, 0.25, "#a9b9a2", true);
-  box(4, 1.8, -23, 4, 3.6, 0.25, "#a9b9a2", true);
-  box(11, 1.8, -23, 6, 3.6, 0.25, "#a9b9a2", true);
+    sz = -31;
+  box(sx, -0.01, sz, 16, 0.12, 16, "#d0b894");
+  box(0, 1.8, sz, 0.25, 3.6, 16, "#a9b9a2", true);
+  box(16, 1.8, sz, 0.25, 3.6, 16, "#a9b9a2", true);
+  box(8, 1.8, -39, 16, 3.6, 0.25, "#a9b9a2", true);
+  box(3, 1.8, -23, 6, 3.6, 0.25, "#a9b9a2", true);
+  box(12, 1.8, -23, 8, 3.6, 0.25, "#a9b9a2", true);
   occluders.push(box(7, 3.48, -23, 2, 0.24, 0.25, "#a9b9a2"));
   label("Robertsons", 8, 4.8, -22.7, 8).name = "robertsons-name";
   label("Hardware & Grocer", 8, 3.1, -22.7, 8, "#334a3c", 8).name =
     "robertsons-trade";
-  for (const x of [3, 13]) {
+  for (const x of [0.85, 15.15]) {
     box(x, 1, -29, 1, 2, 7, "#947859", true);
     for (let j = 0; j < 6; j++) {
       box(x, 1.3, -32 + j * 1.1, 0.65, 0.5, 0.6, j % 2 ? "#c9b466" : "#c78e6f");
@@ -894,19 +963,39 @@ export function createWorld(scene: T.Scene) {
   for (const [id, x, z, name, color] of [
     ["can", 5, -26, "WATERING CAN · $1", "#86ada5"],
     ["shovel", 10, -26, "SHOVEL · $1", "#9da5a2"],
-    ["fertilizer", 11, -30, "FERTILIZER · $5", "#d7c18b"],
+    ["fertilizer", 11, -30, "FERTILIZER · 5 DOSES · $5", "#d7c18b"],
   ] as const) {
     box(x, 0.45, z, 1.1, 0.9, 1, "#b2946d", true);
-    if (id === "can") {
-      cyl(x, 1.2, z, 0.25, 0.55, color);
-      box(x + 0.35, 1.25, z, 0.4, 0.12, 0.13, color);
-    } else if (id === "shovel") {
-      cyl(x, 1.6, z, 0.045, 1.3, "#a08056");
-      box(x, 1, z, 0.3, 0.35, 0.1, color);
-    } else box(x, 1.2, z, 0.6, 0.6, 0.5, color);
+    if (id === "can" || id === "shovel") {
+      const model = makeGardenTool(id);
+      model.position.set(x, 0.92, z);
+      scene.add(model);
+    } else {
+      const sack = box(x, 1.35, z, 0.65, 0.85, 0.55, color);
+      sack.material = surfaceMaterial(color, "cloth");
+      box(x, 1.4, z + 0.285, 0.42, 0.38, 0.018, "#edf0c9");
+      for (const side of [-1, 1]) {
+        const leaf = ball(x + side * 0.08, 1.43, z + 0.31, 0.08, "#648747");
+        leaf.scale.set(0.55, 1, 0.15);
+        leaf.rotation.z = side * 0.5;
+      }
+    }
     target(id, x, z + 1.1, `Buy ${id}`);
-    label(name, x, 2.25, z + 0.4, 2.5);
+    label(name, x, id === "shovel" ? 3.3 : 2.45, z + 0.4, 2.7);
   }
+  // Separate, roomy supply displays: an empty wooden bed and a sack of soil.
+  box(3, 0.35, -34, 2.7, 0.7, 1.9, "#b2946d", true);
+  for (const x of [1.94, 4.06]) box(x, 0.98, -34, 0.13, 0.4, 1.5, "#c3a176");
+  for (const z of [-34.7, -33.3]) box(3, 0.98, z, 2.25, 0.4, 0.13, "#c3a176");
+  box(3, 0.79, -34, 2.1, 0.05, 1.35, "#66513c");
+  label("Garden bed · $30", 3, 1.7, -32.98, 3);
+  target("garden-bed", 3, -32.45, "Inspect garden bed · $30");
+  box(12, 0.4, -35, 1.5, 0.8, 1.5, "#b2946d", true);
+  const soilSack = box(12, 1.3, -35, 0.9, 1, 0.65, "#c3b295");
+  soilSack.material = surfaceMaterial("#c3b295", "cloth");
+  box(12, 1.36, -34.66, 0.58, 0.5, 0.015, "#e7dfbe");
+  label("Soil · $10", 12, 2.2, -34.55, 2.5);
+  target("garden-soil", 12, -33.4, "Inspect soil · $10");
   // Walk-in hat shop: a wide doorway, clear centre aisle and ten display stands.
   box(24, -0.02, -29, 12, 0.16, 12, "#c5aa87");
   box(18, 1.8, -29, 0.25, 3.6, 12, "#e4bc9e", true);
@@ -996,9 +1085,8 @@ export function createWorld(scene: T.Scene) {
         const model = makeHat(id);
         const height = new T.Box3().setFromObject(model).max.y;
         if (height > 0.72) model.scale.y = 0.72 / height;
-        const size = new T.Box3()
-          .setFromObject(model)
-          .getSize(new T.Vector3()).y;
+        // Stack on the crown, not the veil hanging below the brim.
+        const size = new T.Box3().setFromObject(model).max.y;
         return {
           id,
           model,
@@ -1330,21 +1418,21 @@ export function createWorld(scene: T.Scene) {
     for (let j = 0; j < 3; j++)
       ball(j * 1.6, 0, 0, 1.8, "#f6eedc", g).scale.set(1, 0.65, 0.8);
   }
-  // Invisible perimeter.
+  // Jumpable hedgerow perimeter.
   rects.push(
-    { x: -39, z: 0, w: 1, d: 90 },
-    { x: 39, z: 0, w: 1, d: 90 },
-    { x: -4, z: -40, w: 72, d: 1 },
-    { x: 38.5, z: -40, w: 3, d: 1 },
-    { x: 0, z: 39, w: 80, d: 1 },
+    { x: -39, z: 0, w: 1, d: 90, clearHeight: 2.3 },
+    { x: 39, z: 0, w: 1, d: 90, clearHeight: 2.3 },
+    { x: -3.25, z: -40, w: 70.5, d: 1, clearHeight: 2.3 },
+    { x: 37.75, z: -40, w: 1.5, d: 1, clearHeight: 2.3 },
+    { x: 0, z: 39, w: 77, d: 1, clearHeight: 2.3 },
   );
   // Visible hedgerows exactly match the boundary colliders.
   const boundaryHedges = [
-    { x: -39, z: 0, w: 1, d: 90 },
-    { x: 39, z: 0, w: 1, d: 90 },
-    { x: -4, z: -40, w: 72, d: 1 },
-    { x: 38.5, z: -40, w: 3, d: 1 },
-    { x: 0, z: 39, w: 80, d: 1 },
+    { x: -39, z: 0, w: 1, d: 90, clearHeight: 2.3 },
+    { x: 39, z: 0, w: 1, d: 90, clearHeight: 2.3 },
+    { x: -3.25, z: -40, w: 70.5, d: 1, clearHeight: 2.3 },
+    { x: 37.75, z: -40, w: 1.5, d: 1, clearHeight: 2.3 },
+    { x: 0, z: 39, w: 77, d: 1, clearHeight: 2.3 },
   ].map((r) => {
     const hedge = box(r.x, 1.05, r.z, r.w, 2.1, r.d, "#658464");
     occluders.push(hedge);
@@ -1418,7 +1506,13 @@ export function createWorld(scene: T.Scene) {
     );
     const skeleton = moneySkeleton(index, height, wood, stage === "harvested");
     g.add(skeleton.trunk, skeleton.branches);
-    treeRects[index] = { x: g.position.x, z: g.position.z, w: 0.5, d: 0.5 };
+    treeRects[index] = {
+      x: g.position.x,
+      z: g.position.z,
+      w: 0.5,
+      d: 0.5,
+      clearHeight: 3.2,
+    };
     rects.push(treeRects[index]!);
     treeTrunks[index] = skeleton.trunk;
     occluders.push(skeleton.trunk);
@@ -1458,10 +1552,7 @@ export function createWorld(scene: T.Scene) {
     tvSeeds = new T.Group();
   for (const packet of [forestSeeds, storeSeeds, gardenSeeds, tvSeeds]) {
     scene.add(packet);
-    box(0, 0.22, 0, 0.36, 0.44, 0.16, "#bc9b63", false, packet);
-    box(0, 0.26, 0.09, 0.24, 0.22, 0.02, "#d6dfa3", false, packet);
-    for (let i = 0; i < 3; i++)
-      ball(-0.07 + i * 0.07, 0.26, 0.11, 0.025, "#584c2f", packet);
+    packet.add(makeSeedPacket());
   }
   gardenSeeds.position.set(7.8, 0.13, 20.8);
   tvSeeds.position.set(-9.55, 1.25, 9);
@@ -1473,6 +1564,11 @@ export function createWorld(scene: T.Scene) {
   target("forest-seeds", 29, -35, "Search the seed packet");
   target("store-seeds", 12, -31.5, "Search behind the tins");
   return {
+    diggingTool,
+    updateCartoon,
+    setDigging,
+    updateNotebook,
+    notebookPages: page,
     sigma,
     setSigmaUnlocked,
     syncBeds,

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { fresh, type State } from "../../src/game";
+import { fresh, momStatus, type State } from "../../src/game";
 async function open(page: Page, s: State) {
   await page.addInitScript((s) => {
     if (!localStorage.getItem("money-tree-v1"))
@@ -29,7 +29,9 @@ test("full third-person sleeping body and compact couch seating, stand without r
       ),
     )
     .toBe(true);
-  await page.getByRole("button", { name: "End conversation" }).click();
+  for (let i = 0; i < 3 && (await page.locator(".speech-bubble").count()); i++)
+    await page.keyboard.press("e");
+  await expect(page.locator(".speech-bubble")).toHaveCount(0);
   await page.keyboard.press("e");
   await expect
     .poll(() => page.evaluate(() => (window as any).game.seated()))
@@ -38,6 +40,19 @@ test("full third-person sleeping body and compact couch seating, stand without r
     await page.evaluate(() => (window as any).game.npcHeadPenetrations()),
   ).toBe(0);
   await expect(page.locator("#prompt")).toContainText("Stand up");
+  await expect(page.locator("#prompt")).toHaveClass(/seated/);
+  if (await page.locator("#thought").isVisible()) {
+    const thought = await page.locator("#thought").boundingBox(),
+      prompt = await page.locator("#prompt").boundingBox();
+    expect(
+      thought &&
+        prompt &&
+        (prompt.x + prompt.width <= thought.x ||
+          prompt.y >= thought.y + thought.height ||
+          prompt.x >= thought.x + thought.width ||
+          prompt.y + prompt.height <= thought.y),
+    ).toBe(true);
+  }
   await page.screenshot({
     path: "../../outputs/money-tree-couch-together.png",
   });
@@ -113,7 +128,13 @@ test("fourth and fifth hidden packets unlock and persist in flowerbed and behind
   );
   await page.evaluate(() => (window as any).game.teleport(-10, 7.9));
   if (await page.getByRole("button", { name: "End conversation" }).count())
-    await page.getByRole("button", { name: "End conversation" }).click();
+    for (
+      let i = 0;
+      i < 3 && (await page.locator(".speech-bubble").count());
+      i++
+    )
+      await page.keyboard.press("e");
+  await expect(page.locator(".speech-bubble")).toHaveCount(0);
   await expect(page.locator("#prompt")).toContainText("behind the TV");
   await page.keyboard.press("e");
   expect((await page.evaluate(() => (window as any).game.state())).seeds).toBe(
@@ -133,14 +154,14 @@ test("Mom rests in separate bedroom, birdhouses remain outside, interior camera 
     day: 3,
     awake: true,
     birdhousesBuilt: 1,
-    position: { x: -23, z: 2 },
+    position: { x: -6, z: 10 },
   });
   await open(page, s);
   await expect
     .poll(() => page.evaluate(() => (window as any).game.camera().position[1]))
     .toBeGreaterThan(4);
   expect(await page.evaluate(() => (window as any).game.birdhouses())).toBe(1);
-  await page.evaluate(() => (window as any).game.teleport(-24.5, 2));
+  await page.evaluate(() => (window as any).game.teleport(-2.5, 10));
   await expect(page.locator("#prompt")).toContainText("Mom");
   await page.keyboard.press("e");
   await expect(page.locator(".speech-bubble")).toContainText("bed");
@@ -162,7 +183,7 @@ test("garden beds belong outside both bedrooms", async ({ page }) => {
     awake: true,
     day: 2,
     gardenBeds: 1,
-    position: { x: -23, z: 0.7 },
+    position: { x: -6, z: 10 },
   });
   await open(page, s);
   const preview = await page.evaluate(() => (window as any).game.bedPreview());
@@ -171,4 +192,31 @@ test("garden beds belong outside both bedrooms", async ({ page }) => {
   expect(
     (await page.evaluate(() => (window as any).game.bedPreview())).valid,
   ).toBe(true);
+});
+
+test("Mom stays in the garden when the player goes indoors", async ({
+  page,
+}) => {
+  const day = Array.from({ length: 100 }, (_, i) => i + 1).find(
+    (d) => momStatus(d).activity === "garden",
+  )!;
+  const s = fresh();
+  Object.assign(s, {
+    day,
+    awake: true,
+    metMom: true,
+    position: { x: -10.2, z: 20 },
+  });
+  await open(page, s);
+  const before = await page.evaluate(() =>
+    (window as any).game.targets.find((t: any) => t.id === "mom"),
+  );
+  expect(before.z).toBeGreaterThan(14);
+  await page.evaluate(() => (window as any).game.teleport(-16, 12));
+  await page.waitForTimeout(500);
+  const after = await page.evaluate(() =>
+    (window as any).game.targets.find((t: any) => t.id === "mom"),
+  );
+  expect(after).toEqual(before);
+  await expect(page.locator(".speech-bubble")).toHaveCount(0);
 });
