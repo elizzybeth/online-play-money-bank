@@ -159,30 +159,76 @@ test("10000 simulated nights stay bounded, grounded, fresh, and narratively cohe
   assert(seen.size > 7000, `Only ${seen.size} distinct entries`);
 });
 
-test('all Mom activity families and hat powers are reachable without inventing purchases', () => {
-  for (const [activity, family] of [['cooking','cooking'],['building birdhouses','birdhouses'],['painting','painting'],['reading a book','reading'],['looking at the garden','garden']]) {
+test("all Mom activity families and hat powers are reachable without inventing purchases", () => {
+  for (const [activity, family] of [
+    ["cooking", "cooking"],
+    ["building birdhouses", "birdhouses"],
+    ["painting", "painting"],
+    ["reading a book", "reading"],
+    ["looking at the garden", "garden"],
+  ]) {
     const seen = new Set<string>();
-    for(let seed=1;seed<=200;seed++) {
-      const result=constructJournal(context([`Mom had energy for ${activity} today.`]),newNarrativeMemory(seed*104729));
-      result.selections.filter(id=>id.startsWith(family+':')).forEach(id=>seen.add(id));
+    for (let seed = 1; seed <= 200; seed++) {
+      const result = constructJournal(
+        context([`Mom had energy for ${activity} today.`]),
+        newNarrativeMemory(seed * 104729),
+      );
+      result.selections
+        .filter((id) => id.startsWith(family + ":"))
+        .forEach((id) => seen.add(id));
     }
-    assert.equal(seen.size,8);
+    assert.equal(seen.size, 8);
   }
-  for (const [name,power] of [['Whirligig','walk and run faster'],['Spring Hare','jump'],['Garden Inspector','see how all my trees are growing']]) {
-    const result=constructJournal(context([`Used my ${name} to help today.`]));
-    assert(result.entry.includes(power));assert(!result.entry.includes(`I bought the ${name}`));
+  for (const [name, power] of [
+    ["Whirligig", "walk and run faster"],
+    ["Spring Hare", "jump"],
+    ["Garden Inspector", "see how all my trees are growing"],
+  ]) {
+    const result = constructJournal(
+      context([`Used my ${name} to help today.`]),
+    );
+    assert(result.entry.includes(power));
+    assert(!result.entry.includes(`I bought the ${name}`));
   }
 });
-test('spending reflection requires a recorded purchase and a lower observed balance',()=>{
- const c=context(['Bought soil to fill a garden bed for $10.00.'],2);
- c.history=[{day:1,events:[],earned:0,available:1433}];
- assert(constructJournal(c).selections.some(id=>id.startsWith('spending:')));
- c.events=[];assert(!constructJournal(c).selections.some(id=>id.startsWith('spending:')));
+test("spending reflection requires a recorded purchase and a lower observed balance", () => {
+  const c = context(["Bought soil to fill a garden bed for $10.00."], 2);
+  c.history = [{ day: 1, events: [], earned: 0, available: 1433 }];
+  assert(
+    constructJournal(c).selections.some((id) => id.startsWith("spending:")),
+  );
+  c.events = [];
+  assert(
+    !constructJournal(c).selections.some((id) => id.startsWith("spending:")),
+  );
 });
-test('later unproven nights do not rediscover buying seeds and repeated optional subjects cool down',()=>{
- const s=fresh();s.boughtSeeds=true;s.seeds=5;s.day=2;
- const r=constructJournal(journalContext(s));assert(r.selections.some(id=>id.startsWith('unstarted:')));assert(!r.selections.some(id=>id.startsWith('unproven:')));
- s.events=['Mom had energy for painting today.'];const first=constructJournal(journalContext(s));
- s.day=3;s.journal.push(first.entry);
- const second=constructJournal(journalContext(s),first.memory);assert(!second.selections.some(id=>first.selections.includes(id)));
+test("later unproven nights do not rediscover buying seeds and repeated optional subjects cool down", () => {
+  const s = fresh();
+  s.boughtSeeds = true;
+  s.seeds = 5;
+  s.day = 2;
+  const r = constructJournal(journalContext(s));
+  assert(r.selections.some((id) => id.startsWith("unstarted:")));
+  assert(!r.selections.some((id) => id.startsWith("unproven:")));
+  s.events = ["Mom had energy for painting today."];
+  const first = constructJournal(journalContext(s));
+  s.day = 3;
+  s.journal.push(first.entry);
+  const second = constructJournal(journalContext(s), first.memory);
+  assert(!second.selections.some((id) => first.selections.includes(id)));
+});
+test("reaching the surgery goal is a one-time event and does not invent a conversation", () => {
+  const s = fresh();
+  s.harvestReflected = true;
+  s.day = 300;
+  s.bank = 1000000;
+  s.cash = 0;
+  s.events = ["Harvested $7.00 from a money tree."];
+  const r = constructJournal(journalContext(s));
+  assert(r.selections.some((x) => x.startsWith("goal:")));
+  assert(r.memory.goalWritten);
+  assert(!/I told|Mom said/.test(r.entry));
+  s.day++;
+  const next = constructJournal(journalContext(s), r.memory);
+  assert(!next.selections.some((x) => x.startsWith("goal:")));
 });

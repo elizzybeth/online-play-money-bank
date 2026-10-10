@@ -19,6 +19,7 @@ export type NarrativeMemory = {
   lastMom: "good" | "tired" | null;
   lastMomDay: number;
   firstHarvestWritten: boolean;
+  goalWritten?: boolean;
 };
 const initial: Emotions = {
   worry: 45,
@@ -37,6 +38,7 @@ export function newNarrativeMemory(seed: number): NarrativeMemory {
     lastMom: null,
     lastMomDay: 0,
     firstHarvestWritten: false,
+    goalWritten: false,
   };
 }
 export function validNarrativeMemory(value: unknown): value is NarrativeMemory {
@@ -62,7 +64,8 @@ export function validNarrativeMemory(value: unknown): value is NarrativeMemory {
     [null, "good", "tired"].includes(m.lastMom) &&
     Number.isSafeInteger(m.lastMomDay) &&
     m.lastMomDay >= 0 &&
-    typeof m.firstHarvestWritten === "boolean"
+    typeof m.firstHarvestWritten === "boolean" &&
+    (m.goalWritten === undefined || typeof m.goalWritten === "boolean")
   );
 }
 const dollars = (n: number) => `$${(n / 100).toFixed(2)}`;
@@ -96,6 +99,7 @@ export function constructJournal(
   const memory = structuredClone(prior),
     e = memory.emotions;
   const first = c.firstHarvest && !prior.firstHarvestWritten;
+  const goal = c.remaining === 0 && !prior.goalWritten;
   const good = has(c, /^Mom had energy for/),
     tired = has(c, /^Mom was exhausted/),
     cough = has(c, /^Heard Mom coughing/);
@@ -209,7 +213,11 @@ export function constructJournal(
     return true;
   };
   // Choose a central subject. The first real harvest replaces all pre-harvest doubt.
-  if (first) {
+  if (goal) {
+    choose("goal", undefined, true);
+    memory.goalWritten = true;
+    if (first) memory.firstHarvestWritten = true;
+  } else if (first) {
     choose("first", undefined, true);
     memory.firstHarvestWritten = true;
   } else if (c.earned) choose("income", undefined, true);
@@ -300,7 +308,7 @@ export function constructJournal(
     else if (neighbors.length) choose("neighbors");
   }
   // A short reflection is optional. No compulsory hopeful moral at the end.
-  if (paragraphs.length < 4 && !first) {
+  if (paragraphs.length < 4 && !first && !goal) {
     if (spentDown) choose("spending");
     else if (e.fatigue >= 65) choose("fatigue");
     else if (e.worry >= 58 && (good || tired || chatted)) choose("worry");
