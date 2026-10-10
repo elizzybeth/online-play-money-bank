@@ -98,6 +98,8 @@ test("all required interaction targets are reachable in scene collision geometry
         metRobertson: false,
         recovered: false,
         foundTVSeeds: true,
+        metStacy: true,
+        foundMeditationSeeds: true,
         plots: Array.from({ length: 5 }, () => ({
           stage: "empty",
           remaining: 0,

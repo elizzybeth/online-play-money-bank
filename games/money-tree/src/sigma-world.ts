@@ -310,7 +310,12 @@ export function createSigmaWorld(
           );
     if (i >= 25) object.scale.set(1, 0.2, 0.8);
     const x = i < 25 ? -6 + (i % 5) * 9 : -8 + ((i * 13.7) % 44);
-    const z = i < 25 ? (i === 24 ? -74 : -47 - Math.floor(i / 5) * 8) : -46 - ((i * 7.3) % 40);
+    const z =
+      i < 25
+        ? i === 24
+          ? -74
+          : -47 - Math.floor(i / 5) * 8
+        : -46 - ((i * 7.3) % 40);
     object.position.set(x, i < 25 ? 0.3 : 0.15, z);
     object.visible = false;
     town.add(object);

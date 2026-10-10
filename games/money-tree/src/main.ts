@@ -1271,7 +1271,9 @@ function stacyConversation() {
     ],
   );
 }
-let pepeGreeted = false;
+let pepeGreeted = false,
+  pepeViewHold = 0,
+  pepeReturning = false;
 function pepeConversation(step = 0) {
   const lines = [
     "Is inflation in our world a good thing or not a good thing?",
@@ -1736,6 +1738,7 @@ addEventListener("keydown", (e) => {
     return;
   }
   if (!begun) return;
+  if ((s.pepeShowStarted && !s.pepePopped) || pepeViewHold > 0) return;
   if (
     key === " " &&
     s.awake &&
@@ -2099,6 +2102,10 @@ function updateUI() {
       meditationTime > 0
         ? `Meditating · ${Math.ceil(meditationTime)}s`
         : "<kbd>E</kbd> Stand up";
+  if ((s.pepeShowStarted && !s.pepePopped) || pepeViewHold > 0)
+    prompt = s.pepePopped
+      ? "Seed packets are falling!"
+      : `Pepe is inflating · ${Math.ceil(12 - (s.pepeInflation ?? 0))}s`;
   $("#prompt").innerHTML = prompt;
   $("#prompt").classList.toggle("unavailable", unavailable);
   $("#prompt").classList.toggle("seated", sitting);
@@ -2197,8 +2204,15 @@ function frame(now: number) {
     if (roofIndex < 0) world.occluders.push(world.homeRoof);
   } else if (roofIndex >= 0) world.occluders.splice(roofIndex, 1);
   const active = begun && !paused && !document.hidden;
+  const balloonView =
+    !!s.pepeShowStarted && (!s.pepePopped || pepeViewHold > 0);
+  const fog = scene.fog as T.Fog;
+  fog.near += ((balloonView ? 90 : 35) - fog.near) * (1 - Math.exp(-dt * 3));
+  fog.far += ((balloonView ? 220 : 90) - fog.far) * (1 - Math.exp(-dt * 3));
+  speechLayer.style.visibility = balloonView ? "hidden" : "";
   if (active) {
     if (s.awake) {
+      pepeViewHold = Math.max(0, pepeViewHold - dt);
       const inPepe =
         canEnterPepe(s) &&
         Math.abs(s.position.x + 18) < 6.5 &&
@@ -2212,6 +2226,8 @@ function frame(now: number) {
         const before = s.pepeInflation ?? 0;
         const popped = tickPepeShow(s, dt);
         if (popped) {
+          pepeViewHold = 2.25;
+          pepeReturning = true;
           balloonSound(true);
           save();
           toast(
@@ -2289,7 +2305,13 @@ function frame(now: number) {
           s.foundTVSeeds ? -89 : -39,
         );
       const rolling = rollTime > 0;
-      const n = sitting || rolling ? 0 : Math.hypot(f, r);
+      const n =
+        sitting ||
+        rolling ||
+        (s.pepeShowStarted && !s.pepePopped) ||
+        pepeViewHold > 0
+          ? 0
+          : Math.hypot(f, r);
       if (n) {
         if (wearing(s, "propeller"))
           noteHatPower(s, "to get around faster", "propeller");
@@ -2478,6 +2500,19 @@ function frame(now: number) {
     camera.position.set(-5, 15, 35);
     cameraAim.set(-7, 1, 10);
     camera.lookAt(cameraAim);
+  } else if (s.pepeShowStarted && (!s.pepePopped || pepeViewHold > 0)) {
+    const fraction = (s.pepeInflation ?? 0) / 12;
+    const ease = reducedMotion ? 1 : 1 - Math.exp(-dt * 4);
+    camera.position.lerp(
+      new T.Vector3(
+        18 + fraction * 32,
+        24 + fraction * 25,
+        -33 + fraction * 24,
+      ),
+      ease,
+    );
+    cameraAim.lerp(new T.Vector3(-18, 7.2, -65), ease);
+    camera.lookAt(cameraAim);
   } else if (!s.awake) {
     camera.position.set(-16.8, 3.8, 4.2);
     cameraAim.set(-19.1, 1.35, 0.75);
@@ -2624,11 +2659,17 @@ function frame(now: number) {
         : upLength;
       ideal.lerp(target.clone().addScaledVector(up, clear), 1 - overhead);
     }
-    const cameraJump = camera.position.distanceTo(target) > 20;
+    if (pepeReturning && camera.position.distanceTo(target) < 12)
+      pepeReturning = false;
+    const cameraJump =
+      camera.position.distanceTo(target) > 20 && !pepeReturning;
     const next = cameraJump
       ? ideal.clone()
       : camera.position.clone().lerp(ideal, easing);
-    if (!reducedMotion && camera.position.distanceTo(target) < 20) {
+    if (
+      !reducedMotion &&
+      (camera.position.distanceTo(target) < 20 || pepeReturning)
+    ) {
       const travel = next.clone().sub(camera.position);
       if (travel.length() > dt * 12)
         next.copy(camera.position).add(travel.setLength(dt * 12));
