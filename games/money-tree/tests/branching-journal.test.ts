@@ -182,7 +182,7 @@ test("all Mom activity families and hat powers are reachable without inventing p
   for (const [name, power] of [
     ["Whirligig", "walk and run faster"],
     ["Spring Hare", "jump"],
-    ["Garden Inspector", "see how all my trees are growing"],
+    ["Twin Planter", "plant two adjoining beds at once"],
   ]) {
     const result = constructJournal(
       context([`Used my ${name} to help today.`]),

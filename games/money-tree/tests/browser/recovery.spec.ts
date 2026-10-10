@@ -20,7 +20,7 @@ async function importSave(page: Page, s: State) {
   });
   await expect(page.locator("#modal")).toBeHidden();
 }
-test("watering a seed while standing on it clears the new trunk and allows movement", async ({
+test("watering leaves a seedling, and overnight growth clears the new trunk and allows movement", async ({
   page,
 }) => {
   await start(page);
@@ -47,7 +47,11 @@ test("watering a seed while standing on it clears the new trunk and allows movem
         ),
       ),
     )
-    .toBe(true);
+    .toBe(false);
+  await page.evaluate(() => (window as any).game.sleep());
+  await expect
+    .poll(async () => (await state(page)).plots[0].stage)
+    .toBe("ready");
   const rects = await page.evaluate(() => (window as any).game.rects);
   const before = (await state(page)).position;
   expect(blocked(before.x, before.z, rects)).toBe(false);
@@ -57,7 +61,7 @@ test("watering a seed while standing on it clears the new trunk and allows movem
     .poll(async () => (await state(page)).position.z)
     .toBeGreaterThan(before.z + 0.5);
   await page.keyboard.up("s");
-  expect((await state(page)).plots[0].stage).toBe("growing");
+  expect((await state(page)).plots[0].stage).toBe("ready");
 });
 test("unstuck returns home without resetting resources, journal, day or crops; cancels digging", async ({
   page,
@@ -129,7 +133,7 @@ test("Mom and Robertson remind an empty-pocket player about the piggy bank", asy
   await expect(page.locator("#prompt")).toContainText("Mom");
   await page.keyboard.press("e");
   await expect(page.locator(".speech-bubble")).not.toContainText("piggy bank");
-  await page.getByRole("button", { name: "Love you too" }).click();
+  await page.locator(".speech-bubble .choices button").last().click();
   await page.evaluate(() => (window as any).game.teleport(8, -31.7));
   await expect(page.locator("#prompt")).toContainText("Robertson");
   await page.keyboard.press("e");

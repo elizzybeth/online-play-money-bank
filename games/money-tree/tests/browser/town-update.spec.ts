@@ -40,6 +40,11 @@ test("full third-person sleeping body and compact couch seating, stand without r
     await page.evaluate(() => (window as any).game.npcHeadPenetrations()),
   ).toBe(0);
   await expect(page.locator("#prompt")).toContainText("Stand up");
+  const view = await page.evaluate(() => (window as any).game.camera());
+  expect(view.forward[0]).toBeGreaterThan(0.9);
+  expect(view.forward[2]).toBeLessThan(0);
+  expect(view.position[0]).toBeCloseTo(-18.9, 1);
+  expect(view.position[1]).toBeCloseTo(2.39, 1);
   await expect(page.locator("#prompt")).toHaveClass(/seated/);
   if (await page.locator("#thought").isVisible()) {
     const thought = await page.locator("#thought").boundingBox(),
@@ -159,7 +164,7 @@ test("Mom rests in separate bedroom, birdhouses remain outside, interior camera 
   await open(page, s);
   await expect
     .poll(() => page.evaluate(() => (window as any).game.camera().position[1]))
-    .toBeGreaterThan(4);
+    .toBeGreaterThan(1.3);
   expect(await page.evaluate(() => (window as any).game.birdhouses())).toBe(1);
   await page.evaluate(() => (window as any).game.teleport(-2.5, 10));
   await expect(page.locator("#prompt")).toContainText("Mom");

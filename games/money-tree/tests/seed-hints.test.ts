@@ -44,3 +44,15 @@ test("jump clearance removes low obstacles while retaining building walls", () =
   assert(!blocked(0, 0, airborneRects(rects, 3)));
   assert(blocked(5, 0, airborneRects(rects, 4)));
 });
+
+test("seed search hints suspend their clock during a conversation and resume afterward", () => {
+  const s = fresh();
+  s.boughtSeeds = true;
+  const clock = new SeedSearchClock();
+  assert.equal(clock.update(s, 179), null);
+  assert.equal(clock.update(s, 600, true), null);
+  assert.equal(clock.update(s, 1), seedHint(s, 0));
+  assert.equal(clock.update(s, 600, true), null);
+  assert.equal(clock.update(s, 29), null);
+  assert.equal(clock.update(s, 1), seedHint(s, 1));
+});

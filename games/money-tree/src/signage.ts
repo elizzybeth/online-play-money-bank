@@ -4,6 +4,83 @@ export function signCanvas(text: string, width = 768, height = 192) {
   c.width = width;
   c.height = height;
   const g = c.getContext("2d")!;
+  if (text === "Robertsons") {
+    g.fillStyle = "#e64131";
+    g.beginPath();
+    g.ellipse(
+      width / 2,
+      height / 2,
+      width * 0.485,
+      height * 0.44,
+      0,
+      0,
+      Math.PI * 2,
+    );
+    g.fill();
+    g.strokeStyle = "#fff6df";
+    g.lineWidth = 4;
+    g.stroke();
+    g.fillStyle = "#fff9ed";
+    g.textAlign = "center";
+    g.textBaseline = "middle";
+    let size = height * 0.78;
+    g.font = `${size}px Lobster`;
+    while (g.measureText(text).width > width * 0.82 && size > 12)
+      g.font = `${--size}px Lobster`;
+    g.fillText(text, width * 0.5, height * 0.49);
+    return c;
+  }
+  if (["Thread & Thimble", "Angry Milliner", "This Way"].includes(text)) {
+    const left = text !== "Angry Milliner";
+    const colors: Record<string, string> = {
+      "Thread & Thimble": "#a9ced6",
+      "Angry Milliner": "#dfa3be",
+      "This Way": "#e4d28d",
+    };
+    g.save();
+    if (left) {
+      g.translate(width, 0);
+      g.scale(-1, 1);
+    }
+    g.beginPath();
+    g.moveTo(12, height * 0.12);
+    g.lineTo(width * 0.83, height * 0.1);
+    g.lineTo(width * 0.82, height * 0.02);
+    g.lineTo(width - 8, height * 0.5);
+    g.lineTo(width * 0.82, height * 0.97);
+    g.lineTo(width * 0.83, height * 0.89);
+    g.lineTo(10, height * 0.87);
+    g.lineTo(16, height * 0.57);
+    g.closePath();
+    g.fillStyle = colors[text];
+    g.fill();
+    g.strokeStyle = "#645349";
+    g.lineWidth = 3;
+    g.stroke();
+    g.clip();
+    for (let line = 0; line < 7; line++) {
+      g.strokeStyle = line % 2 ? "#ffffff35" : "#49352b19";
+      g.beginPath();
+      g.moveTo(0, 20 + (line * height) / 8);
+      g.quadraticCurveTo(
+        width * 0.5,
+        (line * height) / 8 + 12,
+        width,
+        (line * height) / 8 + 22,
+      );
+      g.stroke();
+    }
+    g.restore();
+    g.fillStyle = "#3d3042";
+    g.textAlign = "center";
+    g.textBaseline = "middle";
+    let size = height * 0.43;
+    g.font = `${size}px HennyPenny`;
+    while (g.measureText(text).width > width * 0.76 && size > 12)
+      g.font = `${--size}px HennyPenny`;
+    g.fillText(text, width * (left ? 0.57 : 0.43), height * 0.53);
+    return c;
+  }
   const sigmaBrand = [
     "Community Garden",
     "Sigma Town",

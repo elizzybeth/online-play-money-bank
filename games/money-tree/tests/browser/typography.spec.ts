@@ -142,7 +142,7 @@ test("bedroom and enlarged store corners remain escapable, cameras settle withou
       .poll(() =>
         page.evaluate(() => (window as any).game.camera().position[1]),
       )
-      .toBeGreaterThan(4.4);
+      .toBeGreaterThan(1.3);
     expect(
       await page.evaluate(() => (window as any).game.camera().penetrations),
     ).toBe(0);

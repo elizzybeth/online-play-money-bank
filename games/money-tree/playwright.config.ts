@@ -4,7 +4,8 @@ const browserName = (process.env.MONEY_TREE_BROWSER ?? "chromium") as
 export default defineConfig({
   expect: { timeout: 15000 },
   testDir: "tests/browser",
-  timeout: 120000,
+  // Software WebGL on shared CI runners renders the expanded town more slowly.
+  timeout: process.env.CI ? 240000 : 120000,
   workers: 1,
   use: {
     browserName,

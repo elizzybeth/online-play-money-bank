@@ -1,3 +1,5 @@
+import { validBirdhousePaint, type BirdhousePaint } from "./birdhouse-paint";
+import { validColorPuzzle, type ColorPuzzle } from "./color-puzzle";
 import { extraTownLines } from "./town-dialogue";
 import { bikeById, type BikeId } from "./bikes";
 import {
@@ -48,6 +50,9 @@ export type State = {
   equippedHats?: HatId[];
   momThoughts?: string[];
   birdhousesBuilt?: number;
+  birdhousePaint?: BirdhousePaint[];
+  birdhousePaintDay?: number;
+  tvChannel?: "cartoons" | "news";
   foundGardenSeeds?: boolean;
   foundTVSeeds?: boolean;
   foundMeditationSeeds?: boolean;
@@ -60,6 +65,8 @@ export type State = {
   stacyConversations?: number;
   harvestReflected: boolean;
   day: number;
+  colorPuzzle?: ColorPuzzle;
+  dailyNet?: number;
   cash: number;
   bank: number;
   seeds: number;
@@ -118,6 +125,7 @@ export const fresh = (): State => ({
   shovel: false,
   can: false,
   fertilizer: 0,
+  dailyNet: 0,
   gardenBeds: 0,
   soilBags: 0,
   awake: false,
@@ -229,23 +237,63 @@ export function fertilize(s: State, i: number) {
   s.events.push("Fed a tree with fertilizer.");
   return true;
 }
-export function tick(s: State, dt: number) {
-  if (!Number.isFinite(dt) || dt < 0) return;
+// Crops mature only at the day boundary, never from elapsed awake time.
+export function tick(_s: State, _dt: number) {}
+export function growOvernight(s: State) {
   for (const p of s.plots) {
-    if (p.stage === "growing") {
-      p.remaining = Math.max(0, p.remaining - dt);
-      if (!p.remaining) {
-        p.stage = "ready";
-        s.rng = (s.rng * 16807) % 2147483647;
-        const r = s.rng / 2147483647;
-        p.yield =
-          (p.fertilized ? 4 + Math.floor(r * 6) : 2 + Math.floor(r * r * 6)) *
-          100;
-        if (wearing(s, "beekeeper") && p.fertilized)
-          p.yield = Math.max(600, p.yield);
-      }
-    }
+    if (p.stage !== "growing") continue;
+    p.remaining = 0;
+    p.stage = "ready";
+    s.rng = (s.rng * 16807) % 2147483647;
+    const r = s.rng / 2147483647;
+    p.yield =
+      (p.fertilized ? 4 + Math.floor(r * 6) : 2 + Math.floor(r * r * 6)) * 100;
+    if (wearing(s, "beekeeper") && p.fertilized)
+      p.yield = Math.max(600, p.yield);
   }
+}
+export function plantingBatch(s: State, i: number): number[] {
+  const available = (j: number) =>
+    s.plots[j] &&
+    s.plots[j].soilFilled !== false &&
+    ["empty", "harvested"].includes(s.plots[j].stage);
+  if (!available(i) || s.seeds < 1) return [];
+  if (!wearing(s, "inspector") || s.seeds < 2) return [i];
+  const position = (j: number) => ({
+    x: s.plots[j].x ?? -20 + j * 2,
+    z: s.plots[j].z ?? 19,
+  });
+  const origin = position(i);
+  const neighbor = s.plots.findIndex((_, j) => {
+    if (j === i || !available(j)) return false;
+    const p = position(j),
+      dx = Math.abs(p.x - origin.x),
+      dz = Math.abs(p.z - origin.z);
+    return (
+      (dx >= 1.8 && dx <= 2.4 && dz < 0.6) ||
+      (dz >= 2.8 && dz <= 3.6 && dx < 0.6)
+    );
+  });
+  return neighbor < 0 ? [i] : [i, neighbor];
+}
+export function plantBatch(s: State, ids: number[]) {
+  if (
+    !ids.length ||
+    ids.length > 2 ||
+    new Set(ids).size !== ids.length ||
+    s.seeds < ids.length ||
+    ids.some(
+      (i) =>
+        !s.plots[i] ||
+        s.plots[i].soilFilled === false ||
+        !["empty", "harvested"].includes(s.plots[i].stage),
+    )
+  )
+    return false;
+  if (ids.length > 1)
+    noteHatPower(s, "to plant two adjoining beds together", "inspector");
+  for (const i of ids) plant(s, i);
+  return true;
 }
 export function harvest(s: State, i: number) {
   const p = s.plots[i];
@@ -398,12 +446,17 @@ export function sleep(s: State) {
     !s.harvestReflected && s.events.some((e) => e.startsWith("Harvested"));
   s.journal.push(entry);
   if (firstHarvest) s.harvestReflected = true;
-  if (momStatus(s.day).activity === "birdhouses")
+  if (
+    momStatus(s.day).activity === "birdhouses" &&
+    s.birdhousePaintDay !== s.day
+  )
     s.birdhousesBuilt = Math.min(12, (s.birdhousesBuilt ?? 0) + 1);
   s.events = [];
   s.day++;
-  tick(s, 180);
-  tickSigma(s, 180);
+  s.dailyNet = 0;
+  growOvernight(s);
+  delete s.drink;
+  tickSigma(s, 180, false);
 }
 export function momStatus(day: number) {
   const activities = [
@@ -429,7 +482,7 @@ export function momStatus(day: number) {
     mending:
       "“I felt up to sewing today. I am fixing a loose button. Come choose some thread with me.”",
     puzzles:
-      "“I am working on a puzzle today. Want to help me find an edge piece?”",
+      "“I am working on a puzzle today. Want to help me figure out where the colors go?”",
     music:
       "“I have a little energy for music today. I am trying a tune on my little keyboard.”",
     letters:
@@ -453,7 +506,7 @@ export function momStatus(day: number) {
   };
   const journal = {
     mending: "mending clothes",
-    puzzles: "doing a jigsaw puzzle",
+    puzzles: "doing a color puzzle",
     music: "playing music",
     letters: "writing a letter",
     feeding: "feeding birds",
@@ -538,6 +591,7 @@ export function decode(raw: string | null): State | null {
           Array.isArray(s[k]) &&
           s[k].every((x: unknown) => typeof x === "string"),
       ) ||
+      !s.journal.length ||
       !Number.isSafeInteger(s.rng) ||
       s.rng <= 0 ||
       s.rng >= 2147483647 ||
@@ -693,6 +747,8 @@ export function decode(raw: string | null): State | null {
     s.selectedBike = s.bikes.includes(s.selectedBike)
       ? s.selectedBike
       : (s.bikes[0] ?? null);
+    if (!validColorPuzzle(s.colorPuzzle)) delete s.colorPuzzle;
+    s.dailyNet = Number.isSafeInteger(s.dailyNet) ? s.dailyNet : 0;
     s.hats ??= [];
     s.equippedHat ??= null;
     if (
@@ -714,6 +770,23 @@ export function decode(raw: string | null): State | null {
       s.equippedHats.length > 3 ||
       new Set(s.equippedHats).size !== s.equippedHats.length ||
       !s.equippedHats.every((id: HatId) => s.hats.includes(id))
+    )
+      return null;
+    if (
+      s.birdhousePaint !== undefined &&
+      !validBirdhousePaint(s.birdhousePaint)
+    )
+      return null;
+    if (
+      s.birdhousePaintDay !== undefined &&
+      (!Number.isInteger(s.birdhousePaintDay) ||
+        s.birdhousePaintDay < 1 ||
+        s.birdhousePaintDay > s.day)
+    )
+      return null;
+    if (
+      s.tvChannel !== undefined &&
+      !["cartoons", "news"].includes(s.tvChannel)
     )
       return null;
     s.birdhousesBuilt ??= Math.max(
@@ -1020,7 +1093,7 @@ export function momReply(s: State) {
     ],
     puzzles: [
       "I am looking for the piece with a bit of blue on it.",
-      "Come help me find the corners. We do not need to finish today.",
+      "Come help me place these colors. We do not need to finish today.",
       "It is nice to work on something with you.",
     ],
     music: [

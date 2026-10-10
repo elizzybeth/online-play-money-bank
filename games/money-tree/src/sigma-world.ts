@@ -1,8 +1,11 @@
+import { sigmaPlots } from "./sigma";
+import { makeCoffeeShop } from "./coffee-shop";
+import { pepeScatter } from "./pepe-scatter";
 import { makeSeedPacket } from "./seed-packet";
 import { signCanvas } from "./signage";
 import * as T from "three";
 import { surfaceMaterial } from "./textures";
-import type { Rect } from "./game";
+import { blocked, type Rect } from "./game";
 import type { Target } from "./world";
 // Original miniature sculptures, borrowing the meme silhouettes rather than flat signs.
 export function createSigmaWorld(
@@ -71,6 +74,10 @@ export function createSigmaWorld(
   }
   // One union mesh, lifted above the grass: no coplanar seams or overlapping tiles.
   const paths = [
+    { x: 7.5, z: -49, w: 37, d: 3 },
+    { x: -7.5, z: -65, w: 3, d: 35 },
+    { x: -9.5, z: -65, w: 6, d: 3 },
+    { x: -9.5, z: -81, w: 6, d: 3 },
     { x: 30, z: -44, w: 11, d: 3 },
     { x: 26, z: -63, w: 22, d: 3 },
     { x: 26, z: -61, w: 3, d: 40 },
@@ -120,9 +127,9 @@ export function createSigmaWorld(
   walkway.name = "sigma-continuous-sidewalk";
   walkway.receiveShadow = true;
   town.add(walkway);
-  sign("Sigma Town", 34, 2.8, -43, 5);
-  box(31.7, 1.25, -43, 0.12, 2.5, 0.12, "#6c5940");
-  box(36.3, 1.25, -43, 0.12, 2.5, 0.12, "#6c5940");
+  const entranceSign = sign("Sigma Town", 34, 4.8, -43, 5);
+  box(31.7, 2.35, -43, 0.18, 4.7, 0.18, "#6c5940");
+  box(36.3, 2.35, -43, 0.18, 4.7, 0.18, "#6c5940");
   // Stylized grayscale Chads: slick hair, angular jaw, broad shoulders and little legs.
   function chad(id: string, x: number, z: number, apron = false) {
     const g = new T.Group();
@@ -147,7 +154,9 @@ export function createSigmaWorld(
       );
       box(side * 0.16, 1.65, 0.34, 0.2, 0.04, 0.035, "#242629", g);
       ball(side * 0.18, 1.59, 0.337, 0.035, "#212121", g);
-      ball(side * 0.19, 0.18, 0.04, 0.18, "#34383b", g).scale.set(1, 1, 1.4);
+      const foot = ball(side * 0.19, 0.18, 0.04, 0.18, "#34383b", g);
+      foot.name = `walking-foot-${side}`;
+      foot.scale.set(1, 1, 1.4);
     }
     for (let y = 0.53; y < 0.81; y += 0.13)
       for (const x of [-0.1, 0.1])
@@ -163,40 +172,130 @@ export function createSigmaWorld(
   const locations = [
     [27, -48],
     [15, -66],
-    [30, -72],
+    [35, -67],
     [21, -80],
     [34, -59],
     [21, -60],
   ];
-  locations.forEach(([x, z], i) => chad(`sigma-chad-${i}`, x, z));
+  const walkers = locations.map(([x, z], i) => {
+    const id = `sigma-chad-${i}`;
+    const object = chad(id, x, z);
+    return {
+      id,
+      object,
+      collider: rects.at(-1)!,
+      target: targets.at(-1)!,
+      x,
+      z,
+      phase: 0.5,
+      direction: 1,
+      walk: 0,
+      alongX: i % 2 === 0,
+    };
+  });
+  function updateWalkers(
+    dt: number,
+    playerX: number,
+    playerZ: number,
+    speaker?: string,
+  ) {
+    for (const walker of walkers) {
+      const distance = Math.hypot(
+        walker.object.position.x - playerX,
+        walker.object.position.z - playerZ,
+      );
+      const waiting = dt <= 0 || distance < 3.2 || speaker === walker.id;
+      if (!waiting) {
+        const phase = T.MathUtils.clamp(
+          walker.phase + walker.direction * dt * 0.2,
+          0,
+          1,
+        );
+        const offset = (phase - 0.5) * 3.2;
+        const x = walker.x + (walker.alongX ? offset : 0);
+        const z = walker.z + (walker.alongX ? 0 : offset);
+        if (
+          !blocked(
+            x,
+            z,
+            rects.filter((r) => r !== walker.collider),
+            0.6,
+          ) &&
+          Math.hypot(x - playerX, z - playerZ) > 2 &&
+          Math.hypot(x - 32, z + 74.7) > 7
+        ) {
+          walker.phase = phase;
+          walker.object.position.set(x, 0, z);
+          walker.collider.x = x;
+          walker.collider.z = z;
+          walker.target.x = x + 1.3;
+          walker.target.z = z;
+          walker.object.rotation.y = walker.alongX
+            ? (walker.direction * Math.PI) / 2
+            : walker.direction > 0
+              ? 0
+              : Math.PI;
+          walker.walk += dt * 7;
+          if (phase === 0 || phase === 1) walker.direction *= -1;
+        } else walker.direction *= -1;
+      } else if (distance < 3.2) {
+        walker.object.rotation.y = Math.atan2(
+          playerX - walker.object.position.x,
+          playerZ - walker.object.position.z,
+        );
+      }
+      for (const side of [-1, 1]) {
+        const foot = walker.object.getObjectByName(`walking-foot-${side}`)!;
+        foot.position.z = waiting
+          ? 0.04
+          : 0.04 + Math.sin(walker.walk) * side * 0.13;
+        foot.position.y = waiting
+          ? 0.18
+          : 0.18 + Math.max(0, Math.sin(walker.walk) * side) * 0.07;
+      }
+    }
+  }
   // Three walk-in meme houses. Open doorway in front, no bushes obstruct it.
   const houseBounds: Rect[] = [];
-  function shell(x: number, z: number, c: string) {
+  function shell(
+    x: number,
+    z: number,
+    c: string,
+    entrance: "south" | "east" = "south",
+  ) {
     houseBounds.push({ x, z, w: 7, d: 7 });
     for (const r of [
       { x: x - 3.5, z, w: 0.3, d: 7 },
-      { x: x + 3.5, z, w: 0.3, d: 7 },
+      ...(entrance === "east"
+        ? [
+            { x: x + 3.5, z: z - 2.3, w: 0.3, d: 2.4 },
+            { x: x + 3.5, z: z + 2.3, w: 0.3, d: 2.4 },
+          ]
+        : [{ x: x + 3.5, z, w: 0.3, d: 7 }]),
       { x, z: z - 3.5, w: 7, d: 0.3 },
-      { x: x - 2.3, z: z + 3.5, w: 2.4, d: 0.3 },
-      { x: x + 2.3, z: z + 3.5, w: 2.4, d: 0.3 },
+      ...(entrance === "east"
+        ? [{ x, z: z + 3.5, w: 7, d: 0.3 }]
+        : [
+            { x: x - 2.3, z: z + 3.5, w: 2.4, d: 0.3 },
+            { x: x + 2.3, z: z + 3.5, w: 2.4, d: 0.3 },
+          ]),
     ]) {
       const m = box(r.x, 1.45, r.z, r.w, 2.9, r.d, c);
+      m.userData.cameraWall = true;
       m.material = surfaceMaterial(c, "plaster", 2, 2);
       rects.push(r);
       occluders.push(m);
     }
-    box(x, -0.005, z, 7, 0.1, 7, "#a78963").material = surfaceMaterial(
-      "#a78963",
-      "wood",
-      3,
-      3,
-    );
-    box(x, 1.15, z + 3.35, 1.9, 2.3, 0.04, "#c7b88f").visible = false;
+    box(x, -0.005, z, 7, 0.1, 7, z === -81 ? "#302d37" : "#a78963").material =
+      surfaceMaterial(z === -81 ? "#302d37" : "#a78963", "wood", 3, 3);
+    if (entrance === "east")
+      box(x + 3.35, 1.15, z, 0.04, 2.3, 1.9, "#c7b88f").visible = false;
+    else box(x, 1.15, z + 3.35, 1.9, 2.3, 0.04, "#c7b88f").visible = false;
     return { x, z };
   }
   const memeStart = town.children.length,
     memeRectStart = rects.length;
-  const dog = shell(-3, -49, "#c9a369");
+  const dog = shell(-3, -49, "#c9a369", "east");
   const dogHead = ball(dog.x, 3.6, dog.z, 4, "#c49653");
   dogHead.scale.set(1, 0.8, 0.9);
   roofs.push(dogHead);
@@ -214,7 +313,7 @@ export function createSigmaWorld(
   }
   ball(dog.x, 3.9, dog.z + 3, 0.7, "#edcf91").scale.set(1.8, 0.8, 0.65);
   ball(dog.x, 4.16, dog.z + 3.4, 0.24, "#272b28");
-  const frog = shell(-3, -66, "#609758");
+  const frog = shell(-3, -66, "#609758", "east");
   const frogFaceStart = town.children.length;
   const frogRoof = ball(frog.x, 3.6, frog.z, 4, "#609758");
   frogRoof.scale.set(1, 0.6, 0.9);
@@ -227,7 +326,7 @@ export function createSigmaWorld(
   }
   box(frog.x, 3.85, frog.z + 3.45, 3.2, 0.16, 0.1, "#42593a");
   const frogParts = town.children.slice(frogFaceStart) as T.Mesh[];
-  const hawk = shell(-3, -81, "#e4bea1");
+  const hawk = shell(-3, -81, "#e4bea1", "east");
   const cowboyBrim = ball(hawk.x, 3.1, hawk.z, 5.5, "#b58958");
   cowboyBrim.scale.set(1, 0.055, 0.72);
   roofs.push(cowboyBrim);
@@ -250,9 +349,9 @@ export function createSigmaWorld(
   roofs.push(hatBand);
   const buckle = box(hawk.x, 3.45, hawk.z + 2.68, 0.8, 0.4, 0.12, "#e5c477");
   roofs.push(buckle);
-  sign("Hawk Tuah", -3, 2.4, -77.35, 3.6);
-  sign("Doge", -3, 2.4, -45.35, 3);
-  sign("Pepe", -3, 2.4, -62.35, 3);
+  sign("Hawk Tuah", 0.65, 2.4, -81, 3.6).rotation.y = Math.PI / 2;
+  sign("Doge", 0.65, 2.4, -49, 3).rotation.y = Math.PI / 2;
+  sign("Pepe", 0.65, 2.4, -66, 3).rotation.y = Math.PI / 2;
   // Enlarge each house around its own center and move the row west for clear space.
   for (const object of town.children.slice(memeStart)) {
     const oldZ = object.position.z;
@@ -282,11 +381,11 @@ export function createSigmaWorld(
     position: object.position.clone(),
     scale: object.scale.clone(),
   }));
-  const pepeGateRect = { x: -18, z: -58, w: 4.4, d: 0.35 };
+  const pepeGateRect = { x: -11, z: -65, w: 0.35, d: 4.4 };
   rects.push(pepeGateRect);
-  const pepeGate = box(-18, 2.9, -58, 4.4, 5.8, 0.35, "#507749");
+  const pepeGate = box(-11, 2.9, -65, 0.35, 5.8, 4.4, "#507749");
   occluders.push(pepeGate);
-  targets.push({ id: "pepe-door", x: -18, z: -56.7, label: "Enter Pepe" });
+  targets.push({ id: "pepe-door", x: -9.7, z: -65, label: "Enter Pepe" });
   const presenter = chad("pepe-show", -18, -66);
   mesh(
     new T.CylinderGeometry(0.025, 0.025, 0.4, 8),
@@ -297,6 +396,7 @@ export function createSigmaWorld(
     presenter,
   );
   ball(0.45, 1.17, 0.45, 0.09, "#919b9d", presenter);
+  const scatter = pepeScatter((x, z) => blocked(x, z, rects, 1));
   const debris = Array.from({ length: 100 }, (_, i) => {
     const object =
       i < 25
@@ -309,13 +409,7 @@ export function createSigmaWorld(
             }),
           );
     if (i >= 25) object.scale.set(1, 0.2, 0.8);
-    const x = i < 25 ? -6 + (i % 5) * 9 : -8 + ((i * 13.7) % 44);
-    const z =
-      i < 25
-        ? i === 24
-          ? -74
-          : -47 - Math.floor(i / 5) * 8
-        : -46 - ((i * 7.3) % 40);
+    const { x, z } = scatter[i];
     object.position.set(x, i < 25 ? 0.3 : 0.15, z);
     object.visible = false;
     town.add(object);
@@ -390,8 +484,8 @@ export function createSigmaWorld(
   }
   const meditators: T.Group[] = [];
   for (const [i, [x, z]] of [
-    [-21, -51],
     [-15, -51],
+    [-21, -51],
     [-18, -53],
   ].entries()) {
     const cushion = ball(x, 0.16, z, 0.7, "#b57c96");
@@ -416,7 +510,40 @@ export function createSigmaWorld(
   });
   const stacy = chad("stacy", -18, -82);
   speakers.find((s) => s.id === "stacy")!.name = "Stacy";
-  targets.find((t) => t.id === "stacy")!.label = "Talk with Stacy";
+  Object.assign(
+    targets.find((t) => t.id === "stacy")!,
+    { x: -16.3, z: -82, label: "Talk with Stacy" },
+  );
+  function chair(x: number, z: number, facing: number) {
+    const seat = new T.Group();
+    seat.position.set(x, 0, z);
+    seat.rotation.y = facing;
+    town.add(seat);
+    box(0, 0.55, 0, 1.35, 0.18, 1.2, "#805653", seat);
+    box(0, 1.12, -0.55, 1.35, 1.25, 0.16, "#805653", seat);
+    for (const side of [-1, 1]) {
+      box(side * 0.63, 0.82, 0, 0.13, 0.13, 1.1, "#b78a68", seat);
+      for (const end of [-1, 1])
+        box(side * 0.53, 0.26, end * 0.46, 0.13, 0.52, 0.13, "#b78a68", seat);
+    }
+    rects.push({ x, z, w: 1.35, d: 1.2 });
+    return seat;
+  }
+  const stacyChair = chair(-18, -82, 0),
+    guestChair = chair(-18, -79.5, Math.PI);
+  stacy.position.y = 0.52;
+  stacy.children
+    .filter((o) => o.position.y < 0.4)
+    .forEach((o) => {
+      o.position.y = 0.28;
+      o.position.z = 0.38;
+    });
+  targets.push({
+    id: "stacy-chair",
+    x: -16.6,
+    z: -79.5,
+    label: "Sit with Stacy",
+  });
   for (const side of [-1, 1]) {
     const lock = ball(side * 0.48, 1.35, 0.02, 0.25, "#e5c77c", stacy);
     lock.scale.set(0.7, 2.1, 0.9);
@@ -432,18 +559,27 @@ export function createSigmaWorld(
     stacy,
   );
   stacyCrown.material = surfaceMaterial("#c9a16f", "cloth");
-  // Coffee kiosk with an open counter, striped canopy and oversized mug.
-  box(32, 1.15, -79, 8, 2.3, 3, "#544638").material = surfaceMaterial(
-    "#544638",
-    "wood",
-    4,
-    2,
-  );
-  rects.push({ x: 32, z: -79, w: 8, d: 3 });
-  for (const side of [-1, 1])
-    box(32 + side * 3.8, 2.65, -77, 0.15, 3, 0.15, "#3a3430");
-  for (let i = 0; i < 8; i++)
-    box(28.5 + i, 4.2, -79, 1, 0.15, 5, i % 2 ? "#d6c391" : "#3b4442");
+  const handoffPacket = makeSeedPacket();
+  handoffPacket.visible = false;
+  town.add(handoffPacket);
+  let handoff:
+    | {
+        start: T.Vector3;
+        receiver: T.Vector3;
+        time: number;
+        hand?: T.Object3D;
+        rest?: T.Vector3;
+      }
+    | undefined;
+  function endHandoff() {
+    if (handoff?.hand && handoff.rest) handoff.hand.position.copy(handoff.rest);
+    handoff = undefined;
+    handoffPacket.visible = false;
+  }
+  // Open-front neighborhood cafe, keeping the service point clear.
+  town.add(makeCoffeeShop());
+  rects.push({ x: 32, z: -77.2, w: 8, d: 0.9, clearHeight: 1.25 });
+  rects.push({ x: 32, z: -81.4, w: 8, d: 0.2 });
   sign("Grindset", 32, 3.55, -76.45, 6);
   const mug = mesh(
     new T.CylinderGeometry(0.85, 0.7, 1.3, 12),
@@ -460,7 +596,73 @@ export function createSigmaWorld(
     -79,
   );
   handle.rotation.y = 0;
-  chad("grindset", 32, -76, true);
+  chad("grindset", 32, -78.4, true);
+  // Keep the customer point in front of the counter, clear of other Chads.
+  Object.assign(
+    targets.find((t) => t.id === "grindset")!,
+    {
+      x: 32,
+      z: -74.7,
+      label: "Talk to Grindset Chad",
+    },
+  );
+  // A coin terminal appears only after the player establishes their coin.
+  const atm = new T.Group();
+  atm.position.set(37, 0, -76);
+  town.add(atm);
+  box(0, 1.15, 0, 1.5, 2.3, 1.1, "#263b43", atm);
+  box(0, 1.6, 0.57, 1.08, 0.7, 0.06, "#92d7cb", atm);
+  box(0, 0.93, 0.58, 0.85, 0.09, 0.08, "#0d2028", atm);
+  for (let i = 0; i < 6; i++)
+    box(
+      -0.25 + (i % 3) * 0.25,
+      1.1 - Math.floor(i / 3) * 0.14,
+      0.59,
+      0.13,
+      0.09,
+      0.07,
+      "#ddd7c2",
+      atm,
+    );
+  const giantCoin = mesh(
+    new T.CylinderGeometry(0.95, 0.95, 0.2, 32),
+    "#efbd4a",
+    0,
+    3.4,
+    0,
+    atm,
+  );
+  giantCoin.rotation.x = Math.PI / 2;
+  const emblem = document.createElement("canvas");
+  emblem.width = emblem.height = 256;
+  const ink = emblem.getContext("2d")!;
+  ink.fillStyle = "#efbd4a";
+  ink.beginPath();
+  ink.arc(128, 128, 123, 0, Math.PI * 2);
+  ink.fill();
+  ink.strokeStyle = "#a77320";
+  ink.lineWidth = 8;
+  ink.beginPath();
+  ink.arc(128, 128, 108, 0, Math.PI * 2);
+  ink.stroke();
+  ink.fillStyle = "#6d501e";
+  ink.font = "bold 164px serif";
+  ink.textAlign = "center";
+  ink.fillText("$", 128, 185);
+  const stamp = new T.CanvasTexture(emblem);
+  stamp.colorSpace = T.SRGBColorSpace;
+  const medallion = new T.Mesh(
+    new T.PlaneGeometry(1.85, 1.85),
+    new T.MeshBasicMaterial({ map: stamp, transparent: true }),
+  );
+  medallion.position.set(0, 3.4, 0.12);
+  atm.add(medallion);
+  const coinLabel = sign("Coin ATM", 37, 2.63, -75.35, 2.6);
+  atm.attach(coinLabel);
+  const atmRect = { x: 37, z: -76, w: 1.5, d: 1.1 };
+  targets.push({ id: "coin-atm", x: 37, z: -74.9, label: "Use coin ATM" });
+  atm.visible = false;
+  let atmName = "";
   // Lone wolf sculpture, upturned snout and moon, $1 means nothing.
   const plinth = mesh(
     new T.CylinderGeometry(1.7, 2, 1, 12),
@@ -518,11 +720,109 @@ export function createSigmaWorld(
     rects.push(r);
     occluders.push(hedge);
   }
+  // Place debris after every permanent collider has been registered.
+  const finalScatter = pepeScatter(
+    (x, z) =>
+      blocked(x, z, rects, 1) ||
+      sigmaPlots.some(
+        (p) => Math.abs(x - p.x) < 1.5 && Math.abs(z - p.z) < 2,
+      ) ||
+      walkers.some(
+        (w) =>
+          Math.abs(x - w.x) < (w.alongX ? 3 : 1.5) &&
+          Math.abs(z - w.z) < (w.alongX ? 1.5 : 3),
+      ) ||
+      (Math.abs(x - 37) < 1.5 && Math.abs(z + 76) < 2),
+  );
+  debris.forEach((d, i) => {
+    Object.assign(d, finalScatter[i]);
+    d.object.position.set(d.x, i < 25 ? 0.3 : 0.15, d.z);
+    if (i < 25)
+      Object.assign(
+        targets.find((t) => t.id === `pepe-seed-${i}`)!,
+        finalScatter[i],
+      );
+  });
   return {
     town,
+    entranceSign,
+    walkers,
+    updateWalkers,
     houseBounds,
     meditators,
     updatePepe,
+    stacyChair,
+    guestChair,
+    handoffPacket,
+    handSeeds(id: string, x: number, z: number, height = 1.1) {
+      endHandoff();
+      const npc = speakers.find((n) => n.id === id)?.object;
+      if (!npc) return;
+      const hand = npc.children.find(
+        (o) =>
+          Math.abs(o.position.x - 0.25) < 0.01 &&
+          Math.abs(o.position.z - 0.24) < 0.01,
+      );
+      const start = npc.localToWorld(new T.Vector3(0.25, 1.02, 0.55));
+      handoff = {
+        start,
+        receiver: new T.Vector3(x, height, z),
+        time: 0,
+        hand,
+        rest: hand?.position.clone(),
+      };
+      handoffPacket.position.copy(start);
+      handoffPacket.visible = true;
+    },
+    updateHandoff(dt: number, reduced: boolean) {
+      if (!handoff) return;
+      handoff.time += dt;
+      const t = Math.min(1, handoff.time / (reduced ? 0.5 : 1.8));
+      const reach = Math.sin((Math.min(1, t * 2) * Math.PI) / 2);
+      if (handoff.hand && handoff.rest)
+        handoff.hand.position
+          .copy(handoff.rest)
+          .add(new T.Vector3(0, 0.06, reach * 0.4));
+      const travel = T.MathUtils.smoothstep(t, 0.25, 0.95);
+      handoffPacket.position.lerpVectors(
+        handoff.start,
+        handoff.receiver,
+        travel,
+      );
+      if (!reduced)
+        handoffPacket.position.y += Math.sin(travel * Math.PI) * 0.2;
+      if (t >= 1) endHandoff();
+    },
+    cancelHandoff: endHandoff,
+    updateATM(name?: string) {
+      const present = rects.includes(atmRect);
+      if (!!name !== present) {
+        if (name) rects.push(atmRect);
+        else rects.splice(rects.indexOf(atmRect), 1);
+      }
+      atm.visible = !!name;
+      if (name && name !== atmName) {
+        atmName = name;
+        const material = coinLabel.material as T.MeshBasicMaterial;
+        material.map?.dispose();
+        // Canvas text is data, so even imported names cannot create markup.
+        const canvas = document.createElement("canvas");
+        canvas.width = 768;
+        canvas.height = 192;
+        const ctx = canvas.getContext("2d")!;
+        ctx.fillStyle = "#263b43";
+        ctx.fillRect(0, 0, 768, 192);
+        ctx.fillStyle = "#efbd4a";
+        ctx.font = "bold 54px Nunito";
+        ctx.textAlign = "center";
+        ctx.fillText(name, 384, 78, 720);
+        ctx.font = "bold 56px Nunito";
+        ctx.fillText("COIN ATM", 384, 153);
+        material.map = new T.CanvasTexture(canvas);
+        material.map.colorSpace = T.SRGBColorSpace;
+        material.needsUpdate = true;
+      }
+    },
     debris,
     walkway,
     paths,

@@ -24,6 +24,7 @@ export type JournalContext = {
   seed: number;
   garden: Record<string, number>;
   plotCount?: number;
+  communityDays?: number;
   history: JournalMemory[];
   hasHarvested: boolean;
   inventory: {
@@ -67,6 +68,9 @@ export function journalContext(s: State): JournalContext {
       fertilizer: s.fertilizer,
     },
     plotCount: s.plots.length,
+    communityDays: (s.journalHistory ?? []).filter((m) =>
+      m.events.some((e) => e.startsWith("Planted in Sigma Town")),
+    ).length,
     garden: Object.fromEntries(
       ["empty", "planted", "growing", "ready", "harvested"].map((stage) => [
         stage,

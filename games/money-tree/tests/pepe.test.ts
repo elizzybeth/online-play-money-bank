@@ -41,3 +41,20 @@ test("invalid balloon elapsed time cannot corrupt a save or pop the balloon", ()
   assert.equal(JSON.stringify(s), before);
   assert(decode(JSON.stringify(s)));
 });
+
+test("Pepe scatter is irregular, reload-stable and keeps all packets on clear ground", async () => {
+  const { pepeScatter } = await import("../src/pepe-scatter");
+  const obstacle = (x: number, z: number) =>
+    x > 10 && x < 20 && z < -60 && z > -70;
+  const points = pepeScatter(obstacle);
+  assert.equal(points.length, 100);
+  assert.deepEqual(points, pepeScatter(obstacle));
+  assert(points.every((p) => !obstacle(p.x, p.z)));
+  assert.equal(new Set(points.slice(0, 25).map((p) => p.x)).size, 25);
+  assert.equal(new Set(points.slice(0, 25).map((p) => p.z)).size, 25);
+  for (let i = 0; i < 25; i++)
+    for (let j = 0; j < i; j++)
+      assert(
+        Math.hypot(points[i].x - points[j].x, points[i].z - points[j].z) >= 1.4,
+      );
+});

@@ -160,7 +160,7 @@ test("title-screen new game preserves saves until explicit confirmation", async 
   await page.reload();
   const newGame = page.locator("#new-game");
   await expect(newGame).toBeVisible();
-  await expect(page.locator("small")).toHaveCount(0);
+  await expect(page.locator("#intro small")).toHaveCount(0);
   await expect(page.locator(".title-logo")).toHaveAttribute(
     "alt",
     "Money Tree",

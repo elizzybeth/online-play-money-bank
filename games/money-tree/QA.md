@@ -1,7 +1,7 @@
 # Development and release procedure
 
-1. Keep gameplay rules independent of rendering. Validate integer-cent accounting, atomic purchases, tool gating, timer transitions, bounded yields, repeat crops, journal generation, recovery, and save round trips.
-2. Run seeded random action sequences and assert inventory and timer invariants. Record reproducible seeds for failures.
+1. Keep gameplay rules independent of rendering. Validate integer-cent accounting, atomic purchases, tool gating, overnight crop transitions, bounded yields, repeat crops, journal generation, recovery, and save round trips.
+2. Run seeded random action sequences and assert inventory and crop invariants. Record reproducible seeds for failures.
 3. Use explicit collision volumes, subdivided movement, and line-of-sight interaction checks. Door lintels participate in camera occlusion but do not block walking.
 4. Run browser tests through actual keys and visible purchase buttons. Use diagnostic teleport only to set up isolated system scenarios; a separate traversal test must exercise the connected world without teleporting.
 5. Capture opening, bedroom, shop, and harvest screenshots. Inspect geometry, near-plane obstruction, labels, body proportions, and UI. Keep failure screenshots and traces in test-results. Do not approve baseline changes to hide a visual regression.
@@ -30,7 +30,7 @@
 
 ## Visual checks
 
-Inspect the opening feet view, third-person bedroom, door transitions, Mom on the couch, lane, commercial block, Robertson and shelves, all tree stages, tree timers, and menus. Look for inaccessible prompts, camera intersections, detached props, unreadable text, and progression traps.
+Inspect the third-person sleeping body, third-person bedroom, door transitions, Mom on the couch, lane, commercial block, Robertson and shelves, all tree stages, morning harvest markers, and menus. Look for inaccessible prompts, camera intersections, detached props, unreadable text, and progression traps.
 
 ## Known scope limits
 
@@ -67,7 +67,7 @@ Desktop keyboard and mouse. No touch/gamepad support yet. Home and haberdashery 
 - Enter Mom's bedroom, observe a bed day, check grounded journal wording, and verify finished birdhouses persist.
 - Collect fourth/fifth hidden packets once, in order, and reload without losing their flags.
 - Inspect the rebuilt home sidewalk L connection, texture alignment, vegetable rows, tropical planting, and absent residential signs.
-- Check doorway cameras above walls in the home, Mom's room, hardware store, and hat shop.
+- Check doorway cameras below roofs with wall clearance in the home, Mom's room, hardware store, and hat shop.
 - Journal regression covers repeated “I liked that” across health/activity passages over 199 seeds, alongside the 10,000-night coherence simulation.
 
 ### Sigma Town regression coverage
@@ -90,5 +90,46 @@ Desktop keyboard and mouse. No touch/gamepad support yet. Home and haberdashery 
 - Purchase all seven bikes with sufficient cash, reject an unaffordable purchase and a duplicate, choose previously owned bikes, and reload. Preserve exact cash, ownership, selected bike, existing garden and journal.
 - H mounts outdoors and refuses indoors or while digging, seated, airborne or rolling. Verify cockpit hands, handlebar bell and legible computer. B rings only while mounted and respects sound-off.
 - Test slowest bike against fully boosted running, steering, braking/reverse, wall collision at speed, and automatic dismount through a real shop door. Restore walking and third-person view with H.
-- Journal purchases must not invent a ride. Record riding only after actually mounting outside.
+- Journal purchases and stationary mounting must not invent a ride. Record riding only after moving at least one world unit on the bicycle.
 - Early meditation exit stays in Doge and cancels both fee and reward; normal completion still charges once. Perched birds remain above their actual canopy. Sound-off also silences the balloon audio context, and nonfinite balloon elapsed time leaves saves valid.
+
+## Save and interaction regressions
+
+- The pre-plant prompt uses the same duration as the digging action, including hand digging and stacked hardhat/mocha bonuses.
+- Start a bed preview, open Pause using the header, and import a valid save that also owns a bed. The previous preview must disappear without consuming either bed.
+- Unlock Sigma and stand east of the original garden. Extra plot indices must not raise the player over empty lawn. A placed bed at another coordinate must raise the feet onto its soil.
+- Import a save with an empty journal. Reject it before replacing the current state; preserve cash and avoid uncaught page errors.
+- Mount a bicycle without moving: no riding journal event. Pedal away: record exactly one event for that bike.
+- Grindset's customer point must have six world units of clearance from other street-Chad interaction targets. Approach from the front and both sides; E must open the barista's drinks conversation.
+- Spoke & Saddle's sign plane must sit at least 0.15 units in front of the roof fascia, with no shared depth or flickering along the top edge.
+
+## Camera, Sigma conversations and coin ATM regressions
+
+- Scroll smoothly from third person to eye height and back, keeping WASD heading unchanged. Sample 144 wall/corner views and both doorway directions for penetration and sudden travel.
+- Walk through Doge’s lane-facing east entrance and back out. Flood-fill all town targets, including both Stacy chairs and the coin ATM.
+- Stacy sits on a chair over a dark floor; the player sits opposite. E advances directly to the next question, Previous messages returns to the same conversation, reload retains completed chapters, and seed gifts remain one-time.
+- Doge and Stacy hand over a modeled seed packet with an animated reach. No wrapping quotation marks in their speech bubbles.
+- Seed hints suspend during Stacy/Doge/Pepe speech, meditation and balloon show, then resume their active-time clock.
+- Naming a coin reveals its terminal beside Grindset and a giant gold coin. Green Buy/red Sell buttons accept partial dollar amounts; invalid purchases preserve balances. Candles use actual recorded prices and survive save/reload.
+
+## Camera cutaways, gardening effects and inventory notices
+- Camera booms and camera movement pass through structural walls. Walls within the expanded boom/swept-camera bounds disappear with their shadows and return when the camera moves clear. Player collision remains solid. Furniture still uses camera clearance.
+- Exercise low camera angles in bedroom/store corners, continuous doorway heading, first-person scroll zoom, and wall visibility restoration. Inspect actual rendered cutaways rather than treating hidden-wall intersections as clipping.
+- Apply fertilizer beside a growing plot. Check the box in the player's hand, shaking arm and scattered grains; exactly one dose is consumed unless a hat conserves it. Animation ends and resets on new game/import.
+- Inventory notifications report integer-cent pocket/savings changes and seed, fertilizer, tool, bed, soil, hat and bicycle gains/losses. Equipment swaps and loading existing saves do not report fictitious transactions.
+- Inspect cobalt Twin Planter from above and hat rack power descriptions. All neighbor beds have distinct layouts, scales and plant arrangements. Inspect orchids, kangaroo paw, birds of paradise and clustered hydrangea blooms.
+- After the Pepe balloon has popped, interacting with its presenter uses the inflation follow-up speech bubble.
+- Daily Net tracks realized money received minus spent, survives saves, ignores pocket/piggy-bank transfers and resets on the next day. Unrealized coin price changes do not alter it. Mom's default reply is intentionally “Love you too” for every line.
+- Mom's color-puzzle invitation opens a paused 9×9 color Sudoku. Test all rows/columns/boxes, fixed clues, conflicts, color placement, optional numbers, clear-cell action, save/reload, and safe E-to-return. Each day's transformed board retains the base puzzle's single solution.
+- Sleep matures watered trees, advances the coin market, and ends drink effects after explicit confirmation. The pictorial cup HUD exposes the effect and awake-time countdown.
+- Inspect the lower lean-to roof on Mom's bedroom from outside; it sits beneath the main eaves rather than intersecting two peaked roofs.
+- Inspect the original red-oval Robertsons identity and three pastel arrow boards on Thread & Thimble. Lettering remains readable and arrows do not obstruct the entrance.
+- A distinct rising seed chime plays only when a harvest increases the seed count; it obeys Sound Off. Confirm the matching resource notice and Daily Net harvest gain.
+- Street Chads pace along collision-checked short routes, pause near the player or while speaking, and keep colliders and interaction targets aligned. No walker enters the Grindset customer area. Shopkeepers, Stacy, meditators and Pepe's presenter stay put. Reduced motion stops pacing.
+- Sprout Cap's brim hint retires from shop, bag and rack descriptions after collecting its packet. Its actual harvest/planting powers remain described.
+- Sigma Town's entrance board is raised to 4.8 units, with taller matching posts.
+
+- Confirm E in the active-drink sleep modal stays awake; clicking Sleep and cancel removes the drink and matures only watered trees.
+- Twin Planter requires two seeds and adjoining empty or withered, soil-filled beds. Moving cancels both without spending seeds.
+- Paint both birdhouses independently, watch the paired hanging scene, reload and verify colors/counts; sleeping that day must not add an extra house.
+- All 25 irregularly scattered Pepe packets must be reachable and persist after reload. Inspect Bea’s layered red/orange/yellow gerbera flowers.

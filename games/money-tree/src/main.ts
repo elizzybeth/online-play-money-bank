@@ -1,3 +1,16 @@
+import { newsReports } from "./tv-news";
+import {
+  paintColors,
+  birdhousePreview,
+  type BirdhousePaint,
+} from "./birdhouse-paint";
+import { plantingBatch, plantBatch } from "./game";
+import { colorPuzzle, puzzleColors, puzzleConflicts } from "./color-puzzle";
+import { DailyNetLedger } from "./daily-net";
+import { inventorySnapshot, inventoryChanges } from "./inventory-events";
+import { CameraWalls } from "./camera-walls";
+import { playerMomResponse } from "./mom-dialogue";
+import { coinChart } from "./coin-chart";
 import { notebookDoodles } from "./notebook-doodles";
 import {
   bikes,
@@ -39,7 +52,7 @@ import {
 import { chooseMomThought } from "./mom-thoughts";
 import { journalContext } from "./journal";
 import { constructJournal } from "./branching-journal";
-import { hats, hatById, type HatId } from "./hats";
+import { hats, hatById, hatPower, type HatId } from "./hats";
 import { makeHat } from "./hat-models";
 import "./style.css";
 import { inventoryIcon } from "./icons";
@@ -92,7 +105,30 @@ const SAVE = "money-tree-v1";
 const seedHud = document.createElement("div");
 seedHud.id = "seed-hud";
 seedHud.innerHTML = `<img src="${seedPacketImage()}" alt="Money Tree seed packet"><strong>0</strong>`;
-$("#stats").after(seedHud);
+const resourceHud = document.createElement("div");
+resourceHud.id = "resource-hud";
+const cashHud = document.createElement("div"),
+  bankHud = document.createElement("div");
+cashHud.id = "cash-hud";
+bankHud.id = "bank-hud";
+cashHud.className = bankHud.className = "money-counter";
+cashHud.innerHTML =
+  '<img src="./pocket.svg" alt="Pocket"><span><small>Pocket</small><strong></strong></span>';
+bankHud.innerHTML =
+  '<img src="./piggy.svg" alt="Piggy bank"><span><small>Saved</small><strong></strong></span>';
+const netHud = document.createElement("div");
+netHud.id = "daily-net-hud";
+netHud.className = "money-counter";
+netHud.innerHTML =
+  '<span aria-hidden="true" class="daily-net-icon">↗</span><span><small>Daily Net</small><strong></strong></span>';
+const drinkHud = document.createElement("div");
+drinkHud.id = "drink-hud";
+drinkHud.className = "money-counter";
+drinkHud.innerHTML =
+  '<img src="./drink.svg" alt="Coffee"><span><small></small><strong></strong></span>';
+drinkHud.hidden = true;
+resourceHud.append(cashHud, bankHud, netHud, seedHud, drinkHud);
+$("#stats").after(resourceHud);
 
 let s: State;
 try {
@@ -161,6 +197,7 @@ const world = createWorld(scene),
   ray = new T.Raycaster();
 unlockSigma(s);
 world.setSigmaUnlocked(!!s.foundTVSeeds);
+world.sigma.updateATM(s.coin?.name);
 world.syncBeds(s.plots);
 if (
   blocked(s.position.x, s.position.z, world.rects) ||
@@ -168,7 +205,11 @@ if (
   s.position.z > 38 ||
   s.position.z < (s.foundTVSeeds ? -89 : -39)
 )
-  s.position = { x: -16, z: 4 };
+  s.position = clearPosition(
+    s.position,
+    world.rects,
+    s.foundTVSeeds ? -89 : -39,
+  );
 world.player.position.set(s.position.x, 0, s.position.z);
 world.setMomDay(s.day, homeContains(s.position));
 scene.add(camera);
@@ -179,6 +220,7 @@ let riding = false,
   actualRideSpeed = 0,
   bellRings = 0;
 let rideTransition = 0;
+let rideDistance = 0;
 const rideEyeHeight = () => (s.selectedBike === "penny" ? 2.45 : 1.7);
 const rideCameraOffset = new T.Vector3();
 let parkedBike: T.Group | undefined, parkedBikeId: BikeId | undefined;
@@ -256,11 +298,11 @@ function mountBike() {
   riding = true;
   rideSpeed = actualRideSpeed = 0;
   rideTransition = 0;
+  rideDistance = 0;
   rideCameraOffset
     .copy(camera.position)
     .sub(new T.Vector3(s.position.x, rideEyeHeight(), s.position.z));
   dismissSpeech();
-  visit(`Rode my ${bikeById(s.selectedBike)!.name} bicycle.`);
   toast(
     "W/S to pedal or brake. A/D to steer. H to dismount. B rings the bell.",
   );
@@ -312,10 +354,45 @@ function showBike(id: BikeId) {
 
 let frameNumber = 0;
 let followAngle = 0.42;
+let zoomDistance = 5.8,
+  followDistance = 5.8;
 const cameraAim = new T.Vector3(-7, 1, 10);
 function visit(text: string) {
   if (!s.events.includes(text)) s.events.push(text);
 }
+const inventoryToasts = document.createElement("aside");
+inventoryToasts.id = "inventory-toasts";
+inventoryToasts.setAttribute("aria-live", "polite");
+inventoryToasts.setAttribute("aria-label", "Inventory changes");
+document.body.append(inventoryToasts);
+const dailyNetLedger = new DailyNetLedger(s);
+let inventoryState = s;
+let inventoryBefore = inventorySnapshot(s);
+const inventoryNotices: { text: string; remaining: number }[] = [];
+function updateInventoryNotices(dt: number) {
+  dailyNetLedger.update(s);
+  const next = inventorySnapshot(s);
+  if (inventoryState === s) {
+    const changes = inventoryChanges(inventoryBefore, next);
+    if (changes.length)
+      inventoryNotices.push({ text: changes.join(" · "), remaining: 5 });
+  }
+  inventoryState = s;
+  inventoryBefore = next;
+  for (const notice of inventoryNotices) notice.remaining -= dt;
+  while (
+    inventoryNotices.length &&
+    (inventoryNotices[0].remaining <= 0 || inventoryNotices.length > 4)
+  )
+    inventoryNotices.shift();
+  const content = inventoryNotices.map((n) => n.text).join("\n");
+  if (inventoryToasts.textContent !== content)
+    inventoryToasts.textContent = content;
+  inventoryToasts.hidden = !begun || !s.awake || !content;
+}
+const cameraWalls = new CameraWalls();
+let followInitialized = false;
+let fertilizerAnimation: { elapsed: number; x: number; z: number } | undefined;
 let begun = false,
   paused = false,
   yaw = 0,
@@ -326,6 +403,7 @@ let begun = false,
   action:
     | {
         id: number;
+        ids: number[];
         elapsed: number;
         duration: number;
         origin: { x: number; z: number };
@@ -345,19 +423,100 @@ thought.setAttribute("role", "status");
 thought.hidden = true;
 document.body.append(thought);
 let thoughtTime = 0;
+let couchZoom: number | undefined;
 let sitting = false;
+let sittingWithStacy = false;
 function standUp() {
   const leavingMeditation = meditationTime > 0;
   meditationTime = 0;
   sitting = false;
   s.position = clearPosition(
-    leavingMeditation ? { x: -18, z: -45.7 } : { x: -17.1, z: 11.2 },
+    leavingMeditation
+      ? { x: -18, z: -45.7 }
+      : sittingWithStacy
+        ? { x: -16.3, z: -79.5 }
+        : { x: -17.1, z: 11.2 },
     world.rects,
     s.foundTVSeeds ? -89 : -39,
   );
+  sittingWithStacy = false;
+  if (couchZoom !== undefined) {
+    zoomDistance = couchZoom;
+    couchZoom = undefined;
+  }
   world.setPlayerSeated(false);
   if (leavingMeditation) toast("You leave the meditation early. No charge.");
   save();
+}
+let birdhouseScene:
+  | {
+      elapsed: number;
+      origin: { x: number; z: number };
+      start: number;
+      carried: T.Group[];
+    }
+  | undefined;
+function paintBirdhouses() {
+  dismissSpeech();
+  const paints: BirdhousePaint[] = [
+    { body: paintColors[0].hex, roof: paintColors[5].hex },
+    { body: paintColors[3].hex, roof: paintColors[8].hex },
+  ];
+  panel(
+    "Paint birdhouses with Mom",
+    `<p>Pick a body color and a roof color for each house. Then we’ll hang them together.</p><div class="birdhouse-paint-grid">${paints.map((p, i) => `<section><h3>Birdhouse ${i + 1}</h3><div id="paint-preview-${i}">${birdhousePreview(p)}</div>${(["body", "roof"] as const).map((part) => `<fieldset><legend>${part === "body" ? "Body" : "Roof"} color</legend><div class="paint-palette">${paintColors.map((c) => `<button type="button" data-house="${i}" data-part="${part}" data-color="${c.hex}" aria-label="Birdhouse ${i + 1} ${part}: ${c.name}" aria-pressed="${p[part] === c.hex}" style="--paint:${c.hex}"></button>`).join("")}</div></fieldset>`).join("")}</section>`).join("")}</div>`,
+    [
+      {
+        label: "Let’s hang them together",
+        run: () => {
+          const start = Math.min(10, s.birdhousesBuilt ?? 0);
+          const stored = (s.birdhousePaint ??= []);
+          while (stored.length < start)
+            stored.push({ body: paintColors[9].hex, roof: paintColors[1].hex });
+          stored.splice(start, 2, ...paints);
+          s.birdhousesBuilt = Math.max(s.birdhousesBuilt ?? 0, start + 2);
+          s.birdhousePaintDay = s.day;
+          visit(
+            "Picked paint colors for two birdhouses and hung them in the trees with Mom.",
+          );
+          world.showBirdhouses(s.birdhousesBuilt, stored);
+          const carried = [start, start + 1].map((i) => {
+            const model = world.outdoorBirdhouses[i].clone();
+            model.visible = true;
+            scene.add(model);
+            return model;
+          });
+          birdhouseScene = {
+            elapsed: 0,
+            origin: { ...s.position },
+            start,
+            carried,
+          };
+          close();
+          keys.clear();
+          thought.hidden = true;
+          thoughtTime = 0;
+          save();
+        },
+      },
+      { label: "Maybe later", run: close },
+    ],
+  );
+  document.querySelectorAll<HTMLButtonElement>("[data-house]").forEach(
+    (button) =>
+      (button.onclick = () => {
+        const i = Number(button.dataset.house),
+          part = button.dataset.part as "body" | "roof";
+        paints[i][part] = button.dataset.color!;
+        document.querySelector(`#paint-preview-${i}`)!.innerHTML =
+          birdhousePreview(paints[i]);
+        document
+          .querySelectorAll<HTMLButtonElement>(
+            `[data-house="${i}"][data-part="${part}"]`,
+          )
+          .forEach((b) => b.setAttribute("aria-pressed", String(b === button)));
+      }),
+  );
 }
 function askMom() {
   const status = momStatus(s.day);
@@ -370,12 +529,109 @@ function askMom() {
   visit(`Heard Mom: ${reply}`);
   save();
   speak("mom", `<p>${reply}</p>`, [
-    { label: "Love you too", run: dismissSpeech },
+    ...(status.activity === "birdhouses" && s.birdhousePaintDay !== s.day
+      ? [{ label: "Let’s pick the paint colors", run: paintBirdhouses }]
+      : []),
+    ...(status.activity === "puzzles"
+      ? [{ label: "Let’s play the color puzzle", run: playMomPuzzle }]
+      : []),
+    { label: playerMomResponse(reply, status.energetic), run: dismissSpeech },
   ]);
   thought.textContent = chooseMomThought(s);
   save();
   thought.hidden = false;
   thoughtTime = 9;
+}
+function playMomPuzzle() {
+  dismissSpeech();
+  const board = colorPuzzle(s.day);
+  if (!s.colorPuzzle || s.colorPuzzle.day !== s.day)
+    s.colorPuzzle = { day: s.day, cells: [...board.clues] };
+  let selected = -1;
+  let numbered = false;
+  visit("Worked on Mom's color puzzle.");
+  save();
+  panel(
+    "Mom’s color puzzle",
+    '<p>Use each color once in every row, column, and outlined 3×3 box. Click an empty space, then choose a color. Dark-rimmed pieces stay put.</p><div id="color-puzzle-grid" role="group" aria-label="Color Sudoku board"></div><div id="color-puzzle-palette"></div><p id="color-puzzle-status" role="status"></p>',
+    [
+      {
+        label: "Show numbers",
+        run: () => {
+          numbered = !numbered;
+          render();
+        },
+      },
+      {
+        label: "Clear selected space",
+        run: () => {
+          if (selected >= 0 && !board.clues[selected]) {
+            s.colorPuzzle!.cells[selected] = 0;
+            save();
+            render();
+          }
+        },
+      },
+      { label: "Back to Mom", default: true, run: close },
+    ],
+  );
+  $("#modal .panel").classList.add("color-puzzle-panel");
+  function render() {
+    const cells = s.colorPuzzle!.cells;
+    const conflicts = puzzleConflicts(cells);
+    const grid = $("#color-puzzle-grid");
+    grid.replaceChildren();
+    cells.forEach((value, index) => {
+      const button = document.createElement("button");
+      const row = Math.floor(index / 9),
+        col = index % 9;
+      button.className = `color-puzzle-cell${board.clues[index] ? " fixed" : ""}${index === selected ? " selected" : ""}${conflicts.has(index) ? " conflict" : ""}`;
+      button.style.borderRightWidth = col === 2 || col === 5 ? "3px" : "1px";
+      button.style.borderBottomWidth = row === 2 || row === 5 ? "3px" : "1px";
+      button.setAttribute(
+        "aria-label",
+        `Row ${row + 1}, column ${col + 1}: ${value ? puzzleColors[value - 1].name : "empty"}${board.clues[index] ? ", fixed" : ""}`,
+      );
+      button.setAttribute("aria-pressed", String(index === selected));
+      button.disabled = !!board.clues[index];
+      if (value)
+        button.innerHTML = `<span style="background:${puzzleColors[value - 1].color}">${numbered ? value : ""}</span>`;
+      button.onclick = () => {
+        selected = index;
+        render();
+      };
+      grid.append(button);
+    });
+    const palette = $("#color-puzzle-palette");
+    palette.replaceChildren();
+    puzzleColors.forEach((color, index) => {
+      const button = document.createElement("button");
+      button.setAttribute("aria-label", `Place ${color.name}`);
+      button.innerHTML = `<span style="background:${color.color}">${numbered ? index + 1 : ""}</span>`;
+      button.onclick = () => {
+        if (selected < 0) return;
+        s.colorPuzzle!.cells[selected] = index + 1;
+        save();
+        render();
+      };
+      palette.append(button);
+    });
+    const solved = cells.every(
+      (value, index) => value === board.solution[index],
+    );
+    $("#color-puzzle-status").textContent = solved
+      ? "We did it! Mom smiles. Thanks for doing this with me, love."
+      : conflicts.size
+        ? "Some colors appear twice in a row, column, or box. Try another spot."
+        : selected < 0
+          ? "Choose a space to start."
+          : "Choose a color below.";
+    if (solved) {
+      visit("Finished the color puzzle with Mom.");
+      save();
+    }
+  }
+  render();
 }
 function returnToMom() {
   s.metMom = true;
@@ -429,6 +685,39 @@ function dismissSpeech() {
   speaking = undefined;
 }
 function speak(id: string, text: string, choices: Choice[] = []) {
+  if (id === "stacy" && (s.stacyConversations ?? 0) > 0) {
+    const responses = choices.filter((c) => c.label !== "Previous messages");
+    choices = [
+      ...responses,
+      {
+        label: "Previous messages",
+        run: () => {
+          panel(
+            "Conversation with Stacy",
+            `<div class="stacy-transcript">${stacyStory
+              .slice(0, s.stacyConversations)
+              .map(
+                (chapter) =>
+                  `<p class="transcript-question"><strong>You</strong><br>${escapeHTML(chapter.question)}</p><p><strong>Stacy</strong><br>${escapeHTML(chapter.answer)}</p>`,
+              )
+              .join("")}</div>`,
+            [
+              {
+                label: "Back to our conversation",
+                run: () => {
+                  close();
+                  speak("stacy", text, responses);
+                },
+              },
+            ],
+          );
+          $("#modal .panel").classList.add("conversation-history");
+          const transcript = $(".stacy-transcript");
+          transcript.scrollTop = transcript.scrollHeight;
+        },
+      },
+    ];
+  }
   if (choices.length) releaseMouse();
   toastTime = 0;
   $("#toast").style.opacity = "0";
@@ -542,6 +831,7 @@ function updateSpeech(dt: number) {
   });
 }
 function save() {
+  updateInventoryNotices(0);
   world.updateNotebook(s.journal.at(-1)!, s.journal.length);
   try {
     localStorage.setItem(SAVE, JSON.stringify(s));
@@ -727,7 +1017,7 @@ function showHat(id: HatId) {
   const hat = hatById(id)!;
   panel(
     hat.name,
-    `<img class="hat-portrait" src="${hatPortrait(id)}" alt="${hat.name}"><p>${hat.power}</p><p>${money(hat.price)} · Your pocket: ${money(s.cash)}</p>`,
+    `<img class="hat-portrait" src="${hatPortrait(id)}" alt="${hat.name}"><p>${hatPower(id, s.foundCapSeeds)}</p><p>${money(hat.price)} · Your pocket: ${money(s.cash)}</p>`,
     [
       ...(id === "cap" && !s.foundCapSeeds
         ? [
@@ -764,7 +1054,7 @@ function showHat(id: HatId) {
             close();
             toast(
               wearing(s, id)
-                ? `Wearing ${hat.name}. ${hat.power}`
+                ? `Wearing ${hat.name}. ${hatPower(id, s.foundCapSeeds)}`
                 : `${hat.name} is in your bag. Visit your bedroom hat rack to swap hats.`,
             );
           }
@@ -829,7 +1119,7 @@ function bag() {
   ];
   panel(
     "Your bag",
-    `<div class="inventory-grid">${items.map((item) => `<${item.id === "bed" ? 'button type="button"' : "div"} class="inventory-card ${item.available ? "" : "empty"}" data-item="${item.id}" ${item.id === "bed" ? `aria-label="Place a garden bed from your bag" ${item.available ? "" : "disabled"}` : ""}>${inventoryIcon(item.id)}<span>${item.label}</span><b>${item.value}</b>${item.id === "bed" && item.available ? "<small>Click to place</small>" : ""}</${item.id === "bed" ? "button" : "div"}>`).join("")}</div><div class="hat-bag">${s.hats.map((id) => `<button type="button" data-hat="${id}"><img src="${hatPortrait(id)}" alt=""><span>${hatById(id)!.name}</span><small>${hatById(id)!.power}</small><b>${wearing(s, id) ? "Wearing" : "Equip"}</b></button>`).join("")}</div>`,
+    `<div class="inventory-grid">${items.map((item) => `<${item.id === "bed" ? 'button type="button"' : "div"} class="inventory-card ${item.available ? "" : "empty"}" data-item="${item.id}" ${item.id === "bed" ? `aria-label="Place a garden bed from your bag" ${item.available ? "" : "disabled"}` : ""}>${inventoryIcon(item.id)}<span>${item.label}</span><b>${item.value}</b>${item.id === "bed" && item.available ? "<small>Click to place</small>" : ""}</${item.id === "bed" ? "button" : "div"}>`).join("")}</div><div class="hat-bag">${s.hats.map((id) => `<button type="button" data-hat="${id}"><img src="${hatPortrait(id)}" alt=""><span>${hatById(id)!.name}</span><small>${hatPower(id, s.foundCapSeeds)}</small><b>${wearing(s, id) ? "Wearing" : "Equip"}</b></button>`).join("")}</div>`,
     [
       ...(s.equippedHat
         ? [
@@ -891,7 +1181,7 @@ function bag() {
 function hatRack() {
   panel(
     "Your hat rack",
-    `<p>Wear up to three hats. Their powers work together.</p><div class="hat-bag">${s.hats.map((id) => `<button data-rack-hat="${id}"><img src="${hatPortrait(id)}" alt=""><span>${hatById(id)!.name}</span><b>${wearing(s, id) ? "Hang on rack" : "Put on"}</b></button>`).join("") || "<p>Your rack is waiting for its first hat.</p>"}</div>`,
+    `<p>Wear up to three hats. Their powers work together.</p><div class="hat-bag">${s.hats.map((id) => `<button data-rack-hat="${id}"><img src="${hatPortrait(id)}" alt=""><span>${hatById(id)!.name}</span><p class="hat-power">${hatPower(id, s.foundCapSeeds)}</p><b>${wearing(s, id) ? "Hang on rack" : "Put on"}</b></button>`).join("") || "<p>Your rack is waiting for its first hat.</p>"}</div>`,
     [{ label: "Back to the day", default: true, run: close }],
   );
   document.querySelectorAll<HTMLButtonElement>("[data-rack-hat]").forEach(
@@ -969,7 +1259,7 @@ function shop(item: "seeds" | "can" | "shovel" | "fertilizer") {
     prices = { seeds: 200, can: 100, shovel: 100, fertilizer: 500 };
   panel(
     names[item],
-    `<p>${item === "seeds" ? "“That'll be $2.” Robertson slides a little paper bag across the counter." : item === "can" ? "A well-loved can. Just what a thirsty seed needs." : item === "shovel" ? "For less time digging and more time dreaming." : "Five doses per box. Each dose feeds one tree for faster growth and harvests up to $9."}</p><p>Price: <b>${money(prices[item])}</b> · You carry <b>${money(s.cash)}</b>.</p>`,
+    `<p>${item === "seeds" ? "“That'll be $2.” Robertson slides a little paper bag across the counter." : item === "can" ? "A well-loved can. Just what a thirsty seed needs." : item === "shovel" ? "For less time digging and more time dreaming." : "Five doses per box. Each dose feeds one tree for overnight harvests up to $9."}</p><p>Price: <b>${money(prices[item])}</b> · You carry <b>${money(s.cash)}</b>.</p>`,
     [
       {
         label: `Buy · ${money(prices[item])}`,
@@ -1264,7 +1554,7 @@ function grindset() {
 function coffeeMenu() {
   panel(
     "Grindset drinks",
-    `<p>Pocket: ${money(s.cash)}. Each drink lasts 3 minutes of active play. A new drink replaces the current bonus.</p>${s.drink ? `<p>Current: ${drinks.find((d) => d.id === s.drink!.id)!.name}, ${Math.ceil(s.drink.remaining)} seconds left.</p>` : ""}`,
+    `<p>Pocket: ${money(s.cash)}. Each drink lasts up to 3 minutes of active play. Sleeping ends your drink effect, even if time remains. A new drink replaces the current bonus.</p>${s.drink ? `<p>Current: ${drinks.find((d) => d.id === s.drink!.id)!.name}, ${Math.ceil(s.drink.remaining)} seconds left.</p>` : ""}`,
     [
       ...drinks.map((d) => ({
         label: `${d.name} · ${money(d.cost)} · ${d.effect}`,
@@ -1316,7 +1606,7 @@ function coinMenu() {
     q = marketSignals(s);
   panel(
     `${escapeHTML(c.name)} coin`,
-    `<p>Chad’s coin price: ${money(c.price)}. Your holding: ${money(coinValue(s))} (${(c.units / 1e6).toFixed(4)} coins).</p><p>Invested so far: ${money(c.invested)}. Pocket: ${money(s.cash)}.</p><p>Price moves every 15 seconds of game time, with random swings and small effects from earnings, savings, Mom’s health, conversations, growing trees and good-day streaks. It can fall.</p><p>Current signals: ${money(q.earned)} earned, ${money(q.saved)} saved, ${q.neighbors} neighbors met, ${q.trees} trees growing, Mom has a ${q.health ? "good" : "tired"} day, longest good streak ${q.longestGoodStreak}.</p><label>Investment amount $ <input id="coin-amount" inputmode="decimal" value="1.00"></label><label>Sale amount $ <input id="coin-sell-amount" inputmode="decimal" value="1.00"></label><p id="coin-error" role="status"></p>`,
+    `${coinChart(c.history, c.price)}<div class="coin-balances"><p>Price <strong>${money(c.price)}</strong> per coin</p><p>You own ${(c.units / 1e6).toFixed(4)} coins, worth <strong>${money(coinValue(s))}</strong></p><p>Pocket <strong>${money(s.cash)}</strong> · Total invested ${money(c.invested)}</p></div><label>Buy amount $ <input id="coin-amount" inputmode="decimal" value="1.00"></label><label>Sell amount $ <input id="coin-sell-amount" inputmode="decimal" value="1.00"></label><p id="coin-error" role="status"></p><details><summary>What moves the price?</summary><p>Prices move every 15 seconds of game time. Random swings mix with earnings, savings, conversations, trees and Mom’s good days. Prices can fall.</p><p>${money(q.earned)} earned · ${money(q.saved)} saved · ${q.neighbors} neighbors met · ${q.trees} growing trees · Mom has a ${q.health ? "good" : "tired"} day · longest good streak ${q.longestGoodStreak}.</p></details>`,
     [
       {
         label: "Sell this amount",
@@ -1365,6 +1655,23 @@ function coinMenu() {
       { label: "Leave", run: close },
     ],
   );
+  $("#modal .panel").classList.add("coin-panel");
+  const buttons = Array.from(
+    document.querySelectorAll<HTMLButtonElement>("#modal button"),
+  );
+  for (const button of buttons) {
+    if (button.textContent?.includes("Invest this amount")) {
+      button.classList.add("coin-buy");
+      button.textContent = "Buy";
+      button.setAttribute("aria-label", "Buy");
+      button.parentElement!.prepend(button);
+    }
+    if (button.textContent?.includes("Sell this amount")) {
+      button.classList.add("coin-sell");
+      button.textContent = "Sell";
+      button.setAttribute("aria-label", "Sell");
+    }
+  }
 }
 const coinTracker = document.createElement("aside");
 coinTracker.id = "coin-tracker";
@@ -1378,11 +1685,38 @@ function updateCoinTracker() {
     trend = c.price > old ? "▲" : c.price < old ? "▼" : "•";
   coinTracker.innerHTML = `<strong>${escapeHTML(c.name)}</strong><br>${trend} ${money(c.price)} / coin<br>Holding ${money(coinValue(s))}`;
   coinTracker.title =
-    "An in-game coin. Talk to Chad at Grindset to invest or sell.";
+    "An in-game coin. Use the ATM beside Grindset to buy or sell.";
   if (s.drink)
     coinTracker.innerHTML += `<br>${drinks.find((d) => d.id === s.drink!.id)!.name}: ${Math.ceil(s.drink.remaining)}s`;
 }
 
+function sitWithStacy() {
+  sitting = true;
+  sittingWithStacy = true;
+  s.position = { x: -18, z: -79.5 };
+  world.setPlayerSeated(true);
+  world.player.rotation.y = Math.PI;
+}
+function leaveStacy() {
+  dismissSpeech();
+  if (sittingWithStacy) standUp();
+}
+function stacyChapter(count: number) {
+  const chapter = stacyStory[count];
+  s.stacyConversations = count + 1;
+  visit(`Asked Stacy: ${chapter.question}`);
+  save();
+  speak("stacy", `<p>${escapeHTML(chapter.answer)}</p>`, [
+    {
+      label:
+        count === 9
+          ? "Thanks for sharing that with me"
+          : stacyStory[count + 1].question,
+      run: () => (count === 9 ? stacyConversation() : stacyChapter(count + 1)),
+    },
+    { label: "I’ll come back and hear the rest", run: leaveStacy },
+  ]);
+}
 function stacyConversation() {
   s.metStacy = true;
   save();
@@ -1391,12 +1725,12 @@ function stacyConversation() {
     if (s.foundStacySeeds)
       return speak(
         "stacy",
-        "<p>“Good to see you, honey. I hope your mom’s havin’ a gentler day.”</p>",
-        [{ label: "Thanks, Stacy", run: dismissSpeech }],
+        "<p>Good to see you, honey. I hope your mom’s havin’ a gentler day.</p>",
+        [{ label: "Thanks, Stacy", run: leaveStacy }],
       );
     return speak(
       "stacy",
-      "<p>“Thanks for bein’ such a good conversationalist, honey. Say, do you do tree?”</p>",
+      "<p>Thanks for bein’ such a good conversationalist, honey. Say, do you do tree?</p>",
       [
         {
           label: "What do you mean, do tree?",
@@ -1407,49 +1741,38 @@ function stacyConversation() {
               visit(
                 "Stacy thanked me for listening to her story and gave me five money seeds.",
               );
+              world.sigma.handSeeds(
+                "stacy",
+                s.position.x,
+                s.position.z,
+                sittingWithStacy ? 1.5 : 1.1,
+              );
               save();
             }
             speak(
               "stacy",
-              `<p>“You know. They say it makes ${escapeHTML(s.coin?.name ?? "your coin")} go up and to the right.”</p><p>She hands me a packet of money seeds.</p>`,
-              [
-                {
-                  label: "Thanks for telling me your story",
-                  run: dismissSpeech,
-                },
-              ],
+              `<p>You know. They say it makes ${escapeHTML(s.coin?.name ?? "your coin")} go up and to the right.</p>`,
+              [{ label: "Thanks for telling me your story", run: leaveStacy }],
             );
           },
         },
       ],
     );
   }
-  const chapter = stacyStory[count];
   speak(
     "stacy",
     count === 0
-      ? "<p>“Hey, darlin’. I’m Stacy around here. Pull up a chair. There’s more to a person than one little joke.”</p><p class='fine'>Stacy is a fictional parody. Her dialogue is imagined.</p>"
-      : "<p>“What else would you like to know, honey?”</p>",
+      ? "<p>Hey, darlin’. I’m Stacy around here. Pull up that chair. There’s more to a person than one little joke.</p><p class='fine'>Stacy is a fictional parody. Her dialogue is imagined.</p>"
+      : "<p>Pull up your chair again, honey.</p>",
     [
       {
-        label: chapter.question,
+        label: stacyStory[count].question,
         run: () => {
-          s.stacyConversations = count + 1;
-          visit(`Asked Stacy: ${chapter.question}`);
-          save();
-          speak("stacy", `<p>“${escapeHTML(chapter.answer)}”</p>`, [
-            {
-              label:
-                count === 9
-                  ? "Thanks for sharing that with me"
-                  : "I’d like to hear more",
-              run: stacyConversation,
-            },
-            { label: "I’ll come back and hear the rest", run: dismissSpeech },
-          ]);
+          sitWithStacy();
+          stacyChapter(count);
         },
       },
-      { label: "Maybe another time", run: dismissSpeech },
+      { label: "Maybe another time", run: leaveStacy },
     ],
   );
 }
@@ -1494,7 +1817,7 @@ const meditationChants = [
   "Let go of attachment. Keep the receipts.",
 ];
 function offerMeditation() {
-  speak("doge-meditator-0", "<p>“Shh. Sit down and join the meditation.”</p>", [
+  speak("doge-meditator-0", "<p>Shh. Sit down and join the meditation.</p>", [
     {
       label: "Sit down",
       run: () => {
@@ -1517,6 +1840,7 @@ function finishMeditation() {
   sitting = false;
   world.setPlayerSeated(false);
   s.position = { x: -18, z: -45.7 };
+  world.sigma.handSeeds("doge-meditator-0", s.position.x, s.position.z);
   if (s.foundMeditationSeeds) return;
   s.cash -= 300;
   s.seeds += 5;
@@ -1527,21 +1851,52 @@ function finishMeditation() {
   save();
   speak(
     "doge-meditator-0",
-    "<p>“That’s $3 for the meditation. You did a great job. I found this crazy new drug. You’ve got to try it.”</p><p>He hands me a packet of seeds.</p>",
+    "<p>That’s $3 for the meditation. You did a great job. I found this crazy new drug. You’ve got to try it.</p>",
     [
       {
         label: "Have you really been snorting this shit?",
         run: () =>
           speak(
             "doge-meditator-0",
-            `<p>“For sure, man. Since I started snorting it, ${escapeHTML(s.coin?.name ?? "my coin")} has been all up and to the right.”</p>`,
+            `<p>For sure, man. Since I started snorting it, ${escapeHTML(s.coin?.name ?? "my coin")} has been all up and to the right.</p>`,
             [{ label: "Well thanks man", run: dismissSpeech }],
           ),
       },
     ],
   );
 }
+function tvMenu() {
+  const news = newsReports(s);
+  panel(
+    "What’s on TV?",
+    `<p>Current channel: ${s.tvChannel === "news" ? "Town News" : "Bunny cartoons"}.</p><p>Town News reports on the last three days.</p>${s.tvChannel === "news" ? news.map((n) => `<p><strong>Day ${n.day}: ${n.headline}</strong><br>${n.report}</p>`).join("") : ""}`,
+    [
+      {
+        label: "Watch Town News",
+        run: () => {
+          s.tvChannel = "news";
+          save();
+          close();
+        },
+      },
+      {
+        label: "Watch bunny cartoons",
+        run: () => {
+          s.tvChannel = "cartoons";
+          save();
+          close();
+        },
+      },
+      { label: "Leave TV", run: close },
+    ],
+  );
+}
+const tvCaption = document.createElement("aside");
+tvCaption.id = "tv-news-caption";
+tvCaption.hidden = true;
+document.body.append(tvCaption);
 function interact() {
+  if (birdhouseScene) return;
   if (!begun || paused || action || meditationTime > 0) return;
   if (riding) dismountBike();
   if (!s.awake) {
@@ -1570,8 +1925,12 @@ function interact() {
   }
   if (id === "couch") {
     sitting = true;
-    yaw = Math.PI / 2;
-    pitch = 0.75;
+    couchZoom = zoomDistance;
+    zoomDistance = followDistance = 0;
+    yaw = Math.atan2(-18.9 + 10.16, 11.15 - 10);
+    pitch = 0.513;
+    camera.position.set(-18.9, 2.39, 11.15);
+    cameraAim.set(-10.16, 1.65, 10);
     cameraTilted = true;
     jumpHeight = jumpVelocity = 0;
     s.position = { x: -18.9, z: 11.15 };
@@ -1620,6 +1979,18 @@ function interact() {
     );
   if (id === "pepe-show") {
     if (!canEnterPepe(s)) return;
+    if (s.pepePopped)
+      return speak(
+        "pepe-show",
+        "<p>So, what do you think? Inflation, a good thing? Or not?</p>",
+        [
+          {
+            label: "I’m still thinking about it",
+            run: dismissSpeech,
+            default: true,
+          },
+        ],
+      );
     if (s.pepeShowStarted)
       return toast(
         s.pepePopped
@@ -1636,6 +2007,8 @@ function interact() {
     return;
   }
   if (id === "stacy") return stacyConversation();
+  if (id === "stacy-chair") return stacyConversation();
+  if (id === "coin-atm") return coinMenu();
   if (id === "grindset") return grindset();
   if (id.startsWith("sigma-chad-")) {
     visit("Stopped to talk with Chad in Sigma Town.");
@@ -1646,6 +2019,7 @@ function interact() {
       { label: "See you around", run: dismissSpeech },
     ]);
   }
+  if (id === "tv") return tvMenu();
   if (id === "notebook") return notebook();
   if (id === "hat-rack") {
     hatRack();
@@ -1660,10 +2034,13 @@ function interact() {
   if (id === "bed")
     return panel(
       "Tomorrow is another chance",
-      "<p>End the day, write in your notebook, and wake up to a fresh morning. Watered trees will finish growing overnight.</p>",
+      `<p>End the day, write in your notebook, and wake up to a fresh morning. Watered trees will finish growing overnight.</p>${s.drink ? `<p><strong>Sleeping will cancel your ${drinks.find((d) => d.id === s.drink!.id)!.name} effect.</strong> You still have ${Math.ceil(s.drink.remaining)} seconds left.</p>` : ""}`,
       [
         {
-          label: "Sleep until tomorrow",
+          label: s.drink
+            ? "Sleep and cancel drink effect"
+            : "Sleep until tomorrow",
+          destructive: !!s.drink,
           run: () => {
             sleep(s);
             visitedOutside = false;
@@ -1711,7 +2088,10 @@ function interact() {
     save();
     return speak("mom", `<p>${greeting}</p>`, [
       { label: "How are you doing?", run: askMom },
-      { label: "Love you too", run: dismissSpeech },
+      {
+        label: playerMomResponse(greeting, momStatus(s.day).energetic),
+        run: dismissSpeech,
+      },
     ]);
   }
   const dialogue: Record<string, [string, string]> = {
@@ -1765,6 +2145,7 @@ function interact() {
         );
       action = {
         id: i,
+        ids: plantingBatch(s, i),
         elapsed: 0,
         duration: plantingSeconds(s),
         origin: { ...s.position },
@@ -1775,25 +2156,33 @@ function interact() {
       );
       toast(
         s.shovel
-          ? `Digging… Stand still for ${plantingSeconds(s)} seconds to plant.`
+          ? `Digging… Stand still for ${plantingSeconds(s)} seconds to plant ${action.ids.length === 2 ? "both adjoining beds" : "this bed"}.`
           : `Digging by hand takes ${Number(plantingSeconds(s).toFixed(1))} seconds. A $1 shovel from Robertsons cuts it to ${Number(plantingSeconds({ ...s, shovel: true }).toFixed(1))} seconds. Stand still to plant.`,
       );
     } else if (p.stage === "ready") {
+      const seedsBeforeHarvest = s.seeds;
       const n = harvest(s, i);
       save();
       chime();
+      if (s.seeds > seedsBeforeHarvest) seedChime();
       toast(
         `Harvested ${money(n)}! The tree withers. Plant a fresh seed for another tree.`,
       );
     } else if (p.stage === "growing") {
       if (s.fertilizer && !p.fertilized) {
         fertilize(s, i);
-        save();
-        toast("A little nourishment. This tree will grow faster.");
-      } else
-        toast(
-          `Growing · ${Math.ceil(p.remaining)} seconds left. Go explore a little.`,
+        fertilizerAnimation = {
+          elapsed: 0,
+          x: p.x ?? -20 + i * 2,
+          z: p.z ?? 19,
+        };
+        world.player.rotation.y = Math.atan2(
+          fertilizerAnimation.x - s.position.x,
+          fertilizerAnimation.z - s.position.z,
         );
+        save();
+        toast("A little nourishment. This tree can grow up to $9 overnight.");
+      } else toast("Watered. This tree will be ready after you sleep.");
     } else {
       if (!s.can)
         return toast("You need a watering can. Robertson sells one for $1.");
@@ -1808,6 +2197,26 @@ function interact() {
   }
 }
 let audio: AudioContext | undefined;
+let seedChimes = 0;
+function seedChime() {
+  if (!audio || muted) return;
+  seedChimes++;
+  for (const [index, frequency] of [1046.5, 1568, 2093].entries()) {
+    const tone = audio.createOscillator(),
+      gain = audio.createGain();
+    const start = audio.currentTime + 0.18 + index * 0.09;
+    tone.type = "sine";
+    tone.frequency.setValueAtTime(frequency, start);
+    tone.frequency.exponentialRampToValueAtTime(frequency * 1.08, start + 0.16);
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.exponentialRampToValueAtTime(0.045, start + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.35);
+    tone.connect(gain);
+    gain.connect(audio.destination);
+    tone.start(start);
+    tone.stop(start + 0.36);
+  }
+}
 function chime() {
   if (!audio || muted) return;
   for (const [i, f] of [523, 659, 784].entries()) {
@@ -1981,10 +2390,6 @@ addEventListener("keydown", (e) => {
       return;
     }
 
-    if (sitting) {
-      standUp();
-      return;
-    }
     const choice = speaking?.element.querySelector<HTMLButtonElement>(
       '.choices button[data-safe-default="true"]:not(:disabled)',
     );
@@ -1997,6 +2402,7 @@ addEventListener("keydown", (e) => {
       ) < 8;
     if (choice && choice.dataset.safeDefault === "true" && closeEnough)
       choice.click();
+    else if (sitting) standUp();
     else if (speaking && closeEnough) {
       if (!choice && !speaking.element.querySelector(".choices"))
         dismissSpeech();
@@ -2046,7 +2452,24 @@ function updateRollPose() {
   }
 }
 function resetTransientMotion() {
+  cameraWalls.restore();
+  followInitialized = false;
+  inventoryState = s;
+  inventoryBefore = inventorySnapshot(s);
+  inventoryNotices.length = 0;
+  fertilizerAnimation = undefined;
+  birdhouseScene?.carried.forEach((g) => scene.remove(g));
+  birdhouseScene = undefined;
+  world.setMomDay(s.day, atHome(), true);
+  world.setFertilizing(false, 0, 0, 0);
+  world.sigma.cancelHandoff();
+  sittingWithStacy = false;
+  couchZoom = undefined;
   dismountBike();
+  placingBed = false;
+  bedGhost.visible = false;
+  thoughtTime = 0;
+  thought.hidden = true;
   if (parkedBike) parkedBike.visible = false;
   action = undefined;
   pepeViewHold = 0;
@@ -2125,6 +2548,22 @@ addEventListener("pointermove", (e) => {
     pitch = T.MathUtils.clamp(pitch + e.movementY * 0.004, 0.15, 1.1);
   }
 });
+$("#world").addEventListener(
+  "wheel",
+  (event) => {
+    const e = event as WheelEvent;
+    if (!begun || paused || !s.awake || riding) return;
+    e.preventDefault();
+    const units = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? innerHeight : 1;
+    zoomDistance = T.MathUtils.clamp(
+      zoomDistance + e.deltaY * units * 0.006,
+      0,
+      8,
+    );
+    lastLookInput = performance.now();
+  },
+  { passive: false },
+);
 addEventListener("resize", () => {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
@@ -2156,6 +2595,7 @@ function selectTarget() {
           (!t.id.startsWith("sigma-chad-") &&
             t.id !== "grindset" &&
             t.id !== "wolf")) &&
+        (t.id !== "coin-atm" || !!s.coin) &&
         (t.id !== "forest-seeds" ||
           (!!s.foundCapSeeds && !s.foundForestSeeds)) &&
         (t.id !== "store-seeds" ||
@@ -2185,30 +2625,47 @@ function hasSight(t: Target) {
     .intersectObjects(world.occluders, false)
     .some((h) => h.distance < d - 0.1);
 }
-const treeReport = document.createElement("aside");
-treeReport.id = "tree-report";
-treeReport.setAttribute("aria-label", "Tree growth report");
-document.body.append(treeReport);
 function updateUI() {
-  treeReport.hidden = !begun || !s.awake || !wearing(s, "inspector");
-  if (!treeReport.hidden && !paused)
-    noteHatPower(s, "to check how my trees were growing", "inspector");
-  if (!treeReport.hidden)
-    treeReport.innerHTML = `<strong>Garden report</strong>${s.plots.map((p, i) => `<div>Tree ${i + 1} · ${p.stage === "growing" ? `${Math.floor(Math.ceil(p.remaining) / 60)}:${String(Math.ceil(p.remaining) % 60).padStart(2, "0")} remaining` : p.stage === "harvested" ? "Withered" : p.stage === "ready" ? "Ready to harvest!" : p.stage === "planted" ? "Needs water" : "Empty planter"}</div>`).join("")}`;
+  drinkHud.hidden = !s.drink;
+  if (s.drink) {
+    const drink = drinks.find((d) => d.id === s.drink!.id)!;
+    drinkHud.querySelector("small")!.textContent = drink.name;
+    drinkHud.querySelector("strong")!.textContent =
+      `${Math.ceil(s.drink.remaining)}s`;
+    drinkHud.title = drink.effect;
+    drinkHud.setAttribute(
+      "aria-label",
+      `${drink.name}, ${Math.ceil(s.drink.remaining)} seconds remaining. ${drink.effect}`,
+    );
+  }
   const total = s.cash + s.bank;
   updateCoinTracker();
   seedHud.querySelector("strong")!.textContent = String(s.seeds);
   seedHud.setAttribute("aria-label", `${s.seeds} money tree seeds`);
-  $("#stats").innerHTML =
-    `Day ${s.day} &nbsp; ☀${s.drink ? `<br>${drinks.find((d) => d.id === s.drink!.id)!.name} · ${Math.ceil(s.drink.remaining)}s` : ""}<br><b>${money(s.cash)}</b> pocket &nbsp; ${money(s.bank)} saved${
-      s.equippedHat
-        ? `<br><span class="equipped-hat">${wornHats(s)
-            .map((id) => hatById(id)!.name)
-            .join(
-              " + ",
-            )} · Q to roll${wearing(s, "rabbit") ? " · Space to jump" : ""}</span>`
-        : ""
-    }`;
+  dailyNetLedger.update(s);
+  const net = s.dailyNet ?? 0;
+  netHud.querySelector("strong")!.textContent =
+    `${net < 0 ? "−" : "+"}${money(Math.abs(net))}`;
+  netHud.setAttribute(
+    "aria-label",
+    `${net < 0 ? "−" : "+"}${money(Math.abs(net))} Daily Net`,
+  );
+  cashHud.querySelector("strong")!.textContent = money(s.cash);
+  bankHud.querySelector("strong")!.textContent = money(s.bank);
+  cashHud.setAttribute("aria-label", `${money(s.cash)} pocket money`);
+  bankHud.setAttribute(
+    "aria-label",
+    `${money(s.bank)} saved in the piggy bank`,
+  );
+  $("#stats").innerHTML = `Day ${s.day} &nbsp; ☀${
+    s.equippedHat
+      ? `<br><span class="equipped-hat">${wornHats(s)
+          .map((id) => hatById(id)!.name)
+          .join(
+            " + ",
+          )} · Q to roll${wearing(s, "rabbit") ? " · Space to jump" : ""}</span>`
+      : ""
+  }`;
   let objective = "Visit Ol’ Man Robertson",
     hint =
       "Take your $4.33 from the piggy bank, then follow the lane north into town.";
@@ -2232,7 +2689,7 @@ function updateUI() {
   } else if (s.plots.some((p) => p.stage === "growing")) {
     objective = "Let your garden grow";
     hint =
-      "Watch the timers, explore the neighborhood, or sleep until tomorrow.";
+      "Your watered trees will be ready in the morning. Sleep in your bed when you’re done for today.";
   } else if (s.plots.some((p) => p.stage === "planted")) {
     objective = "A little water, a little hope";
     hint = s.can
@@ -2297,14 +2754,14 @@ function updateUI() {
         (p.stage === "planted" && !s.can);
       label = ["empty", "harvested"].includes(p.stage)
         ? s.seeds
-          ? `Plant seeds · stand still (${s.shovel ? 2 : 7}s)`
+          ? `${plantingBatch(s, +near.id.slice(4)).length === 2 ? "Plant two adjoining beds" : "Plant seeds"} · stand still (${Number(plantingSeconds(s).toFixed(1))}s)`
           : "Plant seeds (need seeds)"
         : p.stage === "ready"
           ? "Harvest money tree"
           : p.stage === "growing"
             ? s.fertilizer && !p.fertilized
               ? "Apply fertilizer"
-              : `Growing · ${Math.ceil(p.remaining)}s`
+              : "Ready tomorrow"
             : s.can
               ? "Water seeds / tree"
               : "Water seeds (need watering can)";
@@ -2315,7 +2772,7 @@ function updateUI() {
         unavailable = !s.soilBags;
       }
     }
-    prompt = label.startsWith("Growing ·") ? label : `<kbd>E</kbd> ${label}`;
+    prompt = label === "Ready tomorrow" ? label : `<kbd>E</kbd> ${label}`;
   }
   if (placingBed)
     prompt = canPlaceBed(s, bedPosition().x, bedPosition().z, bedObstacles())
@@ -2342,7 +2799,13 @@ function updateUI() {
 function frame(now: number) {
   frameNumber++;
   world.setHat(wornHats(s));
-  world.showBirdhouses(s.birdhousesBuilt ?? 0);
+  world.showBirdhouses(s.birdhousesBuilt ?? 0, s.birdhousePaint);
+  if (birdhouseScene)
+    world.outdoorBirdhouses.forEach((g, i) => {
+      if (i >= birdhouseScene!.start && i < birdhouseScene!.start + 2)
+        g.visible =
+          birdhouseScene!.elapsed >= (i - birdhouseScene!.start + 1) * 4;
+    });
   if (
     begun &&
     s.awake &&
@@ -2427,7 +2890,7 @@ function frame(now: number) {
   if (wantedRoof > 0.95 && roofMaterial.opacity > 0.95) {
     if (roofIndex < 0) world.occluders.push(world.homeRoof);
   } else if (roofIndex >= 0) world.occluders.splice(roofIndex, 1);
-  const active = begun && !paused && !document.hidden;
+  const active = begun && !paused && !document.hidden && !birdhouseScene;
   const bikeDistance = Math.hypot(
     Math.max(
       bikeShopBounds.left - s.position.x,
@@ -2511,7 +2974,14 @@ function frame(now: number) {
           );
         if (meditationTime === 0) finishMeditation();
       }
-      const searchHint = seedSearchClock.update(s, elapsed);
+      const seedConversation =
+        speaking?.id === "stacy" ||
+        speaking?.id === "pepe-show" ||
+        speaking?.id.startsWith("doge-meditator-") ||
+        meditationTime > 0 ||
+        (s.pepeShowStarted && !s.pepePopped) ||
+        pepeViewHold > 0;
+      const searchHint = seedSearchClock.update(s, elapsed, !!seedConversation);
       if (searchHint) toast(searchHint);
       if (
         ["arrowleft", "arrowright", "arrowup", "arrowdown"].some((k) =>
@@ -2565,6 +3035,12 @@ function frame(now: number) {
           dt > 0
             ? Math.hypot(s.position.x - origin.x, s.position.z - origin.z) / dt
             : 0;
+        rideDistance += Math.hypot(
+          s.position.x - origin.x,
+          s.position.z - origin.z,
+        );
+        if (rideDistance >= 1)
+          visit(`Rode my ${bikeById(s.selectedBike)!.name} bicycle.`);
         if (actualRideSpeed < Math.abs(rideSpeed) * 0.2) rideSpeed = 0;
         if (ridingIndoors()) {
           dismountBike();
@@ -2596,7 +3072,9 @@ function frame(now: number) {
         world.player.position.y = sitting
           ? meditationTime > 0
             ? 0.15
-            : 0.69
+            : sittingWithStacy
+              ? 0.52
+              : 0.69
           : 0;
       if (rolling) {
         move(
@@ -2609,9 +3087,12 @@ function frame(now: number) {
         rollTime = Math.max(0, rollTime - dt);
       }
       if (
-        s.position.z > 17.3 &&
-        s.position.z < 20.7 &&
-        s.plots.some((_, i) => Math.abs(s.position.x - (-20 + i * 2)) < 0.85)
+        s.plots.some(
+          (p, i) =>
+            p.soilFilled !== false &&
+            Math.abs(s.position.x - (p.x ?? -20 + i * 2)) < 0.85 &&
+            Math.abs(s.position.z - (p.z ?? 19)) < 1.7,
+        )
       )
         world.player.position.y += 0.29;
       world.player.position.y += jumpHeight;
@@ -2630,7 +3111,7 @@ function frame(now: number) {
           action.elapsed += elapsed;
           if (action.elapsed >= action.duration) {
             const plantedId = action.id;
-            plant(s, plantedId);
+            plantBatch(s, action.ids);
             action = undefined;
             save();
             toast(
@@ -2695,13 +3176,21 @@ function frame(now: number) {
   );
   world.player.position.x = s.position.x;
   world.player.position.z = s.position.z;
-  world.player.visible = (s.awake || !begun) && !riding;
+  world.player.visible = (s.awake || !begun) && !riding && followDistance > 0.9;
   bikeCockpit.object.visible = begun && riding;
   document.body.classList.toggle("riding", riding);
   $("#bike-bell-help").hidden = !riding;
   if (riding) bikeCockpit.update(active ? actualRideSpeed : 0, s.selectedBike!);
   world.sleeping.visible = begun && !s.awake;
   world.setSigmaUnlocked(!!s.foundTVSeeds);
+  world.sigma.updateWalkers(
+    active && s.awake && s.foundTVSeeds && !reducedMotion ? dt : 0,
+    s.position.x,
+    s.position.z,
+    speaking?.id,
+  );
+  world.sigma.updateHandoff(dt, reducedMotion);
+  world.sigma.updateATM(s.coin?.name);
   world.sigma.updateRoofs(s.position.x, s.position.z);
   world.sigma.updatePepe(
     canEnterPepe(s),
@@ -2755,19 +3244,13 @@ function frame(now: number) {
     world.player.position.set(s.position.x, 0, s.position.z);
     save();
   }
-  for (let i = 0; i < s.plots.length; i++) {
-    const p = s.plots[i];
-    world.plots[i].scale.setScalar(
-      p.stage === "growing"
-        ? 0.35 + 0.65 * (1 - p.remaining / (p.fertilized ? 120 : 180))
-        : 1,
-    );
-  }
+  for (const plot of world.plots) plot.scale.setScalar(1);
   for (const b of world.bills) {
     if (b.parent && !reducedMotion)
       b.rotation.z = Math.sin(now * 0.002 + b.userData.phase) * 0.12;
   }
   if (!begun) {
+    followInitialized = false;
     camera.position.set(-5, 15, 35);
     cameraAim.set(-7, 1, 10);
     camera.lookAt(cameraAim);
@@ -2785,6 +3268,7 @@ function frame(now: number) {
     cameraAim.lerp(new T.Vector3(-18, 7.2, -65), ease);
     camera.lookAt(cameraAim);
   } else if (!s.awake) {
+    followInitialized = false;
     camera.position.set(-16.8, 3.8, 4.2);
     cameraAim.set(-19.1, 1.35, 0.75);
     camera.lookAt(cameraAim);
@@ -2811,31 +3295,30 @@ function frame(now: number) {
     cameraAim.lerp(aim, reducedMotion ? 1 : 1 - Math.exp(-dt * 16));
     camera.lookAt(cameraAim);
   } else {
-    const sigmaRoom = s.foundTVSeeds
-      ? world.sigma.houseBounds.find(
-          (h) =>
-            Math.abs(s.position.x - h.x) < h.w / 2 &&
-            Math.abs(s.position.z - h.z) < h.d / 2,
-        )
-      : undefined;
-    const indoors =
-      !!sigmaRoom ||
-      atHome() ||
-      (s.position.x > -4 &&
-        s.position.x < 16 &&
-        s.position.z < -21 &&
-        s.position.z > -39) ||
-      inHatShop ||
-      inBikeShop(s.position);
-    const wantedAngle = indoors ? Math.max(0.65, pitch) : pitch;
+    const wantedAngle = pitch;
     const easing = reducedMotion
       ? 1
       : 1 - Math.exp(-dt * (now - lastLookInput < 500 ? 16 : 6));
     followAngle += (wantedAngle - followAngle) * easing;
+    followDistance +=
+      (zoomDistance - followDistance) *
+      (reducedMotion ? 1 : 1 - Math.exp(-dt * 12));
+    if (Math.abs(followDistance - zoomDistance) < 0.01)
+      followDistance = zoomDistance;
     const angle = followAngle;
+    const firstPerson = 1 - T.MathUtils.smoothstep(followDistance, 0, 1.5);
     const target = new T.Vector3(
         s.position.x,
-        1.4 + jumpHeight * 0.7,
+        1.4 +
+          firstPerson * 0.3 +
+          jumpHeight +
+          (sitting
+            ? sittingWithStacy
+              ? 0.52
+              : meditationTime > 0
+                ? 0.15
+                : 0.69
+            : 0),
         s.position.z -
           (speaking?.id.startsWith("doge-meditator-") ||
           speaking?.id === "pepe-show" ||
@@ -2847,11 +3330,15 @@ function frame(now: number) {
         .clone()
         .add(
           new T.Vector3(
-            Math.sin(yaw) * Math.cos(angle) * 5.8,
-            Math.sin(angle) * 5.8 + 1,
-            Math.cos(yaw) * Math.cos(angle) * 5.8,
+            Math.sin(yaw) * Math.cos(angle) * followDistance,
+            (Math.sin(angle) + 1 / 5.8) * followDistance,
+            Math.cos(yaw) * Math.cos(angle) * followDistance,
           ),
         );
+    cameraWalls.update(world.occluders, target, camera.position, desired);
+    const cameraSolids = world.occluders.filter(
+      (object) => object.visible && !object.userData.cameraWall,
+    );
     const direction = desired.clone().sub(target),
       length = direction.length();
     ray.set(target, direction.normalize());
@@ -2866,112 +3353,80 @@ function frame(now: number) {
     ]) {
       ray.set(target.clone().add(offset), direction);
       ray.far = length + 0.3;
-      const hits = ray.intersectObjects(world.occluders, false);
+      const hits = ray.intersectObjects(cameraSolids, false);
       if (hits.length)
         distance = Math.min(distance, Math.max(0.4, hits[0].distance - 0.4));
     }
     const ideal = target.clone().addScaledVector(direction, distance);
-    if (indoors) {
-      // Preserve the orbit side through every doorway and corner. Moving the
-      // camera toward the room center can cross the player and flip the view.
-      ideal.copy(desired);
-      ideal.y = Math.max(desired.y, sigmaRoom ? 8.2 : 5.2);
-      // Resolve visibility by steepening the same orbit, never crossing the
-      // character. Check the torso too, since a visible head is not enough.
-      const walls = world.occluders.filter((o) => !o.userData.roof);
-      for (let attempt = 0; attempt < 14; attempt++) {
-        const hidden = [0.5, 0.77, 1.1, 1.47, 1.9].some((height) => {
-          const body = new T.Vector3(
-            s.position.x,
-            height + jumpHeight,
-            s.position.z,
-          );
-          const sight = ideal.clone().sub(body);
-          ray.set(body, sight.clone().normalize());
-          ray.far = sight.length() - 0.08;
-          return ray.intersectObjects(walls, false).length > 0;
-        });
-        if (!hidden) break;
-        ideal.x = target.x + (ideal.x - target.x) * 0.82;
-        ideal.z = target.z + (ideal.z - target.z) * 0.82;
-        ideal.y += 0.35;
-      }
-    } else {
-      const lift = 1 - T.MathUtils.smoothstep(distance, 1.0, 3.0);
-      if (lift > 0) {
-        const raised = desired.clone();
-        raised.y = Math.max(raised.y, target.y + 5.8);
-        ideal.lerp(raised, lift);
-      }
-    }
     if (pepeReturning && camera.position.distanceTo(target) < 12)
       pepeReturning = false;
     const cameraJump =
-      camera.position.distanceTo(target) > 20 && !pepeReturning;
+      !followInitialized ||
+      (camera.position.distanceTo(target) > 20 && !pepeReturning);
+    followInitialized = true;
     const next = cameraJump
       ? ideal.clone()
       : camera.position.clone().lerp(ideal, easing);
     if (
       !reducedMotion &&
+      !cameraJump &&
       (camera.position.distanceTo(target) < 20 || pepeReturning)
     ) {
       const travel = next.clone().sub(camera.position);
       if (travel.length() > dt * 12)
         next.copy(camera.position).add(travel.setLength(dt * 12));
     }
-    // Sweep the camera itself and slide along obstacles. Clamping the sightline
-    // back toward the player would cause a sudden zoom under doorway lintels.
-    const bounds = world.occluders.map((o) => {
-      o.updateWorldMatrix(true, false);
-      return new T.Box3().setFromObject(o).expandByScalar(0.14);
-    });
-    for (let pass = 0; !cameraJump && pass < 3; pass++)
-      for (const box of bounds) {
-        const step = next.clone().sub(camera.position),
-          length = step.length();
-        if (length < 0.0001) continue;
-        const segment = new T.Ray(camera.position, step.normalize());
-        const hit = segment.intersectBox(box, new T.Vector3());
-        if (hit && hit.distanceTo(camera.position) <= length + 0.001) {
-          const axes = ["x", "y", "z"] as const;
-          const faces = axes
-            .flatMap((axis) => [
-              {
-                axis,
-                value: box.min[axis] - 0.02,
-                distance: Math.abs(hit[axis] - box.min[axis]),
-              },
-              {
-                axis,
-                value: box.max[axis] + 0.02,
-                distance: Math.abs(hit[axis] - box.max[axis]),
-              },
-            ])
-            .sort((a, b) => a.distance - b.distance);
-          next[faces[0].axis] = faces[0].value;
-        }
-        if (box.containsPoint(next)) {
-          const axes = ["x", "y", "z"] as const;
-          const faces = axes
-            .flatMap((axis) => [
-              {
-                axis,
-                value: box.min[axis] - 0.02,
-                distance: Math.abs(next[axis] - box.min[axis]),
-              },
-              {
-                axis,
-                value: box.max[axis] + 0.02,
-                distance: Math.abs(next[axis] - box.max[axis]),
-              },
-            ])
-            .sort((a, b) => a.distance - b.distance);
-          next[faces[0].axis] = faces[0].value;
-        }
+    // Shorten the boom on the player's current side of a wall. Sweeping the
+    // old camera from outside can strand it on the wrong side of a doorway.
+    const sight = next.clone().sub(target);
+    if (sight.length() > 0.001) {
+      ray.set(target, sight.clone().normalize());
+      ray.far = sight.length();
+      const hit = ray.intersectObjects(cameraSolids, false)[0];
+      if (hit)
+        next
+          .copy(target)
+          .addScaledVector(ray.ray.direction, Math.max(0, hit.distance - 0.2));
+    }
+    for (let pass = 0; pass < 3; pass++)
+      for (const object of cameraSolids) {
+        const box = new T.Box3().setFromObject(object).expandByScalar(0.14);
+        if (!box.containsPoint(next)) continue;
+        const faces = (["x", "y", "z"] as const)
+          .flatMap((axis) => [
+            {
+              axis,
+              value: box.min[axis] - 0.02,
+              d: next[axis] - box.min[axis],
+            },
+            {
+              axis,
+              value: box.max[axis] + 0.02,
+              d: box.max[axis] - next[axis],
+            },
+          ])
+          .sort((a, b) => a.d - b.d);
+        next[faces[0].axis] = faces[0].value;
       }
     camera.position.copy(next);
-    if (cameraJump) cameraAim.copy(target);
-    else cameraAim.lerp(target, easing);
+    const tilt = T.MathUtils.clamp((pitch - 0.42) * 0.9, -0.35, 0.6);
+    const forward = viewForward();
+    const aim = target
+      .clone()
+      .lerp(
+        target
+          .clone()
+          .add(
+            new T.Vector3(
+              forward.x * Math.cos(tilt),
+              -Math.sin(tilt),
+              forward.z * Math.cos(tilt),
+            ).multiplyScalar(6),
+          ),
+        firstPerson,
+      );
+    if (cameraJump) cameraAim.copy(aim);
+    else cameraAim.lerp(aim, easing);
     camera.lookAt(cameraAim);
   }
 
@@ -2983,9 +3438,37 @@ function frame(now: number) {
     s.position.z > -39;
   for (const name of ["robertsons-name", "robertsons-trade"])
     scene.getObjectByName(name)!.visible = !insideRobertsons;
-  world.updateCartoon(reducedMotion ? 0 : now / 1000);
+  const news = newsReports(s);
+  const report = news[Math.floor(now / 18000) % news.length];
+  world.updateCartoon(
+    reducedMotion ? 0 : now / 1000,
+    s.tvChannel ?? "cartoons",
+    report.headline,
+  );
+  tvCaption.hidden =
+    !begun ||
+    !s.awake ||
+    s.tvChannel !== "news" ||
+    paused ||
+    !!speaking ||
+    thoughtTime > 0 ||
+    !!birdhouseScene ||
+    !atHome() ||
+    Math.hypot(s.position.x + 10.1, s.position.z - 10) > 10;
+  tvCaption.innerHTML = `<strong>Town News · ${report.headline}</strong><p>${report.report}</p>`;
   world.wildlife.update(reducedMotion ? 0 : now / 1000);
   world.setDigging(!!action, !!s.shovel, action?.elapsed ?? 0);
+  if (fertilizerAnimation && active) {
+    fertilizerAnimation.elapsed += dt;
+    if (fertilizerAnimation.elapsed >= 1.6 || action || riding || sitting)
+      fertilizerAnimation = undefined;
+  }
+  world.setFertilizing(
+    !!fertilizerAnimation,
+    fertilizerAnimation?.elapsed ?? 0,
+    fertilizerAnimation?.x ?? 0,
+    fertilizerAnimation?.z ?? 0,
+  );
   updateRollPose();
   for (let i = 0; i < s.plots.length; i++) {
     const p = s.plots[i],
@@ -3000,13 +3483,11 @@ function frame(now: number) {
       !s.awake ||
       distance > 17 ||
       position.z > 1 ||
-      !["growing", "ready"].includes(p.stage);
+      p.stage !== "ready";
     el.style.left = `${(position.x * 0.5 + 0.5) * innerWidth}px`;
     el.style.top = `${(-position.y * 0.5 + 0.5) * innerHeight}px`;
     el.textContent =
-      p.stage === "ready"
-        ? "$ Ready to harvest"
-        : `♧ ${Math.ceil(p.remaining)}s`;
+      p.stage === "ready" ? "$ Ready to harvest" : "Ready tomorrow";
   }
   if (thoughtTime > 0 && active) {
     thoughtTime -= dt;
@@ -3071,9 +3552,60 @@ function frame(now: number) {
   $("#quest").style.visibility = speaking || thoughtTime > 0 ? "hidden" : "";
   updateSpeech(active ? dt : 0);
   updateUI();
+  updateInventoryNotices(dt);
   if (toastTime > 0) {
     toastTime -= dt;
     if (toastTime <= 0) $("#toast").style.opacity = "0";
+  }
+  if (birdhouseScene) {
+    const film = birdhouseScene;
+    if (!paused && !document.hidden) film.elapsed += dt;
+    const index = film.start + Math.min(1, Math.floor(film.elapsed / 4));
+    const house = world.outdoorBirdhouses[index];
+    const f = Math.min(1, (film.elapsed % 4) / 2.5);
+    world.player.visible = true;
+    world.player.position.set(
+      house.position.x - 1.3,
+      0,
+      house.position.z + 3 - f * 1.8,
+    );
+    world.player.rotation.y = Math.PI;
+    world.mom.visible = true;
+    world.mom.position.set(
+      house.position.x + 0.9,
+      0,
+      house.position.z + 3 - f * 1.8,
+    );
+    world.mom.rotation.y = Math.PI;
+    film.carried.forEach((model, i) => {
+      const destination = world.outdoorBirdhouses[film.start + i].position;
+      const actor = i === 0 ? world.player : world.mom;
+      const progress = Math.max(
+        0,
+        Math.min(1, (film.elapsed - i * 4 - 2.5) / 1.5),
+      );
+      model.visible = film.elapsed < (i + 1) * 4;
+      model.position
+        .copy(actor.position)
+        .add(new T.Vector3(0.15, 1.25, -0.4))
+        .lerp(destination, progress);
+    });
+    camera.position.set(house.position.x + 7, 4.5, house.position.z + 8);
+    camera.lookAt(house.position.x, 1.1, house.position.z + 0.8);
+    $("#prompt").innerText =
+      film.elapsed < 4
+        ? "A home for the birds. Mom holds it steady while I help."
+        : "One more. We picked these colors together.";
+    if (film.elapsed >= 8) {
+      s.position = film.origin;
+      film.carried.forEach((g) => scene.remove(g));
+      birdhouseScene = undefined;
+      world.setMomDay(s.day, true, true);
+      world.player.position.set(s.position.x, 0, s.position.z);
+      followInitialized = false;
+      save();
+      toast("Our birdhouses are up. I hope somebody moves in soon.");
+    }
   }
   if (!document.hidden) renderer.render(scene, camera);
 }
@@ -3082,6 +3614,10 @@ requestAnimationFrame(frame);
 if (new URLSearchParams(location.search).has("test")) {
   (window as unknown as { game: unknown }).game = {
     bicycle: () => ({
+      facade: [world.bikeShopSign, world.bikeShopRoof].map((o) => {
+        const b = new T.Box3().setFromObject(o);
+        return { min: b.min.toArray(), max: b.max.toArray() };
+      }),
       riding,
       speed: actualRideSpeed,
       bellRings,
@@ -3093,7 +3629,13 @@ if (new URLSearchParams(location.search).has("test")) {
       })),
     }),
     state: () => structuredClone(s),
+    playerPosition: () => world.player.position.toArray(),
     seated: () => sitting,
+    seedHandoff: () => world.sigma.handoffPacket.visible,
+    stacySeating: () => ({
+      guest: world.sigma.guestChair.position.toArray(),
+      host: world.sigma.stacyChair.position.toArray(),
+    }),
     playerVisibility: () =>
       ["head", "body"].map((name) => {
         const point = world.player
@@ -3109,7 +3651,7 @@ if (new URLSearchParams(location.search).has("test")) {
         );
         return (
           sight.intersectObjects(
-            world.occluders.filter((o) => !o.userData.roof),
+            world.occluders.filter((o) => o.visible && !o.userData.roof),
             false,
           ).length === 0
         );
@@ -3127,6 +3669,7 @@ if (new URLSearchParams(location.search).has("test")) {
       gardens: world.neighborGardens.map((g) => ({
         position: g.position.toArray(),
         types: g.userData.plantTypes,
+        layoutSeed: g.userData.layoutSeed,
       })),
     }),
     birdhouses: () => world.outdoorBirdhouses.filter((g) => g.visible).length,
@@ -3146,6 +3689,10 @@ if (new URLSearchParams(location.search).has("test")) {
       if (blocked(x, z, world.rects)) throw Error("Blocked test position");
       s.position = { x, z };
     },
+    sleep: () => {
+      sleep(s);
+      save();
+    },
     advance: (dt: number) => {
       tick(s, dt);
       tickSigma(s, dt);
@@ -3156,6 +3703,12 @@ if (new URLSearchParams(location.search).has("test")) {
       renderer.render(scene, camera);
     },
     sigma: () => ({
+      entranceSign: world.sigma.entranceSign.position.toArray(),
+      walkers: world.sigma.walkers.map((w) => ({
+        id: w.id,
+        position: w.object.position.toArray(),
+        target: { ...w.target },
+      })),
       visible: world.sigma.town.visible,
       paths: world.sigma.paths,
       pavement: Array.from(
@@ -3202,6 +3755,10 @@ if (new URLSearchParams(location.search).has("test")) {
         .map((o) => o.position.toArray()),
     }),
     homeRoof: () => ({
+      wingBounds: (() => {
+        const box = new T.Box3().setFromObject(world.momRoof);
+        return { min: box.min.toArray(), max: box.max.toArray() };
+      })(),
       opacity: (world.homeRoof.material as T.MeshStandardMaterial).opacity,
       visible: world.homeRoof.visible,
       bounds: (() => {
@@ -3249,7 +3806,17 @@ if (new URLSearchParams(location.search).has("test")) {
         .filter((o) => o.name === "foot")
         .map((o) => o.getWorldPosition(new T.Vector3()).toArray()),
     }),
+    fertilizerAnimation: () => ({
+      active: !!fertilizerAnimation,
+      visible: world.fertilizerBox.visible,
+      grains: world.fertilizerGrains.visible,
+    }),
+    cameraWalls: () =>
+      world.occluders
+        .filter((o) => o.userData.cameraWall)
+        .map((o) => ({ visible: o.visible, position: o.position.toArray() })),
     cameraPitch: () => pitch,
+    seedChimes: () => seedChimes,
     frame: () => frameNumber,
     camera: () => ({
       position: camera.position.toArray(),
@@ -3258,6 +3825,8 @@ if (new URLSearchParams(location.search).has("test")) {
       penetrationDetails: world.occluders
         .filter(
           (o) =>
+            o.visible &&
+            !o.userData.cameraWall &&
             !o.userData.roof &&
             new T.Box3()
               .setFromObject(o)
@@ -3271,6 +3840,8 @@ if (new URLSearchParams(location.search).has("test")) {
         })),
       penetrations: world.occluders.filter(
         (o) =>
+          o.visible &&
+          !o.userData.cameraWall &&
           !o.userData.roof &&
           new T.Box3()
             .setFromObject(o)

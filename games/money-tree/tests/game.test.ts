@@ -18,6 +18,7 @@ import {
   tick,
   harvest,
   sleep,
+  growOvernight,
   load,
   decode,
   withdraw,
@@ -42,7 +43,7 @@ test("opening economy, withering and seed hunt loop", () => {
   }
   tick(s, 179);
   assert(s.plots.every((p) => p.stage === "growing"));
-  tick(s, 1);
+  growOvernight(s);
   for (let i = 0; i < 5; i++) {
     const n = harvest(s, i);
     assert(n >= 200 && n <= 700);
@@ -80,7 +81,7 @@ test("tools, transaction atomicity, fertilizer and recovery", () => {
   assert(fertilize(s, 0));
   assert.equal(s.plots[0].remaining, 120);
   assert(!fertilize(s, 0));
-  tick(s, 120);
+  growOvernight(s);
   assert(s.plots[0].yield >= 400);
   const before = JSON.stringify(s);
   assert(!buy(s, "fertilizer"));
@@ -179,6 +180,7 @@ test("import decoder accepts formatted fresh saves and rejects invalid data", ()
   assert.deepEqual(decode(JSON.stringify(s, null, 2)), s);
   assert.equal(decode("{}"), null);
   assert.equal(decode("bad"), null);
+  assert.equal(decode(JSON.stringify({ ...s, journal: [] })), null);
 });
 
 test("legacy saves migrate seed progression without losing balances", () => {
@@ -222,7 +224,7 @@ test("fertilized trees can produce nine dollars and decode without losing the sa
     const s = fresh();
     s.rng = i * 2147483;
     s.plots[0] = { stage: "growing", remaining: 1, fertilized: true, yield: 0 };
-    tick(s, 1);
+    growOvernight(s);
     assert(s.plots[0].yield >= 400 && s.plots[0].yield <= 900);
     assert.ok(decode(JSON.stringify(s)));
     amounts.add(harvest(s, 0));

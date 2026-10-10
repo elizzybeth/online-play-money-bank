@@ -34,7 +34,12 @@ test("Pepe opens after both encounters, inflates after dialogue, and keeps colle
   expect(
     await page.evaluate(() => (window as any).game.state().pepePopped),
   ).toBe(true);
-  await page.evaluate(() => (window as any).game.teleport(-6, -47));
+  await page.evaluate(() => {
+    const t = (window as any).game.targets.find(
+      (t: any) => t.id === "pepe-seed-0",
+    );
+    (window as any).game.teleport(t.x, t.z);
+  });
   for (let i = 0; i < 30; i++) await page.clock.fastForward(16);
   await expect(page.locator("#prompt")).toContainText("money seeds");
   await page.keyboard.press("e");
@@ -46,10 +51,12 @@ test("Pepe opens after both encounters, inflates after dialogue, and keeps colle
   ).toEqual([0]);
   expect(await page.evaluate(() => (window as any).game.state().seeds)).toBe(5);
   for (let i = 1; i < 25; i++) {
-    await page.evaluate(
-      ([x, z]) => (window as any).game.teleport(x, z),
-      [-6 + (i % 5) * 9, i === 24 ? -74 : -47 - Math.floor(i / 5) * 8],
-    );
+    await page.evaluate((i) => {
+      const t = (window as any).game.targets.find(
+        (t: any) => t.id === `pepe-seed-${i}`,
+      );
+      (window as any).game.teleport(t.x, t.z);
+    }, i);
     for (let frame = 0; frame < 3; frame++) await page.clock.fastForward(16);
     await page.keyboard.press("e");
   }
@@ -59,6 +66,12 @@ test("Pepe opens after both encounters, inflates after dialogue, and keeps colle
   expect(
     await page.evaluate(() => (window as any).game.state().pepePackets.length),
   ).toBe(25);
+  await page.evaluate(() => (window as any).game.teleport(-18, -64.4));
+  for (let frame = 0; frame < 60; frame++) await page.clock.fastForward(32);
+  await page.keyboard.press("e");
+  await expect(page.locator(".speech-bubble")).toContainText(
+    "So, what do you think? Inflation, a good thing? Or not?",
+  );
 });
 test("the Pepe doorway remains physically closed before meeting Stacy and completing meditation", async ({
   page,
@@ -70,7 +83,7 @@ test("the Pepe doorway remains physically closed before meeting Stacy and comple
     awake: true,
     foundTVSeeds: true,
     foundGardenSeeds: true,
-    position: { x: -18, z: -56.8 },
+    position: { x: -9.5, z: -65 },
   });
   await page.addInitScript(
     (s) => localStorage.setItem("money-tree-v1", JSON.stringify(s)),
@@ -79,14 +92,14 @@ test("the Pepe doorway remains physically closed before meeting Stacy and comple
   await page.goto("./?test");
   await page.getByRole("button", { name: "Wake up" }).click();
   for (let i = 0; i < 120; i++) await page.clock.fastForward(16);
-  await page.evaluate(() => (window as any).game.setYaw(0));
+  await page.evaluate(() => (window as any).game.setYaw(Math.PI / 2));
   for (let i = 0; i < 120; i++) await page.clock.fastForward(16);
   await page.keyboard.down("w");
   for (let i = 0; i < 120; i++) await page.clock.fastForward(16);
   await page.keyboard.up("w");
   expect(
-    await page.evaluate(() => (window as any).game.state().position.z),
-  ).toBeGreaterThan(-57.4);
+    await page.evaluate(() => (window as any).game.state().position.x),
+  ).toBeGreaterThan(-10.4);
   expect(
     await page.evaluate(() => (window as any).game.state().pepeShowStarted),
   ).toBe(false);

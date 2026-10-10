@@ -132,7 +132,7 @@ test("coffee bonuses apply, replace and expire without corrupting standard growt
   plant(s, 5);
   water(s, 5);
   tick(s, 60);
-  assert.equal(s.plots[5].remaining, 120);
+  assert.equal(s.plots[5].remaining, 180);
   assert(buyDrink(s, "yield"));
   s.plots[5].stage = "ready";
   s.plots[5].yield = 700;
@@ -196,7 +196,7 @@ test("seed-recovery coffee does not accelerate tree growth", () => {
   buyDrink(s, "growth");
   s.drink!.remaining = 1;
   tick(s, 60);
-  assert.equal(s.plots[5].remaining, 120);
+  assert.equal(s.plots[5].remaining, 180);
   tickSigma(s, 60);
   assert(!s.drink);
 });

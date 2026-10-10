@@ -55,3 +55,49 @@ test("Spring Hare clears the hedge into Sigma and Q rolls without crossing walls
     await page.evaluate(() => (window as any).game.state().position.z),
   ).toBeGreaterThan(-39.1);
 });
+
+test("rabbit hat clears the hardware counter and supply displays but not walls", async ({
+  page,
+}) => {
+  await page.clock.install({ time: new Date("2026-01-01T00:00:00Z") });
+  await page.clock.pauseAt(new Date("2026-01-02T00:00:00Z"));
+  const s = Object.assign(fresh(), {
+    awake: true,
+    hats: ["rabbit"],
+    equippedHat: "rabbit",
+    equippedHats: ["rabbit"],
+    position: { x: 6.5, z: -31.5 },
+  });
+  await page.addInitScript(
+    (s) => localStorage.setItem("money-tree-v1", JSON.stringify(s)),
+    s,
+  );
+  await page.goto("./?test");
+  await page.getByRole("button", { name: "Wake up" }).click();
+  await page.evaluate(() => (window as any).game.setYaw(0));
+  await page.keyboard.press("Space");
+  await page.keyboard.down("w");
+  for (let i = 0; i < 35; i++) await page.clock.fastForward(32);
+  await page.keyboard.up("w");
+  expect(
+    await page.evaluate(() => (window as any).game.state().position.z),
+  ).toBeLessThan(-34);
+  for (let i = 0; i < 25; i++) await page.clock.fastForward(32);
+  await page.evaluate(() => (window as any).game.teleport(2, -26.4));
+  await page.keyboard.press("Space");
+  await page.keyboard.down("w");
+  for (let i = 0; i < 35; i++) await page.clock.fastForward(32);
+  await page.keyboard.up("w");
+  expect(
+    await page.evaluate(() => (window as any).game.state().position.z),
+  ).toBeLessThan(-29);
+  for (let i = 0; i < 25; i++) await page.clock.fastForward(32);
+  await page.evaluate(() => (window as any).game.teleport(6, -37.9));
+  await page.keyboard.press("Space");
+  await page.keyboard.down("w");
+  for (let i = 0; i < 40; i++) await page.clock.fastForward(32);
+  await page.keyboard.up("w");
+  expect(
+    await page.evaluate(() => (window as any).game.state().position.z),
+  ).toBeGreaterThan(-38.5);
+});

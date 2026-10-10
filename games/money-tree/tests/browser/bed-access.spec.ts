@@ -46,7 +46,7 @@ test("growing timer has no interaction key until fertilizer is available", async
   );
   await page.goto("./?test");
   await page.getByRole("button", { name: "Wake up" }).click();
-  await expect(page.locator("#prompt")).toContainText("Growing");
+  await expect(page.locator("#prompt")).toContainText("Ready tomorrow");
   await expect(page.locator("#prompt kbd")).toHaveCount(0);
 });
 test("empty beds suggest the next packet after cap seeds were found", async ({
