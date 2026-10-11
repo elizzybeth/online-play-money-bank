@@ -1,3 +1,5 @@
+import { stepWanderer, type Wanderer } from "./wandering";
+import { makeGardenSign } from "./garden-sign";
 import { sigmaPlots } from "./sigma";
 import { makeCoffeeShop } from "./coffee-shop";
 import { pepeScatter } from "./pepe-scatter";
@@ -68,6 +70,7 @@ export function createSigmaWorld(
     );
     m.position.set(x, y, z);
     town.add(m);
+    m.name = `sigma-sign-${text}`;
     if (["Doge", "Pepe", "Hawk Tuah"].includes(text))
       m.userData.houseSign = true;
     return m;
@@ -187,10 +190,15 @@ export function createSigmaWorld(
       target: targets.at(-1)!,
       x,
       z,
-      phase: 0.5,
-      direction: 1,
       walk: 0,
-      alongX: i % 2 === 0,
+      roaming: {
+        position: { x, z },
+        home: { x, z },
+        speed: 0.65 + i * 0.09,
+        pause: i * 0.12,
+        seed: 41 + i * 811,
+        journeys: 0,
+      } as Wanderer,
     };
   });
   function updateWalkers(
@@ -205,51 +213,48 @@ export function createSigmaWorld(
         walker.object.position.z - playerZ,
       );
       const waiting = dt <= 0 || distance < 3.2 || speaker === walker.id;
-      if (!waiting) {
-        const phase = T.MathUtils.clamp(
-          walker.phase + walker.direction * dt * 0.2,
-          0,
-          1,
+      const previous = {
+        x: walker.object.position.x,
+        z: walker.object.position.z,
+      };
+      const allowed = (p: { x: number; z: number }) =>
+        !blocked(
+          p.x,
+          p.z,
+          rects.filter((r) => r !== walker.collider),
+          0.65,
+        ) &&
+        Math.hypot(p.x - playerX, p.z - playerZ) > 2 &&
+        Math.hypot(p.x - 32, p.z + 74.7) > 7.5 &&
+        walkers.every(
+          (other) =>
+            other === walker ||
+            Math.hypot(
+              p.x - other.object.position.x,
+              p.z - other.object.position.z,
+            ) >= 1.8,
         );
-        const offset = (phase - 0.5) * 3.2;
-        const x = walker.x + (walker.alongX ? offset : 0);
-        const z = walker.z + (walker.alongX ? 0 : offset);
-        if (
-          !blocked(
-            x,
-            z,
-            rects.filter((r) => r !== walker.collider),
-            0.6,
-          ) &&
-          Math.hypot(x - playerX, z - playerZ) > 2 &&
-          Math.hypot(x - 32, z + 74.7) > 7
-        ) {
-          walker.phase = phase;
-          walker.object.position.set(x, 0, z);
-          walker.collider.x = x;
-          walker.collider.z = z;
-          walker.target.x = x + 1.3;
-          walker.target.z = z;
-          walker.object.rotation.y = walker.alongX
-            ? (walker.direction * Math.PI) / 2
-            : walker.direction > 0
-              ? 0
-              : Math.PI;
-          walker.walk += dt * 7;
-          if (phase === 0 || phase === 1) walker.direction *= -1;
-        } else walker.direction *= -1;
-      } else if (distance < 3.2) {
+      const moved = stepWanderer(walker.roaming, dt, allowed, waiting);
+      if (moved) {
+        const { x, z } = walker.roaming.position;
+        walker.object.position.set(x, 0, z);
+        walker.collider.x = x;
+        walker.collider.z = z;
+        walker.target.x = x + 1.3;
+        walker.target.z = z;
+        walker.object.rotation.y = Math.atan2(x - previous.x, z - previous.z);
+        walker.walk += dt * 7;
+      } else if (distance < 3.2)
         walker.object.rotation.y = Math.atan2(
-          playerX - walker.object.position.x,
-          playerZ - walker.object.position.z,
+          playerX - previous.x,
+          playerZ - previous.z,
         );
-      }
       for (const side of [-1, 1]) {
         const foot = walker.object.getObjectByName(`walking-foot-${side}`)!;
-        foot.position.z = waiting
+        foot.position.z = !moved
           ? 0.04
           : 0.04 + Math.sin(walker.walk) * side * 0.13;
-        foot.position.y = waiting
+        foot.position.y = !moved
           ? 0.18
           : 0.18 + Math.max(0, Math.sin(walker.walk) * side) * 0.07;
       }
@@ -349,9 +354,11 @@ export function createSigmaWorld(
   roofs.push(hatBand);
   const buckle = box(hawk.x, 3.45, hawk.z + 2.68, 0.8, 0.4, 0.12, "#e5c477");
   roofs.push(buckle);
-  sign("Hawk Tuah", 0.65, 2.4, -81, 3.6).rotation.y = Math.PI / 2;
-  sign("Doge", 0.65, 2.4, -49, 3).rotation.y = Math.PI / 2;
-  sign("Pepe", 0.65, 2.4, -66, 3).rotation.y = Math.PI / 2;
+  // The east wall's outer face is x=.65 before scaling. Signs need a
+  // physical standoff, and must sit below the cowboy hat's broad brim.
+  sign("Hawk Tuah", 1, 2, -81, 3.6).rotation.y = Math.PI / 2;
+  sign("Doge", 1, 2, -49, 3).rotation.y = Math.PI / 2;
+  sign("Pepe", 1, 2, -66, 3).rotation.y = Math.PI / 2;
   // Enlarge each house around its own center and move the row west for clear space.
   for (const object of town.children.slice(memeStart)) {
     const oldZ = object.position.z;
@@ -608,7 +615,8 @@ export function createSigmaWorld(
   );
   // A coin terminal appears only after the player establishes their coin.
   const atm = new T.Group();
-  atm.position.set(37, 0, -76);
+  atm.name = "coin-atm-model";
+  atm.position.set(36, 0, -74);
   town.add(atm);
   box(0, 1.15, 0, 1.5, 2.3, 1.1, "#263b43", atm);
   box(0, 1.6, 0.57, 1.08, 0.7, 0.06, "#92d7cb", atm);
@@ -657,10 +665,10 @@ export function createSigmaWorld(
   );
   medallion.position.set(0, 3.4, 0.12);
   atm.add(medallion);
-  const coinLabel = sign("Coin ATM", 37, 2.63, -75.35, 2.6);
+  const coinLabel = sign("Coin ATM", 36, 2.63, -73.35, 2.6);
   atm.attach(coinLabel);
-  const atmRect = { x: 37, z: -76, w: 1.5, d: 1.1 };
-  targets.push({ id: "coin-atm", x: 37, z: -74.9, label: "Use coin ATM" });
+  const atmRect = { x: 36, z: -74, w: 1.5, d: 1.1 };
+  targets.push({ id: "coin-atm", x: 36, z: -72.9, label: "Use coin ATM" });
   atm.visible = false;
   let atmName = "";
   // Lone wolf sculpture, upturned snout and moon, $1 means nothing.
@@ -707,8 +715,9 @@ export function createSigmaWorld(
   ball(23, 4.65, -67.8, 0.65, "#e0d9bb");
   sign("Lone Wolf · $1 for luck", 23, 1, -65.1, 3.7);
   targets.push({ id: "wolf", x: 23, z: -64.4, label: "Toss $1 for luck" });
-  sign("Community Garden", 10, 5.1, -80, 12);
-  for (const x of [3.8, 16.2]) box(x, 3.1, -80, 0.18, 6.2, 0.18, "#a48162");
+  const gardenSign = makeGardenSign();
+  town.add(gardenSign);
+  rects.push({ x: 10, z: -80.5, w: 12.6, d: 0.25, clearHeight: 4.5 });
   // Visible perimeter and a gap aligned with the lane entrance.
   for (const r of [
     { x: -39, z: -67.25, w: 1, d: 44.5, clearHeight: 2.1 },
@@ -727,12 +736,8 @@ export function createSigmaWorld(
       sigmaPlots.some(
         (p) => Math.abs(x - p.x) < 1.5 && Math.abs(z - p.z) < 2,
       ) ||
-      walkers.some(
-        (w) =>
-          Math.abs(x - w.x) < (w.alongX ? 3 : 1.5) &&
-          Math.abs(z - w.z) < (w.alongX ? 1.5 : 3),
-      ) ||
-      (Math.abs(x - 37) < 1.5 && Math.abs(z + 76) < 2),
+      walkers.some((w) => Math.abs(x - w.x) < 3 && Math.abs(z - w.z) < 3) ||
+      (Math.abs(x - 36) < 1.5 && Math.abs(z + 74) < 2),
   );
   debris.forEach((d, i) => {
     Object.assign(d, finalScatter[i]);

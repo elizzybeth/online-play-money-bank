@@ -133,3 +133,8 @@ Desktop keyboard and mouse. No touch/gamepad support yet. Home and haberdashery 
 - Twin Planter requires two seeds and adjoining empty or withered, soil-filled beds. Moving cancels both without spending seeds.
 - Paint both birdhouses independently, watch the paired hanging scene, reload and verify colors/counts; sleeping that day must not add an extra house.
 - All 25 irregularly scattered Pepe packets must be reachable and persist after reload. Inspect Bea’s layered red/orange/yellow gerbera flowers.
+
+## Family story, bottom HUD and sign clearance
+- `family-story.test.ts`: one-time surgery payment, awake-only two-minute phone call, save validation, recovery without bed days, five-day outing, completed tea conversation and $100k goal-aware journals.
+- `family-story.spec.ts`: rotated arrow/post clearance and meme sign/wall clearance; bottom resources at 1280/600/390px; mounted pitch, harvesting, conversations and planting restrictions; physical rack hats; surgery/phone/recovery persistence; seated tea conversation and goal persistence.
+- Review Bea’s modeled tea table, floral cups, lace doily and three chairs; verify camera and doorway movement, recovery dialogue and worried surgery-day thoughts.

@@ -30,11 +30,11 @@ export function signCanvas(text: string, width = 768, height = 192) {
     g.fillText(text, width * 0.5, height * 0.49);
     return c;
   }
-  if (["Thread & Thimble", "Angry Milliner", "This Way"].includes(text)) {
-    const left = text !== "Angry Milliner";
+  if (["Thread & Thimble", "Angry Haberdasher", "This Way"].includes(text)) {
+    const left = text !== "Angry Haberdasher";
     const colors: Record<string, string> = {
       "Thread & Thimble": "#a9ced6",
-      "Angry Milliner": "#dfa3be",
+      "Angry Haberdasher": "#dfa3be",
       "This Way": "#e4d28d",
     };
     g.save();

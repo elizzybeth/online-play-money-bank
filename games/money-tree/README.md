@@ -31,7 +31,7 @@ Visual tests are opt-in: `pnpm test:visual` compares against reviewed macOS Chro
 `pnpm build` produces `dist/` with relative asset URLs. Copy the contents to the existing site's `money-tree/` directory. Source and tests belong in `games/money-tree/` in the host repository. Keep the existing root `CNAME` and publishing method. The checked-in build avoids changing the site's publishing configuration.
 
 ## QA
-See QA.md for the release checklist, automated coverage, and remaining scope. This is an initial playable release. Mobile touch controls, full voiceover, real multiplayer, disease, pests, extra shop systems, and the surgery funding ending are future work.
+See QA.md for the release checklist, automated coverage, and remaining scope. This is an initial playable release. Mobile touch controls, full voiceover, real multiplayer, disease, pests, extra shop systems are future work.
 
 ## Thread & Thimble
 Walk through the shop’s doorway from Market Lane. Ten original procedural hats have distinct stitching, brims, bands, lenses, ears, stars, veil, feather and lamp details. Inspect a stand to read the price and ability; buy to wear it, or equip/take off owned hats from the illustrated bag. Ownership and up to three equipped hats persist in saves. Their powers work together. The bedroom hat rack lets you hang up individual hats and put others on. Taller hats sit higher, with rabbit ears and the whirligig prioritized at the top. Old saves retain their previously equipped hat.
@@ -99,3 +99,12 @@ Daily Net shows realized money earned minus spent during the current day. Piggy-
 Drinks last up to three awake minutes and end when you sleep. The drink menu explains this; sleeping with an active drink requires an explicit confirmation, with staying awake as the E default. On birdhouse days, pick body and roof paint for two houses and join Mom in a short hanging scene. Choices and finished houses persist. Bea has a red, orange and yellow gerbera bed. Pepe scatters packets irregularly onto clear ground, with stable positions after reload.
 
 Interact with the living-room TV to switch between bunny cartoons and Town News. The animated anchor and captions recap the last three in-game days, including the Sigma passage, bike-shop opening, Pepe demonstration, and birdhouse hanging. Grindset has a wood counter, white brick backdrop, coffee machinery, shelf mugs and bags, hanging plants, pendant bulbs, and a readable drinks board. Wildflower clumps are modeled daisies, buttercups, and bluebells. Community-garden journal reflections become familiar after two planting days.
+
+## Surgery, recovery and Bea’s tea
+At $10,000 in pocket money plus savings, tell Mom the good news. Surgery is paid once, the neighborhood celebrates, and Mom schedules the following day. She is absent on surgery day; after two minutes of active, awake play the phone rings. Answer before sleeping. Mom returns the following morning, gradually improves, and still has couch days but no bed days. Five days after surgery, walk with her to Bea’s house and sit at the tea table. The complete conversation reveals Robertson’s $100,000 shop-saving goal. Progress, payments and conversation stages persist in saves; journal passages follow the current story phase.
+
+Bicycle riders can talk, harvest and water. Planting, digging and fertilizer require dismounting with H. Vertical camera controls lock while mounted and restore on dismount. Owned hat models appear on the bedroom rack.
+
+Pocket money, savings, seeds, Daily Net and active drinks sit along the bottom of the screen, with interaction prompts above them. Thread & Thimble’s middle arrow reads Angry Haberdasher. Its rotated arrows are spaced apart; meme-building signs stand clear of their walls and roof details. The browser regression checks test actual sign bounds and bottom-HUD layout at desktop and narrow widths.
+
+The Community Garden has modeled vegetable-shaped lettering built into an iron fence behind the plots, with a large iron Sigma above it. Street Chads choose fresh two-dimensional routes, pause and change direction, keep personal space, and leave Grindset’s counter clear. The back chalkboard simply reads Drinks. Stacy’s replies have an angled top-right corner; player replies and history entries are right-aligned with an angled bottom-right corner.

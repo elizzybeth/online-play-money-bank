@@ -1,5 +1,7 @@
 import { type BirdhousePaint } from "./birdhouse-paint";
 import { createWildlife } from "./wildlife";
+import { makeBeaRoom } from "./bea-room";
+import type { FamilyStory } from "./family-story";
 import { bikes } from "./bikes";
 import { makeBike } from "./bike-models";
 import { notebookSketches } from "./notebook-doodles";
@@ -543,6 +545,7 @@ export function createWorld(scene: T.Scene) {
   const mom = person(-18.9, 10, "#d9b6bd", "#7d6257");
   mom.rotation.y = Math.PI / 2;
   const seatedLegs = new T.Group();
+  seatedLegs.name = "seated-legs";
   mom.add(seatedLegs);
   // No extended limbs: compact seated feet rest directly in front of her dress.
 
@@ -689,8 +692,38 @@ export function createWorld(scene: T.Scene) {
     }
   }
   let momKey = "";
-  function setMomDay(day: number, playerHome = true, force = false) {
-    const status = momStatus(day),
+  function setMomDay(
+    day: number,
+    playerHome = true,
+    force = false,
+    story?: FamilyStory,
+  ) {
+    const absent = !!story && day === story.surgeryDay;
+    mom.visible = !absent;
+    if (absent) {
+      const index = rects.indexOf(momCollider);
+      if (index >= 0) rects.splice(index, 1);
+      momCollider.w = momCollider.d = 0;
+      cooking.visible =
+        birdhouses.visible =
+        painting.visible =
+        book.visible =
+          false;
+      activityProps.forEach((g) => (g.visible = false));
+      momKey = `${day}-hospital`;
+      return false;
+    }
+    if (!rects.includes(momCollider)) rects.push(momCollider);
+    if (story?.escort) {
+      cooking.visible =
+        birdhouses.visible =
+        painting.visible =
+        book.visible =
+          false;
+      activityProps.forEach((g) => (g.visible = false));
+      return false;
+    }
+    const status = momStatus(day, story),
       garden = status.activity === "garden";
     const key = `${day}-${garden}`;
     if (key === momKey && !force) return false;
@@ -1046,7 +1079,14 @@ export function createWorld(scene: T.Scene) {
     rects.push({ x, z, w: 0.4, d: 0.4 });
   }
   function house(x: number, z: number, c: string, name: string) {
-    box(x, 1.6, z, 7, 3.2, 6, c, true);
+    if (name === "THE WILLOWS") {
+      box(x - 3.5, 1.6, z, 0.2, 3.2, 6, c, true);
+      box(x + 3.5, 1.6, z, 0.2, 3.2, 6, c, true);
+      box(x, 1.6, z - 3, 7, 3.2, 0.2, c, true);
+      for (const side of [-1, 1])
+        box(x + side * 2.25, 1.6, z + 3, 2.5, 3.2, 0.2, c, true);
+      box(x, 2.95, z + 3, 2, 0.5, 0.2, c);
+    } else box(x, 1.6, z, 7, 3.2, 6, c, true);
     const roof = new T.Mesh(
       new T.ConeGeometry(5.3, 2, 4),
       surfaceMaterial("#a76f60", "shingles", 4, 2),
@@ -1055,9 +1095,13 @@ export function createWorld(scene: T.Scene) {
     roof.rotation.y = Math.PI / 4;
     scene.add(roof);
     roof.userData.roof = true;
+    if (name === "THE WILLOWS") {
+      roof.name = "bea-house-roof";
+      (roof.material as T.MeshStandardMaterial).transparent = true;
+    }
     (roof.material as T.MeshStandardMaterial).side = T.DoubleSide;
     occluders.push(roof);
-    box(x, 1, z + 3.03, 1.2, 2, 0.12, "#8b6e53");
+    if (name !== "THE WILLOWS") box(x, 1, z + 3.03, 1.2, 2, 0.12, "#8b6e53");
     for (const a of [-2, 2]) box(x + a, 1.8, z + 3.1, 1.2, 1.2, 0.1, "#bce0d9");
     if (name === "SPOKE & SADDLE") label(name, x, 3.1, z + 3.16, 3.7);
     doorways.push({ x, z: z + 4.5, w: 2.4, d: 4 });
@@ -1101,6 +1145,23 @@ export function createWorld(scene: T.Scene) {
     object: person(10, 20, "#bda9d4", "#79584b"),
   });
   target("npc1", 10, 20, "Talk to Bea");
+  const bea = speakers.find((n) => n.id === "npc1")!.object;
+  const beaCollider = rects.find((r) => r.x === 10 && r.z === 20)!;
+  const beaRoom = makeBeaRoom(scene);
+  rects.push(beaRoom.tableRect);
+  target("bea-chair", 12, 16.9, "Sit down for tea with Bea");
+  let beaInside = false;
+  function setBeaInside(inside: boolean) {
+    if (inside === beaInside) return;
+    beaInside = inside;
+    bea.position.set(inside ? 10.25 : 10, inside ? 0.6 : 0, inside ? 15.2 : 20);
+    bea.rotation.y = inside ? Math.PI / 2 : 0;
+    beaCollider.x = bea.position.x;
+    beaCollider.z = bea.position.z;
+    const t = targets.find((t) => t.id === "npc1")!;
+    t.x = inside ? 10.5 : 10;
+    t.z = inside ? 16.3 : 20;
+  }
   speakers.push({
     id: "npc2",
     name: "Jun",
@@ -1190,11 +1251,14 @@ export function createWorld(scene: T.Scene) {
   box(19.9, 1.8, -23, 3.8, 3.6, 0.25, "#e4bc9e", true);
   box(28.1, 1.8, -23, 3.8, 3.6, 0.25, "#e4bc9e", true);
   box(24, 3.25, -23, 4.4, 0.7, 0.25, "#e4bc9e");
-  box(28.2, 2.3, -22.55, 0.14, 4.6, 0.16, "#856c50");
+  const arrowPost = box(28.2, 2.65, -22.55, 0.14, 5.3, 0.16, "#856c50");
+  arrowPost.name = "haberdasher-arrow-post";
+  // Rotated one-unit panels need more than one unit between their centres.
+  // Keep them clear of one another and in front of the support and roof.
   for (const [text, y, turn] of [
-    ["Thread & Thimble", 4.1, -0.06],
-    ["Angry Milliner", 3.25, 0.08],
-    ["This Way", 2.4, -0.055],
+    ["Thread & Thimble", 4.65, -0.06],
+    ["Angry Haberdasher", 3.3, 0.08],
+    ["This Way", 1.95, -0.055],
   ] as const) {
     const arrow = label(text, 28.2, y, -22.4, 4, "#704a65");
     arrow.name = `milliner-arrow-${text}`;
@@ -1304,11 +1368,42 @@ export function createWorld(scene: T.Scene) {
     if (y > 0.95) wornHat.scale.y = 0.95 / y;
   }
   // Pegs and an upright post in the bedroom, clear of the door and desk.
-  cyl(-20.2, 0.95, 4.8, 0.07, 1.9, "#a48162");
-  for (const side of [-1, 1])
-    box(-20.2 + side * 0.3, 1.7, 4.8, 0.6, 0.09, 0.09, "#a48162");
+  cyl(-20.2, 1.35, 4.8, 0.07, 2.7, "#a48162");
+  for (const y of [0.6, 1.06, 1.52, 1.98, 2.44])
+    for (const side of [-1, 1])
+      box(-20.2 + side * 0.3, y, 4.8, 0.6, 0.06, 0.09, "#a48162");
   box(-20.2, 0.09, 4.8, 0.9, 0.18, 0.65, "#a48162");
   target("hat-rack", -19.5, 4.8, "Manage your hats");
+  const rackHats = new T.Group();
+  rackHats.name = "owned-hats-on-rack";
+  scene.add(rackHats);
+  let rackKey = "";
+  function setRackHats(owned: HatId[]) {
+    const key = owned.join(",");
+    if (key === rackKey) return;
+    rackKey = key;
+    rackHats.children.forEach((g) =>
+      g.traverse((o) => {
+        if (o instanceof T.Mesh) {
+          o.geometry.dispose();
+          (o.material as T.Material).dispose();
+        }
+      }),
+    );
+    rackHats.clear();
+    owned.forEach((id, i) => {
+      const model = makeHat(id);
+      model.name = `rack-${id}`;
+      model.scale.setScalar(0.46);
+      model.position.set(
+        -20.2 + (i % 2 ? 0.36 : -0.36),
+        0.6 + Math.floor(i / 2) * 0.46,
+        4.97,
+      );
+      model.rotation.y = 0.3;
+      rackHats.add(model);
+    });
+  }
   // A walk-in showroom with wide aisles and wall-mounted bicycles.
   box(-18, 0.025, -30, 20, 0.05, 18, "#b5c4cd");
   box(-28, 1.8, -30, 0.25, 3.6, 18, "#b5c4cd", true);
@@ -2192,6 +2287,12 @@ export function createWorld(scene: T.Scene) {
     sleeping,
     mom,
     setMomDay,
+    momCollider,
+    bea,
+    beaRoom,
+    setBeaInside,
+    rackHats,
+    setRackHats,
     rects,
     occluders,
     targets,
