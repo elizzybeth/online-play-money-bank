@@ -693,6 +693,7 @@ function letterToAuntie() {
 }
 function askMom() {
   if (momAway(s)) return;
+  momSpoke = true;
   if (storyPhase(s) === "scheduled")
     return speak(
       "mom",
@@ -2787,6 +2788,7 @@ function interact() {
     return;
   }
   if (id === "mom") {
+    momSpoke = true;
     if (s.familyStory || canTellMom(s)) return askMom();
     const metBefore = s.metMom;
     s.metMom = true;
