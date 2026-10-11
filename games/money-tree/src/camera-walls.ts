@@ -3,6 +3,11 @@ import * as T from "three";
  * the camera or changing the player's heading. Player collision stays solid. */
 export class CameraWalls {
   private hidden = new Map<T.Object3D, { visible: boolean; shadow: boolean }>();
+  visibleForInteraction(object: T.Object3D) {
+    for (let node: T.Object3D | null = object; node; node = node.parent)
+      if (!(this.hidden.get(node)?.visible ?? node.visible)) return false;
+    return true;
+  }
   restore() {
     for (const [wall, before] of this.hidden) {
       wall.visible = before.visible;

@@ -1,6 +1,6 @@
 import {
   type Millionaire,
-  newMillionaire,
+  migrateMillionaire,
   validMillionaire,
   recordEarnings,
 } from "./millionaire";
@@ -637,7 +637,6 @@ export function decode(raw: string | null): State | null {
       return null;
     if (s.millionaire !== undefined && !validMillionaire(s.millionaire))
       return null;
-    if (s.pepePopped && !s.millionaire) s.millionaire = newMillionaire();
     // Optional writer metadata must never discard otherwise valid game progress.
     if (
       !validNarrativeMemory(s.journalNarrative) ||
@@ -651,6 +650,7 @@ export function decode(raw: string | null): State | null {
             (m: unknown) => validJournalMemory(m) && m.day < s.day,
           )
         : [];
+    migrateMillionaire(s);
     const pendingPages = new Set<number>();
     if (s.journalDrafts !== undefined)
       s.journalDrafts = Array.isArray(s.journalDrafts)

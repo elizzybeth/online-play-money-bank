@@ -14,6 +14,7 @@ import {
 } from "../src/game";
 import {
   markPepeBaseline,
+  migrateMillionaire,
   recordEarnings,
   answerAssessment,
   assessment,
@@ -141,4 +142,44 @@ test("coin tithing excludes recovered principal, tracks partial-sale basis and l
   assert(sellCoin(s));
   assert.equal(s.millionaire!.tithed, 1000);
   assert.equal(s.coin!.basis, 0);
+});
+
+test("legacy saves recover recorded post-Pepe income without including earlier harvests or savings", () => {
+  const s = fresh();
+  s.pepePopped = true;
+  s.pepeShowStarted = true;
+  s.pepeInflation = 12;
+  s.day = 4;
+  s.totalEarned = 900000;
+  s.bank = 10000000;
+  s.journalHistory = [
+    { day: 1, earned: 50000, available: 50000, events: ["Harvested $500.00."] },
+    {
+      day: 2,
+      earned: 5300,
+      available: 55300,
+      events: [
+        "Harvested $50.00.",
+        "The giant Pepe balloon popped. Green scraps scattered.",
+        "Harvested $3.00.",
+      ],
+    },
+    { day: 3, earned: 9500, available: 64800, events: ["Harvested $95.00."] },
+  ];
+  s.events = ["Harvested $2.00."];
+  const restored = decode(JSON.stringify(s));
+  assert(restored);
+  assert.equal(restored.millionaire!.afterPepe, 10000);
+  assert.equal(restored.millionaire!.unlocked, true);
+  assert.equal(restored.cash, s.cash);
+  assert.equal(restored.bank, s.bank);
+  assert(!migrateMillionaire(restored));
+  assert.equal(restored.millionaire!.afterPepe, 10000);
+  const old = fresh();
+  old.pepePopped = true;
+  old.totalEarned = 900000;
+  old.bank = 10000000;
+  migrateMillionaire(old);
+  assert.equal(old.millionaire!.afterPepe, 0);
+  assert.equal(old.millionaire!.unlocked, false);
 });

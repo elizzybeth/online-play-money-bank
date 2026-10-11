@@ -63,6 +63,45 @@ export function newMillionaire(): Millionaire {
     chats: {},
   };
 }
+// Older saves did not have the Level 3 ledger. Recover only earnings whose
+// position in the journal proves they happened after the balloon burst.
+export function migrateMillionaire(s: State) {
+  if (!s.pepePopped || s.millionaire) return false;
+  s.millionaire = newMillionaire();
+  let observedPop = false,
+    earned = 0;
+  const history = [
+    ...new Map((s.journalHistory ?? []).map((day) => [day.day, day])).values(),
+  ].sort((a, b) => a.day - b.day);
+  for (const day of history) {
+    if (observedPop) earned += day.earned;
+    else {
+      const pop = day.events.findIndex((event) =>
+        event.startsWith("The giant Pepe balloon popped."),
+      );
+      if (pop >= 0) {
+        observedPop = true;
+        // Historical event lists deduplicate equal harvests. Counting just the
+        // known post-pop entries is conservative for the boundary day.
+        earned += harvestAmounts(day.events.slice(pop + 1));
+      }
+    }
+  }
+  const pop = s.events.findIndex((event) =>
+    event.startsWith("The giant Pepe balloon popped."),
+  );
+  if (observedPop || pop >= 0)
+    earned += harvestAmounts(s.events.slice(observedPop ? 0 : pop + 1));
+  if (Number.isSafeInteger(earned) && earned > 0) recordEarnings(s, earned);
+  return true;
+}
+function harvestAmounts(events: string[]) {
+  return events.reduce((total, event) => {
+    const value = event.match(/^Harvested \$(\d+(?:\.\d{2})?)/)?.[1];
+    const amount = value === undefined ? 0 : Math.round(Number(value) * 100);
+    return total + (Number.isSafeInteger(amount) && amount > 0 ? amount : 0);
+  }, 0);
+}
 export function markPepeBaseline(s: State) {
   s.millionaire ??= newMillionaire();
 }

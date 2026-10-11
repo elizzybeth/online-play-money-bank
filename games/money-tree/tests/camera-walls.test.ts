@@ -13,6 +13,12 @@ test("camera walls cut away across the boom and restore after moving clear", () 
   cuts.update([wall, furniture], point(0), point(4), point(5));
   assert.equal(wall.visible, false);
   assert.equal(wall.castShadow, false);
+  assert.equal(cuts.visibleForInteraction(wall), true);
+  const lockedArea = new T.Group();
+  lockedArea.add(wall);
+  lockedArea.visible = false;
+  assert.equal(cuts.visibleForInteraction(wall), false);
+  lockedArea.visible = true;
   assert.equal(furniture.visible, true);
   cuts.update([wall], point(-4), point(-6), point(-8));
   assert.equal(wall.visible, true);

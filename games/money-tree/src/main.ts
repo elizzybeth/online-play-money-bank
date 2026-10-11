@@ -1131,7 +1131,10 @@ function updateSpeech(dt: number) {
     ray.set(camera.position, direction.normalize());
     ray.far = Math.max(0, distance - 0.15);
     const obscured = ray
-      .intersectObjects(world.occluders.filter(effectivelyVisible), false)
+      .intersectObjects(
+        world.occluders.filter((o) => cameraWalls.visibleForInteraction(o)),
+        false,
+      )
       .some((hit) => hit.distance < distance - 0.15);
     anchor.project(camera);
     const hidden =
@@ -3285,7 +3288,10 @@ function hasSight(t: Target) {
   ray.set(a, dir.normalize());
   ray.far = d;
   return !ray
-    .intersectObjects(world.occluders.filter(effectivelyVisible), false)
+    .intersectObjects(
+      world.occluders.filter((o) => cameraWalls.visibleForInteraction(o)),
+      false,
+    )
     .some((h) => h.distance < d - 0.1);
 }
 function updateUI() {
