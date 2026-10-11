@@ -9,6 +9,8 @@ import { makeSeedPacket } from "./seed-packet";
 import { makeGardenTool } from "./tool-models";
 import { signCanvas } from "./signage";
 import { createSigmaWorld } from "./sigma-world";
+import { createMillionaireWorld } from "./millionaire-world";
+import { terrainHeight } from "./millionaire-land";
 import { moneySkeleton } from "./money-tree-model";
 import { surfaceMaterial, surfaceTexture } from "./textures";
 import { hats, type HatId } from "./hats";
@@ -336,7 +338,7 @@ export function createWorld(scene: T.Scene) {
         .lerp(
           new T.Vector3(
             x + Math.cos(angle) * radius,
-            0.27,
+            terrainHeight(x, z) + 0.27,
             z + Math.sin(angle) * radius,
           ),
           flight,
@@ -395,7 +397,7 @@ export function createWorld(scene: T.Scene) {
         .lerp(
           new T.Vector3(
             x + Math.cos(angle) * radius,
-            0.3,
+            terrainHeight(x, z) + 0.3,
             z + Math.sin(angle) * radius,
           ),
           flight,
@@ -1088,6 +1090,12 @@ export function createWorld(scene: T.Scene) {
     }
     data.forEach((p, i) => {
       bedSoils[i].visible = p.soilFilled !== false;
+      if (p.mountain) {
+        bedFrames[i].position.y = terrainHeight(p.x!, p.z!);
+        for (const child of bedFrames[i].children)
+          child.visible = child === bedSoils[i];
+        plots[i].position.y = terrainHeight(p.x!, p.z!) + 0.29;
+      }
     });
     return changed;
   }
@@ -2194,6 +2202,13 @@ export function createWorld(scene: T.Scene) {
     return hedge;
   });
   const sigma = createSigmaWorld(scene, rects, occluders, targets, speakers);
+  const millionaire = createMillionaireWorld(
+    scene,
+    rects,
+    occluders,
+    targets,
+    speakers,
+  );
   const gateRect = { x: 34.5, z: -40, w: 5, d: 1 };
   const gate = box(34.5, 1.05, -40, 5, 2.1, 1, "#658464");
   rects.push(gateRect);
@@ -2342,6 +2357,7 @@ export function createWorld(scene: T.Scene) {
     updateNotebook,
     notebookPages: page,
     sigma,
+    millionaire,
     setSigmaUnlocked,
     syncBeds,
     showBirdhouses,

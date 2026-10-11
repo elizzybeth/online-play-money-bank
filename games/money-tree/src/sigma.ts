@@ -1,4 +1,5 @@
 import type { State } from "./game";
+import { recordEarnings } from "./millionaire";
 export const sigmaPlots = [
   { x: 7, z: -76 },
   { x: 10, z: -76 },
@@ -17,6 +18,7 @@ export type Coin = {
   exactPrice?: number;
   units: number;
   invested: number;
+  basis?: number;
   rng: number;
   elapsed: number;
   history: number[];
@@ -106,6 +108,7 @@ export function createCoin(s: State, raw: string) {
     exactPrice: 100,
     units: 0,
     invested: 0,
+    basis: 0,
     rng: 97213,
     elapsed: 0,
     history: [100],
@@ -124,6 +127,7 @@ export function investCoin(s: State, amount: number) {
     s.coin.units + units > 1e10
   )
     return false;
+  s.coin.basis = (s.coin.basis ?? s.coin.invested) + amount;
   s.cash -= amount;
   s.coin.units += units;
   s.coin.invested += amount;
@@ -147,7 +151,15 @@ export function sellCoin(s: State, amount?: number) {
     value === holding
       ? s.coin.units
       : Math.ceil((value * 1_000_000) / s.coin.price);
-  s.cash += value;
+  // Realized profits are earnings; recovered principal is never tithed twice.
+  const basis = s.coin.basis ?? s.coin.invested;
+  const principal =
+    sold === s.coin.units ? basis : Math.floor((basis * sold) / s.coin.units);
+  const profit = Math.max(0, value - principal);
+  const netProfit = profit ? recordEarnings(s, profit) : 0;
+  s.cash += value - profit + netProfit;
+  s.totalEarned = (s.totalEarned ?? 0) + profit;
+  s.coin.basis = Math.max(0, basis - principal);
   s.coin.units -= sold;
   s.events.push(`Sold my pretend coin for $${(value / 100).toFixed(2)}.`);
   return true;
@@ -480,6 +492,10 @@ export function validCoin(c: unknown): c is Coin {
     x.units <= 1e10 &&
     Number.isSafeInteger(x.invested) &&
     x.invested >= 0 &&
+    (x.basis === undefined ||
+      (Number.isSafeInteger(x.basis) &&
+        x.basis >= 0 &&
+        x.basis <= x.invested)) &&
     Number.isInteger(x.rng) &&
     x.rng > 0 &&
     x.rng < 2147483647 &&

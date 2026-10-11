@@ -35,6 +35,20 @@ export function newsReports(s: State): NewsReport[] {
         report:
           "The enormous Pepe balloon has burst. Green rubber scraps and twenty-five packets of money seeds have landed around Sigma Town. Nobody has reported an injury. Gardeners are picking up the packets.",
       });
+    if (/gap opened behind Sigma Town/.test(events))
+      reports.push({
+        day: memory.day,
+        headline: "Willow path revealed",
+        report:
+          "A new gap behind Sigma Town leads to a willow grove. Visitors report a guru offering personality assessments and three unusually enthusiastic spiritual communities.",
+      });
+    if (/left the terraces to build lavish mansions/.test(events))
+      reports.push({
+        day: memory.day,
+        headline: "A building boom at Mt. Millionaire",
+        report:
+          "Lavish new mansions are rising below the white terraces of Mt. Millionaire. Former terrace residents have moved into the estates, where fancy cars and yachts are beginning to appear.",
+      });
     if (/Picked paint colors for two birdhouses/.test(events))
       reports.push({
         day: memory.day,

@@ -1,3 +1,10 @@
+import {
+  type Millionaire,
+  newMillionaire,
+  validMillionaire,
+  recordEarnings,
+} from "./millionaire";
+import { fertileMountainSoil, terrainHeight } from "./millionaire-land";
 import { validBirdhousePaint, type BirdhousePaint } from "./birdhouse-paint";
 import {
   validFamilyStory,
@@ -38,6 +45,7 @@ export type Plot = {
   z?: number;
   soilFilled?: boolean;
   community?: boolean;
+  mountain?: boolean;
   stage: "empty" | "planted" | "growing" | "ready" | "harvested";
   remaining: number;
   fertilized: boolean;
@@ -46,6 +54,7 @@ export type Plot = {
 export type State = {
   version: 1;
   familyStory?: FamilyStory;
+  millionaire?: Millionaire;
   bikes?: BikeId[];
   selectedBike?: BikeId | null;
   coin?: Coin;
@@ -201,6 +210,7 @@ export function plant(s: State, i: number) {
     );
   s.seeds--;
   s.plots[i].stage = "planted";
+  if (s.plots[i].mountain) s.plots[i].fertilized = true;
   s.events.push("Planted a money seed.");
   if (s.plots[i].community) {
     s.communityPlanted = true;
@@ -311,7 +321,8 @@ export function harvest(s: State, i: number) {
   );
   if (wearing(s, "banker"))
     noteHatPower(s, "to get an extra dollar from a harvest", "banker");
-  s.cash += n;
+  const net = recordEarnings(s, n, !!p.mountain);
+  s.cash += net;
   s.totalEarned = (s.totalEarned ?? 0) + n;
   if (wearing(s, "cap") || buff(s, "growth")) {
     s.rng = (s.rng * 16807) % 2147483647;
@@ -331,7 +342,7 @@ export function harvest(s: State, i: number) {
   p.yield = 0;
   p.fertilized = false;
   s.events.push(`Harvested ${money(n)} from a money tree.`);
-  return n;
+  return net;
 }
 export const SURGERY_GOAL = 1_000_000;
 export function summarizeDay(
@@ -595,7 +606,7 @@ export function decode(raw: string | null): State | null {
       ) ||
       !Array.isArray(s.plots) ||
       s.plots.length < 5 ||
-      s.plots.length > 60 ||
+      s.plots.length > 120 ||
       !s.plots.every(
         (p: Plot) =>
           ["empty", "planted", "growing", "ready", "harvested"].includes(
@@ -624,6 +635,9 @@ export function decode(raw: string | null): State | null {
       return null;
     if (s.familyStory !== undefined && !validFamilyStory(s.familyStory, s.day))
       return null;
+    if (s.millionaire !== undefined && !validMillionaire(s.millionaire))
+      return null;
+    if (s.pepePopped && !s.millionaire) s.millionaire = newMillionaire();
     // Optional writer metadata must never discard otherwise valid game progress.
     if (
       !validNarrativeMemory(s.journalNarrative) ||
@@ -690,14 +704,19 @@ export function decode(raw: string | null): State | null {
     if (
       !s.plots.every(
         (p: Plot, i: number) =>
+          (p.mountain === undefined || typeof p.mountain === "boolean") &&
+          (!p.mountain ||
+            (!!s.millionaire?.member && i >= 5 && !p.community)) &&
           (p.soilFilled === undefined || typeof p.soilFilled === "boolean") &&
           (p.soilFilled !== false || p.stage === "empty") &&
           (i < 5 ||
             (Number.isFinite(p.x) &&
               Number.isFinite(p.z) &&
-              (p.community === true
-                ? sigmaPlots.some((q) => q.x === p.x && q.z === p.z)
-                : withinProperty(p.x!, p.z!)))),
+              (p.mountain === true
+                ? fertileMountainSoil(p.x!, p.z!)
+                : p.community === true
+                  ? sigmaPlots.some((q) => q.x === p.x && q.z === p.z)
+                  : withinProperty(p.x!, p.z!)))),
       )
     )
       return null;
@@ -935,7 +954,10 @@ export function clearPosition(
   north = -39,
 ) {
   const clear = (x: number, z: number) =>
-    Math.abs(x) <= 38 && z >= north && z <= 38 && !blocked(x, z, rects);
+    (north < -90 && z < -90 ? x >= -94 && x <= 144 : Math.abs(x) <= 38) &&
+    z >= north &&
+    z <= 38 &&
+    !blocked(x, z, rects);
   if (clear(pos.x, pos.z)) return pos;
   for (let radius = 0.15; radius <= 3; radius += 0.15) {
     for (let step = 0; step < 32; step++) {
@@ -952,6 +974,7 @@ export function move(
   dx: number,
   dz: number,
   rects: Rect[],
+  stepHeight = 0.5,
 ) {
   if (blocked(pos.x, pos.z, rects))
     Object.assign(pos, clearPosition(pos, rects, Math.min(-39, pos.z - 3)));
@@ -959,8 +982,10 @@ export function move(
   for (let i = 0; i < n; i++) {
     const x = pos.x + dx / n,
       z = pos.z + dz / n;
-    if (!blocked(x, pos.z, rects)) pos.x = x;
-    if (!blocked(pos.x, z, rects)) pos.z = z;
+    const climbable = (x: number, z: number) =>
+      terrainHeight(x, z) - terrainHeight(pos.x, pos.z) <= stepHeight;
+    if (!blocked(x, pos.z, rects) && climbable(x, pos.z)) pos.x = x;
+    if (!blocked(pos.x, z, rects) && climbable(pos.x, z)) pos.z = z;
   }
   return pos;
 }
@@ -1193,7 +1218,9 @@ export function buyGardenSupply(s: State, item: "bed" | "soil") {
   if (
     s.cash < cost ||
     (item === "bed" &&
-      s.plots.filter((p) => !p.community).length + (s.gardenBeds ?? 0) >= 50) ||
+      s.plots.filter((p) => !p.community && !p.mountain).length +
+        (s.gardenBeds ?? 0) >=
+        50) ||
     (item === "soil" && (s.soilBags ?? 0) >= 1000)
   )
     return false;

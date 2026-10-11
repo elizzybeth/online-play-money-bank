@@ -138,3 +138,12 @@ Desktop keyboard and mouse. No touch/gamepad support yet. Home and haberdashery 
 - `family-story.test.ts`: one-time surgery payment, awake-only two-minute phone call, save validation, recovery without bed days, five-day outing, completed tea conversation and $100k goal-aware journals.
 - `family-story.spec.ts`: rotated arrow/post clearance and meme sign/wall clearance; bottom resources at 1280/600/390px; mounted pitch, harvesting, conversations and planting restrictions; physical rack hats; surgery/phone/recovery persistence; seated tea conversation and goal persistence.
 - Review Bea’s modeled tea table, floral cups, lace doily and three chairs; verify camera and doorway movement, recovery dialogue and worried surgery-day thoughts.
+
+## Level 3 release checks
+
+- Post-Pepe earnings threshold excludes prior savings; the real hedge gap can be crossed only after earning the new $100.
+- All three assessment outcomes, retaking, and one-time membership and summit seed gifts are covered by persistent rules tests.
+- Browser checks cover the full guru-to-pagoda route, smooth ascent, membership HUD, actual digging/watering/overnight harvest, automatic fertilizer and contribution accounting.
+- Mansion construction rises progressively while a resident walks down the terraces. All six mansions become available by $1,000 of gross mountain income. Owners leave through a visible doorway; six minigames have actual controls, scoring and paid advantages.
+- All six game engines have gameplay-driven ten-point wins and once-per-run reward tests. Browser checks complete Memory Ministry through actual clicks and check its 90-cent net payout, ownership, replay access and responsive canvas.
+- Save reload retains fellowship, plots, apps and contribution totals. Coin-sale cost basis excludes principal and transfers from tithing. News and journal entries reflect the willow path and mansion growth.
