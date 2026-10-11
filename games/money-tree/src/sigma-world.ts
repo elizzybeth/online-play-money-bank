@@ -738,17 +738,17 @@ export function createSigmaWorld(
   // Visible perimeter and a gap aligned with the lane entrance.
   for (const r of [
     { x: -39, z: -67.25, w: 1, d: 44.5, clearHeight: 2.1 },
-    { x: 39, z: -67.25, w: 1, d: 44.5, clearHeight: 2.1 },
-    { x: -3.25, z: -90, w: 70.5, d: 1, clearHeight: 2.1 },
-    { x: 37.25, z: -90, w: 2.5, d: 1, clearHeight: 2.1 },
+    { x: 39, z: -51.25, w: 1, d: 12.5, clearHeight: 2.1 },
+    { x: 39, z: -76, w: 1, d: 27, clearHeight: 2.1 },
+    { x: 0, z: -90, w: 78, d: 1, clearHeight: 2.1 },
   ]) {
     const hedge = box(r.x, 1.05, r.z, r.w, 2.1, r.d, "#658464");
     hedge.material = surfaceMaterial("#658464", "leaf", 8, 2);
     rects.push(r);
     occluders.push(hedge);
   }
-  const millionaireGateRect = { x: 34, z: -90, w: 4, d: 1, clearHeight: 2.1 };
-  const millionaireGate = box(34, 1.05, -90, 4, 2.1, 1, "#658464");
+  const millionaireGateRect = { x: 39, z: -60, w: 1, d: 5, clearHeight: 2.1 };
+  const millionaireGate = box(39, 1.05, -60, 1, 2.1, 5, "#658464");
   rects.push(millionaireGateRect);
   occluders.push(millionaireGate);
   function setMillionaireOpen(open: boolean) {

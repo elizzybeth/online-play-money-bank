@@ -139,7 +139,7 @@ export const surgeryThoughts = [
   "It is hard to think about anything else today.",
 ];
 export const recoveryReplies = [
-  "It will be a few days before I am properly back on my feet, love, but I am feeling good. I am so happy to be home.",
+  "It will be a few days before I have all my energy back, love, but I am feeling good. I am so happy to be home.",
   "I feel a little better than yesterday. I am still taking it slowly. Come tell me about your day.",
   "A bit better again today, sweetheart. I keep noticing little things that are easier.",
   "I am getting stronger each day. I still need breaks, but that is all right.",

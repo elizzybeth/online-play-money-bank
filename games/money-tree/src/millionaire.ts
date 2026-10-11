@@ -124,7 +124,7 @@ export function recordEarnings(s: State, gross: number, mountain = false) {
     const after = mansionCount(m);
     if (after > before)
       s.events.push(
-        `${after - before} Children of ${fellowship(m.member!).name} left the terraces to build lavish mansions. ${after} of six now live at the mountain’s foot.`,
+        `${after - before} ${after - before === 1 ? "Child" : "Children"} of ${fellowship(m.member!).name} left the terraces to build lavish mansions. ${after === 1 ? "One" : after} of six now ${after === 1 ? "lives" : "live"} at the mountain’s foot.`,
       );
   }
   const tithe = m.member && m.titheAccepted ? Math.round(gross / 10) : 0;
@@ -278,9 +278,37 @@ export const appNames = [
   "Heavenly Catch",
 ];
 export function ensureMountainPlots(s: State) {
-  if (!s.millionaire?.member || s.plots.some((p) => p.mountain)) return false;
+  if (!s.millionaire?.member) return false;
+  let changed = false;
+  // Older saves could contain freely placed sites outside the smaller terraces.
+  for (const p of s.plots.filter((p) => p.mountain)) {
+    if (!fertileMountainSoil(p.x!, p.z!)) {
+      const site = mountainPlots.find(
+        (q) =>
+          !s.plots.some(
+            (other) => other.mountain && other.x === q.x && other.z === q.z,
+          ),
+      );
+      if (site) {
+        p.x = site.x;
+        p.z = site.z;
+        changed = true;
+      }
+    }
+    if (p.stage === "planted") {
+      p.stage = "growing";
+      p.fertilized = true;
+      changed = true;
+    }
+  }
+  const missing = mountainPlots
+    .filter(
+      (q) => !s.plots.some((p) => p.mountain && p.x === q.x && p.z === q.z),
+    )
+    .slice(0, Math.max(0, 100 - s.plots.filter((p) => p.mountain).length));
+  if (!missing.length) return changed;
   s.plots.push(
-    ...mountainPlots.map(({ x, z }) => ({
+    ...missing.map(({ x, z }) => ({
       x,
       z,
       mountain: true,
@@ -296,7 +324,7 @@ export function ensureMountainPlots(s: State) {
 export function addMountainPlot(s: State, x: number, z: number) {
   if (
     !s.millionaire?.titheAccepted ||
-    s.plots.length >= 120 ||
+    s.plots.filter((p) => p.mountain).length >= 100 ||
     !Number.isFinite(x) ||
     !Number.isFinite(z) ||
     !fertileMountainSoil(x, z) ||

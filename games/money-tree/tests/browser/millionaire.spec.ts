@@ -49,16 +49,16 @@ test("post-Pepe earnings open a real hedge gap, the assessment awards membership
   expect(
     (await page.evaluate(() => (window as any).game.millionaire())).visible,
   ).toBe(true);
-  await page.evaluate(() => (window as any).game.teleport(34, -88));
-  await page.evaluate(() => (window as any).game.setYaw(0));
+  await page.evaluate(() => (window as any).game.teleport(37, -60));
+  await page.evaluate(() => (window as any).game.setYaw(-Math.PI / 2));
   await page.keyboard.down("w");
   await page.keyboard.down("Shift");
   await frames(page, 60);
   await page.keyboard.up("w");
   await page.keyboard.up("Shift");
   expect(
-    (await page.evaluate(() => (window as any).game.state())).position.z,
-  ).toBeLessThan(-96);
+    (await page.evaluate(() => (window as any).game.state())).position.x,
+  ).toBeGreaterThan(42);
   await page.evaluate(() => (window as any).game.teleport(34, -128));
   await frames(page);
   await page.keyboard.press("e");
@@ -66,9 +66,11 @@ test("post-Pepe earnings open a real hedge gap, the assessment awards membership
   await page
     .getByRole("button", { name: "Yes, I'd like an assessment", exact: true })
     .click();
+  await page.getByRole("button", { name: "Enter test", exact: true }).click();
   for (const question of assessment)
     await page.getByRole("button", { name: question[1], exact: true }).click();
-  await frames(page);
+  await expect(page.locator("#modal")).toBeHidden();
+  await frames(page, 100);
   if (process.env.MONEY_TREE_CAPTURE)
     await page.screenshot({
       path: `${process.env.MONEY_TREE_CAPTURE}/level3-assessment.png`,
@@ -80,7 +82,7 @@ test("post-Pepe earnings open a real hedge gap, the assessment awards membership
   const member = await page.evaluate(() => (window as any).game.state());
   expect(member.millionaire.member).toBe("arms");
   expect(member.seeds).toBe(6);
-  expect(member.plots.filter((p: any) => p.mountain)).toHaveLength(32);
+  expect(member.plots.filter((p: any) => p.mountain)).toHaveLength(100);
   await expect(page.locator("#membership-hud")).toBeVisible();
   await page.evaluate(() => (window as any).game.teleport(34, -340));
   await page.evaluate(() => (window as any).game.setYaw(0));
@@ -92,8 +94,8 @@ test("post-Pepe earnings open a real hedge gap, the assessment awards membership
   const height = await page.evaluate(
     () => (window as any).game.millionaire().player[1],
   );
-  expect(height).toBeGreaterThan(40);
-  expect(height).toBeLessThan(43);
+  expect(height).toBeGreaterThan(13);
+  expect(height).toBeLessThan(15);
   if (process.env.MONEY_TREE_CAPTURE)
     await page.screenshot({
       path: `${process.env.MONEY_TREE_CAPTURE}/level3-mountain.png`,
@@ -132,7 +134,7 @@ test("post-Pepe earnings open a real hedge gap, the assessment awards membership
   const plot = planted.plots.findIndex(
     (p: any) => p.mountain && p.x === 43 && p.z === -355,
   );
-  expect(planted.plots[plot].stage).toBe("planted");
+  expect(planted.plots[plot].stage).toBe("growing");
   expect(planted.plots[plot].fertilized).toBe(true);
   await page.keyboard.press("e");
   await frames(page);
