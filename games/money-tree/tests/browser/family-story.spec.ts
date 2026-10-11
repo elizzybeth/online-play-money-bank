@@ -37,6 +37,12 @@ test("sign panels have physical clearance, resources stay below and money stacks
   expect(
     faces.some((f: any) => f.name === "milliner-arrow-Angry Haberdasher"),
   ).toBe(true);
+  expect(
+    faces.some((f: any) => f.name === "thread-thimble-haberdashery-sign"),
+  ).toBe(true);
+  await page.screenshot({
+    path: "../../outputs/money-tree-haberdashery-sign.png",
+  });
   for (let i = 0; i < faces.length; i++)
     for (let j = i + 1; j < faces.length; j++)
       expect(

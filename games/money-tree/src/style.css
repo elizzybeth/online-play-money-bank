@@ -1149,6 +1149,15 @@ body:has(#intro:not([hidden])) #tree-report {
 body.riding footer {
   top: 58px;
   bottom: auto;
+  max-width: calc(100vw - 600px);
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 14px;
+}
+@media (max-width: 900px) {
+  body.riding footer {
+    max-width: calc(100vw - 24px);
+  }
 }
 body.riding footer span:nth-child(5),
 body.riding footer span:nth-child(6) {

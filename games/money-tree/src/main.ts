@@ -83,6 +83,7 @@ import { coinChart } from "./coin-chart";
 import { notebookDoodles } from "./notebook-doodles";
 import {
   bikes,
+  bikeFeatures,
   bikeById,
   buyBike,
   selectBike,
@@ -90,6 +91,7 @@ import {
   bikeShopBounds,
   type BikeId,
 } from "./bikes";
+import { createBikeFeatures } from "./bike-features";
 import { makeBike, makeBikeCockpit } from "./bike-models";
 import { seedPacketImage } from "./seed-packet";
 import {
@@ -301,7 +303,7 @@ unlockSigma(s);
 ensureMountainPlots(s);
 world.setSigmaUnlocked(!!s.foundTVSeeds);
 world.sigma.updateATM(s.coin?.name);
-world.sigma.setMillionaireOpen(!!s.millionaire?.unlocked);
+world.setMillionaireOpen(!!s.millionaire?.unlocked);
 world.millionaire.update(s, 0);
 world.syncBeds(s.plots);
 if (
@@ -344,6 +346,83 @@ let rideDistance = 0;
 const rideEyeHeight = () => (s.selectedBike === "penny" ? 2.8 : 2.1);
 const rideCameraOffset = new T.Vector3();
 let parkedBike: T.Group | undefined, parkedBikeId: BikeId | undefined;
+const bikeSpecial = createBikeFeatures(scene);
+function returnBikeToRack() {
+  if (riding) dismountBike();
+  if (parkedBike) {
+    scene.remove(parkedBike);
+    parkedBike.traverse((o) => {
+      if (o instanceof T.Mesh) {
+        o.geometry.dispose();
+        (o.material as T.Material).dispose();
+      }
+    });
+  }
+  parkedBike = undefined;
+  parkedBikeId = undefined;
+}
+function bikeRackMenu() {
+  returnBikeToRack();
+  world.bikeRack.sync(s.bikes ?? []);
+  panel(
+    "Your bike rack",
+    `<p>Keep every bicycle you buy. Choose one to take for a ride.</p><div class="hat-bag">${
+      (s.bikes ?? [])
+        .map((id) => {
+          const bike = bikeById(id)!,
+            feature = bikeFeatures[id];
+          return `<button data-rack-bike="${id}"><img src="${hatPortrait(id)}" alt=""><span>${bike.name}</span><p class="hat-power">${Math.round(bike.speed * 3.6)} km/h<br>${feature.name}: ${feature.description}</p><b>Take for a ride</b></button>`;
+        })
+        .join("") || "<p>Your rack is waiting for its first bicycle.</p>"
+    }</div>`,
+    [{ label: "Back to the day", default: true, run: close }],
+  );
+  document.querySelectorAll<HTMLButtonElement>("[data-rack-bike]").forEach(
+    (button) =>
+      (button.onclick = () => {
+        selectBike(s, button.dataset.rackBike as BikeId);
+        save();
+        close();
+        mountBike();
+      }),
+  );
+}
+function activateBikeFeature() {
+  if (!riding || !s.selectedBike) return;
+  const id = s.selectedBike,
+    feature = bikeFeatures[id];
+  if (
+    !bikeSpecial.activate(
+      id,
+      new T.Vector3(
+        s.position.x,
+        terrainHeight(s.position.x, s.position.z),
+        s.position.z,
+      ),
+      yaw,
+      rideEyeHeight(),
+    )
+  )
+    return toast(
+      `${feature.name} is ready in ${Math.ceil(bikeSpecial.cooldown(id))} seconds.`,
+    );
+  toast(`${feature.name}! ${feature.description}`);
+  if (id === "city" && audio && !muted) {
+    const t = audio.currentTime;
+    for (const frequency of [523.25, 659.25, 783.99]) {
+      const tone = audio.createOscillator(),
+        gain = audio.createGain();
+      tone.type = "triangle";
+      tone.frequency.value = frequency;
+      gain.gain.setValueAtTime(0.025, t);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.55);
+      tone.connect(gain);
+      gain.connect(audio.destination);
+      tone.start(t);
+      tone.stop(t + 0.55);
+    }
+  }
+}
 const ridingIndoors = () =>
   atHome() ||
   inBikeShop(s.position) ||
@@ -363,6 +442,7 @@ const ridingIndoors = () =>
 function dismountBike() {
   if (!riding) return;
   riding = false;
+  bikeSpecial.cancel();
   pitch = walkingPitch;
   rideSpeed = actualRideSpeed = 0;
   bikeCockpit.object.visible = false;
@@ -452,13 +532,15 @@ function mountBike(complete = false) {
     .sub(
       new T.Vector3(
         s.position.x,
-        rideEyeHeight() + terrainHeight(s.position.x, s.position.z),
+        rideEyeHeight() +
+          bikeSpecial.lift +
+          terrainHeight(s.position.x, s.position.z),
         s.position.z,
       ),
     );
   dismissSpeech();
   toast(
-    "W/S to pedal or brake. A/D to steer. H to dismount. B rings the bell.",
+    "W/S to pedal or brake. A/D to steer. H to dismount. B rings the bell. F activates your special feature.",
   );
 }
 function ringBikeBell() {
@@ -484,7 +566,7 @@ function showBike(id: BikeId) {
   const owned = (s.bikes ?? []).includes(id);
   panel(
     bike.name,
-    `<img class="bike-portrait" src="${hatPortrait(id)}" alt="${bike.name} bicycle"><p>${bike.description}</p><p>${money(purchasePrice(s, bike.price))} · ${Math.round(bike.speed * 3.6)} km/h</p><p>H mounts or dismounts. B rings your bell. Every bicycle is faster than running.</p>`,
+    `<img class="bike-portrait" src="${hatPortrait(id)}" alt="${bike.name} bicycle"><p>${bike.description}</p><p><strong>${bikeFeatures[id].name}</strong>: ${bikeFeatures[id].description} Press F while riding.</p><p>You can own every bike. Store and swap them at the rack outside.</p><p>${money(purchasePrice(s, bike.price))} · ${Math.round(bike.speed * 3.6)} km/h</p><p>H mounts or dismounts. B rings your bell. Every bicycle is faster than running.</p>`,
     [
       {
         label: owned
@@ -2694,7 +2776,7 @@ const bedObstacles = () =>
 function pauseMenu() {
   panel(
     "Take a little breather",
-    `<p>Day ${s.day} · Your progress saves automatically.</p><p class="fine">WASD to walk. Click the game to capture the mouse and look around; left/right arrows turn; up/down arrows tilt the camera. Hold Shift to run. R rolls forward. Q downloads a JSON quicksave. H mounts or dismounts a bicycle; B rings its bell. With Spring Hare equipped, Space jumps over beds and hedges. Escape releases the mouse. E interacts. J opens the notebook. I opens your bag.<br>Growth pauses while menus are open or the tab is hidden.</p>`,
+    `<p>Day ${s.day} · Your progress saves automatically.</p><p class="fine">WASD to walk. Click the game to capture the mouse and look around; left/right arrows turn; up/down arrows tilt the camera. Hold Shift to run. R rolls forward. Q downloads a JSON quicksave. H mounts or dismounts a bicycle; B rings its bell; F activates its special feature while riding. With Spring Hare equipped, Space jumps over beds and hedges. Escape releases the mouse. E interacts. J opens the notebook. I opens your bag.<br>Growth pauses while menus are open or the tab is hidden.</p>`,
     [
       { label: "Keep playing", run: close },
       ...(s.awake
@@ -3467,6 +3549,7 @@ function interact() {
   if (
     !riding &&
     parkedBike?.visible &&
+    !atBikeRack() &&
     Math.hypot(
       parkedBike.position.x - s.position.x,
       parkedBike.position.z - s.position.z,
@@ -3560,6 +3643,7 @@ function interact() {
       "<p>Oh, how wonderful to see you both! You’re looking brighter, dear. Come along, let’s go inside for tea.</p>",
       [{ label: "Lead us in", run: guideIntoBea }],
     );
+  if (id === "bike-rack") return bikeRackMenu();
   if (id.startsWith("bike-")) return showBike(id.slice(5) as BikeId);
   if (id === "bicycle") {
     const line = neighborLine(s, "bicycle");
@@ -4103,6 +4187,10 @@ addEventListener("keydown", (e) => {
     mountBike();
     return;
   }
+  if (key === "f") {
+    activateBikeFeature();
+    return;
+  }
   if (key === "b") {
     ringBikeBell();
     return;
@@ -4252,7 +4340,8 @@ function resetTransientMotion() {
   bedGhost.visible = false;
   thoughtTime = 0;
   thought.hidden = true;
-  if (parkedBike) parkedBike.visible = false;
+  returnBikeToRack();
+  bikeSpecial.reset();
   action = undefined;
   pepeViewHold = 0;
   pepeReturning = false;
@@ -4371,8 +4460,12 @@ function targetScore(t: Target) {
     t.id.startsWith("plot") && s.plots[+t.id.slice(4)].stage === "ready";
   return targetDistance(t) - (ready ? 0.35 : 0);
 }
+function atBikeRack() {
+  return Math.hypot(s.position.x + 24, s.position.z + 14.7) < 1.5;
+}
 function selectTarget() {
   const { x, z } = s.position;
+  if (atBikeRack()) return world.targets.find((t) => t.id === "bike-rack");
   if (
     !riding &&
     parkedBike?.visible &&
@@ -5081,7 +5174,11 @@ function frame(now: number) {
       const rolling = rollTime > 0;
       if (riding) {
         yaw -= r * dt * 1.6;
-        const wanted = f * bikeById(s.selectedBike)!.speed * (f < 0 ? 0.45 : 1);
+        const wanted =
+          f *
+          bikeById(s.selectedBike)!.speed *
+          bikeSpecial.speedMultiplier *
+          (f < 0 ? 0.45 : 1);
         rideSpeed += (wanted - rideSpeed) * (1 - Math.exp(-dt * (f ? 4 : 10)));
         const origin = { ...s.position },
           forward = viewForward();
@@ -5260,16 +5357,37 @@ function frame(now: number) {
     s.millionaire?.unlocked ? -470 : s.foundTVSeeds ? -89 : -39,
     38,
   );
+  world.bikeRack.sync(
+    s.bikes ?? [],
+    parkedBikeId && (riding || bikeMountTime > 0 || parkedBike?.visible)
+      ? parkedBikeId
+      : undefined,
+  );
+  bikeSpecial.update(
+    active && s.awake ? dt : 0,
+    new T.Vector3(
+      s.position.x,
+      terrainHeight(s.position.x, s.position.z),
+      s.position.z,
+    ),
+    yaw,
+    rideEyeHeight(),
+    riding,
+  );
   world.player.position.x = s.position.x;
   world.player.position.z = s.position.z;
   world.player.visible = (s.awake || !begun) && !riding && followDistance > 0.9;
   bikeCockpit.object.visible = begun && riding;
   document.body.classList.toggle("riding", riding);
   $("#bike-bell-help").hidden = !riding;
+  $("#bike-special-help").hidden = !riding;
+  if (riding && s.selectedBike)
+    $("#bike-special-name").textContent =
+      `${bikeFeatures[s.selectedBike].name}${bikeSpecial.cooldown(s.selectedBike) > 0 ? ` (${Math.ceil(bikeSpecial.cooldown(s.selectedBike))}s)` : ""}`;
   if (riding) bikeCockpit.update(active ? actualRideSpeed : 0, s.selectedBike!);
   world.sleeping.visible = begun && !s.awake;
   world.setSigmaUnlocked(!!s.foundTVSeeds);
-  world.sigma.setMillionaireOpen(!!s.millionaire?.unlocked);
+  world.setMillionaireOpen(!!s.millionaire?.unlocked);
   world.millionaire.update(s, active && s.awake ? dt : 0);
   if (s.millionaire?.unlocked && !millionairePathNoticed && begun) {
     toast(
@@ -5419,7 +5537,9 @@ function frame(now: number) {
     rideTransition = Math.min(1, rideTransition + dt / 0.4);
     const eye = new T.Vector3(
       s.position.x,
-      rideEyeHeight() + terrainHeight(s.position.x, s.position.z),
+      rideEyeHeight() +
+        bikeSpecial.lift +
+        terrainHeight(s.position.x, s.position.z),
       s.position.z,
     );
     camera.position
@@ -5934,6 +6054,27 @@ requestAnimationFrame(frame);
 // Explicitly enabled diagnostic harness; absent from ordinary production sessions.
 if (new URLSearchParams(location.search).has("test")) {
   (window as unknown as { game: unknown }).game = {
+    level3Entrance: () => ({
+      bushes: world.level3PathBushes.map((b) => b.visible),
+      path: (() => {
+        const b = new T.Box3().setFromObject(
+          scene.getObjectByName("millionaire-town-path-connection")!,
+        );
+        return { min: b.min.toArray(), max: b.max.toArray() };
+      })(),
+    }),
+    bikeRack: () =>
+      world.bikeRack.displays
+        .filter((g) => g.visible)
+        .map((g) => g.userData.bikeId),
+    bikeSpecial: () => ({
+      active: bikeSpecial.active,
+      remaining: bikeSpecial.remaining,
+      uses: bikeSpecial.uses,
+      particles: bikeSpecial.particles,
+      lift: bikeSpecial.lift,
+      multiplier: bikeSpecial.speedMultiplier,
+    }),
     bicycle: () => ({
       facade: [world.bikeShopSign, world.bikeShopRoof].map((o) => {
         const b = new T.Box3().setFromObject(o);
@@ -6177,7 +6318,8 @@ if (new URLSearchParams(location.search).has("test")) {
         .filter(
           (o) =>
             o.name.startsWith("milliner-arrow-") ||
-            o.name === "haberdasher-arrow-post",
+            o.name === "haberdasher-arrow-post" ||
+            o.name === "thread-thimble-haberdashery-sign",
         )
         .map((o) => {
           const b = new T.Box3().setFromObject(o);

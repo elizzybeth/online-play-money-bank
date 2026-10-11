@@ -146,6 +146,7 @@ export function makeHat(id: HatId) {
       0,
       -0.24,
     );
+    veil.name = "beekeeper-veil";
     const vm = veil.material as T.MeshStandardMaterial;
     vm.transparent = true;
     vm.opacity = 0.36;
@@ -162,7 +163,22 @@ export function makeHat(id: HatId) {
         "#8a9275",
       );
     }
-    band(0.6, -0.55, "#aa8846");
+    // A hollow cloth hem, outside the veil: the old filled cylinder shared
+    // its side surface with the veil and flickered at the lower edge.
+    const hem = mesh(
+      new T.LatheGeometry(
+        [
+          new T.Vector2(0.578, -0.595),
+          new T.Vector2(0.625, -0.595),
+          new T.Vector2(0.625, -0.505),
+          new T.Vector2(0.578, -0.505),
+          new T.Vector2(0.578, -0.595),
+        ],
+        24,
+      ),
+      "#aa8846",
+    );
+    hem.name = "beekeeper-veil-hem";
     ell(0.25, 0.4, 0, 0.085, 0.045, 0.055, "#eabf42");
     box(0.25, 0.405, 0, 0.025, 0.06, 0.12, "#3d4237");
     ell(0.2, 0.44, 0, 0.07, 0.025, 0.04, "#d4e1ce");

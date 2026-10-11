@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { fresh } from "../../src/game";
-import { bikes } from "../../src/bikes";
+import { bikes, bikeFeatures } from "../../src/bikes";
 async function start(page: any, extra: any = {}) {
   await page.clock.install({ time: new Date("2026-01-01T00:00:00Z") });
   await page.clock.pauseAt(new Date("2026-01-02T00:00:00Z"));
@@ -158,4 +158,114 @@ test("penny-farthing rides higher and owned bike cards allow switching", async (
   await page.keyboard.press("h");
   await frames(page, 1);
   await expect(page.locator("#bike-bell-help")).toBeHidden();
+});
+
+test("outside rack swaps owned bicycles and F activates only the riding bike", async ({
+  page,
+}) => {
+  await start(page, {
+    bikes: ["tassels", "road"],
+    selectedBike: "tassels",
+    position: { x: -24, z: -14.7 },
+  });
+  await frames(page, 5);
+  expect(await page.evaluate(() => (window as any).game.bikeRack())).toEqual([
+    "tassels",
+    "road",
+  ]);
+  await page.screenshot({
+    path: "../../outputs/money-tree-owned-bike-rack.png",
+  });
+  await page.keyboard.press("f");
+  expect(
+    await page.evaluate(() => (window as any).game.bikeSpecial().uses),
+  ).toBe(0);
+  await page.keyboard.press("e");
+  await expect(
+    page.getByRole("heading", { name: "Your bike rack" }),
+  ).toBeVisible();
+  await expect(page.locator('[data-rack-bike="road"]')).toContainText("Turbo");
+  await page.locator('[data-rack-bike="road"]').click();
+  await frames(page, 55);
+  expect(await page.evaluate(() => (window as any).game.bicycle().riding)).toBe(
+    true,
+  );
+  expect(await page.evaluate(() => (window as any).game.bikeRack())).toEqual([
+    "tassels",
+  ]);
+  await expect(page.locator("#bike-special-help")).toBeVisible();
+  await page.keyboard.press("f");
+  expect(
+    await page.evaluate(() => (window as any).game.bikeSpecial().multiplier),
+  ).toBe(1.5);
+  await page.keyboard.press("f");
+  expect(
+    await page.evaluate(() => (window as any).game.bikeSpecial().uses),
+  ).toBe(1);
+  await page.keyboard.press("h");
+  await frames(page, 2);
+  await expect(page.locator("#bike-special-help")).toBeHidden();
+  expect(
+    await page.evaluate(() => (window as any).game.bikeSpecial().multiplier),
+  ).toBe(1);
+  await page.evaluate(() => (window as any).game.teleport(-24, -14.7));
+  await frames(page, 5);
+  await page.keyboard.press("e");
+  expect(await page.evaluate(() => (window as any).game.bikeRack())).toEqual([
+    "tassels",
+    "road",
+  ]);
+  await page.keyboard.press("e");
+  await page.keyboard.press("q");
+  await page.reload();
+  await page.getByRole("button", { name: "Wake up" }).click();
+  expect(await page.evaluate(() => (window as any).game.state().bikes)).toEqual(
+    ["tassels", "road"],
+  );
+});
+
+test("F triggers every bike's distinct feature and BMX hopping lifts then restores the viewpoint", async ({
+  page,
+}) => {
+  test.setTimeout(300000);
+  await start(page, {
+    bikes: bikes.map((b) => b.id),
+    selectedBike: "tassels",
+    position: { x: 3, z: 30 },
+  });
+  for (const bike of bikes) {
+    await page.keyboard.press("i");
+    await page.locator(`[data-bicycle="${bike.id}"]`).click();
+    await frames(page, 55);
+    const before = await page.evaluate(
+      () => (window as any).game.camera().position[1],
+    );
+    await page.keyboard.press("f");
+    expect(
+      await page.evaluate(() => (window as any).game.bikeSpecial().active),
+    ).toBe(bike.id);
+    await expect(page.locator("#bike-special-name")).toContainText(
+      bikeFeatures[bike.id].name,
+    );
+    await frames(page, 10);
+    if (bike.id === "bmx") {
+      expect(
+        await page.evaluate(() => (window as any).game.camera().position[1]),
+      ).toBeGreaterThan(before + 0.4);
+      await frames(page, 25);
+      expect(
+        await page.evaluate(() => (window as any).game.camera().position[1]),
+      ).toBeCloseTo(before, 2);
+    } else {
+      expect(
+        await page.evaluate(() => (window as any).game.bikeSpecial().particles),
+      ).toBeGreaterThan(0);
+    }
+    if (bike.id === "tassels")
+      await page.screenshot({
+        path: "../../outputs/money-tree-bike-confetti.png",
+      });
+    await page.keyboard.press("h");
+    await frames(page, 1);
+  }
 });

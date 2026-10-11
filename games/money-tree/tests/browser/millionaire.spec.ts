@@ -49,6 +49,13 @@ test("post-Pepe earnings open a real hedge gap, the assessment awards membership
   expect(
     (await page.evaluate(() => (window as any).game.millionaire())).visible,
   ).toBe(true);
+  const entrance = await page.evaluate(() =>
+    (window as any).game.level3Entrance(),
+  );
+  expect(entrance.bushes).toEqual([false, false, false]);
+  expect(entrance.path.min[0]).toBeLessThanOrEqual(37);
+  expect(entrance.path.min[2]).toBeLessThanOrEqual(-61.5);
+  expect(entrance.path.max[2]).toBeGreaterThanOrEqual(-60);
   await page.evaluate(() => (window as any).game.teleport(37, -60));
   await page.evaluate(() => (window as any).game.setYaw(-Math.PI / 2));
   await page.keyboard.down("w");
