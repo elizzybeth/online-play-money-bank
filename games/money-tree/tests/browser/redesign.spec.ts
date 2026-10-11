@@ -176,7 +176,12 @@ test("home counters occupy the lower right, notebook handwriting follows its rul
   }));
   expect(rules.paragraph).toBe("30px");
   expect(rules.margin).toBe("30px");
-  expect(rules.background).toContain("30px");
+  expect(
+    await page
+      .locator(".notebook-leaf")
+      .first()
+      .evaluate((p) => getComputedStyle(p).backgroundImage),
+  ).toContain("30px");
   await capture(page, "ruled-notebook");
   await page
     .getByRole("button", { name: "Close notebook", exact: true })

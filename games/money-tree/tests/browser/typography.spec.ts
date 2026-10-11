@@ -10,16 +10,17 @@ async function start(page: any, position = { x: -16, z: 4 }) {
   await page.goto("./?test");
   await page.getByRole("button", { name: "Wake up" }).click();
 }
-test("one handwritten notebook page, bundled fonts and legible thought margins", async ({
+test("two handwritten notebook leaves, bundled fonts and legible thought margins", async ({
   page,
 }) => {
   await start(page);
   await page.keyboard.press("j");
-  await expect(page.locator(".notebook-left")).not.toContainText("Need $");
+  await expect(page.locator(".notebook-left")).toContainText("Need $");
   await expect(page.locator(".notebook-page")).toContainText("Need $");
   expect(
     await page
       .locator(".notebook-page p")
+      .first()
       .evaluate((e) => getComputedStyle(e).fontFamily),
   ).toContain("Gaegu");
   const bounds = await page.evaluate(() =>
@@ -39,7 +40,7 @@ test("one handwritten notebook page, bundled fonts and legible thought margins",
   await page.evaluate(() => (window as any).game.teleport(-16.7, 10));
   await expect(page.locator("#prompt")).toContainText("Mom");
   await page.keyboard.press("e");
-  await expect(page.locator("#thought")).toBeVisible();
+  await expect(page.locator("#thought")).toBeHidden();
   expect(
     await page
       .locator("#thought")
@@ -51,6 +52,7 @@ test("one handwritten notebook page, bundled fonts and legible thought margins",
   );
   await page.keyboard.press("e");
   await expect(page.locator(".speech-bubble")).toHaveCount(0);
+  await expect(page.locator("#thought")).toBeVisible();
   await page.screenshot({ path: "../../outputs/money-tree-soft-thought.png" });
 });
 test("E chooses the main neighbor response, third E starts a fresh conversation", async ({

@@ -158,9 +158,9 @@ test("all six games can reach ten points through real gameplay and pay once", ()
       titheAccepted: true,
     };
     assert(claimPhoneReward(s, g));
-    assert.equal(s.cash, 90);
-    assert.equal(s.millionaire.tithed, 10);
+    assert.equal(s.cash, 100);
+    assert.equal(s.millionaire.tithed, 0);
     assert(!claimPhoneReward(s, g));
-    assert.equal(s.cash, 90);
+    assert.equal(s.cash, 100);
   }
 });

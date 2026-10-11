@@ -6,6 +6,8 @@ export function inventorySnapshot(s: State): Record<string, number> {
     "Pocket money": s.cash,
     "Saved money": s.bank,
     Seeds: s.seeds,
+    "Compost scraps": s.compostScraps ?? 0,
+    Spanakopita: s.spanakopita ?? 0,
     "Fertilizer doses": s.fertilizer,
     "Garden beds": s.gardenBeds ?? 0,
     "Soil bags": s.soilBags ?? 0,

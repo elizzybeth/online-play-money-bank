@@ -54,6 +54,12 @@ export type Plot = {
 };
 export type State = {
   version: 1;
+  compostScraps?: number;
+  spanakopita?: number;
+  spanakopitaShared?: number;
+  chickenCuddles?: number;
+  momLastTalkDay?: number;
+  exportReminderDay?: number;
   familyStory?: FamilyStory;
   millionaire?: Millionaire;
   bikes?: BikeId[];
@@ -212,6 +218,14 @@ export function plant(s: State, i: number) {
       "to plant faster",
       wearing(s, "hardhat") ? "hardhat" : "cap",
     );
+  if (s.foundTVSeeds && s.plots[i].stage === "harvested") {
+    s.rng = (s.rng * 16807) % 2147483647;
+    const scraps = 1 + Math.floor((s.rng / 2147483647) * 3);
+    s.compostScraps = (s.compostScraps ?? 0) + scraps;
+    s.events.push(
+      `Collected ${scraps} compost scraps while replacing a dead money tree.`,
+    );
+  }
   s.seeds--;
   s.plots[i].stage = "planted";
   if (s.plots[i].mountain) {
@@ -297,7 +311,7 @@ export function plantingBatch(s: State, i: number): number[] {
       dx = Math.abs(p.x - origin.x),
       dz = Math.abs(p.z - origin.z);
     return (
-      (dx >= 1.8 && dx <= 2.4 && dz < 0.6) ||
+      (dx >= 1.8 && dx <= 3.2 && dz < 0.6) ||
       (dz >= 2.8 && dz <= 3.6 && dx < 0.6)
     );
   });
@@ -507,6 +521,7 @@ export function momStatus(day: number, story?: FamilyStory) {
     "music",
     "letters",
     "feeding",
+    "bacon",
   ] as const;
   const health = healthDay(day);
   const recovering = !!story && day > story.surgeryDay;
@@ -523,6 +538,8 @@ export function momStatus(day: number, story?: FamilyStory) {
       ? ("bedrest" as const)
       : ("resting" as const);
   const replies = {
+    bacon:
+      "Are you ready for the best bacon sandwich of your life, sweetheart?",
     mending:
       "“I felt up to sewing today. I am fixing a loose button. Come choose some thread with me.”",
     puzzles:
@@ -540,7 +557,7 @@ export function momStatus(day: number, story?: FamilyStory) {
     birdhouses:
       "“I’ve got some energy today. I’m building little birdhouses! Maybe we’ll have some new neighbors in the garden.”",
     painting:
-      "“It’s a good day. I felt like painting something bright. Come see — I think this corner needs a little more yellow.”",
+      "“It’s a good day. I felt like painting something bright. Come see. I think this corner needs a little more yellow.”",
     reading:
       "“I feel a bit better today. I’m enjoying my book. It’s nice to get lost in somebody else’s adventure for a while.”",
     garden:
@@ -549,6 +566,7 @@ export function momStatus(day: number, story?: FamilyStory) {
       "“I’m exhausted today, love. I just need to rest here a while. I’m glad you’re home.”",
   };
   const journal = {
+    bacon: "making bacon sandwiches",
     mending: "mending clothes",
     puzzles: "doing a color puzzle",
     music: "playing music",
@@ -607,6 +625,21 @@ export function decode(raw: string | null): State | null {
     const s = JSON.parse(raw);
     if (
       s.version !== 1 ||
+      [
+        "compostScraps",
+        "spanakopita",
+        "spanakopitaShared",
+        "chickenCuddles",
+        "momLastTalkDay",
+        "exportReminderDay",
+      ].some(
+        (k) =>
+          s[k] !== undefined &&
+          (!Number.isSafeInteger(s[k]) ||
+            s[k] < 0 ||
+            ((k === "momLastTalkDay" || k === "exportReminderDay") &&
+              s[k] > s.day)),
+      ) ||
       (s.fertilizerPurchased !== undefined &&
         typeof s.fertilizerPurchased !== "boolean") ||
       !Number.isSafeInteger(s.day) ||
@@ -758,7 +791,7 @@ export function decode(raw: string | null): State | null {
             "grindset",
           ].includes(key) ||
             /^sigma-chad-[0-5]$/.test(key) ||
-            /^mom-reply-(resting|bedrest|cooking|birdhouses|painting|reading|garden|mending|puzzles|music|letters|feeding)$/.test(
+            /^mom-reply-(resting|bedrest|cooking|birdhouses|painting|reading|garden|mending|puzzles|music|letters|feeding|bacon)$/.test(
               key,
             )) &&
           Number.isSafeInteger(value) &&
@@ -1148,6 +1181,7 @@ export function findHiddenSeeds(
 export function momReply(s: State) {
   const status = momStatus(s.day, s.familyStory);
   const alternatives: Record<string, string[]> = {
+    bacon: ["Are you ready for the best bacon sandwich of your life?"],
     bedrest: [
       "I am having a bed day. You can pull up a chair, love.",
       "I need a quiet room today. I am glad you came to see me.",
@@ -1304,7 +1338,7 @@ export function homeContains(p: { x: number; z: number }) {
 }
 export function seedSearchHint(s: State) {
   if (!s.foundCapSeeds)
-    return "Try the haberdasher’s — check the brim of a cap.";
+    return "Try the haberdasher’s. Check the brim of a cap.";
   if (!s.foundForestSeeds)
     return "You already found the cap packet. Try looking among the trees around town.";
   if (!s.foundStoreSeeds)

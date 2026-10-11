@@ -1,4 +1,5 @@
 import * as T from "three";
+import { buildGeiselMansion } from "./geisel-mansion";
 import { fitWindow } from "./architecture";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import type { State, Rect } from "./game";
@@ -331,104 +332,114 @@ export function createMillionaireWorld(
     home.position.set(site.x, 0, site.z);
     home.visible = false;
     group.add(home);
-    const color = [
-      "#f4e4d2",
-      "#e6d7ee",
-      "#f8edc8",
-      "#dbe4e9",
-      "#f0d6db",
-      "#e2ebd4",
-    ][i];
-    for (const side of [-1, 1]) {
-      const wall = box(side * 21.75, 8, 0, 0.5, 16, 30, color, home);
-      fitWindow(
-        wall,
-        false,
-        30,
-        16,
-        0.5,
-        [-9, -2, 5, 11].flatMap((z) =>
-          [4.5, 10.5].map((y) => ({
-            x: -z,
-            y: y - 8,
-            width: 3.6,
-            height: 3.9,
-          })),
-        ),
-      );
-    }
-    box(0, 8, -14.75, 44, 16, 0.5, color, home);
-    for (const x of [-12, 12]) {
-      const wall = box(x, 8, 14.75, 20, 16, 0.5, color, home);
-      fitWindow(
-        wall,
-        true,
-        20,
-        16,
-        0.5,
-        [Math.sign(x) * 10, Math.sign(x) * 17].flatMap((px) =>
-          [4.5, 10.5].map((y) => ({
-            x: px - x,
-            y: y - 8,
-            width: 3.7,
-            height: 3.9,
-          })),
-        ),
-      );
-    }
-    box(0, 11, 14.75, 4, 10, 0.5, color, home);
-    box(0, 16, 0, 44, 0.3, 30, color, home);
-    box(0, 0.05, 0, 44, 0.1, 30, "#e7d8bd", home);
-    // Front doorway, flanked by deep porticoes and gilded columns.
-    box(0, 3, 15.08, 4, 6, 0.2, "#5b4638", home).name = "mansion-door";
-    for (const x of [-16, -8, 8, 16]) {
-      part(new T.CylinderGeometry(0.7, 0.9, 12, 12), "#f5f0df", x, 6, 17, home);
-      for (const y of [0.5, 11.5])
+    if (i === 3) buildGeiselMansion(home);
+    else {
+      const color = [
+        "#f4e4d2",
+        "#e6d7ee",
+        "#f8edc8",
+        "#dbe4e9",
+        "#f0d6db",
+        "#e2ebd4",
+      ][i];
+      for (const side of [-1, 1]) {
+        const wall = box(side * 21.75, 8, 0, 0.5, 16, 30, color, home);
+        fitWindow(
+          wall,
+          false,
+          30,
+          16,
+          0.5,
+          [-9, -2, 5, 11].flatMap((z) =>
+            [4.5, 10.5].map((y) => ({
+              x: -z,
+              y: y - 8,
+              width: 3.6,
+              height: 3.9,
+            })),
+          ),
+        );
+      }
+      box(0, 8, -14.75, 44, 16, 0.5, color, home);
+      for (const x of [-12, 12]) {
+        const wall = box(x, 8, 14.75, 20, 16, 0.5, color, home);
+        fitWindow(
+          wall,
+          true,
+          20,
+          16,
+          0.5,
+          [Math.sign(x) * 10, Math.sign(x) * 17].flatMap((px) =>
+            [4.5, 10.5].map((y) => ({
+              x: px - x,
+              y: y - 8,
+              width: 3.7,
+              height: 3.9,
+            })),
+          ),
+        );
+      }
+      box(0, 11, 14.75, 4, 10, 0.5, color, home);
+      box(0, 16, 0, 44, 0.3, 30, color, home);
+      box(0, 0.05, 0, 44, 0.1, 30, "#e7d8bd", home);
+      // Front doorway, flanked by deep porticoes and gilded columns.
+      box(0, 3, 15.08, 4, 6, 0.2, "#5b4638", home).name = "mansion-door";
+      for (const x of [-16, -8, 8, 16]) {
         part(
-          new T.CylinderGeometry(1.15, 1.15, 0.5, 12),
-          "#c9a447",
+          new T.CylinderGeometry(0.7, 0.9, 12, 12),
+          "#f5f0df",
           x,
-          y,
+          6,
           17,
           home,
         );
-    }
-    box(0, 12.5, 17, 40, 1, 8, "#f6eed8", home);
-    const pediment = part(
-      new T.ConeGeometry(26, 6, 4),
-      "#c9a447",
-      0,
-      17,
-      0,
-      home,
-    );
-    pediment.rotation.y = Math.PI / 4;
-    pediment.scale.z = 0.8;
-    for (const x of [-10, 10]) {
-      const dome = part(
-        new T.SphereGeometry(4, 12, 8),
+        for (const y of [0.5, 11.5])
+          part(
+            new T.CylinderGeometry(1.15, 1.15, 0.5, 12),
+            "#c9a447",
+            x,
+            y,
+            17,
+            home,
+          );
+      }
+      box(0, 12.5, 17, 40, 1, 8, "#f6eed8", home);
+      const pediment = part(
+        new T.ConeGeometry(26, 6, 4),
         "#c9a447",
-        x,
+        0,
         17,
         0,
         home,
       );
-      dome.scale.y = 0.7;
-    }
-    // Balconies, gold pilasters and side windows make these extravagant estates.
-    box(0, 6.3, 16.5, 38, 0.35, 3, "#f7eed7", home);
-    for (const y of [6.5, 8]) box(0, y, 18, 38, 0.18, 0.18, "#c9a447", home);
-    for (let x = -18; x <= 18; x += 2)
-      part(
-        new T.CylinderGeometry(0.12, 0.2, 1.5, 7),
-        "#c9a447",
-        x,
-        7.25,
-        18,
-        home,
-      );
-    for (const side of [-1, 1]) {
-      box(side * 21, 8.5, 15.2, 0.65, 17, 0.6, "#c9a447", home);
+      pediment.rotation.y = Math.PI / 4;
+      pediment.scale.z = 0.8;
+      for (const x of [-10, 10]) {
+        const dome = part(
+          new T.SphereGeometry(4, 12, 8),
+          "#c9a447",
+          x,
+          17,
+          0,
+          home,
+        );
+        dome.scale.y = 0.7;
+      }
+      // Balconies, gold pilasters and side windows make these extravagant estates.
+      box(0, 6.3, 16.5, 38, 0.35, 3, "#f7eed7", home);
+      for (const y of [6.5, 8]) box(0, y, 18, 38, 0.18, 0.18, "#c9a447", home);
+      for (let x = -18; x <= 18; x += 2)
+        part(
+          new T.CylinderGeometry(0.12, 0.2, 1.5, 7),
+          "#c9a447",
+          x,
+          7.25,
+          18,
+          home,
+        );
+      for (const side of [-1, 1]) {
+        box(side * 21, 8.5, 15.2, 0.65, 17, 0.6, "#c9a447", home);
+      }
     }
     box(0, 0.08, 25, 9, 0.12, 18, "#dcd3bb", home);
     const car = new T.Group();

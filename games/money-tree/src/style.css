@@ -1793,3 +1793,164 @@ header .brand {
     bottom: calc(var(--resource-bottom) + var(--resource-height) + 220px);
   }
 }
+
+/* Text owns both ruled leaves; long entries turn pages rather than scroll. */
+.notebook-spread.notebook-page {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  overflow: hidden;
+  padding: 0;
+  background: #fff1b6;
+  min-height: 0;
+  --rule: 30px;
+  --writing-size: 24px;
+}
+.notebook-leaf {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+  padding: 24px 30px 12px;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(var(--rule) - 1px),
+    #92aa7255 calc(var(--rule) - 1px),
+    #92aa7255 var(--rule)
+  );
+  background-position: 0 19px;
+}
+.notebook-leaf h3,
+.notebook-continuation {
+  height: var(--rule);
+  line-height: var(--rule);
+  margin: 0 0 var(--rule);
+  font-size: 32px;
+}
+.notebook-leaf p {
+  font:
+    var(--writing-size)/var(--rule) Gaegu,
+    cursive;
+  margin: 0 0 var(--rule);
+  white-space: nowrap;
+}
+.notebook-left::after {
+  width: 14px;
+  pointer-events: none;
+}
+.notebook-paper .choices button:last-child kbd {
+  color: #59605b;
+  border-color: #72796e;
+  background: #e9deb6;
+}
+#thought {
+  z-index: 7;
+}
+.speech-bubble {
+  z-index: 12;
+}
+#compost-hud[hidden] {
+  display: none;
+}
+@media (max-width: 700px) {
+  .notebook-spread.notebook-page {
+    grid-template-columns: 1fr 1fr;
+    --rule: 24px;
+    --writing-size: 20px;
+  }
+  .notebook-leaf {
+    padding: 18px 12px 8px;
+    background-position: 0 13px;
+  }
+  .notebook-leaf h3 {
+    font-size: 26px;
+  }
+  .notebook-paper .fine {
+    font-size: 12px;
+  }
+}
+
+/* Menus, hint card and coin tracker form one responsive upper-right stack. */
+#top-right-hud {
+  position: fixed;
+  top: max(14px, env(safe-area-inset-top));
+  right: max(12px, env(safe-area-inset-right));
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  max-width: calc(100vw - 24px);
+  pointer-events: none;
+  z-index: 4;
+}
+#top-right-hud header {
+  position: static;
+  inset: auto;
+  margin: 0;
+  flex-wrap: nowrap;
+  pointer-events: auto;
+}
+#top-right-hud #quest,
+#top-right-hud #coin-tracker {
+  position: static;
+  inset: auto;
+  margin: 0;
+  max-width: 100%;
+}
+#top-right-hud #coin-tracker {
+  width: 265px;
+}
+@media (max-width: 700px) {
+  #top-right-hud #quest,
+  #top-right-hud #coin-tracker {
+    width: 220px;
+  }
+  #top-right-hud header {
+    gap: 5px;
+  }
+  #top-right-hud header button {
+    padding: 10px 11px;
+  }
+}
+
+#stats {
+  position: fixed;
+  left: max(12px, env(safe-area-inset-left));
+  bottom: calc(var(--resource-bottom) + env(safe-area-inset-bottom));
+  margin: 0;
+  z-index: 3;
+  max-width: calc(50vw - 24px);
+  padding: 8px 10px;
+}
+#location {
+  position: fixed;
+  top: max(20px, env(safe-area-inset-top));
+  left: 50%;
+  right: auto;
+  bottom: auto;
+  transform: translateX(-50%);
+  max-width: 260px;
+  text-align: center;
+  z-index: 4;
+}
+@media (max-width: 700px) {
+  #location {
+    top: 14px;
+    font-size: 16px;
+    max-width: 140px;
+  }
+  #top-right-hud {
+    top: 48px;
+  }
+  #stats {
+    font-size: 11px;
+    max-width: 145px;
+  }
+  #resource-hud {
+    max-width: calc(100vw - 175px);
+  }
+}
+
+body:has(#intro:not([hidden])) :is(#top-right-hud, #stats) {
+  visibility: hidden;
+}
