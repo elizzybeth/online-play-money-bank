@@ -1,4 +1,10 @@
 import { validBirdhousePaint, type BirdhousePaint } from "./birdhouse-paint";
+import {
+  validFamilyStory,
+  momAway,
+  recoveryDays,
+  type FamilyStory,
+} from "./family-story";
 import { validColorPuzzle, type ColorPuzzle } from "./color-puzzle";
 import { extraTownLines } from "./town-dialogue";
 import { bikeById, type BikeId } from "./bikes";
@@ -39,6 +45,7 @@ export type Plot = {
 };
 export type State = {
   version: 1;
+  familyStory?: FamilyStory;
   bikes?: BikeId[];
   selectedBike?: BikeId | null;
   coin?: Coin;
@@ -440,6 +447,7 @@ export function summarizeDay(
   return `Day ${day}\n\n${lines.join("\n\n")}`.replaceAll("—", ". ");
 }
 export function sleep(s: State) {
+  if (momAway(s) && !s.familyStory?.called) return false;
   const entry = writeBranchedDay(s);
   (s.journalHistory ??= []).push(rememberDay(s));
   const firstHarvest =
@@ -447,18 +455,25 @@ export function sleep(s: State) {
   s.journal.push(entry);
   if (firstHarvest) s.harvestReflected = true;
   if (
-    momStatus(s.day).activity === "birdhouses" &&
+    momStatus(s.day, s.familyStory).activity === "birdhouses" &&
     s.birdhousePaintDay !== s.day
   )
     s.birdhousesBuilt = Math.min(12, (s.birdhousesBuilt ?? 0) + 1);
   s.events = [];
   s.day++;
+  if (s.familyStory && s.day === s.familyStory.surgeryDay)
+    s.events.push("Mom went to the hospital for surgery. Auntie is with her.");
+  if (s.familyStory && s.day === s.familyStory.surgeryDay + 1)
+    s.events.push(
+      "Mom is home after surgery. She is feeling good and taking it slowly.",
+    );
   s.dailyNet = 0;
   growOvernight(s);
   delete s.drink;
   tickSigma(s, 180, false);
+  return true;
 }
-export function momStatus(day: number) {
+export function momStatus(day: number, story?: FamilyStory) {
   const activities = [
     "cooking",
     "birdhouses",
@@ -472,10 +487,17 @@ export function momStatus(day: number) {
     "feeding",
   ] as const;
   const health = healthDay(day);
-  const energetic = health.good;
+  const recovering = !!story && day > story.surgeryDay;
+  const energetic = recovering
+    ? day === story.surgeryDay + 1 || (day - story.surgeryDay) % 4 !== 0
+    : health.good;
   const activity = energetic
-    ? activities[(health.ordinal - 1) % activities.length]
-    : day % 4 === 3
+    ? activities[
+        recovering
+          ? (day - story!.surgeryDay - 1) % activities.length
+          : (health.ordinal - 1) % activities.length
+      ]
+    : !recovering && day % 4 === 3
       ? ("bedrest" as const)
       : ("resting" as const);
   const replies = {
@@ -599,6 +621,8 @@ export function decode(raw: string | null): State | null {
       !Number.isFinite(s.position.x) ||
       !Number.isFinite(s.position.z)
     )
+      return null;
+    if (s.familyStory !== undefined && !validFamilyStory(s.familyStory, s.day))
       return null;
     // Optional writer metadata must never discard otherwise valid game progress.
     if (
@@ -1079,7 +1103,7 @@ export function findHiddenSeeds(
   return true;
 }
 export function momReply(s: State) {
-  const status = momStatus(s.day);
+  const status = momStatus(s.day, s.familyStory);
   const alternatives: Record<string, string[]> = {
     bedrest: [
       "I am having a bed day. You can pull up a chair, love.",

@@ -1,6 +1,5 @@
 import * as T from "three";
 import { surfaceMaterial } from "./textures";
-import { drinks } from "./sigma";
 export function makeCoffeeShop() {
   const g = new T.Group();
   g.name = "Grindset coffee interior";
@@ -146,20 +145,18 @@ export function makeCoffeeShop() {
   ctx.fillStyle = "#233c37";
   ctx.fillRect(0, 0, 768, 480);
   ctx.fillStyle = "#f0e4c5";
-  ctx.font = "46px Gaegu";
-  ctx.fillText("GOOD COFFEE. BIG PLANS.", 35, 65);
-  ctx.font = "32px Gaegu";
-  drinks.forEach((d, i) =>
-    ctx.fillText(`${d.name}   $${d.cost / 100}`, 35, 125 + i * 57),
-  );
-  ctx.font = "25px Gaegu";
-  ctx.fillText("Drink effects end when you sleep", 35, 452);
+  ctx.font = "110px Gaegu";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("Drinks", c.width / 2, c.height / 2);
   const texture = new T.CanvasTexture(c);
   texture.colorSpace = T.SRGBColorSpace;
   const menu = new T.Mesh(
     new T.PlaneGeometry(3.2, 2),
     new T.MeshStandardMaterial({ map: texture }),
   );
+  menu.name = "grindset-drinks-board";
+  menu.userData.text = "Drinks";
   menu.position.set(0.1, 2.7, -2.19);
   g.add(menu);
   return g;

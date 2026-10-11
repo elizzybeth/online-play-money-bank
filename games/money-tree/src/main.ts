@@ -1,4 +1,20 @@
 import { newsReports } from "./tv-news";
+import { inBeaHouse } from "./bea-room";
+import {
+  storyPhase,
+  momAway,
+  recoveryDays,
+  canTellMom,
+  canVisitBea,
+  scheduleSurgery,
+  tickSurgery,
+  answerMomCall,
+  beginBeaWalk,
+  acceptShopGoal,
+  surgeryThoughts,
+  recoveryReplies,
+  teaConversation,
+} from "./family-story";
 import {
   paintColors,
   birdhousePreview,
@@ -128,7 +144,7 @@ drinkHud.innerHTML =
   '<img src="./drink.svg" alt="Coffee"><span><small></small><strong></strong></span>';
 drinkHud.hidden = true;
 resourceHud.append(cashHud, bankHud, netHud, seedHud, drinkHud);
-$("#stats").after(resourceHud);
+$("#app").append(resourceHud);
 
 let s: State;
 try {
@@ -211,7 +227,15 @@ if (
     s.foundTVSeeds ? -89 : -39,
   );
 world.player.position.set(s.position.x, 0, s.position.z);
-world.setMomDay(s.day, homeContains(s.position));
+world.setMomDay(s.day, homeContains(s.position), false, s.familyStory);
+if (s.familyStory?.escort) {
+  const p = clearPosition(
+    { x: s.position.x - 1.5, z: s.position.z },
+    world.rects,
+    s.foundTVSeeds ? -89 : -39,
+  );
+  positionStoryMom(p.x, p.z);
+}
 scene.add(camera);
 const bikeCockpit = makeBikeCockpit();
 camera.add(bikeCockpit.object);
@@ -220,6 +244,7 @@ let riding = false,
   actualRideSpeed = 0,
   bellRings = 0;
 let rideTransition = 0;
+let walkingPitch = 0.42;
 let rideDistance = 0;
 const rideEyeHeight = () => (s.selectedBike === "penny" ? 2.45 : 1.7);
 const rideCameraOffset = new T.Vector3();
@@ -243,6 +268,7 @@ const ridingIndoors = () =>
 function dismountBike() {
   if (!riding) return;
   riding = false;
+  pitch = walkingPitch;
   rideSpeed = actualRideSpeed = 0;
   bikeCockpit.object.visible = false;
   if (parkedBike) {
@@ -265,6 +291,8 @@ function mountBike() {
     dismountBike();
     return;
   }
+  if (s.familyStory?.escort)
+    return toast("Walk with Mom to Bea’s before getting back on your bike.");
   if (!s.selectedBike)
     return toast(
       "Spoke & Saddle sells bicycles. Buy one, then press H to ride.",
@@ -296,6 +324,8 @@ function mountBike() {
   }
   parkedBike!.visible = false;
   riding = true;
+  walkingPitch = pitch;
+  pitch = 0.42;
   rideSpeed = actualRideSpeed = 0;
   rideTransition = 0;
   rideDistance = 0;
@@ -427,15 +457,21 @@ let couchZoom: number | undefined;
 let sitting = false;
 let sittingWithStacy = false;
 function standUp() {
+  const leavingTea = teaSeated;
+  teaSeated = false;
+  if (leavingTea && s.familyStory?.shopGoal)
+    world.setMomDay(s.day, atHome(), true, s.familyStory);
   const leavingMeditation = meditationTime > 0;
   meditationTime = 0;
   sitting = false;
   s.position = clearPosition(
-    leavingMeditation
-      ? { x: -18, z: -45.7 }
-      : sittingWithStacy
-        ? { x: -16.3, z: -79.5 }
-        : { x: -17.1, z: 11.2 },
+    leavingTea
+      ? { x: 13.6, z: 16.9 }
+      : leavingMeditation
+        ? { x: -18, z: -45.7 }
+        : sittingWithStacy
+          ? { x: -16.3, z: -79.5 }
+          : { x: -17.1, z: 11.2 },
     world.rects,
     s.foundTVSeeds ? -89 : -39,
   );
@@ -519,7 +555,35 @@ function paintBirdhouses() {
   );
 }
 function askMom() {
-  const status = momStatus(s.day);
+  if (momAway(s)) return;
+  if (storyPhase(s) === "scheduled")
+    return speak(
+      "mom",
+      "<p>I called the hospital, love. Tomorrow! I am so excited, and so grateful. We did this together.</p>",
+      [{ label: "Love you too", run: dismissSpeech }],
+    );
+  if (s.familyStory && recoveryDays(s) > 0) {
+    const age = recoveryDays(s),
+      count = s.neighborChats["mom-recovery"] ?? 0;
+    s.neighborChats["mom-recovery"] = count + 1;
+    const reply =
+      recoveryReplies[
+        age === 1 ? 0 : 1 + ((age - 2 + count) % (recoveryReplies.length - 1))
+      ] +
+      (canVisitBea(s) && !s.familyStory.escort
+        ? " I feel up for an outing. Would you walk with me over to Bea’s?"
+        : "");
+    visit(`Heard Mom recovering: ${reply}`);
+    save();
+    speak("mom", `<p>${reply}</p>`, [
+      ...(canVisitBea(s) && !s.familyStory.escort
+        ? [{ label: "Let’s walk to Bea’s together", run: walkToBea }]
+        : []),
+      { label: "Love you too", run: dismissSpeech },
+    ]);
+    return;
+  }
+  const status = momStatus(s.day, s.familyStory);
   const reply = momReply(s);
   visit(
     status.energetic
@@ -529,6 +593,9 @@ function askMom() {
   visit(`Heard Mom: ${reply}`);
   save();
   speak("mom", `<p>${reply}</p>`, [
+    ...(canTellMom(s)
+      ? [{ label: "Tell Mom you've got $10k", destructive: true, run: tellMom }]
+      : []),
     ...(status.activity === "birdhouses" && s.birdhousePaintDay !== s.day
       ? [{ label: "Let’s pick the paint colors", run: paintBirdhouses }]
       : []),
@@ -541,6 +608,146 @@ function askMom() {
   save();
   thought.hidden = false;
   thoughtTime = 9;
+}
+
+let celebration:
+  | {
+      elapsed: number;
+      origin: { x: number; z: number };
+      people: { object: T.Object3D; position: T.Vector3; rotation: T.Euler }[];
+      wildlife: { object: T.Object3D; position: T.Vector3 }[];
+    }
+  | undefined;
+let storyThoughtClock = 0,
+  storyThoughtIndex = 0,
+  teaSeated = false;
+let momTrail: { x: number; z: number }[] = [];
+function tellMom() {
+  if (!scheduleSurgery(s)) return;
+  dismountBike();
+  dismissSpeech();
+  keys.clear();
+  thought.hidden = true;
+  thoughtTime = 0;
+  const people = world.speakers
+    .filter((n) =>
+      [
+        "mom",
+        "npc1",
+        "npc2",
+        "npc3",
+        "robertson",
+        "haberdashery",
+        "bicycle",
+      ].includes(n.id),
+    )
+    .map((n) => ({
+      object: n.object,
+      position: n.object.position.clone(),
+      rotation: n.object.rotation.clone(),
+    }));
+  const wildlife = [...world.wildlife.birds, ...world.wildlife.butterflies].map(
+    (b) => ({ object: b.object, position: b.object.position.clone() }),
+  );
+  celebration = { elapsed: 0, origin: { ...s.position }, people, wildlife };
+  positionStoryMom(world.mom.position.x, world.mom.position.z);
+  s.position = { x: -16, z: 25 };
+  visit(
+    "Jumped and danced with Mom, our neighbors, the birds and butterflies.",
+  );
+  save();
+  chime();
+  toast("Mom: We did it! Oh, sweetheart, thank you!");
+}
+function walkToBea() {
+  if (!beginBeaWalk(s)) return;
+  dismountBike();
+  dismissSpeech();
+  save();
+  momTrail = [{ ...s.position }];
+  toast(
+    "Mom: I feel up for a little outing. Let’s walk over to Bea’s together.",
+  );
+}
+function positionStoryMom(x: number, z: number, seated = false) {
+  world.mom.visible = true;
+  world.mom.rotation.x = 0;
+  world.mom.position.set(x, seated ? 0.6 : 0, z);
+  const legs = world.mom.getObjectByName("seated-legs");
+  if (legs) legs.visible = seated;
+  for (const foot of world.mom.children.filter((o) => o.name === "foot")) {
+    foot.position.y = seated ? 0.53 : 0.16;
+    foot.position.z = seated ? 0.4 : 0;
+    foot.scale.set(seated ? 1.1 : 1, seated ? 1.35 : 1, seated ? 0.8 : 1.5);
+  }
+  world.momCollider.x = x;
+  world.momCollider.z = z;
+  world.momCollider.w = world.momCollider.d = 0.96;
+  const t = world.targets.find((t) => t.id === "mom")!;
+  t.x = x + 1;
+  t.z = z;
+}
+function beaTea(step = s.familyStory?.teaStep ?? 0) {
+  if (!s.familyStory?.escort) return;
+  if (
+    !teaSeated &&
+    Math.hypot(world.mom.position.x - 12, world.mom.position.z - 16.9) > 4
+  )
+    return toast("Mom is catching up. Wait here for her before you sit down.");
+  if (!teaSeated) {
+    dismountBike();
+    teaSeated = sitting = true;
+    sittingWithStacy = false;
+    s.position = { x: 12, z: 16.9 };
+    world.player.rotation.y = Math.PI;
+    world.setPlayerSeated(true);
+    positionStoryMom(12, 13.6, true);
+    world.mom.rotation.y = 0;
+  }
+  const chapter = teaConversation[Math.min(step, 5)];
+  const id = chapter.who === "Mom" ? "mom" : "npc1";
+  speak(id, `<p>${chapter.text}</p>`, [
+    {
+      label: chapter.reply,
+      run: () => {
+        s.familyStory!.teaStep = Math.min(6, step + 1);
+        save();
+        if (step < 5) beaTea(step + 1);
+        else {
+          acceptShopGoal(s);
+          save();
+          dismissSpeech();
+          toast("New goal: save Ol’ Man Robertson’s shop. $100,000.");
+        }
+      },
+    },
+  ]);
+}
+function momPhone() {
+  panel("Your phone is ringing", "<p>Mom is calling from the hospital.</p>", [
+    {
+      label: "Answer Mom",
+      run: () => {
+        if (!answerMomCall(s)) return;
+        save();
+        panel(
+          "Mom on the phone",
+          "<p>Hi, sweetheart! I’m out of surgery. It went well. I’m ready to come home. Auntie is bringing me back tonight.</p>",
+          [
+            {
+              label: "Oh, Mom! I’m so glad. Love you.",
+              run: () => {
+                close();
+                thought.textContent = "She is okay. She is really okay.";
+                thought.hidden = false;
+                thoughtTime = 10;
+              },
+            },
+          ],
+        );
+      },
+    },
+  ]);
 }
 function playMomPuzzle() {
   dismissSpeech();
@@ -634,9 +841,11 @@ function playMomPuzzle() {
   render();
 }
 function returnToMom() {
+  if (momAway(s)) return;
+  if (s.familyStory) return askMom();
   s.metMom = true;
   visit("Checked in with Mom after coming home.");
-  const badDay = !momStatus(s.day).energetic;
+  const badDay = !momStatus(s.day, s.familyStory).energetic;
   const greeting = neighborLine(s, "mom-home").slice(1, -1);
   if (badDay) visit("Heard Mom coughing when I got home.");
   save();
@@ -644,7 +853,18 @@ function returnToMom() {
   speak(
     "mom",
     `<p>${badDay ? "<em>*cough, cough*</em> " : ""}“${greeting}”</p>`,
-    [{ label: "How are you doing?", run: askMom }],
+    [
+      ...(canTellMom(s)
+        ? [
+            {
+              label: "Tell Mom you've got $10k",
+              destructive: true,
+              run: tellMom,
+            },
+          ]
+        : []),
+      { label: "How are you doing?", run: askMom },
+    ],
   );
 }
 
@@ -724,6 +944,7 @@ function speak(id: string, text: string, choices: Choice[] = []) {
   dismissSpeech();
   const element = document.createElement("section");
   element.className = "speech-bubble";
+  if (id === "stacy") element.classList.add("stacy-conversation");
   element.setAttribute("role", "region");
   element.setAttribute(
     "aria-label",
@@ -798,11 +1019,15 @@ function updateSpeech(dt: number) {
     ray.set(camera.position, direction.normalize());
     ray.far = Math.max(0, distance - 0.15);
     const obscured = ray
-      .intersectObjects(world.occluders, false)
+      .intersectObjects(
+        world.occluders.filter((o) => o.visible),
+        false,
+      )
       .some((hit) => hit.distance < distance - 0.15);
     anchor.project(camera);
     const hidden =
       !begun ||
+      !speaker.object.visible ||
       !s.awake ||
       paused ||
       d > 13 ||
@@ -826,7 +1051,9 @@ function updateSpeech(dt: number) {
       bubble.hidden = hidden;
       const half = bubble.offsetWidth / 2;
       bubble.style.left = `${Math.max(half + 12, Math.min(innerWidth - half - 12, x))}px`;
-      bubble.style.top = `${Math.max(bubble.offsetHeight + 12, y - 16)}px`;
+      const hudTop = resourceHud.getBoundingClientRect().top;
+      bubble.style.maxHeight = `${Math.max(100, Math.min(innerHeight * 0.65, hudTop - 24))}px`;
+      bubble.style.top = `${Math.max(bubble.offsetHeight + 12, Math.min(y - 16, hudTop - 12))}px`;
     }
   });
 }
@@ -1065,7 +1292,8 @@ function showHat(id: HatId) {
   );
 }
 function beginBedPlacement() {
-  dismountBike();
+  if (riding)
+    return toast("Press H to get off your bike before placing a garden bed.");
   close();
   placingBed = true;
   toast(
@@ -1896,9 +2124,8 @@ tvCaption.id = "tv-news-caption";
 tvCaption.hidden = true;
 document.body.append(tvCaption);
 function interact() {
-  if (birdhouseScene) return;
+  if (birdhouseScene || celebration) return;
   if (!begun || paused || action || meditationTime > 0) return;
-  if (riding) dismountBike();
   if (!s.awake) {
     s.awake = true;
     s.position = { x: -16, z: 4 };
@@ -1913,6 +2140,46 @@ function interact() {
   near = selectTarget();
   if (!near) return;
   const id = near.id;
+  if (
+    riding &&
+    id.startsWith("plot") &&
+    (["empty", "harvested", "growing"].includes(s.plots[+id.slice(4)].stage) ||
+      s.plots[+id.slice(4)].soilFilled === false)
+  )
+    return toast(
+      "Press H to get off your bike before working in a garden bed.",
+    );
+  if (
+    riding &&
+    ["couch", "hat-rack", "bed", "garden-bed", "garden-soil"].includes(id)
+  )
+    return toast("Press H to get off your bike first.");
+  if (id === "bea-chair") {
+    if (s.familyStory?.escort) return beaTea();
+    return speak(
+      "npc1",
+      "<p>Come sit down, dear. I have a cup of tea for you.</p>",
+      [
+        {
+          label: "Sit for tea",
+          run: () => {
+            teaSeated = sitting = true;
+            s.position = { x: 12, z: 16.9 };
+            world.setPlayerSeated(true);
+            world.player.rotation.y = Math.PI;
+            dismissSpeech();
+          },
+        },
+        { label: "Maybe later", run: dismissSpeech },
+      ],
+    );
+  }
+  if (id === "npc1" && s.familyStory?.escort && inBeaHouse(s.position))
+    return speak(
+      "npc1",
+      "<p>Welcome, both of you! Come sit down at my table. I will pour the tea.</p>",
+      [{ label: "Sit down with Mom", run: () => beaTea() }],
+    );
   if (id.startsWith("bike-")) return showBike(id.slice(5) as BikeId);
   if (id === "bicycle") {
     const line = neighborLine(s, "bicycle");
@@ -1936,14 +2203,14 @@ function interact() {
     s.position = { x: -18.9, z: 11.15 };
     world.setPlayerSeated(true);
     visit(
-      momStatus(s.day).activity === "resting" ||
-        momStatus(s.day).activity === "reading"
+      momStatus(s.day, s.familyStory).activity === "resting" ||
+        momStatus(s.day, s.familyStory).activity === "reading"
         ? "Sat beside Mom on the couch."
         : "Sat on the couch for a while.",
     );
     if (
-      momStatus(s.day).activity === "resting" ||
-      momStatus(s.day).activity === "reading"
+      momStatus(s.day, s.familyStory).activity === "resting" ||
+      momStatus(s.day, s.familyStory).activity === "reading"
     ) {
       thought.textContent = chooseMomThought(s, "sitting");
       thought.hidden = false;
@@ -2032,6 +2299,13 @@ function interact() {
   if (["can", "shovel", "fertilizer"].includes(id))
     return shop(id as "can" | "shovel" | "fertilizer");
   if (id === "bed")
+    if (momAway(s) && !s.familyStory?.called)
+      return panel(
+        "Waiting for Mom",
+        "<p>I want to hear how Mom’s surgery went before I go to sleep. I can keep doing my usual jobs while I wait for her call.</p>",
+        [{ label: "Stay up and wait", run: close }],
+      );
+  if (id === "bed")
     return panel(
       "Tomorrow is another chance",
       `<p>End the day, write in your notebook, and wake up to a fresh morning. Watered trees will finish growing overnight.</p>${s.drink ? `<p><strong>Sleeping will cancel your ${drinks.find((d) => d.id === s.drink!.id)!.name} effect.</strong> You still have ${Math.ceil(s.drink.remaining)} seconds left.</p>` : ""}`,
@@ -2042,7 +2316,7 @@ function interact() {
             : "Sleep until tomorrow",
           destructive: !!s.drink,
           run: () => {
-            sleep(s);
+            if (!sleep(s)) return;
             visitedOutside = false;
             wasHome = true;
             momSpoke = false;
@@ -2079,9 +2353,11 @@ function interact() {
     return;
   }
   if (id === "mom") {
+    if (s.familyStory || canTellMom(s)) return askMom();
     const metBefore = s.metMom;
     s.metMom = true;
-    if (metBefore || momStatus(s.day).activity === "bedrest") return askMom();
+    if (metBefore || momStatus(s.day, s.familyStory).activity === "bedrest")
+      return askMom();
     visit("Talked with Mom before heading out.");
     const greeting = momGreeting();
     visit(`Heard Mom: ${greeting}`);
@@ -2089,7 +2365,10 @@ function interact() {
     return speak("mom", `<p>${greeting}</p>`, [
       { label: "How are you doing?", run: askMom },
       {
-        label: playerMomResponse(greeting, momStatus(s.day).energetic),
+        label: playerMomResponse(
+          greeting,
+          momStatus(s.day, s.familyStory).energetic,
+        ),
         run: dismissSpeech,
       },
     ]);
@@ -2341,6 +2620,7 @@ addEventListener("keydown", (e) => {
     return;
   }
   if (!begun) return;
+  if (celebration) return;
   if ((s.pepeShowStarted && !s.pepePopped) || pepeViewHold > 0) return;
   if (key === "h") {
     mountBike();
@@ -2460,7 +2740,17 @@ function resetTransientMotion() {
   fertilizerAnimation = undefined;
   birdhouseScene?.carried.forEach((g) => scene.remove(g));
   birdhouseScene = undefined;
-  world.setMomDay(s.day, atHome(), true);
+  if (celebration) {
+    for (const p of celebration.people) {
+      p.object.position.copy(p.position);
+      p.object.rotation.copy(p.rotation);
+    }
+    celebration = undefined;
+  }
+  teaSeated = false;
+  storyThoughtClock = storyThoughtIndex = 0;
+  momTrail = [];
+  world.setMomDay(s.day, atHome(), true, s.familyStory);
   world.setFertilizing(false, 0, 0, 0);
   world.sigma.cancelHandoff();
   sittingWithStacy = false;
@@ -2544,8 +2834,10 @@ addEventListener("pointermove", (e) => {
   ) {
     lastLookInput = performance.now();
     yaw -= e.movementX * 0.006;
-    cameraTilted = true;
-    pitch = T.MathUtils.clamp(pitch + e.movementY * 0.004, 0.15, 1.1);
+    if (!riding) {
+      cameraTilted = true;
+      pitch = T.MathUtils.clamp(pitch + e.movementY * 0.004, 0.15, 1.1);
+    }
   }
 });
 $("#world").addEventListener(
@@ -2591,6 +2883,8 @@ function selectTarget() {
   return world.targets
     .filter(
       (t) =>
+        (t.id !== "mom" || !momAway(s)) &&
+        (t.id !== "bea-chair" || inBeaHouse(s.position)) &&
         (s.foundTVSeeds ||
           (!t.id.startsWith("sigma-chad-") &&
             t.id !== "grindset" &&
@@ -2666,6 +2960,10 @@ function updateUI() {
           )} · Q to roll${wearing(s, "rabbit") ? " · Space to jump" : ""}</span>`
       : ""
   }`;
+  document.documentElement.style.setProperty(
+    "--resource-height",
+    `${resourceHud.offsetHeight}px`,
+  );
   let objective = "Visit Ol’ Man Robertson",
     hint =
       "Take your $4.33 from the piggy bank, then follow the lane north into town.";
@@ -2724,6 +3022,43 @@ function updateUI() {
   }
   $("#objective").textContent = objective;
   $("#hint").textContent = hint;
+  const phase = storyPhase(s);
+  if (phase !== "saving") {
+    const aims = {
+      scheduled: [
+        "Mom’s surgery is tomorrow",
+        "The surgery is paid for. Enjoy this day together.",
+      ],
+      surgery: [
+        "Waiting for Mom’s call",
+        "Mom is at the hospital with Auntie. Keep up your routine while you wait.",
+      ],
+      "coming-home": [
+        "Mom is coming home tonight",
+        "Her surgery went well. Auntie will bring her back.",
+      ],
+      recovery: [
+        s.familyStory?.escort
+          ? "Walk with Mom to Bea’s"
+          : "Mom is getting better",
+        s.familyStory?.escort
+          ? "Bea’s front door is at the south side of her pink house. Come in and sit down for tea."
+          : canVisitBea(s)
+            ? "Mom feels ready for an outing. Ask her about visiting Bea."
+            : "Take things slowly together. Mom is feeling better each day.",
+      ],
+      shop: [
+        "Save Ol’ Man Robertson’s shop",
+        `${money(total)} saved · ${money(Math.max(0, 10_000_000 - total))} left toward $100,000.`,
+      ],
+    };
+    $("#objective").textContent = aims[phase][0];
+    $("#hint").textContent = aims[phase][1];
+  } else if (canTellMom(s)) {
+    $("#objective").textContent = "Tell Mom you’ve got $10k";
+    $("#hint").textContent =
+      "You have enough in your pocket and savings to pay for her surgery. Go see Mom.";
+  }
   const { x, z } = s.position;
   $("#location").textContent =
     s.foundTVSeeds && z < -40
@@ -2747,7 +3082,17 @@ function updateUI() {
     prompt = `Planting… ${Math.ceil(action.duration - action.elapsed)}s · stand still (moving cancels)`;
   else if (near) {
     let label = near.label;
-    if (near.id.startsWith("plot")) {
+    if (
+      riding &&
+      near.id.startsWith("plot") &&
+      ["empty", "harvested", "growing"].includes(
+        s.plots[+near.id.slice(4)].stage,
+      )
+    ) {
+      unavailable = true;
+      label = "Press H to dismount before working in this bed";
+    }
+    if (near.id.startsWith("plot") && !unavailable) {
       const p = s.plots[+near.id.slice(4)];
       unavailable =
         (["empty", "harvested"].includes(p.stage) && !s.seeds) ||
@@ -2799,6 +3144,7 @@ function updateUI() {
 function frame(now: number) {
   frameNumber++;
   world.setHat(wornHats(s));
+  world.setRackHats(s.hats);
   world.showBirdhouses(s.birdhousesBuilt ?? 0, s.birdhousePaint);
   if (birdhouseScene)
     world.outdoorBirdhouses.forEach((g, i) => {
@@ -2852,7 +3198,9 @@ function frame(now: number) {
   const dt = Math.min(elapsed, 0.25);
   last = now;
   if (
-    world.setMomDay(s.day, atHome()) &&
+    !celebration &&
+    !teaSeated &&
+    world.setMomDay(s.day, atHome(), false, s.familyStory) &&
     s.awake &&
     !sitting &&
     blocked(s.position.x, s.position.z, world.rects)
@@ -2890,7 +3238,52 @@ function frame(now: number) {
   if (wantedRoof > 0.95 && roofMaterial.opacity > 0.95) {
     if (roofIndex < 0) world.occluders.push(world.homeRoof);
   } else if (roofIndex >= 0) world.occluders.splice(roofIndex, 1);
-  const active = begun && !paused && !document.hidden && !birdhouseScene;
+  const active =
+    begun && !paused && !document.hidden && !birdhouseScene && !celebration;
+  world.setBeaInside(inBeaHouse(s.position) || teaSeated);
+  const beaRoof = scene.getObjectByName("bea-house-roof") as T.Mesh;
+  if (beaRoof) {
+    const m = beaRoof.material as T.MeshStandardMaterial;
+    m.opacity +=
+      ((inBeaHouse(s.position) ? 0 : 1) - m.opacity) * (1 - Math.exp(-dt * 9));
+    beaRoof.visible = m.opacity > 0.02;
+    m.depthWrite = m.opacity > 0.95;
+    beaRoof.castShadow = m.opacity > 0.95;
+  }
+  if (s.familyStory?.escort && !teaSeated && !celebration) {
+    if (!momTrail.length) momTrail.push({ ...s.position });
+    const last = momTrail.at(-1)!;
+    if (Math.hypot(last.x - s.position.x, last.z - s.position.z) > 0.55)
+      momTrail.push({ ...s.position });
+    while (
+      momTrail.length > 1 &&
+      Math.hypot(
+        world.mom.position.x - momTrail[0].x,
+        world.mom.position.z - momTrail[0].z,
+      ) < 0.6
+    )
+      momTrail.shift();
+    const destination = momTrail[0];
+    const distance = Math.hypot(
+      world.mom.position.x - destination.x,
+      world.mom.position.z - destination.z,
+    );
+    const gap = momTrail.length > 1 ? 0.15 : 1.7;
+    if (active && distance > gap) {
+      const dx = destination.x - world.mom.position.x,
+        dz = destination.z - world.mom.position.z;
+      const step = Math.min(distance - gap, dt * 3.6);
+      const p = { x: world.mom.position.x, z: world.mom.position.z };
+      move(
+        p,
+        (dx / distance) * step,
+        (dz / distance) * step,
+        world.rects.filter((r) => r !== world.momCollider),
+      );
+      positionStoryMom(p.x, p.z);
+      world.mom.rotation.y = Math.atan2(dx, dz);
+    }
+  }
   const bikeDistance = Math.hypot(
     Math.max(
       bikeShopBounds.left - s.position.x,
@@ -2919,6 +3312,20 @@ function frame(now: number) {
   speechLayer.style.visibility = balloonView ? "hidden" : "";
   if (active) {
     if (s.awake) {
+      if (tickSurgery(s, elapsed)) {
+        save();
+        momPhone();
+      }
+      if (momAway(s) && !s.familyStory?.called) {
+        storyThoughtClock += elapsed;
+        if (storyThoughtClock >= 18) {
+          storyThoughtClock = 0;
+          thought.textContent =
+            surgeryThoughts[storyThoughtIndex++ % surgeryThoughts.length];
+          thought.hidden = false;
+          thoughtTime = 11;
+        }
+      }
       pepeViewHold = Math.max(0, pepeViewHold - dt);
       const inPepe =
         canEnterPepe(s) &&
@@ -2981,7 +3388,11 @@ function frame(now: number) {
         meditationTime > 0 ||
         (s.pepeShowStarted && !s.pepePopped) ||
         pepeViewHold > 0;
-      const searchHint = seedSearchClock.update(s, elapsed, !!seedConversation);
+      const searchHint = seedSearchClock.update(
+        s,
+        elapsed,
+        !!seedConversation || momAway(s) || !!s.familyStory?.escort,
+      );
       if (searchHint) toast(searchHint);
       if (
         ["arrowleft", "arrowright", "arrowup", "arrowdown"].some((k) =>
@@ -2991,15 +3402,17 @@ function frame(now: number) {
         lastLookInput = now;
       if (keys.has("arrowleft")) yaw += dt * 1.8;
       if (keys.has("arrowright")) yaw -= dt * 1.8;
-      if (keys.has("arrowup") || keys.has("arrowdown")) cameraTilted = true;
-      pitch = T.MathUtils.clamp(
-        pitch +
-          ((keys.has("arrowdown") ? 1 : 0) - (keys.has("arrowup") ? 1 : 0)) *
-            dt *
-            0.8,
-        0.15,
-        1.1,
-      );
+      if (!riding && (keys.has("arrowup") || keys.has("arrowdown")))
+        cameraTilted = true;
+      if (!riding)
+        pitch = T.MathUtils.clamp(
+          pitch +
+            ((keys.has("arrowdown") ? 1 : 0) - (keys.has("arrowup") ? 1 : 0)) *
+              dt *
+              0.8,
+          0.15,
+          1.1,
+        );
       let f = (keys.has("w") ? 1 : 0) - (keys.has("s") ? 1 : 0),
         r = (keys.has("d") ? 1 : 0) - (keys.has("a") ? 1 : 0);
       rollCooldown = Math.max(0, rollCooldown - dt);
@@ -3125,7 +3538,11 @@ function frame(now: number) {
       tick(s, elapsed);
       tickSigma(s, elapsed);
       const homeNow = atHome();
-      const momInside = momStatus(s.day).activity !== "garden";
+      const momInside =
+        !momAway(s) &&
+        !s.familyStory?.escort &&
+        !teaSeated &&
+        momStatus(s.day, s.familyStory).activity !== "garden";
       if (wasHome && !homeNow) visitedOutside = true;
       if (!wasHome && homeNow && visitedOutside && momInside) {
         momSpoke = true;
@@ -3145,9 +3562,20 @@ function frame(now: number) {
         visit("Talked with Mom before heading out.");
         const greeting = momGreeting();
         visit(`Heard Mom: ${greeting}`);
-        speak("mom", `<p>${greeting}</p>`, [
-          { label: "How are you doing?", run: askMom },
-        ]);
+        if (s.familyStory) askMom();
+        else
+          speak("mom", `<p>${greeting}</p>`, [
+            ...(canTellMom(s)
+              ? [
+                  {
+                    label: "Tell Mom you've got $10k",
+                    destructive: true,
+                    run: tellMom,
+                  },
+                ]
+              : []),
+            { label: "How are you doing?", run: askMom },
+          ]);
       }
       if (
         s.metRobertson &&
@@ -3254,6 +3682,10 @@ function frame(now: number) {
     camera.position.set(-5, 15, 35);
     cameraAim.set(-7, 1, 10);
     camera.lookAt(cameraAim);
+  } else if (celebration) {
+    camera.position.lerp(new T.Vector3(-9, 8, 34), 1 - Math.exp(-dt * 4));
+    cameraAim.set(-16, 1, 25);
+    camera.lookAt(cameraAim);
   } else if (s.pepeShowStarted && (!s.pepePopped || pepeViewHold > 0)) {
     const fraction = (s.pepeInflation ?? 0) / 12;
     const ease = reducedMotion ? 1 : 1 - Math.exp(-dt * 4);
@@ -3271,6 +3703,12 @@ function frame(now: number) {
     followInitialized = false;
     camera.position.set(-16.8, 3.8, 4.2);
     cameraAim.set(-19.1, 1.35, 0.75);
+    camera.lookAt(cameraAim);
+  } else if (teaSeated) {
+    // An interior view of all three chairs and the tea table.
+    const easing = reducedMotion ? 1 : 1 - Math.exp(-dt * 7);
+    camera.position.lerp(new T.Vector3(14.5, 3.6, 17.2), easing);
+    cameraAim.lerp(new T.Vector3(11.7, 1.5, 15.2), easing);
     camera.lookAt(cameraAim);
   } else if (riding) {
     rideTransition = Math.min(1, rideTransition + dt / 0.4);
@@ -3457,6 +3895,57 @@ function frame(now: number) {
     Math.hypot(s.position.x + 10.1, s.position.z - 10) > 10;
   tvCaption.innerHTML = `<strong>Town News · ${report.headline}</strong><p>${report.report}</p>`;
   world.wildlife.update(reducedMotion ? 0 : now / 1000);
+  if (celebration) {
+    if (!paused && !document.hidden) celebration.elapsed += dt;
+    const t = celebration.elapsed,
+      rush = Math.min(1, t / 3);
+    world.player.visible = true;
+    world.player.position.set(
+      -16,
+      reducedMotion ? 0 : Math.abs(Math.sin(t * 5)) * 0.7,
+      25,
+    );
+    celebration.people.forEach((p, i) => {
+      const a = (i * Math.PI * 2) / celebration!.people.length;
+      const destination = new T.Vector3(
+        -16 + Math.sin(a) * 3,
+        reducedMotion ? 0 : Math.abs(Math.sin(t * 5 + i)) * 0.55,
+        25 + Math.cos(a) * 3,
+      );
+      p.object.position.copy(p.position).lerp(destination, rush);
+      p.object.rotation.y = a + Math.PI;
+    });
+    celebration.wildlife.forEach((b, i) => {
+      const a = t * 0.8 + i * 0.6,
+        r = i < 10 ? 4 : 2.5;
+      const destination = new T.Vector3(
+        -16 + Math.sin(a) * r,
+        2.4 + Math.sin(a * 2) * 0.5,
+        25 + Math.cos(a) * r,
+      );
+      b.object.position.copy(b.position).lerp(destination, rush);
+    });
+    if (t >= 14) {
+      const ended = celebration;
+      celebration = undefined;
+      ended.people.forEach((p) => {
+        p.object.position.copy(p.position);
+        p.object.rotation.copy(p.rotation);
+      });
+      s.position = clearPosition(
+        ended.origin,
+        world.rects,
+        s.foundTVSeeds ? -89 : -39,
+      );
+      world.setMomDay(s.day, atHome(), true, s.familyStory);
+      save();
+      speak(
+        "mom",
+        "<p>I called the hospital. They can do the surgery tomorrow! Oh, sweetheart, thank you. I am so excited. Auntie will go with me.</p>",
+        [{ label: "We did it, Mom. Love you!", run: dismissSpeech }],
+      );
+    }
+  }
   world.setDigging(!!action, !!s.shovel, action?.elapsed ?? 0);
   if (fertilizerAnimation && active) {
     fertilizerAnimation.elapsed += dt;
@@ -3546,7 +4035,7 @@ function frame(now: number) {
       `${edge + (anchorX - edge) * 0.8 - left}px`,
     );
     thought.style.left = `${center}px`;
-    thought.style.top = `${anchorY}px`;
+    thought.style.top = `${Math.min(anchorY, resourceHud.getBoundingClientRect().top - 24)}px`;
     thought.style.display = paused || anchor.z > 1 ? "none" : "";
   }
   $("#quest").style.visibility = speaking || thoughtTime > 0 ? "hidden" : "";
@@ -3600,7 +4089,7 @@ function frame(now: number) {
       s.position = film.origin;
       film.carried.forEach((g) => scene.remove(g));
       birdhouseScene = undefined;
-      world.setMomDay(s.day, true, true);
+      world.setMomDay(s.day, true, true, s.familyStory);
       world.player.position.set(s.position.x, 0, s.position.z);
       followInitialized = false;
       save();
@@ -3776,6 +4265,83 @@ if (new URLSearchParams(location.search).has("test")) {
           visible: mesh.visible,
         };
       }),
+    signFaces: () =>
+      scene.children
+        .filter(
+          (o) =>
+            o.name.startsWith("milliner-arrow-") ||
+            o.name === "haberdasher-arrow-post",
+        )
+        .map((o) => {
+          const b = new T.Box3().setFromObject(o);
+          return { name: o.name, min: b.min.toArray(), max: b.max.toArray() };
+        }),
+    memeSigns: () => {
+      const signs: any[] = [],
+        walls: any[] = [];
+      scene.traverse((o) => {
+        if (!o.userData.houseSign && !o.userData.cameraWall) return;
+        const b = new T.Box3().setFromObject(o);
+        (o.userData.houseSign ? signs : walls).push({
+          name: o.name,
+          min: b.min.toArray(),
+          max: b.max.toArray(),
+        });
+      });
+      return { signs, walls };
+    },
+    family: () => ({
+      phase: storyPhase(s),
+      celebrating: !!celebration,
+      momVisible: world.mom.visible,
+      momPosition: world.mom.position.toArray(),
+      activity: momStatus(s.day, s.familyStory).activity,
+      rackModels: world.rackHats.children.length,
+      teaSeated,
+    }),
+    wander: (seconds: number) => {
+      const starts = world.sigma.walkers.map((w) => w.object.position.clone());
+      let minDistance = Infinity;
+      for (
+        let i = 0;
+        i < Math.min(6000, Math.max(0, Math.floor(seconds * 10)));
+        i++
+      ) {
+        world.sigma.updateWalkers(0.1, s.position.x, s.position.z);
+        const walkers = world.sigma.walkers;
+        for (let j = 0; j < walkers.length; j++)
+          for (let k = j + 1; k < walkers.length; k++)
+            minDistance = Math.min(
+              minDistance,
+              walkers[j].object.position.distanceTo(walkers[k].object.position),
+            );
+      }
+      return {
+        minDistance,
+        walkers: world.sigma.walkers.map((w, i) => ({
+          start: starts[i].toArray(),
+          position: w.object.position.toArray(),
+          journeys: w.roaming.journeys,
+        })),
+      };
+    },
+    gardenSign: () => {
+      const fence = scene.getObjectByName("community-garden-iron-fence")!;
+      const sigma = fence.getObjectByName("wrought-iron-sigma")!;
+      return {
+        text: fence.userData.text,
+        position: fence.position.toArray(),
+        letters: fence.children.filter((o) =>
+          o.name.startsWith("vegetable-letter-"),
+        ).length,
+        sigmaBounds: new T.Box3()
+          .setFromObject(sigma)
+          .getSize(new T.Vector3())
+          .toArray(),
+      };
+    },
+    drinksBoard: () =>
+      scene.getObjectByName("grindset-drinks-board")?.userData.text,
     npcHeadPenetrations: () => {
       const sphere = (g: T.Object3D) => {
         const head = g.getObjectByName("head") as T.Mesh;

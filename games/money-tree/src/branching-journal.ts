@@ -233,6 +233,97 @@ export function constructJournal(
     paragraphs.push(picked.text);
     return true;
   };
+  if (c.familyPhase && c.familyPhase !== "saving") {
+    const storyLines = {
+      scheduled: [
+        "I told Mom we had enough. She hugged me so hard. We both started jumping and everybody came over. Her surgery is tomorrow.",
+        "Mom called the hospital today. Tomorrow is the day. I was so happy I could barely stand still.",
+        "The money is paid for Mom’s surgery. We danced outside with the neighbors. Even the birds came over.",
+        "We finally have a surgery date. Tomorrow. Mom kept thanking me, and I kept grinning at her.",
+        "I got to tell Mom we could pay for it. She looked at me, then she started smiling. I do not think I will forget that.",
+        "Mom is going to the hospital tomorrow. We were both jumping around today. I am excited and a little scared too.",
+        "The neighbors celebrated with us. I never expected the trees to get us this far. Tomorrow Mom gets her surgery.",
+        "We paid for Mom’s operation today. She rang the hospital herself. Hearing her say tomorrow made it feel real.",
+      ],
+      surgery: [
+        "Mom is at the hospital. Auntie is with her. I kept doing my jobs, but I was thinking about her the whole time.",
+        "The house felt wrong without Mom today. I tried to keep busy while I waited for the phone.",
+        "I kept wondering what was happening at the hospital. I wanted to water things, then I wanted to check the phone again.",
+        "Mom’s operation is today. Waiting is worse than digging. At least with digging I can see what I am doing.",
+        "Auntie went with Mom. I am glad she is not there alone. I wish I could hear how it is going.",
+        "I tried doing my usual round today. Every quiet minute made me think about Mom in the hospital.",
+        "Mom was not in her chair when I went inside. I knew where she was. I still kept looking over there.",
+        "I am waiting for news about Mom. I keep picking up the phone to make sure I have not missed anything.",
+      ],
+      "coming-home": [
+        "Mom called. The surgery went well. I heard her voice and I could finally breathe properly. Auntie is bringing her home tonight.",
+        "The phone rang and it was Mom. She is out of surgery and doing well. I want tonight to hurry up.",
+        "Mom said it went well. I asked again because I needed to hear it twice. Auntie will bring her back tonight.",
+        "We got good news from the hospital. Mom is ready to come home. I keep thinking about seeing her in the morning.",
+        "Mom called me after the operation. She sounded tired, but happy. Auntie is bringing her home tonight.",
+        "I was scared all day, then Mom rang. The operation is finished. She is coming home with Auntie tonight.",
+        "Hearing Mom on the phone was the best thing today. Everything went well. I am so glad she called herself.",
+        "The hospital part is over. Mom told me she is okay. I want to have the house ready when Auntie brings her back.",
+      ],
+      recovery: [
+        "Mom is home and getting better. I keep noticing her doing little things again. I want to help without getting in the way.",
+        "Mom says she feels a bit better each day. I still watch her closely. I am getting used to good news.",
+        "We are taking things slowly at home. I like being able to hear Mom in the next room again.",
+        "Mom is getting stronger. She still needs breaks. I can wait while she rests.",
+        "It feels different now that the surgery is done. I worry sometimes, but Mom says she is improving.",
+        "Mom is recovering at home. I am glad ordinary stuff is happening here again.",
+        "I asked Mom how she felt. Better, she said. I like that answer a lot.",
+        "Mom still gets tired, but she is getting better. There is no rush. I want her here with me.",
+      ],
+      shop: [
+        "Robertson needs help with his shop. He helped us first. I want to keep putting money aside for him.",
+        "Now I am saving for Robertson’s shop. One hundred thousand dollars is a lot. I know what I can do with a seed, though.",
+        "I thought about Robertson while I worked today. I would miss that shop. I want it to stay.",
+        "Mom is getting better, and we have a new plan. Save Robertson’s shop. I have plenty of planting ahead of me.",
+        "I am putting money aside for Robertson. Mom and I can talk about it together now.",
+        "I want to help Robertson keep his shop. It makes me feel useful having something to work toward.",
+        "The shop needs a hundred thousand dollars. I am starting with the trees I have. I can add more beds as I go.",
+        "Robertson kept his seeds for me when we needed help. I want to be there for him too.",
+      ],
+    };
+    if (has(c, /^Bea said Robertson needs/))
+      choose(
+        "bea-tea",
+        [
+          "Mom and I had tea at Bea’s. Her table had little doilies and proper cups. Bea told us Robertson might lose his shop. He needs $100,000. I want to help him.",
+          "We went to Bea’s together. She was so happy Mom was better. Then she told us about Robertson’s rent and the tariffs. I said I would help save his shop.",
+          "Bea put out her good tea set for us. Mom asked about everybody. Robertson needs a hundred thousand dollars to keep his shop. Well, we had better get planting.",
+        ],
+        true,
+      );
+    else choose(`family-${c.familyPhase}`, storyLines[c.familyPhase], true);
+    if (c.earned)
+      choose("family-income", [
+        `I harvested ${dollars(c.earned)} today. I counted it before putting it away.`,
+        `The trees gave me ${dollars(c.earned)} today. There was still work to do after collecting it.`,
+        `I collected ${dollars(c.earned)} from the branches. It still feels strange sometimes.`,
+        `Today’s harvest was ${dollars(c.earned)}. I am keeping track of what comes in.`,
+      ]);
+    else if (planted)
+      choose("family-garden", [
+        "I planted more seeds today. I checked the beds before heading in.",
+        "There were seeds to plant, so I did that. Having a small job helped.",
+        "I worked on the garden for a while. Tomorrow there will be more to do.",
+        "I put some more seeds in. I do not want to forget the watering.",
+      ]);
+    if (c.familyPhase === "shop")
+      choose("shop-savings", [
+        `I have ${dollars(c.available)} in my pocket and savings. Robertson needs $100,000, so there is ${dollars(c.remaining)} left to find.`,
+        `I counted ${dollars(c.available)} altogether. I still need ${dollars(c.remaining)} for the shop.`,
+        `There is ${dollars(c.remaining)} left before I can help Robertson keep his shop. I am keeping my ${dollars(c.available)} safe.`,
+      ]);
+    memory.used = memory.used.slice(-160);
+    return {
+      entry: `Day ${c.day}\n\n${paragraphs.join("\n\n")}`,
+      memory,
+      selections,
+    };
+  }
   // Choose a central subject. The first real harvest replaces all pre-harvest doubt.
   if (goal) {
     choose("goal", undefined, true);

@@ -1,5 +1,6 @@
 import type { State } from "./game";
 import { hatById } from "./hats";
+import { storyPhase, shopCost } from "./family-story";
 export type JournalMemory = {
   day: number;
   events: string[];
@@ -25,6 +26,7 @@ export type JournalContext = {
   garden: Record<string, number>;
   plotCount?: number;
   communityDays?: number;
+  familyPhase?: ReturnType<typeof storyPhase>;
   history: JournalMemory[];
   hasHarvested: boolean;
   inventory: {
@@ -42,9 +44,13 @@ export function journalContext(s: State): JournalContext {
       0,
     );
   const available = s.cash + s.bank;
-  const remaining = Math.max(0, 1_000_000 - available);
+  const remaining = Math.max(
+    0,
+    (s.familyStory?.shopGoal ? shopCost : 1_000_000) - available,
+  );
   return {
     day: s.day,
+    familyPhase: storyPhase(s),
     page: s.journal.length,
     events: [...s.events],
     previous: [...s.journal],
@@ -129,7 +135,20 @@ export function validJournalContext(c: unknown): c is JournalContext {
     );
   return (
     x.available === x.cash + x.bank &&
-    x.remaining === Math.max(0, 1_000_000 - x.available) &&
+    (x.familyPhase === undefined ||
+      [
+        "saving",
+        "scheduled",
+        "surgery",
+        "coming-home",
+        "recovery",
+        "shop",
+      ].includes(x.familyPhase)) &&
+    x.remaining ===
+      Math.max(
+        0,
+        (x.familyPhase === "shop" ? shopCost : 1_000_000) - x.available,
+      ) &&
     x.earned === earned &&
     x.daysNeeded === (earned ? Math.ceil(x.remaining / earned) : null) &&
     (!x.firstHarvest || (earned > 0 && x.hasHarvested)) &&

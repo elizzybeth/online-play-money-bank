@@ -22,7 +22,7 @@ test("named coin creates an accessible ATM with chart, partial buy/sell and pers
   await start(page);
   expect(
     await page.evaluate(() =>
-      (window as any).game.rects.some((r: any) => r.x === 37 && r.z === -76),
+      (window as any).game.rects.some((r: any) => r.x === 36 && r.z === -74),
     ),
   ).toBe(false);
   await page.keyboard.press("e");
@@ -55,13 +55,20 @@ test("named coin creates an accessible ATM with chart, partial buy/sell and pers
   ).toBeVisible();
   expect(s.coin.units).toBe(7000000);
   await page.getByRole("button", { name: "Leave", exact: true }).click();
-  await page.evaluate(() => (window as any).game.teleport(37, -73.7));
+  await page.evaluate(() => (window as any).game.teleport(36, -71.7));
   await expect(page.locator("#prompt")).toContainText("Use coin ATM");
   expect(
     await page.evaluate(() =>
-      (window as any).game.rects.some((r: any) => r.x === 37 && r.z === -76),
+      (window as any).game.rects.some((r: any) => r.x === 36 && r.z === -74),
     ),
   ).toBe(true);
+  const clearance = await page.evaluate(() => {
+    const rects = (window as any).game.rects;
+    const atm = rects.find((r: any) => r.x === 36 && r.z === -74);
+    const hedge = rects.find((r: any) => r.x === 39 && r.z === -67.25);
+    return hedge.x - hedge.w / 2 - (atm.x + atm.w / 2);
+  });
+  expect(clearance).toBeGreaterThan(1.5);
   await page.evaluate(() => (window as any).game.advance(90));
   await page.keyboard.press("e");
   await expect(page.locator(".coin-candle")).toHaveCount(7);
@@ -75,7 +82,7 @@ test("named coin creates an accessible ATM with chart, partial buy/sell and pers
   await page.getByRole("button", { name: "Leave", exact: true }).click();
   await page.reload();
   await page.getByRole("button", { name: "Wake up" }).click();
-  await page.evaluate(() => (window as any).game.teleport(37, -73.7));
+  await page.evaluate(() => (window as any).game.teleport(36, -71.7));
   await expect(page.locator("#prompt")).toContainText("ATM");
   await page.keyboard.press("e");
   await expect(page.locator(".coin-candle")).toHaveCount(7);

@@ -31,6 +31,22 @@ test("Stacy tells ten connected chapters, resumes after reload, and gifts seeds 
   );
   await page.getByRole("button", { name: "Previous messages" }).click();
   await expect(page.locator(".stacy-transcript")).toContainText("factory");
+  await expect(page.locator(".transcript-question").first()).toHaveCSS(
+    "text-align",
+    "right",
+  );
+  expect(
+    await page
+      .locator(".transcript-question")
+      .first()
+      .evaluate((el) => getComputedStyle(el).clipPath),
+  ).toContain("polygon");
+  expect(
+    await page
+      .locator(".stacy-transcript p:not(.transcript-question)")
+      .first()
+      .evaluate((el) => getComputedStyle(el).clipPath),
+  ).toContain("polygon");
   await page.getByRole("button", { name: "Back to our conversation" }).click();
   expect(
     await page.evaluate(() => (window as any).game.state().stacyConversations),

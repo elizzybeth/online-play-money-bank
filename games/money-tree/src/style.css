@@ -1,4 +1,6 @@
 :root {
+  --resource-bottom: 82px;
+  --resource-height: 60px;
   font-family: Georgia, "Times New Roman", serif;
   color: #f6f1db;
   background: #bfd9d6;
@@ -672,6 +674,7 @@ canvas:focus {
 body:has(#intro:not([hidden]))
   :is(
     header,
+    #resource-hud,
     #quest,
     #location,
     #prompt,
@@ -1226,10 +1229,37 @@ body.riding #bike-bell-help {
   padding: 12px 16px;
   border-radius: 14px;
   background: #eee6d1;
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
 }
 .stacy-transcript .transcript-question {
   margin-left: 35px;
   background: #dbe9d1;
+  text-align: right;
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - 14px),
+    calc(100% - 14px) 100%,
+    0 100%
+  );
+}
+.stacy-conversation {
+  border-top-right-radius: 0;
+  clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%);
+}
+.stacy-conversation .choices {
+  justify-content: flex-end;
+}
+.stacy-conversation .choices button {
+  text-align: right;
+  border-bottom-right-radius: 0;
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - 12px),
+    calc(100% - 12px) 100%,
+    0 100%
+  );
 }
 .conversation-history > .choices {
   position: sticky;
@@ -1239,6 +1269,13 @@ body.riding #bike-bell-help {
 }
 
 #resource-hud {
+  position: fixed;
+  bottom: calc(var(--resource-bottom) + env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100vw - 24px);
+  z-index: 3;
+  pointer-events: none;
   display: flex;
   align-items: stretch;
   gap: 6px;
@@ -1301,9 +1338,47 @@ body.riding #bike-bell-help {
   }
   #resource-hud {
     gap: 4px;
+    flex-wrap: wrap;
+    justify-content: center;
   }
   #stats {
     padding: 8px;
+  }
+}
+
+/* Reserve the lower strip for resources; prompts sit above it. */
+#prompt,
+#prompt.seated {
+  bottom: calc(
+    var(--resource-bottom) + var(--resource-height) +
+      env(safe-area-inset-bottom) + 16px
+  );
+}
+#progress {
+  bottom: calc(
+    var(--resource-bottom) + var(--resource-height) +
+      env(safe-area-inset-bottom) + 6px
+  );
+}
+@media (max-width: 600px) {
+  :root {
+    --resource-bottom: 52px;
+  }
+  #resource-hud {
+    width: calc(100vw - 24px);
+  }
+  #prompt,
+  #prompt.seated {
+    max-width: calc(100vw - 24px);
+    white-space: normal;
+  }
+  footer {
+    bottom: max(10px, env(safe-area-inset-bottom));
+    max-width: calc(100vw - 24px);
+    overflow-x: auto;
+    white-space: nowrap;
+    gap: 8px;
+    padding: 8px 10px;
   }
 }
 
@@ -1408,12 +1483,61 @@ body.riding #bike-bell-help {
   padding: 10px 0;
 }
 
-.birdhouse-paint-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1.2rem; }
-.birdhouse-paint-grid svg { width:100%; max-height:150px; }
-.paint-palette { display:flex; flex-wrap:wrap; gap:8px; }
-.paint-palette button { background:var(--paint); border:3px solid #fff4d8; border-radius:50%; width:36px; height:36px; padding:0; min-height:0; box-shadow:0 1px 3px #51473566; }
-.paint-palette button[aria-pressed=true] { outline:3px solid #34594c; outline-offset:2px; }
-.birdhouse-paint-grid fieldset { margin:12px 0; border:0; padding:0; }
-@media(max-width:520px){.birdhouse-paint-grid{grid-template-columns:1fr;}}
+.birdhouse-paint-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.2rem;
+}
+.birdhouse-paint-grid svg {
+  width: 100%;
+  max-height: 150px;
+}
+.paint-palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.paint-palette button {
+  background: var(--paint);
+  border: 3px solid #fff4d8;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  min-height: 0;
+  box-shadow: 0 1px 3px #51473566;
+}
+.paint-palette button[aria-pressed="true"] {
+  outline: 3px solid #34594c;
+  outline-offset: 2px;
+}
+.birdhouse-paint-grid fieldset {
+  margin: 12px 0;
+  border: 0;
+  padding: 0;
+}
+@media (max-width: 520px) {
+  .birdhouse-paint-grid {
+    grid-template-columns: 1fr;
+  }
+}
 
-#tv-news-caption {position:fixed;bottom:92px;left:50%;transform:translateX(-50%);width:min(650px,90vw);padding:14px 20px;background:#193b4eee;color:#fff5dc;border-radius:12px;pointer-events:none;font:17px/1.45 Nunito,sans-serif;z-index:8;}#tv-news-caption p{margin:6px 0 0;}
+#tv-news-caption {
+  position: fixed;
+  bottom: 92px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(650px, 90vw);
+  padding: 14px 20px;
+  background: #193b4eee;
+  color: #fff5dc;
+  border-radius: 12px;
+  pointer-events: none;
+  font:
+    17px/1.45 Nunito,
+    sans-serif;
+  z-index: 8;
+}
+#tv-news-caption p {
+  margin: 6px 0 0;
+}

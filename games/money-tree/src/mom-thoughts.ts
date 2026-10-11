@@ -1,5 +1,6 @@
 import type { State } from "./game";
 import { momStatus } from "./game";
+import { momAway, surgeryThoughts } from "./family-story";
 const groups = {
   resting: [
     "She looks so small on that couch.",
@@ -250,7 +251,44 @@ export function chooseMomThought(
   s: State,
   occasion: "talk" | "returned" | "sitting" = "talk",
 ) {
-  const status = momStatus(s.day);
+  if (s.familyStory) {
+    const key = "family-thought",
+      count = s.neighborChats[key] ?? 0;
+    s.neighborChats[key] = count + 1;
+    const lines =
+      s.day < s.familyStory.surgeryDay
+        ? [
+            "Tomorrow. We actually got her an appointment.",
+            "I cannot believe we did it.",
+            "I am excited and a little scared at the same time.",
+            "I am glad Auntie will be with her.",
+            "There is finally something to look forward to.",
+            "I keep wanting to tell her the good news again.",
+          ]
+        : momAway(s)
+          ? s.familyStory.called
+            ? [
+                "She sounded like herself on the phone.",
+                "It went well. I keep saying it to myself.",
+                "Auntie is bringing her home tonight.",
+                "I can finally breathe again.",
+              ]
+            : surgeryThoughts
+          : [
+              "I am so glad she is here.",
+              "She says she is getting better. I like hearing it.",
+              "I can do the heavy stuff while she rests.",
+              "Maybe today we can sit together for a bit.",
+              "I want to tell her what happened in town.",
+              "It is good hearing her laugh again.",
+              "She still needs breaks. I can wait.",
+              "We get to make plans together now.",
+              "I keep looking at her and smiling.",
+              "I want to remember this part too.",
+            ];
+    return lines[count % lines.length];
+  }
+  const status = momStatus(s.day, s.familyStory);
   const eligible = new Set<string>([
     status.energetic ? "good" : "resting",
     status.activity,
