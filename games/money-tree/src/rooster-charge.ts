@@ -64,7 +64,7 @@ export function createRoosterCharge() {
         const gx = goal.x - rooster.x,
           gz = goal.z - rooster.z,
           dist = Math.hypot(gx, gz),
-          step = Math.min(dist, dt * 3.7);
+          step = Math.min(dist, dt * 6.4);
         heading = Math.atan2(gx, gz);
         const next = {
           x: rooster.x + Math.sin(heading) * step,

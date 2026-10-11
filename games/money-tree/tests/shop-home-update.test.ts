@@ -61,3 +61,28 @@ test("red-grip skillet has open geometry and a long connected handle", () => {
     ),
   );
 });
+
+test("rooster can catch a walking player but a running player can escape", () => {
+  for (const speed of [4, 7]) {
+    const r = createRoosterCharge();
+    let rooster = { x: 0, z: 0 },
+      player = { x: 0, z: 3 };
+    r.update(9, rooster, 0, { x: 0, z: 8 }, 0, false, () => true);
+    let result = r.update(0.016, rooster, 0, player, 0, true, () => true);
+    rooster = result.position;
+    for (let i = 0; i < 170; i++) {
+      player = { x: 0, z: player.z + speed * 0.016 };
+      result = r.update(
+        0.016,
+        rooster,
+        result.heading,
+        player,
+        0,
+        true,
+        () => true,
+      );
+      rooster = result.position;
+    }
+    assert.equal(r.kicks, speed === 4 ? 1 : 0);
+  }
+});
