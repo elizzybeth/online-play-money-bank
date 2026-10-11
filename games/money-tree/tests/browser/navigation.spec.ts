@@ -166,12 +166,17 @@ test("all required interaction targets are reachable in scene collision geometry
         q.push([a, b]);
       }
     }
-    return targets
-      .filter(
-        (t: any) =>
-          !q.some(([x, z]) => Math.hypot(x * 0.5 - t.x, z * 0.5 - t.z) < 1.4),
-      )
-      .map((t: any) => t.id);
+    return (
+      targets
+        // This save has not unlocked Level 3; its separate playthrough checks
+        // the grove, ramp, summit and mansion doors after opening the hedge.
+        .filter((t: any) => !/^(willow-|fellowship-|millionaire-)/.test(t.id))
+        .filter(
+          (t: any) =>
+            !q.some(([x, z]) => Math.hypot(x * 0.5 - t.x, z * 0.5 - t.z) < 1.4),
+        )
+        .map((t: any) => t.id)
+    );
   });
   expect(unreachable).toEqual([]);
 });

@@ -1565,4 +1565,62 @@ body.riding #bike-bell-help {
   flex: 1 1 auto;
   min-height: 0;
 }
-.notebook-content > .page-number, .notebook-content > .fine { flex-shrink: 0; }
+.notebook-content > .page-number,
+.notebook-content > .fine {
+  flex-shrink: 0;
+}
+.membership-icon {
+  background: #f1eaca;
+  color: #4d6954;
+  border: 3px solid #bd9d5b;
+  border-radius: 5px;
+  padding: 3px 8px;
+  font-size: 26px;
+  transform: rotate(-5deg);
+}
+.membership-card {
+  max-width: 340px;
+  border: 5px solid;
+  border-radius: 12px;
+  padding: 20px;
+  background: linear-gradient(135deg, #faf5df, #d7e7d0);
+  color: #354e3b;
+  box-shadow: 0 4px 0 #c5cdb4;
+}
+.millionaire-phone p {
+  font-size: 14px;
+  line-height: 1.3;
+  margin: 8px 0;
+}
+.millionaire-phone button {
+  padding: 8px;
+  margin: 3px;
+  font-size: 14px;
+}
+
+.phone-panel {
+  width: min(420px, 94vw);
+  max-height: 92dvh;
+  padding: 16px;
+}
+.phone-panel h2 {
+  font-size: 22px;
+  margin: 0 0 8px;
+}
+.phone-panel .choices {
+  margin-top: 10px;
+}
+.phone-panel .millionaire-phone p {
+  font-size: 12px;
+  line-height: 1.4;
+  margin: 7px 0;
+}
+.phone-panel .millionaire-phone button {
+  padding: 7px;
+  font-size: 12px;
+}
+
+#membership-hud {
+  pointer-events: auto;
+  cursor: pointer;
+}

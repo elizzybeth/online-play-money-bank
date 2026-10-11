@@ -739,12 +739,23 @@ export function createSigmaWorld(
   for (const r of [
     { x: -39, z: -67.25, w: 1, d: 44.5, clearHeight: 2.1 },
     { x: 39, z: -67.25, w: 1, d: 44.5, clearHeight: 2.1 },
-    { x: 0, z: -90, w: 77, d: 1, clearHeight: 2.1 },
+    { x: -3.25, z: -90, w: 70.5, d: 1, clearHeight: 2.1 },
+    { x: 37.25, z: -90, w: 2.5, d: 1, clearHeight: 2.1 },
   ]) {
     const hedge = box(r.x, 1.05, r.z, r.w, 2.1, r.d, "#658464");
     hedge.material = surfaceMaterial("#658464", "leaf", 8, 2);
     rects.push(r);
     occluders.push(hedge);
+  }
+  const millionaireGateRect = { x: 34, z: -90, w: 4, d: 1, clearHeight: 2.1 };
+  const millionaireGate = box(34, 1.05, -90, 4, 2.1, 1, "#658464");
+  rects.push(millionaireGateRect);
+  occluders.push(millionaireGate);
+  function setMillionaireOpen(open: boolean) {
+    millionaireGate.visible = !open;
+    const at = rects.indexOf(millionaireGateRect);
+    if (open && at >= 0) rects.splice(at, 1);
+    else if (!open && at < 0) rects.push(millionaireGateRect);
   }
   // Place debris after every permanent collider has been registered.
   const finalScatter = pepeScatter(
@@ -846,6 +857,7 @@ export function createSigmaWorld(
       }
     },
     debris,
+    setMillionaireOpen,
     walkway,
     paths,
     roofs,

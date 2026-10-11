@@ -1,4 +1,26 @@
 import { sceneRoute, routeLength, alongRoute, type Point } from "./scene-route";
+import {
+  fellowships,
+  fellowship,
+  assessment,
+  answerAssessment,
+  retakeAssessment,
+  joinFellowship,
+  acceptTithe,
+  mansionCount,
+  buyApp,
+  appNames,
+  ensureMountainPlots,
+  addMountainPlot,
+  type Fellowship,
+} from "./millionaire";
+import {
+  terraceLine,
+  mansionLine,
+  summitConversation,
+} from "./millionaire-dialogue";
+import { terrainHeight, fertileMountainSoil } from "./millionaire-land";
+import { mountPhoneGame } from "./phone-modal";
 import { newsReports } from "./tv-news";
 import { inBeaHouse } from "./bea-room";
 import {
@@ -144,7 +166,12 @@ drinkHud.className = "money-counter";
 drinkHud.innerHTML =
   '<img src="./drink.svg" alt="Coffee"><span><small></small><strong></strong></span>';
 drinkHud.hidden = true;
-resourceHud.append(cashHud, bankHud, netHud, seedHud, drinkHud);
+const membershipHud = document.createElement("button");
+membershipHud.id = "membership-hud";
+membershipHud.className = "money-counter";
+membershipHud.hidden = true;
+membershipHud.onclick = phoneLibrary;
+resourceHud.append(cashHud, bankHud, netHud, seedHud, drinkHud, membershipHud);
 $("#app").append(resourceHud);
 
 let s: State;
@@ -210,22 +237,27 @@ await Promise.all(
   ),
 ).catch(() => {});
 const world = createWorld(scene),
-  camera = new T.PerspectiveCamera(52, innerWidth / innerHeight, 0.08, 110),
+  camera = new T.PerspectiveCamera(52, innerWidth / innerHeight, 0.08, 700),
   ray = new T.Raycaster();
 unlockSigma(s);
+ensureMountainPlots(s);
 world.setSigmaUnlocked(!!s.foundTVSeeds);
 world.sigma.updateATM(s.coin?.name);
+world.sigma.setMillionaireOpen(!!s.millionaire?.unlocked);
+world.millionaire.update(s, 0);
 world.syncBeds(s.plots);
 if (
   blocked(s.position.x, s.position.z, world.rects) ||
-  Math.abs(s.position.x) > 38 ||
+  (s.millionaire?.unlocked && s.position.z < -90
+    ? s.position.x < -94 || s.position.x > 144
+    : Math.abs(s.position.x) > 38) ||
   s.position.z > 38 ||
-  s.position.z < (s.foundTVSeeds ? -89 : -39)
+  s.position.z < (s.millionaire?.unlocked ? -470 : s.foundTVSeeds ? -89 : -39)
 )
   s.position = clearPosition(
     s.position,
     world.rects,
-    s.foundTVSeeds ? -89 : -39,
+    s.millionaire?.unlocked ? -470 : s.foundTVSeeds ? -89 : -39,
   );
 world.player.position.set(s.position.x, 0, s.position.z);
 world.setMomDay(s.day, homeContains(s.position), false, s.familyStory);
@@ -233,7 +265,7 @@ if (s.familyStory?.escort) {
   const p = clearPosition(
     { x: s.position.x - 1.5, z: s.position.z },
     world.rects,
-    s.foundTVSeeds ? -89 : -39,
+    s.millionaire?.unlocked ? -470 : s.foundTVSeeds ? -89 : -39,
   );
   positionStoryMom(p.x, p.z);
 }
@@ -332,7 +364,13 @@ function mountBike() {
   rideDistance = 0;
   rideCameraOffset
     .copy(camera.position)
-    .sub(new T.Vector3(s.position.x, rideEyeHeight(), s.position.z));
+    .sub(
+      new T.Vector3(
+        s.position.x,
+        rideEyeHeight() + terrainHeight(s.position.x, s.position.z),
+        s.position.z,
+      ),
+    );
   dismissSpeech();
   toast(
     "W/S to pedal or brake. A/D to steer. H to dismount. B rings the bell.",
@@ -423,6 +461,7 @@ function updateInventoryNotices(dt: number) {
 }
 const cameraWalls = new CameraWalls();
 let followInitialized = false;
+let phoneCleanup: (() => void) | undefined;
 let fertilizerAnimation: { elapsed: number; x: number; z: number } | undefined;
 let wateringAnimation: { elapsed: number; x: number; z: number } | undefined;
 let begun = false,
@@ -475,7 +514,7 @@ function standUp() {
           ? { x: -16.3, z: -79.5 }
           : { x: -17.1, z: 11.2 },
     world.rects,
-    s.foundTVSeeds ? -89 : -39,
+    s.millionaire?.unlocked ? -470 : s.foundTVSeeds ? -89 : -39,
   );
   sittingWithStacy = false;
   if (couchZoom !== undefined) {
@@ -1075,6 +1114,11 @@ function updateSpeech(dt: number) {
   }
   world.speakers.forEach((speaker, i) => {
     const head = speaker.object.getObjectByName("head")!;
+    if (!head || !effectivelyVisible(speaker.object)) {
+      nameLabels[i].hidden = true;
+      if (speaking?.id === speaker.id) speaking.element.hidden = true;
+      return;
+    }
     const anchor = head
       .getWorldPosition(new T.Vector3())
       .add(new T.Vector3(0, 0.48 * speaker.object.scale.y + 0.17, 0));
@@ -1088,7 +1132,7 @@ function updateSpeech(dt: number) {
     ray.far = Math.max(0, distance - 0.15);
     const obscured = ray
       .intersectObjects(
-        world.occluders.filter((o) => o.visible),
+        world.occluders.filter((o) => cameraWalls.visibleForInteraction(o)),
         false,
       )
       .some((hit) => hit.distance < distance - 0.15);
@@ -1140,12 +1184,15 @@ function save() {
   }
 }
 const seedSearchClock = new SeedSearchClock();
+let millionairePathNoticed = !!s.millionaire?.unlocked;
 function toast(text: string) {
   $("#toast").textContent = text;
   $("#toast").style.opacity = "1";
   toastTime = Math.max(4, Math.min(10, text.length / 18));
 }
 function close() {
+  phoneCleanup?.();
+  phoneCleanup = undefined;
   last = performance.now();
   modalDefault = undefined;
   $("#modal").hidden = true;
@@ -1779,7 +1826,8 @@ function pauseMenu() {
               blocked(s.position.x, s.position.z, world.rects) ||
               Math.abs(s.position.x) > 38 ||
               s.position.z > 38 ||
-              s.position.z < (s.foundTVSeeds ? -89 : -39)
+              s.position.z <
+                (s.millionaire?.unlocked ? -470 : s.foundTVSeeds ? -89 : -39)
             )
               s.position = { x: -16, z: 4 };
             plotVersions.length = 0;
@@ -1875,6 +1923,205 @@ function grindsetClose() {
   close();
   grindset();
 }
+function guruConversation() {
+  const m = s.millionaire;
+  if (!m?.unlocked) return;
+  speak("willow-guru", "<p>Do you want a personality assessment?</p>", [
+    {
+      label: m.result
+        ? "Retake the assessment"
+        : m.answers.length
+          ? "Continue the assessment"
+          : "Yes, I'd like an assessment",
+      run: () => {
+        if (m.result) retakeAssessment(s);
+        dismissSpeech();
+        save();
+        assessmentQuestion();
+      },
+    },
+    { label: "Maybe another time", run: dismissSpeech },
+  ]);
+}
+function assessmentQuestion() {
+  const m = s.millionaire!;
+  if (m.answers.length === assessment.length) {
+    close();
+    world.millionaire.update(s, 0);
+    fellowshipConversation(m.result!, true);
+    return;
+  }
+  const question = assessment[m.answers.length];
+  panel(
+    "The willow guru",
+    `<p class="fine">Question ${m.answers.length + 1} of ${assessment.length}</p><p>${escapeHTML(question[0])}</p>`,
+    [
+      ...question.slice(1).map((label, index) => ({
+        label,
+        run: () => {
+          answerAssessment(s, index);
+          save();
+          assessmentQuestion();
+        },
+      })),
+      { label: "Take a break", run: close },
+    ],
+  );
+}
+function fellowshipConversation(id: Fellowship, introduction = false) {
+  const m = s.millionaire;
+  if (!m?.unlocked) return;
+  const f = fellowship(id);
+  if (m.result !== id)
+    return speak(
+      `fellowship-${id}`,
+      `<p>Welcome to ${escapeHTML(f.name)}. ${escapeHTML(f.invitation)} If your feelings change, we would be happy to welcome your membership. You can retake the guru’s assessment.</p>`,
+      [{ label: "Thank you", run: dismissSpeech }],
+    );
+  const welcome = introduction
+    ? (speaker: string, text: string, choices: Choice[]) =>
+        panel(f.mascot, text, choices)
+    : speak;
+  welcome(
+    `fellowship-${id}`,
+    `<p>Welcome to ${escapeHTML(f.name)}! ${escapeHTML(f.invitation)} Follow me up Mount Millionaire!</p>`,
+    [
+      {
+        label: m.member === id ? "Lead the way" : "I'd like to join",
+        run: () => {
+          const before = s.seeds;
+          joinFellowship(s, id);
+          world.millionaire.update(s, 0);
+          world.syncBeds(s.plots);
+          syncTimers();
+          if (s.seeds > before) {
+            world.sigma.handSeeds(
+              `fellowship-${id}`,
+              s.position.x,
+              s.position.z,
+              terrainHeight(s.position.x, s.position.z) + 1.1,
+            );
+            toast(
+              `${f.mascot} is delighted! A membership card for ${f.name} and one packet of seeds. Welcome!`,
+            );
+          }
+          world.millionaire.followGuide();
+          save();
+          if (introduction) close();
+          dismissSpeech();
+        },
+      },
+      {
+        label: "I'll think about it",
+        run: introduction ? close : dismissSpeech,
+      },
+    ],
+  );
+}
+function summitDialogue(step = 0) {
+  const m = s.millionaire;
+  if (!m?.member) return;
+  if (m.titheAccepted)
+    return speak(
+      "millionaire-summit",
+      `<p>Welcome back, child of ${escapeHTML(fellowship(m.member).name)}. Every terrace is fertile. Your contribution so far is ${money(m.tithed)}. Happy planting!</p>`,
+      [{ label: "Thank you", run: dismissSpeech }],
+    );
+  const chapters = summitConversation(m.member),
+    chapter = chapters[step];
+  speak("millionaire-summit", `<p>${escapeHTML(chapter[0])}</p>`, [
+    {
+      label: chapter[1],
+      run: () => {
+        if (step < chapters.length - 1) return summitDialogue(step + 1);
+        if (acceptTithe(s)) {
+          world.sigma.handSeeds(
+            "millionaire-summit",
+            s.position.x,
+            s.position.z,
+            terrainHeight(s.position.x, s.position.z) + 1.1,
+          );
+          save();
+          toast(
+            "25 seed packets received. New earnings now contribute 10% to your community.",
+          );
+        }
+        dismissSpeech();
+      },
+    },
+  ]);
+}
+function childConversation(index: number) {
+  const m = s.millionaire;
+  if (!m?.member || !Number.isInteger(index) || index < 0 || index > 5) return;
+  const key = `child-${index}`,
+    count = m.chats[key] ?? 0;
+  m.chats[key] = count + 1;
+  save();
+  const id = `millionaire-child-${index}`;
+  if (index >= mansionCount(m))
+    return speak(
+      id,
+      `<p>${escapeHTML(terraceLine(m.member, count + index * 2))}</p>`,
+      [{ label: "It's good to meet you", run: dismissSpeech }],
+    );
+  const visits = m.chats["mansion-visits"] ?? 0;
+  m.chats["mansion-visits"] = visits + 1;
+  save();
+  speak(id, `<p>${escapeHTML(mansionLine(m.member, visits))}</p>`, [
+    {
+      label: m.apps.includes(index)
+        ? `Open ${appNames[index]}`
+        : `Buy ${appNames[index]} for $5`,
+      disabled: !m.apps.includes(index) && s.cash < 500,
+      destructive: !m.apps.includes(index),
+      run: () => {
+        if (m.apps.includes(index) || buyApp(s, index)) {
+          save();
+          phoneGame(index);
+        }
+      },
+    },
+    { label: "No thanks", run: dismissSpeech },
+  ]);
+}
+function phoneLibrary() {
+  const m = s.millionaire;
+  if (!m?.member) return;
+  const f = fellowship(m.member);
+  panel(
+    "Membership card",
+    `<div class="membership-card" style="border-color:${f.color}"><small>MT. MILLIONAIRE</small><h3>${escapeHTML(f.name)}</h3><p>Welcome, member</p></div><p>${m.apps.length ? "Choose a phone app." : "The mansion owners sell phone apps. Each one costs $5; scoring ten points earns $1."}</p><p class="fine">Community contributions: ${money(m.tithed)}</p>`,
+    [
+      ...m.apps.map((index) => ({
+        label: appNames[index],
+        run: () => phoneGame(index),
+      })),
+      { label: "Close", run: close },
+    ],
+  );
+}
+function phoneGame(index: number) {
+  phoneCleanup?.();
+  phoneCleanup = undefined;
+  panel(appNames[index], '<div id="phone-game"></div>', [
+    { label: "Put phone away", run: close },
+  ]);
+  $("#modal .panel").classList.add("phone-panel");
+  phoneCleanup = mountPhoneGame($("#phone-game"), s, index, () => {
+    save();
+    updateUI();
+  });
+}
+function syncTimers() {
+  while (timers.length < s.plots.length) {
+    const el = document.createElement("div");
+    el.className = "tree-timer";
+    timerLayer.append(el);
+    timers.push(el);
+  }
+}
+
 function coinMenu() {
   if (!s.communityPlanted) return;
   if (!s.coin) {
@@ -2209,8 +2456,32 @@ function interact() {
     return;
   }
   near = selectTarget();
+  if (!near && !riding && s.millionaire?.titheAccepted && s.seeds) {
+    const direction = viewForward();
+    const x = s.position.x + direction.x * 1.4,
+      z = s.position.z + direction.z * 1.4;
+    if (!blocked(x, z, world.rects, 0.8) && addMountainPlot(s, x, z)) {
+      world.syncBeds(s.plots);
+      syncTimers();
+      near = world.targets.at(-1);
+      save();
+    }
+  }
   if (!near) return;
   const id = near.id;
+  if (
+    id.startsWith("plot") &&
+    s.plots[+id.slice(4)]?.mountain &&
+    !s.millionaire?.titheAccepted
+  )
+    return toast("Talk to the guide in the pagoda before planting here.");
+  if (id === "willow-guru") return guruConversation();
+  if (id.startsWith("fellowship-"))
+    return fellowshipConversation(id.slice(11) as Fellowship);
+  if (id === "millionaire-summit") return summitDialogue();
+  if (id.startsWith("millionaire-child-"))
+    return childConversation(Number(id.slice(18)));
+
   if (
     riding &&
     id.startsWith("plot") &&
@@ -2511,12 +2782,14 @@ function interact() {
       );
     } else if (p.stage === "ready") {
       const seedsBeforeHarvest = s.seeds;
+      const titheBeforeHarvest = s.millionaire?.tithed ?? 0;
       const n = harvest(s, i);
+      const contribution = (s.millionaire?.tithed ?? 0) - titheBeforeHarvest;
       save();
       chime();
       if (s.seeds > seedsBeforeHarvest) seedChime();
       toast(
-        `Harvested ${money(n)}! The tree withers. Plant a fresh seed for another tree.`,
+        `Harvested ${money(n + contribution)}! ${contribution ? `${money(contribution)} contributed to your community; ${money(n)} added to your pocket. ` : ""}The tree withers. Plant a fresh seed for another tree.`,
       );
     } else if (p.stage === "growing") {
       if (s.fertilizer && !p.fertilized) {
@@ -2962,6 +3235,18 @@ function selectTarget() {
   return world.targets
     .filter(
       (t) =>
+        ((!t.id.startsWith("willow-") &&
+          !t.id.startsWith("fellowship-") &&
+          !t.id.startsWith("millionaire-")) ||
+          !!s.millionaire?.unlocked) &&
+        (!t.id.startsWith("fellowship-") ||
+          !!s.millionaire?.result ||
+          !!s.millionaire?.member) &&
+        (!t.id.startsWith("millionaire-") || !!s.millionaire?.member) &&
+        (!t.id.startsWith("fellowship-") ||
+          effectivelyVisible(
+            world.speakers.find((o) => o.id === t.id)!.object,
+          )) &&
         (t.id !== "mom" || !momAway(s)) &&
         (t.id !== "bea-chair" || inBeaHouse(s.position)) &&
         (s.foundTVSeeds ||
@@ -2987,18 +3272,39 @@ function selectTarget() {
     .sort((a, b) => targetScore(a) - targetScore(b))[0];
 }
 function hasSight(t: Target) {
-  const a = new T.Vector3(s.position.x, 1.1, s.position.z),
-    b = new T.Vector3(interactionPoint(t).x, 1.1, interactionPoint(t).z),
+  const a = new T.Vector3(
+      s.position.x,
+      terrainHeight(s.position.x, s.position.z) + 1.1,
+      s.position.z,
+    ),
+    b = new T.Vector3(
+      interactionPoint(t).x,
+      terrainHeight(t.x, t.z) + 1.1,
+      interactionPoint(t).z,
+    ),
     dir = b.sub(a),
     d = dir.length();
   if (d < 0.01) return true;
   ray.set(a, dir.normalize());
   ray.far = d;
   return !ray
-    .intersectObjects(world.occluders, false)
+    .intersectObjects(
+      world.occluders.filter((o) => cameraWalls.visibleForInteraction(o)),
+      false,
+    )
     .some((h) => h.distance < d - 0.1);
 }
 function updateUI() {
+  membershipHud.hidden = !s.millionaire?.member;
+  if (s.millionaire?.member) {
+    const f = fellowship(s.millionaire.member);
+    membershipHud.innerHTML = `<span class="membership-icon" aria-hidden="true">▣</span><span><small>Membership</small><strong>${f.id === "arms" ? "M.I.A." : f.id === "bridge" ? "Bridge" : "Breath of Fire"}</strong></span>`;
+    membershipHud.title = `${f.name} membership card. Open your phone apps.`;
+    membershipHud.setAttribute(
+      "aria-label",
+      `${f.name} membership card and phone apps`,
+    );
+  }
   drinkHud.hidden = !s.drink;
   if (s.drink) {
     const drink = drinks.find((d) => d.id === s.drink!.id)!;
@@ -3101,6 +3407,15 @@ function updateUI() {
     hint =
       "Past Thread & Thimble, the lane opens into Sigma Town. Its ten community beds need fresh seeds.";
   }
+  if (s.awake && s.millionaire?.unlocked && !s.millionaire.member) {
+    objective = "A path into the willows";
+    hint =
+      "Follow the gap beside the coin ATM in Sigma Town’s back hedge. A guru is waiting beneath the great willow.";
+  } else if (s.awake && s.millionaire?.member && !s.millionaire.titheAccepted) {
+    objective = "Follow your community to Mt. Millionaire";
+    hint =
+      "Run north along the willow path, climb the white terraces, and visit the guide in the pagoda.";
+  }
   $("#objective").textContent = objective;
   $("#hint").textContent = hint;
   const phase = storyPhase(s);
@@ -3142,21 +3457,28 @@ function updateUI() {
   }
   const { x, z } = s.position;
   $("#location").textContent =
-    s.foundTVSeeds && z < -40
-      ? "Sigma Town"
-      : atHome()
-        ? "Home, sweet home"
-        : x < -8 && x > -23 && z >= 14 && z < 24
-          ? "Your little garden"
-          : z < -21 && z > -39 && x > -4 && x < 16
-            ? "Robertsons"
-            : z < -23 && z > -35 && x > 18 && x < 30
-              ? "Thread & Thimble"
-              : z < -13
-                ? "Market lane"
-                : "Willow lane";
+    s.millionaire?.unlocked && z < -90
+      ? z < -335
+        ? "Mt. Millionaire"
+        : "The willow grove"
+      : s.foundTVSeeds && z < -40
+        ? "Sigma Town"
+        : atHome()
+          ? "Home, sweet home"
+          : x < -8 && x > -23 && z >= 14 && z < 24
+            ? "Your little garden"
+            : z < -21 && z > -39 && x > -4 && x < 16
+              ? "Robertsons"
+              : z < -23 && z > -35 && x > 18 && x < 30
+                ? "Thread & Thimble"
+                : z < -13
+                  ? "Market lane"
+                  : "Willow lane";
   near = selectTarget();
-  let prompt = "";
+  let prompt =
+    s.millionaire?.titheAccepted && !riding && fertileMountainSoil(x, z)
+      ? "E Plant directly in this fertile terrace"
+      : "";
   let unavailable = false;
   if (!s.awake) prompt = "<kbd>E</kbd> Get out of bed";
   else if (action)
@@ -3288,7 +3610,7 @@ function frame(now: number) {
     s.position = clearPosition(
       s.position,
       world.rects,
-      s.foundTVSeeds ? -89 : -39,
+      s.millionaire?.unlocked ? -470 : s.foundTVSeeds ? -89 : -39,
     );
   const distanceToRoom = (
     left: number,
@@ -3386,9 +3708,18 @@ function frame(now: number) {
   world.bikeShopSign.visible = !inBikeShop(s.position);
   const balloonView =
     !!s.pepeShowStarted && (!s.pepePopped || pepeViewHold > 0);
+  const farPlane = s.position.z < -90 ? 700 : balloonView ? 250 : 110;
+  if (camera.far !== farPlane) {
+    camera.far = farPlane;
+    camera.updateProjectionMatrix();
+  }
   const fog = scene.fog as T.Fog;
-  fog.near += ((balloonView ? 90 : 35) - fog.near) * (1 - Math.exp(-dt * 3));
-  fog.far += ((balloonView ? 220 : 90) - fog.far) * (1 - Math.exp(-dt * 3));
+  fog.near +=
+    ((balloonView ? 90 : s.position.z < -90 ? 140 : 35) - fog.near) *
+    (1 - Math.exp(-dt * 3));
+  fog.far +=
+    ((balloonView ? 220 : s.position.z < -90 ? 500 : 90) - fog.far) *
+    (1 - Math.exp(-dt * 3));
   speechLayer.style.visibility = balloonView ? "hidden" : "";
   if (active) {
     if (s.awake) {
@@ -3471,7 +3802,12 @@ function frame(now: number) {
       const searchHint = seedSearchClock.update(
         s,
         elapsed,
-        !!seedConversation || momAway(s) || !!s.familyStory?.escort,
+        !!seedConversation ||
+          momAway(s) ||
+          !!s.familyStory?.escort ||
+          speaking?.id.startsWith("millionaire-") ||
+          speaking?.id.startsWith("fellowship-") ||
+          speaking?.id === "willow-guru",
       );
       if (searchHint) toast(searchHint);
       if (
@@ -3509,7 +3845,7 @@ function frame(now: number) {
         s.position = clearPosition(
           s.position,
           world.rects,
-          s.foundTVSeeds ? -89 : -39,
+          s.millionaire?.unlocked ? -470 : s.foundTVSeeds ? -89 : -39,
         );
       const rolling = rollTime > 0;
       if (riding) {
@@ -3557,7 +3893,7 @@ function frame(now: number) {
           speed = dt * movementSpeed(s, keys.has("shift"));
         const dx = (f * direction.x - r * direction.z) * speed,
           dz = (f * direction.z + r * direction.x) * speed;
-        move(s.position, dx, dz, movementRects);
+        move(s.position, dx, dz, movementRects, Math.max(0.5, jumpHeight));
         world.player.rotation.y = Math.atan2(dx, dz);
         walk += dt * (keys.has("shift") ? 17.5 : 10);
         world.player.position.y = reducedMotion ? 0 : Math.sin(walk) * 0.045;
@@ -3588,7 +3924,8 @@ function frame(now: number) {
         )
       )
         world.player.position.y += 0.29;
-      world.player.position.y += jumpHeight;
+      world.player.position.y +=
+        jumpHeight + terrainHeight(s.position.x, s.position.z);
       if (action) {
         if (
           Math.hypot(
@@ -3676,10 +4013,14 @@ function frame(now: number) {
       saveTime = 0;
     }
   }
-  s.position.x = T.MathUtils.clamp(s.position.x, -38, 38);
+  s.position.x = T.MathUtils.clamp(
+    s.position.x,
+    s.millionaire?.unlocked && s.position.z < -90 ? -94 : -38,
+    s.millionaire?.unlocked && s.position.z < -90 ? 144 : 38,
+  );
   s.position.z = T.MathUtils.clamp(
     s.position.z,
-    s.foundTVSeeds ? -89 : -39,
+    s.millionaire?.unlocked ? -470 : s.foundTVSeeds ? -89 : -39,
     38,
   );
   world.player.position.x = s.position.x;
@@ -3691,6 +4032,18 @@ function frame(now: number) {
   if (riding) bikeCockpit.update(active ? actualRideSpeed : 0, s.selectedBike!);
   world.sleeping.visible = begun && !s.awake;
   world.setSigmaUnlocked(!!s.foundTVSeeds);
+  world.sigma.setMillionaireOpen(!!s.millionaire?.unlocked);
+  world.millionaire.update(s, active && s.awake ? dt : 0);
+  if (s.millionaire?.unlocked && !millionairePathNoticed && begun) {
+    toast(
+      "A gap has opened in Sigma Town’s back hedge, beside the coin ATM. Follow the path into the willow grove.",
+    );
+    millionairePathNoticed = true;
+  } else if (!s.millionaire?.unlocked) millionairePathNoticed = false;
+  if (active && s.awake && !speaking && !paused) {
+    const owner = world.millionaire.greeting(s);
+    if (owner !== undefined) childConversation(owner);
+  }
   world.sigma.updateWalkers(
     active && s.awake && s.foundTVSeeds && !reducedMotion ? dt : 0,
     s.position.x,
@@ -3747,7 +4100,7 @@ function frame(now: number) {
     s.position = clearPosition(
       s.position,
       world.rects,
-      s.foundTVSeeds ? -89 : -39,
+      s.millionaire?.unlocked ? -470 : s.foundTVSeeds ? -89 : -39,
     );
     world.player.position.set(s.position.x, 0, s.position.z);
     save();
@@ -3792,7 +4145,11 @@ function frame(now: number) {
     camera.lookAt(cameraAim);
   } else if (riding) {
     rideTransition = Math.min(1, rideTransition + dt / 0.4);
-    const eye = new T.Vector3(s.position.x, rideEyeHeight(), s.position.z);
+    const eye = new T.Vector3(
+      s.position.x,
+      rideEyeHeight() + terrainHeight(s.position.x, s.position.z),
+      s.position.z,
+    );
     camera.position
       .copy(eye)
       .addScaledVector(
@@ -3827,7 +4184,8 @@ function frame(now: number) {
     const firstPerson = 1 - T.MathUtils.smoothstep(followDistance, 0, 1.5);
     const target = new T.Vector3(
         s.position.x,
-        1.4 +
+        terrainHeight(s.position.x, s.position.z) +
+          1.4 +
           firstPerson * 0.3 +
           jumpHeight +
           (sitting
@@ -3855,7 +4213,7 @@ function frame(now: number) {
         );
     cameraWalls.update(world.occluders, target, camera.position, desired);
     const cameraSolids = world.occluders.filter(
-      (object) => object.visible && !object.userData.cameraWall,
+      (object) => effectivelyVisible(object) && !object.userData.cameraWall,
     );
     const direction = desired.clone().sub(target),
       length = direction.length();
@@ -4015,7 +4373,7 @@ function frame(now: number) {
       s.position = clearPosition(
         ended.origin,
         world.rects,
-        s.foundTVSeeds ? -89 : -39,
+        s.millionaire?.unlocked ? -470 : s.foundTVSeeds ? -89 : -39,
       );
       world.setMomDay(s.day, atHome(), true, s.familyStory);
       save();
@@ -4308,6 +4666,24 @@ if (new URLSearchParams(location.search).has("test")) {
       camera.lookAt(10, 0, -67);
       renderer.render(scene, camera);
     },
+    millionaire: () => ({
+      visible: world.millionaire.group.visible,
+      draws: renderer.info.render.calls,
+      state: s.millionaire,
+      player: world.player.position.toArray(),
+      mountainPlots: s.plots.filter((p) => p.mountain),
+      mansions: world.millionaire.mansions.map((m) => ({
+        visible: m.home.visible,
+        car: m.car.visible,
+        yacht: m.yacht.visible,
+        builtHeight: m.home.scale.y,
+      })),
+      children: world.millionaire.children.map((o) => o.position.toArray()),
+      guide: world.millionaire.hosts.map((o) => ({
+        visible: o.visible,
+        position: o.position.toArray(),
+      })),
+    }),
     sigma: () => ({
       entranceSign: world.sigma.entranceSign.position.toArray(),
       walkers: world.sigma.walkers.map((w) => ({

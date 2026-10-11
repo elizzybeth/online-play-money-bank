@@ -1,4 +1,5 @@
 import type { State } from "./game";
+import { markPepeBaseline } from "./millionaire";
 export const canEnterPepe = (s: State) =>
   !!s.foundMeditationSeeds && !!(s.metStacy || s.stacyConversations);
 export function startPepeShow(s: State) {
@@ -16,6 +17,7 @@ export function tickPepeShow(s: State, seconds: number) {
   s.pepeInflation = Math.min(12, (s.pepeInflation ?? 0) + Math.max(0, seconds));
   if (s.pepeInflation < 12) return false;
   s.pepePopped = true;
+  markPepeBaseline(s);
   s.events.push(
     "The giant Pepe balloon popped. Green scraps and twenty-five seed packets scattered across Sigma Town.",
   );

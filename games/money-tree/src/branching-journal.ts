@@ -175,6 +175,26 @@ export function constructJournal(
   };
   const selections: string[] = [],
     paragraphs: string[] = [];
+  function addMountainNarrative() {
+    const mountainEvents = c.events.filter((e) =>
+      /gap opened behind Sigma Town|assessment matched me|Joined .*membership card|Agreed to contribute|left the terraces to build lavish mansions/.test(
+        e,
+      ),
+    );
+    paragraphs.push(...mountainEvents);
+    if (
+      c.familyPhase !== "saving" &&
+      has(c, /^Won \$1 by scoring ten points in a phone game/)
+    )
+      paragraphs.push(
+        "I earned a dollar on one of the children’s phone games. The app cost five dollars first.",
+      );
+    const contributions = c.events.filter((e) => e.startsWith("Contributed "));
+    if (contributions.length)
+      paragraphs.push(
+        `The community took its tenth from my new earnings today. The children’s houses seem much larger than the ones back home.`,
+      );
+  }
   const recentPages = c.previous.slice(-8).map(normalize);
   const repeatsPhrase = (text: string) => {
     const words = normalize(text).split(" ");
@@ -317,6 +337,7 @@ export function constructJournal(
         `I counted ${dollars(c.available)} altogether. I still need ${dollars(c.remaining)} for the shop.`,
         `There is ${dollars(c.remaining)} left before I can help Robertson keep his shop. I am keeping my ${dollars(c.available)} safe.`,
       ]);
+    addMountainNarrative();
     memory.used = memory.used.slice(-160);
     return {
       entry: `Day ${c.day}\n\n${paragraphs.join("\n\n")}`,
@@ -333,6 +354,14 @@ export function constructJournal(
     choose("first", undefined, true);
     memory.firstHarvestWritten = true;
   } else if (c.earned) choose("income", undefined, true);
+  else if (has(c, /^Won \$1 by scoring ten points in a phone game/))
+    choose(
+      "phone-income",
+      [
+        "I earned a dollar on one of the children’s phone games. Buying the app cost five dollars. I am keeping track of both.",
+      ],
+      true,
+    );
   else if (has(c, /^Sold my pretend coin/))
     choose(
       "sigmaSale",
@@ -634,6 +663,7 @@ export function constructJournal(
     );
   }
   if (selections.length === 1 && momParagraphs === 1 && !first) choose("worry");
+  addMountainNarrative();
   memory.used = memory.used.slice(-160);
   return {
     entry: `Day ${c.day}\n\n${paragraphs.join("\n\n")}`,
