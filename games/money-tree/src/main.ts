@@ -2391,9 +2391,6 @@ function updateCooking(dt: number) {
   }
   const second = c.root.getObjectByName("moms-meal-plate")!;
   second.visible = t >= 13;
-  second.position
-    .copy(world.mom.position)
-    .add(new T.Vector3(c.bed ? 0.45 : 0.45, c.bed ? 0.15 : 0.8, 0));
   if (t < 9) {
     world.player.rotation.y = 0;
     world.player.position.set(-12.5, 0, 11.2);
@@ -2423,8 +2420,50 @@ function updateCooking(dt: number) {
     c.dish.scale.setScalar(Math.max(0.35, 1 - (t - 13) * 0.08));
   }
   const hand = world.player.getObjectByName("hand-1");
-  if (hand)
-    hand.position.set(0.6, t < 9 ? 1.1 : 1.25, 0.38 + Math.sin(t * 4) * 0.06);
+  if (t >= 13) {
+    // Both actors hold a plate and lift a small bite to their mouths.
+    world.player.updateMatrixWorld(true);
+    world.mom.updateMatrixWorld(true);
+    c.dish.position.copy(
+      world.player.localToWorld(new T.Vector3(-0.2, 0.85, 0.48)),
+    );
+    second.position.copy(
+      world.mom.localToWorld(new T.Vector3(-0.2, c.bed ? 0.7 : 0.85, 0.48)),
+    );
+    second.scale.setScalar(Math.max(0.35, 1 - (t - 13) * 0.08));
+    for (const [actor, offset] of [
+      [world.player, 0],
+      [world.mom, 0.6],
+    ] as const) {
+      const lift = (1 - Math.cos((t - 13 + offset) * Math.PI)) / 2;
+      actor
+        .getObjectByName("hand--1")
+        ?.position.set(-0.25, c.bed && actor === world.mom ? 0.65 : 0.8, 0.48);
+      const eatingHand = actor.getObjectByName("hand-1");
+      eatingHand?.position.set(0.25 - lift * 0.17, 0.88 + lift * 0.55, 0.48);
+      actor.updateMatrixWorld(true);
+      const morselName =
+        actor === world.player ? "player-meal-bite" : "mom-meal-bite";
+      let morsel = c.root.getObjectByName(morselName);
+      if (!morsel) {
+        morsel = new T.Mesh(
+          new T.SphereGeometry(0.055, 10, 8),
+          new T.MeshStandardMaterial({
+            color: c.recipe & 1 ? "#f4be35" : "#eac68b",
+          }),
+        );
+        morsel.name = morselName;
+        c.root.add(morsel);
+      }
+      morsel.visible = lift > 0.15 && lift < 0.98;
+      if (eatingHand)
+        morsel.position
+          .copy(eatingHand.getWorldPosition(new T.Vector3()))
+          .add(new T.Vector3(0, 0.04, 0));
+    }
+  } else if (hand) {
+    hand.position.set(0.35, 1.1 + Math.sin(t * 4) * 0.06, 0.65);
+  }
   if (
     t >= 4 &&
     t < 9 &&
@@ -2449,6 +2488,10 @@ function updateCooking(dt: number) {
     c.root.removeFromParent();
     cookingScene = undefined;
     world.setPlayerSeated(false);
+    for (const side of [-1, 1])
+      world.mom
+        .getObjectByName(`hand-${side}`)
+        ?.position.set(side * 0.43, 0.79, 0);
     world.mom.position.copy(c.momOrigin);
     world.setMomDay(s.day, true, true, s.familyStory);
     s.position = c.bed ? { x: -6.6, z: 11.45 } : { x: -17.5, z: 10.9 };
