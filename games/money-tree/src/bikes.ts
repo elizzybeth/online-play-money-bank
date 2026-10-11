@@ -94,3 +94,50 @@ export function selectBike(s: State, id: BikeId) {
   s.selectedBike = id;
   return true;
 }
+export const bikeFeatures: Record<
+  BikeId,
+  { name: string; description: string; duration: number; cooldown: number }
+> = {
+  tassels: {
+    name: "Confetti Cannon",
+    description: "Fire a colorful burst of confetti.",
+    duration: 1,
+    cooldown: 8,
+  },
+  penny: {
+    name: "Bubble Parade",
+    description: "Float a parade of shimmering bubbles.",
+    duration: 5,
+    cooldown: 10,
+  },
+  cruiser: {
+    name: "Flower Trail",
+    description: "Leave a trail of bright blossoms behind you.",
+    duration: 8,
+    cooldown: 12,
+  },
+  bmx: {
+    name: "Bunny Hop",
+    description: "Hop into the air without losing your forward momentum.",
+    duration: 1,
+    cooldown: 5,
+  },
+  city: {
+    name: "Party Horn",
+    description: "Play a cheerful horn chord with dancing musical notes.",
+    duration: 2,
+    cooldown: 8,
+  },
+  mountain: {
+    name: "Firefly Escort",
+    description: "Ride with a little swarm of glowing fireflies.",
+    duration: 8,
+    cooldown: 12,
+  },
+  road: {
+    name: "Turbo",
+    description: "Ride fifty percent faster for five seconds.",
+    duration: 5,
+    cooldown: 12,
+  },
+};

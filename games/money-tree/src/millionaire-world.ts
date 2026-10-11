@@ -68,7 +68,8 @@ export function createMillionaireWorld(
   box(30, -0.3, -285, 270, 0.5, 390, "#b4a47e");
   box(46, -0.3, -76, 12, 0.5, 32, "#a4bd77");
   // East-hedge entrance runs outside town, then merges into the grove clearing.
-  box(43, 0.035, -60, 8, 0.035, 4, "#c5b48d");
+  const entrancePath = box(42, 0.035, -61, 10, 0.035, 6, "#c5b48d");
+  entrancePath.name = "millionaire-town-path-connection";
   box(46, 0.035, -82, 4, 0.035, 44, "#c5b48d");
   box(40, 0.035, -104, 16, 0.035, 4, "#c5b48d");
   box(34, 0.035, -113, 4, 0.035, 18, "#c5b48d");

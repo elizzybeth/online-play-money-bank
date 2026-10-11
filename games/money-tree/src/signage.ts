@@ -280,7 +280,9 @@ export function signCanvas(text: string, width = 768, height = 192) {
   }
   const grocery = text === "Robertsons" || text === "Hardware & Grocer";
   const hat =
-    text === "Thread & Thimble" || text === "A hat for every adventure";
+    text === "Thread & Thimble" ||
+    text === "Haberdashery" ||
+    text === "A hat for every adventure";
   const bike = text === "SPOKE & SADDLE";
   const coffee = text === "Grindset";
   const paper = hat

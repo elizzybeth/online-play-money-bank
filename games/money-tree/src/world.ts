@@ -1,3 +1,4 @@
+import { makeBikeRack } from "./bike-rack";
 import { makeBedsideTable } from "./bedside-model";
 import { makeFurnishing } from "./furnishing-models";
 import type { FurnishingId } from "./furnishings";
@@ -1494,6 +1495,8 @@ export function createWorld(scene: T.Scene) {
   box(19.9, 3.6, -23, 3.8, 7.2, 0.25, "#e4bc9e", true);
   box(28.1, 3.6, -23, 3.8, 7.2, 0.25, "#e4bc9e", true);
   box(24, 5.05, -23, 4.4, 4.3, 0.25, "#e4bc9e");
+  label("Haberdashery", 24, 6.25, -22.6, 7, "#704a65", 5).name =
+    "thread-thimble-haberdashery-sign";
   const arrowPost = box(28.2, 2.65, -22.55, 0.14, 5.3, 0.16, "#856c50");
   arrowPost.name = "haberdasher-arrow-post";
   // Rotated one-unit panels need more than one unit between their centres.
@@ -1680,6 +1683,12 @@ export function createWorld(scene: T.Scene) {
     scene.add(lamp);
   }
   doorways.push({ x: -18, z: -21, w: 5, d: 5 });
+  const bikeRack = makeBikeRack();
+  bikeRack.object.position.set(-24, 0, -17);
+  scene.add(bikeRack.object);
+  rects.push({ x: -24, z: -17, w: 7, d: 3.2, clearHeight: 2.4 });
+  target("bike-rack", -24, -14.7, "Choose a bike");
+  label("Your bike rack", -24, 2.65, -18.15, 4).name = "bike-rack-sign";
   const bikeDisplays = bikes.map((bike, i) => {
     const hung = i >= 4;
     const x = hung ? -24 + (i - 4) * 6 : i % 2 ? -12 : -24;
@@ -2418,8 +2427,14 @@ export function createWorld(scene: T.Scene) {
     neighborGardens,
     outdoorBirdhouses,
   );
+  const level3PathBushes: T.Mesh[] = [];
   for (let i = 0; i < 12; i++) {
-    ball(-45 + i * 9, 2, -91, 7, "#93ae82").scale.set(1, 1.3, 1);
+    const bush = ball(-45 + i * 9, 2, -91, 7, "#93ae82");
+    bush.scale.set(1, 1.3, 1);
+    if (i >= 9) {
+      bush.name = "level3-path-backdrop-bush";
+      level3PathBushes.push(bush);
+    }
     ball(-45 + i * 9, 2, 45, 7, "#93ae82").scale.set(1, 1.3, 1);
   }
   for (let i = 0; i < 9; i++) {
@@ -2466,6 +2481,10 @@ export function createWorld(scene: T.Scene) {
     targets,
     speakers,
   );
+  function setMillionaireOpen(open: boolean) {
+    sigma.setMillionaireOpen(open);
+    for (const bush of level3PathBushes) bush.visible = !open;
+  }
   const gateRect = { x: 34.5, z: -40, w: 5, d: 1 };
   const gate = box(34.5, 1.05, -40, 5, 2.1, 1, "#658464");
   rects.push(gateRect);
@@ -2640,6 +2659,7 @@ export function createWorld(scene: T.Scene) {
     bikeShopRoof,
     bikeShopSign,
     bikeDisplays,
+    bikeRack,
     wildlife,
     diggingTool,
     fertilizerBox,
@@ -2659,6 +2679,8 @@ export function createWorld(scene: T.Scene) {
     sigma,
     millionaire,
     setSigmaUnlocked,
+    setMillionaireOpen,
+    level3PathBushes,
     syncBeds,
     showBirdhouses,
     outdoorBirdhouses,

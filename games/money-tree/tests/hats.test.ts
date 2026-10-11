@@ -123,3 +123,15 @@ test("Moonrise Wizard conserves about half of fertilizer doses without speeding 
   }
   assert(saved >= 40 && saved <= 60);
 });
+
+test("beekeeper lower hem is hollow and separated from the transparent veil", () => {
+  const model = makeHat("beekeeper");
+  const hem: any = model.getObjectByName("beekeeper-veil-hem");
+  const veil: any = model.getObjectByName("beekeeper-veil");
+  assert(hem && veil);
+  assert.equal(hem.geometry.type, "LatheGeometry");
+  const radii = hem.geometry.parameters.points.map((p: any) => p.x);
+  assert(Math.min(...radii) > 0.55);
+  assert(Math.max(...radii) > veil.geometry.parameters.radiusTop + 0.02);
+  assert(Math.min(...radii) < veil.geometry.parameters.radiusTop - 0.02);
+});
