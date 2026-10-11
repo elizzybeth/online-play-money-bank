@@ -35,6 +35,12 @@ test("hedge passage stays closed until fifth packet, then a real walk crosses in
   expect(
     (await page.evaluate(() => (window as any).game.sigma())).visible,
   ).toBe(false);
+  // A hidden parent must also hide every descendant's floating nameplate.
+  const visibleChads = page
+    .locator(".npc-name")
+    .filter({ hasText: /Chad|Stacy/ });
+  for (let i = 0; i < (await visibleChads.count()); i++)
+    await expect(visibleChads.nth(i)).toBeHidden();
 });
 test("sigma garden, fresh Chads, Grindset name input, investments, coffee and save round-trip", async ({
   page,

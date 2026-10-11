@@ -71,8 +71,25 @@ export function createSigmaWorld(
     m.position.set(x, y, z);
     town.add(m);
     m.name = `sigma-sign-${text}`;
-    if (["Doge", "Pepe", "Hawk Tuah"].includes(text))
+    if (["Doge", "Pepe", "Hawk Tuah"].includes(text)) {
       m.userData.houseSign = true;
+      // A solid framed plaque on spacers, with lettering above its front face.
+      const backing = new T.Mesh(
+        new T.BoxGeometry(w + 0.12, w / 4 + 0.12, 0.18),
+        new T.MeshStandardMaterial({ color: "#473e32", roughness: 0.8 }),
+      );
+      backing.position.z = -0.115;
+      backing.castShadow = true;
+      m.add(backing);
+      for (const side of [-1, 1]) {
+        const spacer = new T.Mesh(
+          new T.BoxGeometry(0.1, 0.16, 0.35),
+          new T.MeshStandardMaterial({ color: "#756b58" }),
+        );
+        spacer.position.set(side * w * 0.35, 0, -0.35);
+        m.add(spacer);
+      }
+    }
     return m;
   }
   // One union mesh, lifted above the grass: no coplanar seams or overlapping tiles.
@@ -356,9 +373,9 @@ export function createSigmaWorld(
   roofs.push(buckle);
   // The east wall's outer face is x=.65 before scaling. Signs need a
   // physical standoff, and must sit below the cowboy hat's broad brim.
-  sign("Hawk Tuah", 1, 2, -81, 3.6).rotation.y = Math.PI / 2;
-  sign("Doge", 1, 2, -49, 3).rotation.y = Math.PI / 2;
-  sign("Pepe", 1, 2, -66, 3).rotation.y = Math.PI / 2;
+  sign("Hawk Tuah", 1.4, 2, -81, 3.6).rotation.y = Math.PI / 2;
+  sign("Doge", 1.4, 2, -49, 3).rotation.y = Math.PI / 2;
+  sign("Pepe", 1.4, 2, -66, 3).rotation.y = Math.PI / 2;
   // Enlarge each house around its own center and move the row west for clear space.
   for (const object of town.children.slice(memeStart)) {
     const oldZ = object.position.z;

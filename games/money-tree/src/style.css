@@ -1410,6 +1410,9 @@ body.riding #bike-bell-help {
   color: #c7df91;
   padding: 0 6px;
 }
+#daily-net-hud.negative .daily-net-icon {
+  color: #ff817a;
+}
 .color-puzzle-panel {
   width: min(660px, 94vw);
   max-height: 94vh;
@@ -1541,3 +1544,25 @@ body.riding #bike-bell-help {
 #tv-news-caption p {
   margin: 6px 0 0;
 }
+
+/* The book body, rather than the button row, owns the page scroll area. */
+.notebook-paper {
+  box-sizing: border-box;
+  height: min(780px, 90dvh);
+}
+.notebook-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+.notebook-paper .choices {
+  position: static;
+  margin-top: 8px;
+}
+.notebook-spread {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.notebook-content > .page-number, .notebook-content > .fine { flex-shrink: 0; }
