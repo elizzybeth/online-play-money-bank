@@ -1,3 +1,4 @@
+import { childReport } from "./child-reports";
 import { purchasePrice } from "./meals";
 import type { State } from "./game";
 import { mountainPlots, fertileMountainSoil } from "./millionaire-land";
@@ -130,7 +131,7 @@ export function recordEarnings(
     const after = mansionCount(m);
     if (after > before)
       s.events.push(
-        `${after - before} ${after - before === 1 ? "Child" : "Children"} of ${fellowship(m.member!).name} left the terraces to build lavish mansions. ${after === 1 ? "One" : after} of six now ${after === 1 ? "lives" : "live"} at the mountain’s foot.`,
+        childReport(after - before, after, fellowship(m.member!).name),
       );
   }
   const tithe =

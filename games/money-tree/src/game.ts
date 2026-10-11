@@ -1,3 +1,4 @@
+import { normalizeChildReports } from "./child-reports";
 import {
   validFurnishings,
   type FurnishingId,
@@ -864,6 +865,7 @@ export function decode(raw: string | null): State | null {
         .replace(/^Day (\d+) — /, "Day $1\n\n")
         .replaceAll("—", ". "),
     );
+    s.journal = s.journal.map(normalizeChildReports);
     s.harvestReflected ??= s.journal.some(
       (entry: string) =>
         entry.includes("It really grew money.") ||

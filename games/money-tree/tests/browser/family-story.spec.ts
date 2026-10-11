@@ -21,7 +21,7 @@ const overlap = (a: any, b: any) =>
     (v: number, i: number) =>
       v <= b.max[i] + 0.01 && a.max[i] >= b.min[i] - 0.01,
   );
-test("sign panels have physical clearance, resources sit below the scene on desktop and narrow screens", async ({
+test("sign panels have physical clearance, resources stay below and money stacks at top right on desktop and narrow screens", async ({
   page,
 }) => {
   const s = fresh();
@@ -66,9 +66,13 @@ test("sign panels have physical clearance, resources sit below the scene on desk
     );
     const footer = await page.locator("footer").boundingBox();
     expect(boxes[0].bottom).toBeLessThan(footer!.y);
-    for (const b of boxes) {
-      // Narrow screens wrap the expanded inventory above the lower-left day.
+    for (const b of [boxes[0], boxes[3], boxes[4]])
       expect(b.y).toBeGreaterThan(500);
+    expect(boxes[1].y).toBeLessThan(boxes[0].y);
+    expect(boxes[2].y).toBeGreaterThanOrEqual(boxes[1].bottom);
+    expect(Math.abs(boxes[1].x - boxes[2].x)).toBeLessThan(2);
+    for (const b of boxes) {
+      // Both stacks must remain inside the viewport.
       expect(b.x).toBeGreaterThanOrEqual(0);
       expect(b.right).toBeLessThanOrEqual(width);
       expect(b.bottom).toBeLessThan(800);

@@ -104,6 +104,23 @@ export function makeFurnishing(id: FurnishingId, seed = 0) {
     for (const x of [-0.28, 0, 0.28])
       for (const y of [0.85, 1.12])
         add(new T.SphereGeometry(0.018, 8, 6), "#dc9b52", x, y, 0.335);
+  } else if (id === "pouf") {
+    add(new T.CylinderGeometry(0.53, 0.53, 0.68, 20), "#b93b75", 0, 0.42, 0);
+    add(new T.SphereGeometry(1, 20, 12), "#d95286", 0, 0.76, 0).scale.set(
+      0.53,
+      0.11,
+      0.53,
+    );
+    for (let i = 0; i < 8; i++) {
+      const a = (i * Math.PI) / 4;
+      add(
+        new T.CylinderGeometry(0.02, 0.02, 0.015, 8),
+        "#8e2a59",
+        Math.cos(a) * 0.32,
+        0.85,
+        Math.sin(a) * 0.32,
+      );
+    }
   } else if (id === "rug") {
     box(2.4, 0.025, 1.6, "#743552", 0, 0.018, 0);
     for (let i = 0; i < 9; i++)

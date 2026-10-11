@@ -1,3 +1,4 @@
+import { makeBedsideTable } from "./bedside-model";
 import { makeFurnishing } from "./furnishing-models";
 import type { FurnishingId } from "./furnishings";
 import { createTownLife } from "./town-life-world";
@@ -498,8 +499,10 @@ export function createWorld(scene: T.Scene) {
   box(-4, 0.69, 10, 2, 0.25, 3.3, "#f0e5cf");
   box(-4, 0.87, 10.5, 2, 0.14, 2.2, "#863d87");
   box(-4, 0.91, 8.95, 1.5, 0.2, 0.7, "#ffefd3");
-  box(-2.4, 0.6, 7.2, 1.2, 1.2, 0.7, "#a48162", true);
-  ball(-2.4, 1.6, 7.2, 0.25, "#ead596").scale.set(1, 0.7, 1);
+  const bedside = makeBedsideTable();
+  bedside.position.set(-2.4, 0, 7.2);
+  scene.add(bedside);
+  rects.push({ x: -2.4, z: 7.2, w: 1.2, d: 0.7, clearHeight: 2.28 });
 
   doorways.push({ x: -9, z: 7.5, w: 2, d: 2.4 });
   box(-9, 1.7, 2.25, 0.25, 3.4, 8.5, "#efb3aa", true);

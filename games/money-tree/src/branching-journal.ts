@@ -1,3 +1,4 @@
+import { normalizeChildReports } from "./child-reports";
 import { journalContext, type JournalContext } from "./journal";
 import type { State } from "./game";
 import { hats } from "./hats";
@@ -340,7 +341,9 @@ export function constructJournal(
     addMountainNarrative();
     memory.used = memory.used.slice(-160);
     return {
-      entry: `Day ${c.day}\n\n${paragraphs.join("\n\n")}`,
+      entry: normalizeChildReports(
+        `Day ${c.day}\n\n${paragraphs.join("\n\n")}`,
+      ),
       memory,
       selections,
     };
@@ -666,7 +669,7 @@ export function constructJournal(
   addMountainNarrative();
   memory.used = memory.used.slice(-160);
   return {
-    entry: `Day ${c.day}\n\n${paragraphs.join("\n\n")}`,
+    entry: normalizeChildReports(`Day ${c.day}\n\n${paragraphs.join("\n\n")}`),
     memory,
     selections,
   };

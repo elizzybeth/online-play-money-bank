@@ -118,11 +118,20 @@ test("parked bike E has a visible one-second hop and the higher first-person vie
   await page.keyboard.press("h");
   await frames(page, 5);
   await expect(page.locator("#prompt")).toContainText("Mount bicycle");
+  const parkedHeading = (
+    await page.evaluate(() => (window as any).game.homeLiving())
+  ).parkedHeading;
+  await page.evaluate(() => (window as any).game.setYaw(1.2));
   await page.keyboard.press("e");
+  await frames(page, 3);
+  const hop = await page.evaluate(() => (window as any).game.homeLiving());
+  expect(hop.parkedHeading).toBe(parkedHeading);
+  expect(hop.playerHeading).toBeCloseTo(parkedHeading + Math.PI, 5);
   await frames(page, 55);
   expect(
     (await page.evaluate(() => (window as any).game.bicycle())).firstPerson,
   ).toBe(true);
+  expect((await page.locator("footer").boundingBox())!.y).toBeLessThan(85);
   expect(
     (await page.evaluate(() => (window as any).game.camera())).position[1],
   ).toBeGreaterThan(2);
@@ -194,3 +203,15 @@ test("Willow Lane camera stays near the player and desert thoughts stay centered
   expect(Math.abs(box!.x + box!.width / 2 - 640)).toBeLessThan(2);
   await expect(bubble).not.toContainText(/who lives|what.*top/i);
 });
+
+for (const day of [1, 3]) {
+  test(`bedside chair uses the correct prompt on day ${day}`, async ({
+    page,
+  }) => {
+    await start(page, { position: { x: -6.6, z: 11.4 }, day });
+    await expect(page.locator("#prompt")).toHaveText(
+      day === 3 ? "E Sit nearby Mom" : "E Sit",
+    );
+    await expect(page.locator("#stats")).toHaveText(`Day ${day}`);
+  });
+}

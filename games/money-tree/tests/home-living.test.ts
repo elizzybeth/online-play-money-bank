@@ -1,3 +1,5 @@
+import { makeBedsideTable } from "../src/bedside-model";
+import { createWildlife } from "../src/wildlife";
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -19,6 +21,7 @@ import {
   purchasePrice,
 } from "../src/meals";
 import {
+  furnishingCatalog,
   canPlaceFurniture,
   homeLevel,
   type WallSpace,
@@ -140,4 +143,39 @@ test("recognizable sports car and yacht details have finite geometry", () => {
     assert(object.userData.reference);
   }
   assert(makeYacht().getObjectByName("yacht-railing"));
+});
+
+test("pink pouf is a placeable Robertson furnishing and persists in saves", () => {
+  const s = fresh();
+  const pouf = furnishingCatalog.find((f) => f.id === "pouf")!;
+  assert.equal(pouf.level, 1);
+  assert.equal(pouf.wall, undefined);
+  const placed = { item: "pouf" as const, x: -15, y: 0, z: 3, rotation: 0 };
+  assert(canPlaceFurniture(placed, [], [], []));
+  s.furniture = [placed];
+  assert.deepEqual(decode(JSON.stringify(s))!.furniture, [placed]);
+});
+
+test("bedside lamp rests on a detailed nightstand and ambient birds perch above house roofs", () => {
+  const bedside = makeBedsideTable();
+  assert(bedside.getObjectByName("mustard-dome-lamp"));
+  const bounds = new T.Box3().setFromObject(bedside);
+  assert(bounds.min.y >= -0.01 && bounds.max.y < 2.4);
+  const house = new T.Group();
+  house.position.set(0, 1.35, 0);
+  house.visible = true;
+  const life = createWildlife(
+    new T.Scene(),
+    [{ x: 5, z: 5 }],
+    [new T.Group()],
+    [house],
+  );
+  life.update(7);
+  for (const bird of life.birds.filter(
+    (b) => b.state === "perched" && b.perch === "birdhouse",
+  )) {
+    assert(
+      new T.Box3().setFromObject(bird.object).min.y > house.position.y + 0.33,
+    );
+  }
 });

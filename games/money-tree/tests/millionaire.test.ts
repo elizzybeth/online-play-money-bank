@@ -79,7 +79,8 @@ test("tithing applies to new earnings and mountain wealth builds six mansions by
   assert.equal(mansionCount(s.millionaire), 1);
   assert(
     s.events.some(
-      (e) => e.startsWith("1 Child of ") && e.includes("One of six now lives"),
+      (e) =>
+        e.startsWith("One Child of ") && e.includes("One of six now lives"),
     ),
   );
   assert.equal(recordEarnings(s, 83000, true), 74700);

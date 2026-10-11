@@ -50,6 +50,17 @@ test("five named hens and Fancy Chicken have a reachable cuddle and chair lifecy
   assert(
     rooster.children.filter((c) => c.name === "oversized-wattle").length === 2,
   );
+  rooster.updateMatrixWorld(true);
+  for (const flap of rooster.children.filter(
+    (c) => c.name === "oversized-wattle",
+  )) {
+    const b = new T.Box3()
+      .setFromObject(flap)
+      .applyMatrix4(rooster.matrixWorld.clone().invert());
+    assert(b.max.y < 0.78, "wattle clears eye height");
+    assert(b.max.x - b.min.x < 0.2, "wattle is a narrow flap");
+    assert(b.max.z - b.min.z < 0.05, "wattle is thin rather than a solid oval");
+  }
   const chair = targets.find((t) => t.id === "mom-chair")!;
   assert(!blocked(chair.x, chair.z, rects));
   assert(life.cuddle(0));
