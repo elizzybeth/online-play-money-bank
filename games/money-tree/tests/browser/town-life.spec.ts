@@ -139,6 +139,9 @@ test("Gigachad sells real pastry and Mom shares it; speech keeps thoughts hidden
   await page.keyboard.press("e");
   await expect(page.locator(".speech-bubble")).toBeVisible();
   await expect(page.locator("#thought")).toBeHidden();
+  const previousCamera = (
+    await page.evaluate(() => (window as any).game.camera())
+  ).position;
   await page
     .getByRole("button", { name: "Share spanakopita with Mom" })
     .click();
@@ -146,7 +149,29 @@ test("Gigachad sells real pastry and Mom shares it; speech keeps thoughts hidden
     await page.evaluate(() => (window as any).game.townLife().sharing),
   ).toBe(true);
   await expect(page.locator(".speech-bubble")).toContainText("delicious");
-  await frames(page, 110);
+  await frames(page, 30);
+  const mealCamera = (await page.evaluate(() => (window as any).game.camera()))
+    .position;
+  expect(
+    Math.hypot(
+      ...mealCamera.map((v: number, i: number) => v - previousCamera[i]),
+    ),
+  ).toBeGreaterThan(1);
+  await page.screenshot({
+    path: "../../outputs/money-tree-spanakopita-camera.png",
+  });
+  // End the 3.2-second scene on a frame and inspect the immediate restored shot.
+  for (let i = 0; i < 90; i++) {
+    await frames(page, 1);
+    if (!(await page.evaluate(() => (window as any).game.townLife().sharing)))
+      break;
+  }
+  await frames(page, 1);
+  const restored = (await page.evaluate(() => (window as any).game.camera()))
+    .position;
+  restored.forEach((v: number, i: number) =>
+    expect(v).toBeCloseTo(previousCamera[i], 4),
+  );
   await page.keyboard.press("e");
   await frames(page, 5);
   expect(
@@ -241,7 +266,7 @@ test("five hens and a rooster wander and Tuck jumps into your arms; Mom has a us
   ).toBeUndefined();
   await page.evaluate(() => (window as any).game.teleport(-6.6, 11.4));
   await frames(page);
-  await expect(page.locator("#prompt")).toContainText("Sit nearby Mom");
+  await expect(page.locator("#prompt")).toHaveText("E Sit");
   await page.keyboard.press("e");
   expect(await page.evaluate(() => (window as any).game.seated())).toBe(true);
   await page.keyboard.press("e");
@@ -310,6 +335,11 @@ test("menus, hint and coin tracker stack in the top right above bottom resources
     expect(coin.y).toBeGreaterThan(hint.y + hint.height);
     expect(coin.x + coin.width).toBeLessThanOrEqual(size.width);
     expect(coin.x + coin.width).toBeGreaterThan(size.width - 25);
+    const pocket = (await page.locator("#cash-hud").boundingBox())!;
+    const saved = (await page.locator("#bank-hud").boundingBox())!;
+    expect(pocket.y).toBeGreaterThan(coin.y + coin.height);
+    expect(saved.y).toBeGreaterThan(pocket.y + pocket.height);
+    expect(Math.abs(saved.x - pocket.x)).toBeLessThan(2);
   }
 });
 

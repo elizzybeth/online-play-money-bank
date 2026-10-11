@@ -61,3 +61,15 @@ Pending current-batch cross-browser CI and live verification. Coverage above ide
 ## October 11 follow-up coverage
 
 This batch covers the Willow Lane camera limit, Spoke & Saddle doorway, home bookcase/art/chair moves, clear grove approach, Sigma adjacency, level-based home furnishing catalog and placement, persistent Mom paintings, all four groceries and fifteen dishes with twenty-second shared meals and food effects, parked-bike E mounting and raised POV, centered stage-aware desert thoughts, plant-based bacon reply, Community Guide default, fertile terrace messaging, interaction-grounded mansion/app journals, curved car/yacht models, Food of the Gods alignment and signs, COMPOST heading, held chicken camera/E release, standalone birdhouse stilts and Fuck’s haberdashery-area range.
+
+## Running camera and player polish, October 11
+
+- Running no longer repeatedly snaps the camera to its ideal point when follow lag crosses the boom limit. The limit projects continuously onto its maximum radius while keeping the emergency teleport recovery. A sustained-run browser regression reproduces the old extra 0.57-unit jump and checks the fix stays below 0.08 units of excess frame travel.
+- Children migration reports combine same-day transitions into one paragraph and spell out One through Six in both counts. Older saved notebook entries are normalized on load.
+- The living-room pink tufted pouf is now a level-one Robertson furnishing, with ordinary floor collision preview and save persistence. Mom’s bedside chair says Sit nearby Mom only during bedrest.
+- Parked-bike mounting keeps the bike heading and aligns the player to its front before the hop. Riding controls sit below the place label. The day label is alone at bottom left; resources use two-row columns at bottom right, with Pocket and Saved stacked beneath the top-right coin card. Hat pictures have extra title spacing and Wearing sits at the card bottom.
+- Grindset’s Drinks lettering is above the shelf cups. Food of the Gods has a narrower footprint and counter with clear composter separation; its two signs have distinct heights. The spanakopita sharing camera frames both diners and restores the prior camera position and aim immediately afterwards.
+- Mom has a wood nightstand on splayed legs, an open book cubby, drawer and mustard dome lamp. Interior pots have a solid floor base, visible terracotta rim and soil.
+- Ambient birds previously perched inside the entrance of a birdhouse. They now perch above its roof; smaller dedicated visitors retain the entrance flights. Fancy Chicken’s wattles are thin curved flaps below the beak, with swinging animation and clear eye height.
+
+Validation: 134 unit tests, production build, eight targeted browser cases, and close-up visual review passed. Full Chromium, Firefox and WebKit CI is required before merge.

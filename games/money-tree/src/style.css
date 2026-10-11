@@ -1147,9 +1147,8 @@ body:has(#intro:not([hidden])) #tree-report {
   border-radius: 18px;
 }
 body.riding footer {
+  top: 58px;
   bottom: auto;
-  top: 160px;
-  font-size: 11px;
 }
 body.riding footer span:nth-child(5),
 body.riding footer span:nth-child(6) {
@@ -1955,5 +1954,80 @@ body:has(#intro:not([hidden])) :is(#top-right-hud, #stats) {
   visibility: hidden;
 }
 
-#food-effect svg { width:44px; height:44px; flex-shrink:0; }
-#food-effect[hidden] { display:none; }
+#food-effect svg {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+}
+#food-effect[hidden] {
+  display: none;
+}
+
+/* Keep item status aligned across differently sized hat descriptions. */
+.hat-bag button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.hat-bag button > img {
+  margin-bottom: 12px;
+}
+.hat-bag button > b {
+  margin-top: auto;
+  padding-top: 14px;
+}
+
+#stats {
+  background: none;
+  border: 0;
+  padding: 0;
+  bottom: max(16px, env(safe-area-inset-bottom));
+  text-shadow: 0 1px 3px #172e2a;
+}
+#bank-hud-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 265px;
+}
+#bank-hud-stack .money-counter {
+  flex: 1;
+}
+#resource-hud {
+  display: grid;
+  grid-template-rows: repeat(2, auto);
+  grid-auto-flow: column;
+  grid-auto-columns: max-content;
+  gap: 6px;
+  width: auto;
+  max-width: calc(100vw - 24px);
+}
+#resource-hud > [hidden] {
+  display: none;
+}
+@media (max-width: 700px) {
+  #bank-hud-stack {
+    width: 220px;
+  }
+  #resource-hud {
+    grid-auto-columns: max-content;
+    gap: 4px;
+    max-width: calc(100vw - 24px);
+  }
+  #resource-hud .money-counter {
+    font-size: 12px;
+    padding: 4px;
+  }
+  #resource-hud .money-counter img {
+    width: 24px;
+    height: 30px;
+  }
+  #resource-hud .membership-icon {
+    font-size: 18px;
+    padding: 3px;
+  }
+  #membership-hud strong {
+    max-width: 95px;
+    font-size: 11px;
+  }
+}

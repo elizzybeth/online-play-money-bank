@@ -86,10 +86,17 @@ export function decorateHome(scene: T.Scene, rects: Rect[]) {
   bookcase(-12.1, 6.42, 2.6);
 
   function plant(x: number, z: number, h: number, c: string) {
-    mesh(new T.CylinderGeometry(0.27, 0.2, 0.43, 16), c, x, 0.23, z).name =
-      "glazed-houseplant-pot";
-    cyl(x, 0.445, z, 0.22, 0.025, "#54362c");
-    cyl(x, 0.43 + h / 2, z, 0.025, h, "#315a3d");
+    cyl(x, 0.06, z, 0.32, 0.08, "#b87143");
+    mesh(
+      new T.CylinderGeometry(0.31, 0.25, 0.5, 24),
+      "#efc480",
+      x,
+      0.29,
+      z,
+    ).name = "glazed-houseplant-pot";
+    cyl(x, 0.54, z, 0.32, 0.055, "#d39052");
+    cyl(x, 0.55, z, 0.27, 0.025, "#54362c");
+    cyl(x, 0.55 + h / 2, z, 0.025, h, "#315a3d");
     for (let j = 0; j < 12; j++) {
       const a = j * 2.399,
         y = 0.6 + (h * j) / 14;
@@ -241,25 +248,6 @@ export function decorateHome(scene: T.Scene, rects: Rect[]) {
         2.45,
         j % 2 ? "#e7aa2e" : "#c88422",
       );
-  // Tufted upholstery and brass feet give the furniture its own character.
-  cyl(-14.1, 0.42, 8.1, 0.53, 0.68, "#b93b75");
-  mesh(new T.SphereGeometry(1, 20, 12), "#d95286", -14.1, 0.76, 8.1).scale.set(
-    0.53,
-    0.11,
-    0.53,
-  );
-  for (let i = 0; i < 8; i++) {
-    const a = (i * Math.PI) / 4;
-    cyl(
-      -14.1 + Math.cos(a) * 0.32,
-      0.85,
-      8.1 + Math.sin(a) * 0.32,
-      0.02,
-      0.015,
-      "#8e2a59",
-    );
-  }
-  rects.push({ x: -14.1, z: 8.1, w: 1.06, d: 1.06, clearHeight: 0.87 });
   const chairStart = root.children.length;
   box(-6.6, 0.6, 10.2, 1.05, 0.25, 1.05, "#0a667a");
   mesh(new T.SphereGeometry(1, 18, 12), "#11506d", -6.6, 1.1, 10.66).scale.set(

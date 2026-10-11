@@ -426,9 +426,13 @@ function mountBike(complete = false) {
     );
     const nearby =
       parkedBike!.visible && parkedBike!.position.distanceTo(bikeHopFrom) < 2;
-    if (!nearby) parkedBike!.position.copy(bikeHopFrom);
+    if (!nearby) {
+      parkedBike!.position.copy(bikeHopFrom);
+      parkedBike!.rotation.y = yaw;
+    } else yaw = parkedBike!.rotation.y;
+    // Bike models face local -Z; the character faces local +Z.
+    world.player.rotation.y = yaw + Math.PI;
     bikeHopTo.copy(parkedBike!.position);
-    parkedBike!.rotation.y = yaw;
     parkedBike!.visible = true;
     bikeMountTime = 1;
     keys.clear();
@@ -1366,10 +1370,15 @@ function exportSave() {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
   toast("Game state downloaded.");
 }
+let spanakopitaShot: { position: T.Vector3; aim: T.Vector3 } | undefined;
 function shareWithMom() {
   dismissSpeech();
   if (world.life.busy || !shareSpanakopita(s)) return;
   keys.clear();
+  spanakopitaShot = {
+    position: camera.position.clone(),
+    aim: cameraAim.clone(),
+  };
   world.life.share();
   save();
   speak(
@@ -1983,7 +1992,7 @@ function homeShop() {
   const stock = furnishingCatalog.filter((f) => f.level <= homeLevel(s));
   panel(
     "Robertsons: groceries and home",
-    `<p>Eggs, rice, beans and tortillas are always available. Bring any combination home to cook with Mom.</p><p>Two new furnishing kinds arrive at each level: paintings and chairs, then monstera and snake plants, then pothos and rugs. Paintings have several designs.</p><p>Food bonuses last during awake play and end at sleep.</p>`,
+    `<p>Eggs, rice, beans and tortillas are always available. Bring any combination home to cook with Mom.</p><p>Two new furnishing kinds arrive at each level: paintings, chairs and a pink pouf, then monstera and snake plants, then pothos and rugs. Paintings have several designs.</p><p>Food bonuses last during awake play and end at sleep.</p>`,
     [
       ...ingredients.map((item) => ({
         label: `${item[0].toUpperCase() + item.slice(1)} · ${money(purchasePrice(s, 100))} · in bag ${s.groceries?.[item] ?? 0}`,
@@ -3226,7 +3235,10 @@ coinTracker.id = "coin-tracker";
 coinTracker.hidden = true;
 const topRightHud = document.createElement("div");
 topRightHud.id = "top-right-hud";
-topRightHud.append($("header"), $("#quest"), coinTracker);
+const bankHudStack = document.createElement("div");
+bankHudStack.id = "bank-hud-stack";
+bankHudStack.append(cashHud, bankHud);
+topRightHud.append($("header"), $("#quest"), coinTracker, bankHudStack);
 document.body.append(topRightHud);
 function updateCoinTracker() {
   coinTracker.hidden = !begun || !s.coin;
@@ -3607,7 +3619,11 @@ function interact() {
     world.player.rotation.y = Math.PI / 2;
     keys.clear();
     save();
-    toast("A quiet moment nearby Mom. Press E to stand up.");
+    toast(
+      !momAway(s) && momStatus(s.day, s.familyStory).activity === "bedrest"
+        ? "A quiet moment nearby Mom. Press E to stand up."
+        : "A quiet moment. Press E to stand up.",
+    );
     return;
   }
   if (id === "composter")
@@ -4499,15 +4515,7 @@ function updateUI() {
     "aria-label",
     `${money(s.bank)} saved in the piggy bank`,
   );
-  $("#stats").innerHTML = `Day ${s.day} &nbsp; ☀${
-    s.equippedHat
-      ? `<br><span class="equipped-hat">${wornHats(s)
-          .map((id) => hatById(id)!.name)
-          .join(
-            " + ",
-          )} · R to roll${wearing(s, "rabbit") ? " · Space to jump" : ""}</span>`
-      : ""
-  }`;
+  $("#stats").textContent = `Day ${s.day}`;
   document.documentElement.style.setProperty(
     "--resource-height",
     `${resourceHud.offsetHeight}px`,
@@ -4650,6 +4658,11 @@ function updateUI() {
     prompt = `Planting… ${Math.ceil(action.duration - action.elapsed)}s · stand still (moving cancels)`;
   else if (near) {
     let label = near.label;
+    if (near.id === "mom-chair")
+      label =
+        !momAway(s) && momStatus(s.day, s.familyStory).activity === "bedrest"
+          ? "Sit nearby Mom"
+          : "Sit";
     if (
       riding &&
       near.id.startsWith("plot") &&
@@ -5377,6 +5390,25 @@ function frame(now: number) {
     camera.lookAt(cameraAim);
     toastTime = Math.max(toastTime, 0.25);
     $("#toast").textContent = "E · Put the chicken down";
+  } else if (world.life.sharing) {
+    const center = world.player.position
+      .clone()
+      .lerp(world.mom.position, 0.5)
+      .add(new T.Vector3(0, 1.1, 0));
+    const separation = world.player.position.distanceTo(world.mom.position);
+    const shot = center
+      .clone()
+      .add(new T.Vector3(3 + separation * 0.3, 2, 4 + separation * 0.4));
+    cameraWalls.update(world.occluders, center, camera.position, shot);
+    camera.position.lerp(shot, reducedMotion ? 1 : 1 - Math.exp(-dt * 6));
+    cameraAim.copy(center);
+    camera.lookAt(cameraAim);
+  } else if (spanakopitaShot) {
+    camera.position.copy(spanakopitaShot.position);
+    cameraAim.copy(spanakopitaShot.aim);
+    camera.lookAt(cameraAim);
+    spanakopitaShot = undefined;
+    followInitialized = true;
   } else if (teaSeated) {
     // An interior view of all three chairs and the tea table.
     const easing = reducedMotion ? 1 : 1 - Math.exp(-dt * 7);
@@ -5526,7 +5558,10 @@ function frame(now: number) {
       }
     // Containment correction must never strand the camera outside its follow boom.
     if (!pepeReturning && next.distanceTo(target) > length + 0.5)
-      next.copy(ideal);
+      next
+        .sub(target)
+        .setLength(length + 0.5)
+        .add(target);
     camera.position.copy(next);
     const tilt = T.MathUtils.clamp((pitch - 0.42) * 0.9, -0.35, 0.6);
     const forward = viewForward();
@@ -5930,6 +5965,8 @@ if (new URLSearchParams(location.search).has("test")) {
         : null,
       models: furnishingRoot.children.length,
       mounting: bikeMountTime,
+      playerHeading: world.player.rotation.y,
+      parkedHeading: parkedBike?.rotation.y,
       parked: parkedBike?.visible ? parkedBike.position.toArray() : null,
     }),
     state: () => structuredClone(s),

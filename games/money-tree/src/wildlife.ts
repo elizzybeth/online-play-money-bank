@@ -78,7 +78,7 @@ export function createWildlife(
         if (i % 2 === 0 && visible.length) {
           const h = visible[(n + i) % visible.length];
           return {
-            point: h.position.clone().add(new T.Vector3(0, -0.15, 0.23)),
+            point: h.position.clone().add(new T.Vector3(0, 0.52, 0)),
             kind: "birdhouse",
           };
         }

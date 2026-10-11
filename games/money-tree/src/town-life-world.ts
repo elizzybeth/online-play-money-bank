@@ -292,9 +292,28 @@ export function createTownLife(
     if (i === 5) {
       object.userData.rooster = true;
       for (const side of [-1, 1]) {
-        const wattle = m.ball(side * 0.09, 0.56, 0.43, 0.17, "#c52431");
-        wattle.scale.set(0.65, 2.15, 0.9);
+        const flap = new T.Shape();
+        flap.moveTo(-0.025, 0);
+        flap.bezierCurveTo(-0.035, -0.1, -0.075, -0.24, -0.07, -0.39);
+        flap.bezierCurveTo(-0.06, -0.62, 0.1, -0.58, 0.08, -0.4);
+        flap.bezierCurveTo(0.06, -0.24, 0.025, -0.08, 0.025, 0);
+        flap.closePath();
+        const wattle = m.mesh(
+          new T.ExtrudeGeometry(flap, {
+            depth: 0.022,
+            bevelEnabled: true,
+            bevelSize: 0.008,
+            bevelThickness: 0.008,
+            bevelSegments: 2,
+            steps: 1,
+          }),
+          "#c52431",
+          side * 0.07,
+          0.72,
+          0.43,
+        );
         wattle.name = "oversized-wattle";
+        wattle.userData.side = side;
         m.ball(side * 0.23, 0.46, 0, 0.19, "#164c4e").scale.set(0.3, 1, 1.25);
       }
       for (let j = 0; j < 5; j++)
@@ -430,6 +449,13 @@ export function createTownLife(
         ch.object.position.y = scratching
           ? 0
           : Math.abs(Math.sin(time * 7 + i)) * 0.025;
+        for (const wattle of ch.object.children.filter(
+          (o) => o.name === "oversized-wattle",
+        )) {
+          wattle.rotation.x = Math.sin(time * 5 + i) * 0.1;
+          wattle.rotation.z =
+            wattle.userData.side * (0.09 + Math.sin(time * 4 + i) * 0.045);
+        }
         ch.target.x = ch.object.position.x;
         ch.target.z = ch.object.position.z;
       });

@@ -148,7 +148,7 @@ export function makeCoffeeShop() {
   ctx.font = "110px Gaegu";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText("Drinks", c.width / 2, c.height / 2);
+  ctx.fillText("Drinks", c.width / 2, c.height * 0.23);
   const texture = new T.CanvasTexture(c);
   texture.colorSpace = T.SRGBColorSpace;
   const menu = new T.Mesh(

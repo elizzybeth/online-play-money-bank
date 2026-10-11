@@ -714,14 +714,14 @@ export function createSigmaWorld(
   sign("COMPOST", 17.7, 2.65, -79.5, 2.2);
   sign("25 scraps → Soil", 17.7, 1.9, -79.5, 2.2);
   // A small walk-up Greek pastry shop beside Grindset, clear of the lane.
-  box(21, 0.02, -79.95, 5, 0.08, 3, "#d6e9e0");
-  box(21, 1.4, -81.4, 5, 2.8, 0.12, "#d6e9e0");
+  box(21, 0.02, -79.95, 3, 0.08, 3, "#d6e9e0");
+  box(21, 1.4, -81.4, 3, 2.8, 0.12, "#d6e9e0");
   for (const side of [-1, 1])
-    box(21 + side * 2.5, 1.4, -79.95, 0.12, 2.8, 3, "#d6e9e0");
-  box(21, 3, -79.95, 5.6, 0.18, 3.5, "#276d7a");
-  box(21, 1.0, -78.25, 4.8, 0.22, 0.75, "#b98c53");
-  rects.push({ x: 21, z: -79.95, w: 5, d: 3 });
-  sign("Food of the Gods", 21, 4.15, -78.3, 4.8);
+    box(21 + side * 1.5, 1.4, -79.95, 0.12, 2.8, 3, "#d6e9e0");
+  box(21, 3, -79.95, 3.3, 0.18, 3.5, "#276d7a");
+  box(21, 1.0, -78.25, 2.9, 0.22, 0.75, "#b98c53");
+  rects.push({ x: 21, z: -79.95, w: 3, d: 3 });
+  sign("Food of the Gods", 21, 4.7, -77.77, 3.3);
   sign("Spanakopita · $3", 21, 3.5, -77.77, 3.3);
   const gigachad = chad("gigachad", 21, -78.95, true);
   speakers.at(-1)!.name = "Gigachad";

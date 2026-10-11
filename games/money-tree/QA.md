@@ -196,3 +196,15 @@ Desktop keyboard and mouse. No touch/gamepad support yet. Home and haberdashery 
 - Twin Planter supports Sigma’s staggered community sites. Parked bikes mount with E and a one-second third-person hop; eye height is raised. Desert thoughts stay centered and reflect a prior summit visit and the mansions. Community Guide’s default reply is Thank you. Journals record only actual mansion interactions and app use; the second visit records the empty room.
 - Food of the Gods lines up with Grindset, with both signs above the roof. COMPOST labels the exchange bin. Birdhouses stand on freestanding wooden stilts. Cuddles retain a front camera view until E releases the chicken. Fuck prefers the Thread & Thimble area.
 - Wealth models use Porsche 911 Carrera and Sunseeker Manhattan 55 design references: curved coupe body, wheels, glass, lamps, exhaust; pointed yacht hull, teak decks, rails, flybridge and cabin windows.
+
+## Running camera and player polish, October 11
+
+- Running no longer repeatedly snaps the camera to its ideal point when follow lag crosses the boom limit. The limit projects continuously onto its maximum radius while keeping the emergency teleport recovery. A sustained-run browser regression reproduces the old extra 0.57-unit jump and checks the fix stays below 0.08 units of excess frame travel.
+- Children migration reports combine same-day transitions into one paragraph and spell out One through Six in both counts. Older saved notebook entries are normalized on load.
+- The living-room pink tufted pouf is now a level-one Robertson furnishing, with ordinary floor collision preview and save persistence. Mom’s bedside chair says Sit nearby Mom only during bedrest.
+- Parked-bike mounting keeps the bike heading and aligns the player to its front before the hop. Riding controls sit below the place label. The day label is alone at bottom left; resources use two-row columns at bottom right, with Pocket and Saved stacked beneath the top-right coin card. Hat pictures have extra title spacing and Wearing sits at the card bottom.
+- Grindset’s Drinks lettering is above the shelf cups. Food of the Gods has a narrower footprint and counter with clear composter separation; its two signs have distinct heights. The spanakopita sharing camera frames both diners and restores the prior camera position and aim immediately afterwards.
+- Mom has a wood nightstand on splayed legs, an open book cubby, drawer and mustard dome lamp. Interior pots have a solid floor base, visible terracotta rim and soil.
+- Ambient birds previously perched inside the entrance of a birdhouse. They now perch above its roof; smaller dedicated visitors retain the entrance flights. Fancy Chicken’s wattles are thin curved flaps below the beak, with swinging animation and clear eye height.
+
+Validation: 134 unit tests, production build, eight targeted browser cases, and close-up visual review passed. Full Chromium, Firefox and WebKit CI is required before merge.

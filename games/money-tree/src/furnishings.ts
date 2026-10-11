@@ -4,6 +4,7 @@ export type FurnishingId =
   | "botanical"
   | "geometric"
   | "seascape"
+  | "pouf"
   | "chair"
   | "monstera"
   | "snake"
@@ -69,6 +70,14 @@ export const furnishingCatalog: {
     level: 1,
     w: 1.15,
     d: 1.15,
+  },
+  {
+    id: "pouf",
+    name: "Pink tufted pouf",
+    price: 500,
+    level: 1,
+    w: 1.06,
+    d: 1.06,
   },
   {
     id: "monstera",
