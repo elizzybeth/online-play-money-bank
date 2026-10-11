@@ -31,7 +31,7 @@ for (const [day, activity, phrase] of [
       await expect(page.locator(".speech-bubble")).not.toContainText("cough");
     await page.keyboard.press("e");
     await expect(page.locator(".speech-bubble")).toContainText(phrase);
-    await expect(page.locator("#thought")).toBeVisible();
+    await expect(page.locator("#thought")).toBeHidden();
     await expect(page.locator("#thought")).not.toContainText("Your thought:");
     expect(
       (await page.locator("#thought").textContent())!.length,
