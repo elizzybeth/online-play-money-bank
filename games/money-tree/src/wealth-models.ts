@@ -78,7 +78,6 @@ export function makeSportsCar() {
   const m = maker(root);
   m.ball(0, 0.65, 0, 1.8, 0.55, 3.25, "#b33137");
   m.box(0, 0.36, 0, 3.5, 0.18, 5.6, "#25272c");
-  m.ball(0, 1.2, -0.35, 1.32, 0.71, 1.82, "#b33137");
   m.ball(0, 1.31, -0.36, 1.25, 0.59, 1.7, "#182d38");
   m.ball(0, 1.75, -0.55, 1.05, 0.16, 1.05, "#b33137");
   for (const x of [-1.75, 1.75])
@@ -132,19 +131,19 @@ export function makeSportsCar() {
   root.userData.reference = "Porsche 911 Carrera";
   return batch(root);
 }
-function hullGeometry() {
+function hullGeometry(depth = 1.7) {
   const shape = new T.Shape();
-  shape.moveTo(-2.25, -6);
-  shape.lineTo(2.25, -6);
-  shape.bezierCurveTo(2.65, -2, 2.1, 4, 0, 7);
-  shape.bezierCurveTo(-2.1, 4, -2.65, -2, -2.25, -6);
+  shape.moveTo(-2.25, 6);
+  shape.lineTo(2.25, 6);
+  shape.bezierCurveTo(2.65, 2, 2.1, -4, 0, -7);
+  shape.bezierCurveTo(-2.1, -4, -2.65, 2, -2.25, 6);
   const g = new T.ExtrudeGeometry(shape, {
-    depth: 1.7,
+    depth,
     bevelEnabled: true,
     bevelSegments: 3,
     steps: 1,
-    bevelSize: 0.16,
-    bevelThickness: 0.2,
+    bevelSize: depth < 1 ? 0.025 : 0.16,
+    bevelThickness: depth < 1 ? 0.02 : 0.2,
   });
   g.rotateX(-Math.PI / 2);
   return g;
@@ -155,9 +154,12 @@ export function makeYacht() {
   root.name = "mansion-yacht";
   const m = maker(root);
   m.mesh(hullGeometry(), "#f4eee0", 0, -0.8, 0);
-  m.box(0, 0.86, 0, 4.2, 0.15, 10.5, "#c99e68");
-  for (let i = 0; i < 20; i++)
-    m.box(-2 + i * 0.21, 0.95, 0, 0.013, 0.008, 10.1, "#795e40");
+  m.mesh(hullGeometry(0.1).scale(0.94, 1, 0.97), "#c99e68", 0, 0.86, 0);
+  for (let i = 0; i < 20; i++) {
+    const x = -2 + i * 0.21,
+      end = 6.55 - Math.abs(x) * 2.1;
+    m.box(x, 0.965, (end - 5.65) / 2, 0.013, 0.008, end + 5.65, "#795e40");
+  }
   m.ball(0, 1.74, -0.3, 1.88, 1.05, 3.15, "#f4eee0");
   m.ball(0, 1.87, -0.3, 1.94, 0.59, 3.2, "#182d38");
   m.box(0, 2.52, -0.6, 4.15, 0.17, 5.8, "#f4eee0");
