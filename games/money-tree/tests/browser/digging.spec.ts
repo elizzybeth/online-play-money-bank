@@ -32,7 +32,11 @@ for (const shovel of [false, true])
       .toBe(shovel);
     const pose = await page.evaluate(() => (window as any).game.digging());
     expect(pose.shovel).toBe(shovel);
-    expect(pose.hands[0][0] * pose.hands[1][0]).toBeLessThan(0);
+    if (!shovel) expect(pose.hands[0][0] * pose.hands[1][0]).toBeLessThan(0);
+    else
+      expect(
+        pose.hands.every((hand: number[]) => hand[0] > 0.6 && hand[2] > 0.6),
+      ).toBe(true);
     if (!shovel) await expect(page.locator("#toast")).toContainText("shovel");
     for (let i = 0; i < 10; i++) await page.clock.fastForward(16);
     const later = await page.evaluate(() => (window as any).game.digging());

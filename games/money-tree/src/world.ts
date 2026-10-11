@@ -271,28 +271,33 @@ export function createWorld(scene: T.Scene) {
   diggingTool.scale.setScalar(0.7);
   diggingTool.visible = false;
   player.add(diggingTool);
+  // Grip origin at the D-handle. The whole shaft remains in front of the torso.
+  diggingTool.children.forEach((child) => {
+    child.position.y -= 2.06;
+  });
   function setDigging(active: boolean, shovel: boolean, time: number) {
     diggingTool.visible = active && shovel;
     const stroke = Math.sin(time * Math.PI * 3);
+    diggingTool.rotation.set(active ? -0.32 - (stroke + 1) * 0.14 : 0, 0, 0);
+    diggingTool.position.set(0.65, 1.3 + stroke * 0.12, 0.65);
     for (const hand of player.children.filter((o) =>
       o.name.startsWith("hand-"),
     )) {
       const side = hand.name === "hand--1" ? -1 : 1;
-      hand.position.set(
-        side * 0.43,
-        active ? (shovel ? 0.71 : 0.5) + stroke * 0.13 : 0.79,
-        active ? 0.3 + stroke * 0.09 : 0,
-      );
+      if (active && shovel) {
+        const grip = new T.Vector3(0, side > 0 ? 0 : -0.38, 0)
+          .multiplyScalar(0.7)
+          .applyEuler(diggingTool.rotation)
+          .add(diggingTool.position);
+        hand.position.copy(grip);
+      } else
+        hand.position.set(
+          side * 0.43,
+          active ? 0.5 + stroke * 0.13 : 0.79,
+          active ? 0.3 + stroke * 0.09 : 0,
+        );
     }
-    diggingTool.rotation.x = active ? -0.9 - stroke * 0.25 : 0;
-    diggingTool.position.set(0.2, active ? 0.8 : 0, 0.24);
-    // Shift the shaft's grip to the hands; blade swings down into the soil.
-    for (const child of diggingTool.children)
-      if (!child.userData.gripAdjusted) {
-        child.position.y -= 0.9;
-        child.userData.gripAdjusted = true;
-      }
-    player.getObjectByName("body")!.rotation.x = active ? 0.16 : 0;
+    player.getObjectByName("body")!.rotation.x = active ? 0.12 : 0;
   }
   const fertilizerBox = new T.Group();
   player.add(fertilizerBox);
@@ -337,6 +342,65 @@ export function createWorld(scene: T.Scene) {
           flight,
         );
       grain.position.y += Math.sin(flight * Math.PI) * 0.2;
+    });
+  }
+  const wateringTool = makeGardenTool("can");
+  wateringTool.scale.setScalar(0.65);
+  wateringTool.visible = false;
+  player.add(wateringTool);
+  const waterDrops = new T.Group();
+  scene.add(waterDrops);
+  const dropGeometry = new T.SphereGeometry(0.025, 5, 4);
+  const dropMaterial = new T.MeshStandardMaterial({
+    color: "#84d5ec",
+    transparent: true,
+    opacity: 0.8,
+  });
+  for (let i = 0; i < 32; i++)
+    waterDrops.add(new T.Mesh(dropGeometry, dropMaterial));
+  waterDrops.visible = false;
+  function setWatering(active: boolean, time: number, x: number, z: number) {
+    wateringTool.visible = waterDrops.visible = active;
+    if (!active) return;
+    // The handle stays in the hand as the spout tips forward, clear of the torso.
+    const tilt = Math.sin(Math.min(1, time / 1.8) * Math.PI) * 0.65;
+    wateringTool.rotation.set(0, -Math.PI / 2, -tilt);
+    const grip = new T.Vector3(0.65, 1.15, 0.6);
+    wateringTool.position
+      .copy(grip)
+      .sub(
+        new T.Vector3(-0.62, 0.5, 0)
+          .multiplyScalar(0.65)
+          .applyEuler(wateringTool.rotation),
+      );
+    player.getObjectByName("hand-1")!.position.copy(grip);
+    player
+      .getObjectByName("hand--1")!
+      .position.copy(
+        new T.Vector3(0.1, 0.55, 0)
+          .multiplyScalar(0.65)
+          .applyEuler(wateringTool.rotation)
+          .add(wateringTool.position),
+      );
+    player.getObjectByName("body")!.rotation.x = 0.08;
+    player.updateMatrixWorld(true);
+    const spout = wateringTool.localToWorld(new T.Vector3(1.06, 0.66, 0));
+    waterDrops.children.forEach((drop, i) => {
+      drop.visible = time > 0.2 && time < 1.6;
+      const flight = (time * 2 + i / 32) % 1;
+      const angle = i * 2.399;
+      const radius = 0.1 + (i % 5) * 0.055;
+      drop.position
+        .copy(spout)
+        .lerp(
+          new T.Vector3(
+            x + Math.cos(angle) * radius,
+            0.3,
+            z + Math.sin(angle) * radius,
+          ),
+          flight,
+        );
+      drop.position.y += Math.sin(flight * Math.PI) * 0.12;
     });
   }
   const sleeping = new T.Group();
@@ -1564,6 +1628,9 @@ export function createWorld(scene: T.Scene) {
   const outdoorBirdhouses: T.Group[] = [];
   for (const [i, tree] of scenery
     .filter((o) => o.kind === "tree")
+    .sort(
+      (a, b) => Math.hypot(a.x + 16, a.z - 19) - Math.hypot(b.x + 16, b.z - 19),
+    )
     .slice(0, 12)
     .entries()) {
     const g = new T.Group();
@@ -2171,6 +2238,17 @@ export function createWorld(scene: T.Scene) {
         }
       });
     }
+    if (stage === "growing" || stage === "ready") {
+      const wetSoil = new T.Mesh(
+        new T.RingGeometry(0.08, 0.65, 32),
+        new T.MeshStandardMaterial({ color: "#493021", roughness: 0.93 }),
+      );
+      wetSoil.name = "watered-soil-ring";
+      wetSoil.rotation.x = -Math.PI / 2;
+      wetSoil.position.y = 0.012;
+      wetSoil.receiveShadow = true;
+      g.add(wetSoil);
+    }
     if (stage === "empty") return;
     if (stage === "planted" || stage === "growing") {
       cyl(0, 0.18, 0, 0.025, 0.3, "#444535", g);
@@ -2256,6 +2334,9 @@ export function createWorld(scene: T.Scene) {
     fertilizerBox,
     fertilizerGrains,
     setFertilizing,
+    wateringTool,
+    waterDrops,
+    setWatering,
     updateCartoon,
     setDigging,
     updateNotebook,

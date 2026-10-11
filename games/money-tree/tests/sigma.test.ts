@@ -289,3 +289,61 @@ test("partial coin sales retain remaining units without creating money", () => {
   assert(sellCoin(s));
   assert.equal(s.coin!.units, 0);
 });
+
+test("five additional market factors are persistent and independently affect price", () => {
+  const base = unlocked();
+  base.communityPlanted = true;
+  assert(createCoin(base, "Five factors"));
+  const changes: [string, (s: ReturnType<typeof fresh>) => void][] = [
+    [
+      "communityBeds",
+      (s) => {
+        s.plots[5].stage = "growing";
+      },
+    ],
+    [
+      "birdhouses",
+      (s) => {
+        s.birdhousesBuilt = 2;
+      },
+    ],
+    [
+      "discoveries",
+      (s) => {
+        s.foundCapSeeds = true;
+      },
+    ],
+    [
+      "bicycles",
+      (s) => {
+        s.bikes = ["tassels"];
+      },
+    ],
+    [
+      "tools",
+      (s) => {
+        s.can = true;
+        s.shovel = true;
+      },
+    ],
+  ];
+  for (const [factor, change] of changes) {
+    const control = decode(JSON.stringify(base))!;
+    const s = decode(JSON.stringify(base))!;
+    change(s);
+    assert(
+      marketSignals(s)[factor as keyof ReturnType<typeof marketSignals>] >
+        marketSignals(control)[
+          factor as keyof ReturnType<typeof marketSignals>
+        ],
+      factor,
+    );
+    const saved = decode(JSON.stringify(s))!;
+    assert.deepEqual(marketSignals(saved), marketSignals(s));
+    tickSigma(control, 15);
+    tickSigma(s, 15);
+    tickSigma(saved, 15);
+    assert(s.coin!.exactPrice! > control.coin!.exactPrice!, factor);
+    assert.deepEqual(s.coin, saved.coin);
+  }
+});

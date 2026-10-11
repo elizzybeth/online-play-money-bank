@@ -168,6 +168,21 @@ export function marketSignals(s: State) {
     trees: managed,
     health: good,
     longestGoodStreak: healthDay(s.day).longest,
+    communityBeds: s.plots.filter(
+      (p) => p.community && ["planted", "growing", "ready"].includes(p.stage),
+    ).length,
+    birdhouses: s.birdhousesBuilt ?? 0,
+    discoveries: [
+      s.foundCapSeeds,
+      s.foundForestSeeds,
+      s.foundStoreSeeds,
+      s.foundGardenSeeds,
+      s.foundTVSeeds,
+      s.foundMeditationSeeds,
+      s.foundStacySeeds,
+    ].filter(Boolean).length,
+    bicycles: new Set(s.bikes ?? []).size,
+    tools: Number(s.can) + Number(s.shovel),
   };
 }
 export function healthDay(day: number) {
@@ -241,7 +256,12 @@ export function tickSigma(s: State, dt: number, awakeTime = true) {
           q.saved / 1e8 +
           q.neighbors * 0.0002 +
           q.trees * 0.00015 +
-          q.longestGoodStreak * 0.0001,
+          q.longestGoodStreak * 0.0001 +
+          Math.min(10, q.communityBeds) * 0.00015 +
+          Math.min(12, q.birdhouses) * 0.0001 +
+          q.discoveries * 0.0001 +
+          Math.min(7, q.bicycles) * 0.0001 +
+          q.tools * 0.00015,
       ) + (q.health ? 0.001 : -0.001);
   for (let i = 0; i < steps; i++) {
     c.rng = (c.rng * 16807) % 2147483647;

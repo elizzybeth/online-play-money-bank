@@ -1,3 +1,4 @@
+import { sceneRoute, routeLength, alongRoute, type Point } from "./scene-route";
 import { newsReports } from "./tv-news";
 import { inBeaHouse } from "./bea-room";
 import {
@@ -423,6 +424,7 @@ function updateInventoryNotices(dt: number) {
 const cameraWalls = new CameraWalls();
 let followInitialized = false;
 let fertilizerAnimation: { elapsed: number; x: number; z: number } | undefined;
+let wateringAnimation: { elapsed: number; x: number; z: number } | undefined;
 let begun = false,
   paused = false,
   yaw = 0,
@@ -490,6 +492,14 @@ let birdhouseScene:
       origin: { x: number; z: number };
       start: number;
       carried: T.Group[];
+      segments: {
+        player: Point[];
+        mom: Point[];
+        duration: number;
+        hang?: number;
+      }[];
+      duration: number;
+      placed: number;
     }
   | undefined;
 function paintBirdhouses() {
@@ -506,6 +516,53 @@ function paintBirdhouses() {
         label: "Let’s hang them together",
         run: () => {
           const start = Math.min(10, s.birdhousesBuilt ?? 0);
+          const origin = { ...s.position };
+          const momOrigin = {
+            x: world.mom.position.x,
+            z: world.mom.position.z,
+          };
+          const solids = world.rects.filter((r) => r !== world.momCollider);
+          const actors = [origin, momOrigin];
+          const stops = [start, start + 1].map((i) => {
+            const tree = world.outdoorBirdhouses[i].position;
+            return [
+              clearPosition({ x: tree.x - 1.3, z: tree.z + 1.8 }, solids),
+              clearPosition({ x: tree.x + 1.3, z: tree.z + 1.8 }, solids),
+            ];
+          });
+          const segments: {
+            player: Point[];
+            mom: Point[];
+            duration: number;
+            hang?: number;
+          }[] = [];
+          let current = actors;
+          for (let i = 0; i < 3; i++) {
+            const next = i < 2 ? stops[i] : actors;
+            const routes = current.map((point, j) =>
+              sceneRoute(point, next[j], solids),
+            );
+            if (routes.some((route) => !route.length))
+              return toast(
+                "Let's make a little room by the door, then try hanging the houses together.",
+              );
+            segments.push({
+              player: routes[0],
+              mom: routes[1],
+              duration: Math.max(
+                0.5,
+                ...routes.map((route) => routeLength(route) / 3.2),
+              ),
+            });
+            if (i < 2)
+              segments.push({
+                player: [next[0]],
+                mom: [next[1]],
+                duration: 4,
+                hang: i,
+              });
+            current = next;
+          }
           const stored = (s.birdhousePaint ??= []);
           while (stored.length < start)
             stored.push({ body: paintColors[9].hex, roof: paintColors[1].hex });
@@ -524,9 +581,15 @@ function paintBirdhouses() {
           });
           birdhouseScene = {
             elapsed: 0,
-            origin: { ...s.position },
+            origin,
             start,
             carried,
+            segments,
+            duration: segments.reduce(
+              (sum, segment) => sum + segment.duration,
+              0,
+            ),
+            placed: 0,
           };
           close();
           keys.clear();
@@ -992,6 +1055,11 @@ function speak(id: string, text: string, choices: Choice[] = []) {
     remaining: choices.length ? Infinity : Math.max(8, text.length / 15),
   };
 }
+function effectivelyVisible(object: T.Object3D) {
+  for (let node: T.Object3D | null = object; node; node = node.parent)
+    if (!node.visible) return false;
+  return true;
+}
 function updateSpeech(dt: number) {
   world.capSeeds.visible = !s.foundCapSeeds;
   const spot = seedStashSpots[s.seedStashSpot ?? 0];
@@ -1027,7 +1095,7 @@ function updateSpeech(dt: number) {
     anchor.project(camera);
     const hidden =
       !begun ||
-      !speaker.object.visible ||
+      !effectivelyVisible(speaker.object) ||
       !s.awake ||
       paused ||
       d > 13 ||
@@ -1171,6 +1239,9 @@ function notebook(page = s.journal.length - 1, direction = 0) {
   world.updateNotebook(entry, page + 1);
   const paper = $("#modal .panel");
   paper.classList.add("notebook-paper");
+  paper
+    .querySelector(".notebook-spread")!
+    .parentElement!.classList.add("notebook-content");
   if (direction && !reducedMotion)
     paper.animate(
       [
@@ -1834,7 +1905,7 @@ function coinMenu() {
     q = marketSignals(s);
   panel(
     `${escapeHTML(c.name)} coin`,
-    `${coinChart(c.history, c.price)}<div class="coin-balances"><p>Price <strong>${money(c.price)}</strong> per coin</p><p>You own ${(c.units / 1e6).toFixed(4)} coins, worth <strong>${money(coinValue(s))}</strong></p><p>Pocket <strong>${money(s.cash)}</strong> · Total invested ${money(c.invested)}</p></div><label>Buy amount $ <input id="coin-amount" inputmode="decimal" value="1.00"></label><label>Sell amount $ <input id="coin-sell-amount" inputmode="decimal" value="1.00"></label><p id="coin-error" role="status"></p><details><summary>What moves the price?</summary><p>Prices move every 15 seconds of game time. Random swings mix with earnings, savings, conversations, trees and Mom’s good days. Prices can fall.</p><p>${money(q.earned)} earned · ${money(q.saved)} saved · ${q.neighbors} neighbors met · ${q.trees} growing trees · Mom has a ${q.health ? "good" : "tired"} day · longest good streak ${q.longestGoodStreak}.</p></details>`,
+    `${coinChart(c.history, c.price)}<div class="coin-balances"><p>Price <strong>${money(c.price)}</strong> per coin</p><p>You own ${(c.units / 1e6).toFixed(4)} coins, worth <strong>${money(coinValue(s))}</strong></p><p>Pocket <strong>${money(s.cash)}</strong> · Total invested ${money(c.invested)}</p></div><label>Buy amount $ <input id="coin-amount" inputmode="decimal" value="1.00"></label><label>Sell amount $ <input id="coin-sell-amount" inputmode="decimal" value="1.00"></label><p id="coin-error" role="status"></p><details><summary>What moves the price?</summary><p>Prices move every 15 seconds of game time. Random swings mix with earnings, savings, conversations, trees, Mom’s good days, active community beds, birdhouses, seed discoveries, bicycles owned and garden tools. Prices can fall.</p><p>${money(q.earned)} earned · ${money(q.saved)} saved · ${q.neighbors} neighbors met · ${q.trees} growing trees · Mom has a ${q.health ? "good" : "tired"} day · longest good streak ${q.longestGoodStreak}.</p><p>${q.communityBeds} active community beds · ${q.birdhouses} birdhouses · ${q.discoveries} seed discoveries · ${q.bicycles} bicycles owned · ${q.tools} garden tools.</p></details>`,
     [
       {
         label: "Sell this amount",
@@ -2466,6 +2537,12 @@ function interact() {
       if (!s.can)
         return toast("You need a watering can. Robertson sells one for $1.");
       water(s, i);
+      fertilizerAnimation = undefined;
+      wateringAnimation = { elapsed: 0, x: p.x ?? -20 + i * 2, z: p.z ?? 19 };
+      world.player.rotation.y = Math.atan2(
+        wateringAnimation.x - s.position.x,
+        wateringAnimation.z - s.position.z,
+      );
       save();
       toast(
         s.fertilizer && !p.fertilized
@@ -2738,6 +2815,8 @@ function resetTransientMotion() {
   inventoryBefore = inventorySnapshot(s);
   inventoryNotices.length = 0;
   fertilizerAnimation = undefined;
+  wateringAnimation = undefined;
+  world.setWatering(false, 0, 0, 0);
   birdhouseScene?.carried.forEach((g) => scene.remove(g));
   birdhouseScene = undefined;
   if (celebration) {
@@ -2938,6 +3017,8 @@ function updateUI() {
   seedHud.setAttribute("aria-label", `${s.seeds} money tree seeds`);
   dailyNetLedger.update(s);
   const net = s.dailyNet ?? 0;
+  netHud.querySelector(".daily-net-icon")!.textContent = net < 0 ? "↘" : "↗";
+  netHud.classList.toggle("negative", net < 0);
   netHud.querySelector("strong")!.textContent =
     `${net < 0 ? "−" : "+"}${money(Math.abs(net))}`;
   netHud.setAttribute(
@@ -3149,8 +3230,7 @@ function frame(now: number) {
   if (birdhouseScene)
     world.outdoorBirdhouses.forEach((g, i) => {
       if (i >= birdhouseScene!.start && i < birdhouseScene!.start + 2)
-        g.visible =
-          birdhouseScene!.elapsed >= (i - birdhouseScene!.start + 1) * 4;
+        g.visible = i - birdhouseScene!.start < birdhouseScene!.placed;
     });
   if (
     begun &&
@@ -3947,6 +4027,24 @@ function frame(now: number) {
     }
   }
   world.setDigging(!!action, !!s.shovel, action?.elapsed ?? 0);
+  if (wateringAnimation && active) {
+    wateringAnimation.elapsed += dt;
+    if (
+      wateringAnimation.elapsed >= 1.8 ||
+      action ||
+      fertilizerAnimation ||
+      riding ||
+      sitting ||
+      !s.awake
+    )
+      wateringAnimation = undefined;
+  }
+  world.setWatering(
+    !!wateringAnimation && !riding,
+    wateringAnimation?.elapsed ?? 0,
+    wateringAnimation?.x ?? 0,
+    wateringAnimation?.z ?? 0,
+  );
   if (fertilizerAnimation && active) {
     fertilizerAnimation.elapsed += dt;
     if (fertilizerAnimation.elapsed >= 1.6 || action || riding || sitting)
@@ -4049,43 +4147,62 @@ function frame(now: number) {
   if (birdhouseScene) {
     const film = birdhouseScene;
     if (!paused && !document.hidden) film.elapsed += dt;
-    const index = film.start + Math.min(1, Math.floor(film.elapsed / 4));
-    const house = world.outdoorBirdhouses[index];
-    const f = Math.min(1, (film.elapsed % 4) / 2.5);
-    world.player.visible = true;
-    world.player.position.set(
-      house.position.x - 1.3,
-      0,
-      house.position.z + 3 - f * 1.8,
-    );
-    world.player.rotation.y = Math.PI;
-    world.mom.visible = true;
-    world.mom.position.set(
-      house.position.x + 0.9,
-      0,
-      house.position.z + 3 - f * 1.8,
-    );
-    world.mom.rotation.y = Math.PI;
+    let localTime = film.elapsed;
+    let segment = film.segments[film.segments.length - 1];
+    film.placed = 0;
+    for (const candidate of film.segments) {
+      if (localTime < candidate.duration) {
+        segment = candidate;
+        break;
+      }
+      if (candidate.hang !== undefined) film.placed = candidate.hang + 1;
+      localTime -= candidate.duration;
+    }
+    const fraction = Math.min(1, localTime / segment.duration);
+    for (const [actor, route] of [
+      [world.player, segment.player],
+      [world.mom, segment.mom],
+    ] as const) {
+      const point = alongRoute(route, fraction),
+        ahead = alongRoute(route, Math.min(1, fraction + 0.02));
+      actor.visible = true;
+      actor.position.set(point.x, 0, point.z);
+      if (Math.hypot(ahead.x - point.x, ahead.z - point.z) > 0.001)
+        actor.rotation.y = Math.atan2(ahead.x - point.x, ahead.z - point.z);
+    }
+    s.position = { x: world.player.position.x, z: world.player.position.z };
     film.carried.forEach((model, i) => {
       const destination = world.outdoorBirdhouses[film.start + i].position;
       const actor = i === 0 ? world.player : world.mom;
-      const progress = Math.max(
-        0,
-        Math.min(1, (film.elapsed - i * 4 - 2.5) / 1.5),
-      );
-      model.visible = film.elapsed < (i + 1) * 4;
+      const progress =
+        segment.hang === i
+          ? Math.max(0, Math.min(1, (localTime - 2.5) / 1.5))
+          : 0;
+      model.visible = i >= film.placed;
       model.position
         .copy(actor.position)
-        .add(new T.Vector3(0.15, 1.25, -0.4))
+        .add(new T.Vector3(0.15, 1.25, 0.4))
         .lerp(destination, progress);
     });
-    camera.position.set(house.position.x + 7, 4.5, house.position.z + 8);
-    camera.lookAt(house.position.x, 1.1, house.position.z + 0.8);
+    const center = world.player.position.clone().lerp(world.mom.position, 0.5);
+    const shot = center.clone().add(new T.Vector3(7, 5, 8));
+    cameraWalls.update(
+      world.occluders,
+      center.clone().add(new T.Vector3(0, 1.2, 0)),
+      camera.position,
+      shot,
+    );
+    camera.position.lerp(shot, 1 - Math.exp(-dt * 5));
+    camera.lookAt(center.x, 1.1, center.z);
     $("#prompt").innerText =
-      film.elapsed < 4
-        ? "A home for the birds. Mom holds it steady while I help."
-        : "One more. We picked these colors together.";
-    if (film.elapsed >= 8) {
+      segment.hang === undefined
+        ? film.placed === 2
+          ? "We walk home together."
+          : "We carry the birdhouses outside together."
+        : segment.hang === 0
+          ? "A home for the birds. Mom holds it steady while I help."
+          : "One more. We picked these colors together.";
+    if (film.elapsed >= film.duration) {
       s.position = film.origin;
       film.carried.forEach((g) => scene.remove(g));
       birdhouseScene = undefined;
@@ -4236,6 +4353,17 @@ if (new URLSearchParams(location.search).has("test")) {
       }),
     targets: world.targets,
     notebookModel: () => world.notebookPages.userData.writingBounds,
+    birdhouseFilm: () =>
+      birdhouseScene
+        ? {
+            elapsed: birdhouseScene.elapsed,
+            duration: birdhouseScene.duration,
+            player: world.player.position.toArray(),
+            mom: world.mom.position.toArray(),
+            segments: birdhouseScene.segments,
+            obstacles: world.rects.filter((r) => r !== world.momCollider),
+          }
+        : null,
     digging: () => ({
       active: !!action,
       shovel: world.diggingTool.visible,
@@ -4376,6 +4504,17 @@ if (new URLSearchParams(location.search).has("test")) {
       active: !!fertilizerAnimation,
       visible: world.fertilizerBox.visible,
       grains: world.fertilizerGrains.visible,
+    }),
+    wateringAnimation: () => ({
+      active: !!wateringAnimation,
+      visible: world.wateringTool.visible,
+      drops: world.waterDrops.children
+        .filter((o) => world.waterDrops.visible && o.visible)
+        .map((o) => o.position.toArray()),
+      canPosition: world.wateringTool.position.toArray(),
+      soilRings: world.plots.map(
+        (plot) => !!plot.getObjectByName("watered-soil-ring"),
+      ),
     }),
     cameraWalls: () =>
       world.occluders

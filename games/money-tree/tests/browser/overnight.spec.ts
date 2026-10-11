@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
-import { fresh } from "../../src/game";
+import { fresh, blocked } from "../../src/game";
+import { alongRoute, routeLength } from "../../src/scene-route";
 async function setup(page: Page, state: ReturnType<typeof fresh>) {
   await page.clock.install({ time: new Date("2026-01-01T00:00:00Z") });
   await page.clock.pauseAt(new Date("2026-01-02T00:00:00Z"));
@@ -92,7 +93,34 @@ test("Mom's paint invitation colors both birdhouses and hangs them together", as
     path: "../../outputs/money-tree-birdhouse-paint.png",
   });
   await page.getByRole("button", { name: "Let’s hang them together" }).click();
-  for (let i = 0; i < 85; i++) await page.clock.fastForward(100);
+  const film = await page.evaluate(() => (window as any).game.birdhouseFilm());
+  expect(film).not.toBeNull();
+  for (const segment of film.segments)
+    for (const route of [segment.player, segment.mom]) {
+      const length = routeLength(route);
+      for (let d = 0; d <= length; d += 0.1) {
+        const p = alongRoute(route, length ? d / length : 0);
+        expect(blocked(p.x, p.z, film.obstacles, 0.45)).toBe(false);
+      }
+    }
+  // Both actors cross the actual front doorway on their way outside.
+  for (const route of [film.segments[0].player, film.segments[0].mom]) {
+    const length = routeLength(route);
+    const points = Array.from({ length: Math.ceil(length / 0.1) }, (_, i) =>
+      alongRoute(route, (i * 0.1) / length),
+    );
+    expect(
+      points.some((p) => Math.abs(p.x + 16) < 0.8 && Math.abs(p.z - 14) < 0.3),
+    ).toBe(true);
+  }
+  for (let i = 0; i < 600; i++) {
+    await page.clock.fastForward(100);
+    if (!(await page.evaluate(() => (window as any).game.birdhouseFilm())))
+      break;
+  }
+  expect(
+    await page.evaluate(() => (window as any).game.birdhouseFilm()),
+  ).toBeNull();
   const state = await page.evaluate(() => (window as any).game.state());
   expect(state.birdhousesBuilt).toBe(2);
   expect(state.birdhousePaint[0].body).toBe("#ac7abc");
