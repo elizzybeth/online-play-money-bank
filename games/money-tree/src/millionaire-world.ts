@@ -1,4 +1,5 @@
 import * as T from "three";
+import { fitWindow } from "./architecture";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import type { State, Rect } from "./game";
 import type { Target } from "./world";
@@ -315,10 +316,43 @@ export function createMillionaireWorld(
       "#f0d6db",
       "#e2ebd4",
     ][i];
-    box(-21.75, 8, 0, 0.5, 16, 30, color, home);
-    box(21.75, 8, 0, 0.5, 16, 30, color, home);
+    for (const side of [-1, 1]) {
+      const wall = box(side * 21.75, 8, 0, 0.5, 16, 30, color, home);
+      fitWindow(
+        wall,
+        false,
+        30,
+        16,
+        0.5,
+        [-9, -2, 5, 11].flatMap((z) =>
+          [4.5, 10.5].map((y) => ({
+            x: -z,
+            y: y - 8,
+            width: 3.6,
+            height: 3.9,
+          })),
+        ),
+      );
+    }
     box(0, 8, -14.75, 44, 16, 0.5, color, home);
-    for (const x of [-12, 12]) box(x, 8, 14.75, 20, 16, 0.5, color, home);
+    for (const x of [-12, 12]) {
+      const wall = box(x, 8, 14.75, 20, 16, 0.5, color, home);
+      fitWindow(
+        wall,
+        true,
+        20,
+        16,
+        0.5,
+        [Math.sign(x) * 10, Math.sign(x) * 17].flatMap((px) =>
+          [4.5, 10.5].map((y) => ({
+            x: px - x,
+            y: y - 8,
+            width: 3.7,
+            height: 3.9,
+          })),
+        ),
+      );
+    }
     box(0, 11, 14.75, 4, 10, 0.5, color, home);
     box(0, 16, 0, 44, 0.3, 30, color, home);
     box(0, 0.05, 0, 44, 0.1, 30, "#e7d8bd", home);
@@ -347,13 +381,6 @@ export function createMillionaireWorld(
     );
     pediment.rotation.y = Math.PI / 4;
     pediment.scale.z = 0.8;
-    for (const x of [-17, -10, 10, 17])
-      for (const y of [4.5, 10.5]) {
-        box(x, y, 15.13, 4.2, 4.4, 0.3, "#c9a447", home);
-        box(x, y, 15.32, 3.7, 3.9, 0.15, "#5a8590", home);
-        box(x, y, 15.44, 0.12, 3.9, 0.1, "#f2e5bf", home);
-        box(x, y, 15.44, 3.7, 0.12, 0.1, "#f2e5bf", home);
-      }
     for (const x of [-10, 10]) {
       const dome = part(
         new T.SphereGeometry(4, 12, 8),
@@ -379,12 +406,6 @@ export function createMillionaireWorld(
       );
     for (const side of [-1, 1]) {
       box(side * 21, 8.5, 15.2, 0.65, 17, 0.6, "#c9a447", home);
-      for (const z of [-9, -2, 5, 11])
-        for (const y of [4.5, 10.5]) {
-          box(side * 22.06, y, z, 0.2, 4.5, 4.2, "#c9a447", home);
-          box(side * 22.2, y, z, 0.14, 3.9, 3.6, "#5a8590", home);
-          box(side * 22.3, y, z, 0.1, 3.9, 0.1, "#f2e5bf", home);
-        }
     }
     box(0, 0.08, 25, 9, 0.12, 18, "#dcd3bb", home);
     const car = new T.Group();

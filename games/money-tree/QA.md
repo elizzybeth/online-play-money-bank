@@ -147,3 +147,14 @@ Desktop keyboard and mouse. No touch/gamepad support yet. Home and haberdashery 
 - Mansion construction rises progressively while a resident walks down the terraces. All six mansions become available by $1,000 of gross mountain income. Owners leave through a visible doorway; six minigames have actual controls, scoring and paid advantages.
 - All six game engines have gameplay-driven ten-point wins and once-per-run reward tests. Browser checks complete Memory Ministry through actual clicks and check its 90-cent net payout, ownership, replay access and responsive canvas.
 - Save reload retains fellowship, plots, apps and contribution totals. Coin-sale cost basis excludes principal and transfers from tithing. News and journal entries reflect the willow path and mansion growth.
+
+## Town polish and thread audit (October 10)
+
+- Apply fertilizer and check persistent granules and the dose counter through save/reload; sleep clears granules while the fertilizer improves the overnight crop.
+- Check light hat descriptions. Hang a worn hat: the modal closes, the character moves it from head to rack, and it remains until worn again. Equipped hats have no duplicate rack model.
+- Walk through the three doubled-height shops and observe pitched roof cutaways. Look through recessed glass in actual wall openings; verify mansion windows too.
+- Listen near Mom on a keyboard day and near the TV on both channels. Leaving home, pausing, sleeping and muting stop these finite sounds. There is no persistent white-noise source.
+- On a letter day, type into the Auntie prompt and submit; Mom says “Beautiful sentiment. I’ll add that.” On a bed day approach from farther away to talk.
+- Inspect the Grindset green/gold Sigma coffee crest; check that the resource drink icon is the only drink indicator.
+- After accepting Mom’s recovery outing, approach Bea outside: ordinary dialogue is replaced by her greeting to both characters. Follow her through the door; she invites you to actual tea chairs.
+- Active conversation choices remain visible even when the speaker’s nameplate is occluded by the camera angle.

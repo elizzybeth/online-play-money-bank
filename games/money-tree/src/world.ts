@@ -1,3 +1,4 @@
+import { fitWindow, pitchedRoof } from "./architecture";
 import { type BirdhousePaint } from "./birdhouse-paint";
 import { createWildlife } from "./wildlife";
 import { makeBeaRoom } from "./bea-room";
@@ -115,7 +116,7 @@ export function createWorld(scene: T.Scene) {
     solid = false,
     parent: T.Object3D = scene,
   ) {
-    const m = new T.Mesh(
+    const m = new T.Mesh<T.BufferGeometry, T.MeshStandardMaterial>(
       c === "#303832" || c === "#93c276" || c === "#a8d769" || c === "#41633f"
         ? new T.BoxGeometry(w, h, d)
         : new RoundedBoxGeometry(
@@ -132,9 +133,10 @@ export function createWorld(scene: T.Scene) {
     if (
       parent === scene &&
       Math.min(w, d) <= 0.6 &&
-      ((solid && h >= 2.8) || (y > 2.8 && h < 0.4))
+      ((solid && h >= 2.8) || (y > 2.8 && (h < 0.4 || h >= 2.8)))
     )
       m.userData.cameraWall = true;
+    m.userData.boxDimensions = { w, h, d };
     m.position.set(x, y, z);
     m.castShadow = true;
     m.receiveShadow = true;
@@ -494,7 +496,7 @@ export function createWorld(scene: T.Scene) {
   box(-4, 0.91, 8.95, 1.5, 0.2, 0.7, "#ffefd3");
   box(-2.4, 0.6, 7.2, 1.2, 1.2, 0.7, "#a48162", true);
   ball(-2.4, 1.6, 7.2, 0.25, "#ead596").scale.set(1, 0.7, 1);
-  box(-1.15, 1.8, 10, 0.08, 1.2, 1.5, "#bce0d9");
+
   doorways.push({ x: -9, z: 7.5, w: 2, d: 2.4 });
   box(-9, 1.7, 2.25, 0.25, 3.4, 8.5, "#e8d2b3", true);
   box(-9, 1.7, 11.25, 0.25, 3.4, 5.5, "#e8d2b3", true);
@@ -596,9 +598,7 @@ export function createWorld(scene: T.Scene) {
   const lamp = new T.PointLight("#ffd492", 1.3, 6);
   lamp.position.set(-13, 2, 0);
   scene.add(lamp);
-  box(-17, 1.9, -1.83, 2.2, 1.45, 0.08, "#b8d9d1");
-  box(-17, 1.9, -1.76, 0.1, 1.5, 0.05, "#f7e9ca");
-  box(-17, 1.9, -1.75, 2.2, 0.09, 0.05, "#f7e9ca");
+
   cyl(-13, 1.6, 0, 0.18, 0.3, "#877359");
   ball(-13, 1.96, 0, 0.38, "#f6d58e").scale.set(1, 0.7, 1);
   ball(-10.6, 1.65, 0, 0.26, "#e9a7a1");
@@ -1158,7 +1158,13 @@ export function createWorld(scene: T.Scene) {
       for (const side of [-1, 1])
         box(x + side * 2.25, 1.6, z + 3, 2.5, 3.2, 0.2, c, true);
       box(x, 2.95, z + 3, 2, 0.5, 0.2, c);
-    } else box(x, 1.6, z, 7, 3.2, 6, c, true);
+    } else {
+      box(x - 3.5, 1.6, z, 0.2, 3.2, 6, c, true);
+      box(x + 3.5, 1.6, z, 0.2, 3.2, 6, c, true);
+      box(x, 1.6, z - 3, 7, 3.2, 0.2, c, true);
+      box(x, 1.6, z + 3, 7, 3.2, 0.2, c, true);
+      box(x, 0.025, z, 7, 0.05, 6, "#c3ad8e");
+    }
     const roof = new T.Mesh(
       new T.ConeGeometry(5.3, 2, 4),
       surfaceMaterial("#a76f60", "shingles", 4, 2),
@@ -1250,12 +1256,18 @@ export function createWorld(scene: T.Scene) {
   const sx = 8,
     sz = -31;
   box(6, -0.01, -30, 20, 0.12, 18, "#d0b894");
-  box(-4, 1.8, -30, 0.25, 3.6, 18, "#a9b9a2", true);
-  box(16, 1.8, -30, 0.25, 3.6, 18, "#a9b9a2", true);
-  box(6, 1.8, -39, 20, 3.6, 0.25, "#a9b9a2", true);
-  box(1, 1.8, -21, 10, 3.6, 0.25, "#a9b9a2", true);
-  box(12, 1.8, -21, 8, 3.6, 0.25, "#a9b9a2", true);
-  occluders.push(box(7, 3.48, -21, 2, 0.24, 0.25, "#a9b9a2"));
+  box(-4, 3.6, -30, 0.25, 7.2, 18, "#a9b9a2", true);
+  box(16, 3.6, -30, 0.25, 7.2, 18, "#a9b9a2", true);
+  box(6, 3.6, -39, 20, 7.2, 0.25, "#a9b9a2", true);
+  box(1, 3.6, -21, 10, 7.2, 0.25, "#a9b9a2", true);
+  box(12, 3.6, -21, 8, 7.2, 0.25, "#a9b9a2", true);
+  occluders.push(box(7, 5.28, -21, 2, 3.84, 0.25, "#a9b9a2"));
+  const robertsonsRoof = box(6, 7.4, -30, 20.5, 0.25, 18.5, "#647a66");
+  robertsonsRoof.geometry.dispose();
+  robertsonsRoof.geometry = pitchedRoof(20.5, 18.5);
+  robertsonsRoof.name = "robertsons-roof";
+  robertsonsRoof.material = surfaceMaterial("#647a66", "shingles", 6, 5);
+  (robertsonsRoof.material as T.MeshStandardMaterial).transparent = true;
   label("Robertsons", 8, 4.8, -20.7, 8).name = "robertsons-name";
   label("Hardware & Grocer", 8, 3.1, -20.7, 8, "#334a3c", 8).name =
     "robertsons-trade";
@@ -1317,12 +1329,12 @@ export function createWorld(scene: T.Scene) {
   target("garden-soil", 12, -33.4, "Inspect soil · $10");
   // Walk-in hat shop: a wide doorway, clear centre aisle and ten display stands.
   box(24, -0.02, -29, 12, 0.16, 12, "#c5aa87");
-  box(18, 1.8, -29, 0.25, 3.6, 12, "#e4bc9e", true);
-  box(30, 1.8, -29, 0.25, 3.6, 12, "#e4bc9e", true);
-  box(24, 1.8, -35, 12, 3.6, 0.25, "#e4bc9e", true);
-  box(19.9, 1.8, -23, 3.8, 3.6, 0.25, "#e4bc9e", true);
-  box(28.1, 1.8, -23, 3.8, 3.6, 0.25, "#e4bc9e", true);
-  box(24, 3.25, -23, 4.4, 0.7, 0.25, "#e4bc9e");
+  box(18, 3.6, -29, 0.25, 7.2, 12, "#e4bc9e", true);
+  box(30, 3.6, -29, 0.25, 7.2, 12, "#e4bc9e", true);
+  box(24, 3.6, -35, 12, 7.2, 0.25, "#e4bc9e", true);
+  box(19.9, 3.6, -23, 3.8, 7.2, 0.25, "#e4bc9e", true);
+  box(28.1, 3.6, -23, 3.8, 7.2, 0.25, "#e4bc9e", true);
+  box(24, 5.05, -23, 4.4, 4.3, 0.25, "#e4bc9e");
   const arrowPost = box(28.2, 2.65, -22.55, 0.14, 5.3, 0.16, "#856c50");
   arrowPost.name = "haberdasher-arrow-post";
   // Rotated one-unit panels need more than one unit between their centres.
@@ -1338,14 +1350,12 @@ export function createWorld(scene: T.Scene) {
   }
   doorways.push({ x: 24, z: -23, w: 4.4, d: 5 });
   box(24, 0.065, -28.3, 4, 0.025, 7, "#a8828b");
-  for (const x of [18.16, 29.84]) {
-    box(x, 2, -28, 0.04, 1.3, 2, "#a5c9ca");
-    box(x, 2, -28, 0.06, 0.06, 2.1, "#79594a");
-    box(x, 2, -28, 0.06, 1.4, 0.06, "#79594a");
-  }
   label("A hat for every adventure", 24, 2.7, -34.8, 4, "#704a65");
-  const hatShopRoof = box(24, 3.8, -29, 12.5, 0.25, 12.5, "#9e6a80");
+  const hatShopRoof = box(24, 7.4, -29, 12.5, 0.25, 12.5, "#9e6a80");
   hatShopRoof.material = surfaceMaterial("#9e6a80", "shingles", 5, 5);
+  hatShopRoof.geometry.dispose();
+  hatShopRoof.geometry = pitchedRoof(12.5, 12.5);
+  hatShopRoof.name = "thread-thimble-roof";
   const roofMat = hatShopRoof.material as T.MeshStandardMaterial;
   roofMat.transparent = true;
   box(24, 0.55, -33.4, 3, 1.1, 0.65, "#a48162", true);
@@ -1478,15 +1488,18 @@ export function createWorld(scene: T.Scene) {
   }
   // A walk-in showroom with wide aisles and wall-mounted bicycles.
   box(-18, 0.025, -30, 20, 0.05, 18, "#b5c4cd");
-  box(-28, 1.8, -30, 0.25, 3.6, 18, "#b5c4cd", true);
-  box(-8, 1.8, -30, 0.25, 3.6, 18, "#b5c4cd", true);
-  box(-18, 1.8, -39, 20, 3.6, 0.25, "#b5c4cd", true);
+  box(-28, 3.6, -30, 0.25, 7.2, 18, "#b5c4cd", true);
+  box(-8, 3.6, -30, 0.25, 7.2, 18, "#b5c4cd", true);
+  box(-18, 3.6, -39, 20, 7.2, 0.25, "#b5c4cd", true);
   for (const x of [-24.25, -11.75])
-    box(x, 1.8, -21, 7.5, 3.6, 0.25, "#b5c4cd", true);
-  box(-18, 3.35, -21, 5, 0.5, 0.25, "#b5c4cd");
-  const bikeShopRoof = box(-18, 3.85, -30, 20.5, 0.25, 18.5, "#647a84");
+    box(x, 3.6, -21, 7.5, 7.2, 0.25, "#b5c4cd", true);
+  box(-18, 5.15, -21, 5, 4.1, 0.25, "#b5c4cd");
+  const bikeShopRoof = box(-18, 7.4, -30, 20.5, 0.25, 18.5, "#647a84");
   bikeShopRoof.material = surfaceMaterial("#647a84", "shingles", 6, 5);
   (bikeShopRoof.material as T.MeshStandardMaterial).transparent = true;
+  bikeShopRoof.geometry.dispose();
+  bikeShopRoof.geometry = pitchedRoof(20.5, 18.5);
+  bikeShopRoof.name = "spoke-saddle-roof";
   // The roof fascia is at z=-20.75. Keep the sign in front of it.
   const bikeShopSign = label("SPOKE & SADDLE", -18, 3.1, -20.5, 6);
   box(-9, 0.65, -34.5, 1, 1.3, 3, "#947859", true);
@@ -1680,6 +1693,47 @@ export function createWorld(scene: T.Scene) {
           mesh.userData.ownPaint = true;
         }
         (mesh.material as T.MeshStandardMaterial).color.set(color);
+      }
+    });
+  }
+  const fertilizerMarkers = new T.Group();
+  fertilizerMarkers.name = "fertilizer-in-beds";
+  scene.add(fertilizerMarkers);
+  let fertilizerMarkerKey = "";
+  function setFertilizerMarkers(data: Plot[], day: number) {
+    const key = data
+      .map((p, i) => (p.fertilizedDay === day ? `${i}:${p.x}:${p.z}` : ""))
+      .join(",");
+    if (key === fertilizerMarkerKey) return;
+    fertilizerMarkerKey = key;
+    fertilizerMarkers.children.forEach((g) =>
+      g.traverse((o) => {
+        if (o instanceof T.Mesh) {
+          o.geometry.dispose();
+          (o.material as T.Material).dispose();
+        }
+      }),
+    );
+    fertilizerMarkers.clear();
+    data.forEach((p, i) => {
+      if (p.fertilizedDay !== day || !plots[i]) return;
+      const patch = new T.Group();
+      patch.name = `fertilized-bed-${i}`;
+      patch.position.copy(plots[i].position);
+      fertilizerMarkers.add(patch);
+      for (let n = 0; n < 24; n++) {
+        const angle = n * 2.399,
+          radius = 0.22 + (n % 5) * 0.11;
+        const grain = new T.Mesh(
+          new T.IcosahedronGeometry(0.04, 0),
+          mat(n % 2 ? "#d6b678" : "#6d9c58"),
+        );
+        grain.position.set(
+          Math.cos(angle) * radius,
+          0.28,
+          Math.sin(angle) * radius,
+        );
+        patch.add(grain);
       }
     });
   }
@@ -2340,7 +2394,26 @@ export function createWorld(scene: T.Scene) {
   for (const x of [11.75, 12.05]) cyl(x, 1.12, -31.8, 0.1, 0.38, "#a7b5a0");
   target("forest-seeds", 29, -35, "Search the seed packet");
   target("store-seeds", 12, -31.5, "Search behind the tins");
+  for (const object of scene.children.slice()) {
+    if (!(object instanceof T.Mesh) || !object.userData.boxDimensions) continue;
+    const { w, h, d } = object.userData.boxDimensions;
+    if (
+      h < 2.8 ||
+      Math.min(w, d) > 0.3 ||
+      Math.max(w, d) < 3 ||
+      !object.userData.cameraWall
+    )
+      continue;
+    // Bedroom/living-room partitions remain solid; exterior walls have real openings.
+    if (
+      object.position.x === -9 ||
+      (object.position.z === 6 && object.position.x < -9)
+    )
+      continue;
+    fitWindow(object, w > d, Math.max(w, d), h, Math.min(w, d));
+  }
   return {
+    robertsonsRoof,
     bikeShopRoof,
     bikeShopSign,
     bikeDisplays,
@@ -2348,6 +2421,8 @@ export function createWorld(scene: T.Scene) {
     diggingTool,
     fertilizerBox,
     fertilizerGrains,
+    fertilizerMarkers,
+    setFertilizerMarkers,
     setFertilizing,
     wateringTool,
     waterDrops,
@@ -2386,6 +2461,7 @@ export function createWorld(scene: T.Scene) {
     setMomDay,
     momCollider,
     bea,
+    beaCollider,
     beaRoom,
     setBeaInside,
     rackHats,
