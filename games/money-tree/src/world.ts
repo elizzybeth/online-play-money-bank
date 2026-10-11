@@ -1,3 +1,5 @@
+import { makeFurnishing } from "./furnishing-models";
+import type { FurnishingId } from "./furnishings";
 import { createTownLife } from "./town-life-world";
 import { decorateHome } from "./home-interior";
 import { fitWindow, pitchedRoof } from "./architecture";
@@ -748,40 +750,39 @@ export function createWorld(scene: T.Scene) {
   }
   const painting = new T.Group();
   scene.add(painting);
-  box(-12.5, 1.8, 12.8, 1.05, 1.25, 0.07, "#b89468", false, painting);
+  box(-12.5, 1.8, 12.8, 1.2, 1, 0.07, "#b89468", false, painting);
   const picture = box(
     -12.5,
     1.8,
     12.75,
-    0.9,
-    1.1,
+    1.06,
+    0.86,
     0.04,
-    "#e9dca6",
+    "#ffffff",
     false,
     painting,
   );
-  const paintCanvas = document.createElement("canvas");
-  paintCanvas.width = 128;
-  paintCanvas.height = 160;
-  const paint = paintCanvas.getContext("2d")!;
-  paint.fillStyle = "#bad7d6";
-  paint.fillRect(0, 0, 128, 160);
-  paint.fillStyle = "#ead389";
-  paint.beginPath();
-  paint.arc(100, 30, 15, 0, 7);
-  paint.fill();
-  paint.fillStyle = "#8db07a";
-  paint.fillRect(0, 90, 128, 70);
-  paint.fillStyle = "#776148";
-  paint.fillRect(42, 55, 8, 75);
-  paint.fillStyle = "#688f69";
-  paint.beginPath();
-  paint.arc(45, 65, 29, 0, 7);
-  paint.fill();
-  (picture.material as T.MeshStandardMaterial).color.set("white");
-  (picture.material as T.MeshStandardMaterial).map = new T.CanvasTexture(
-    paintCanvas,
-  );
+  let canvasDay = -1;
+  function paintForDay(day: number) {
+    if (canvasDay === day) return;
+    canvasDay = day;
+    const style = (
+      ["sunset", "botanical", "geometric", "seascape"] as FurnishingId[]
+    )[day % 4];
+    const art = makeFurnishing(style, day);
+    const map = (
+      art.children[1] as T.Mesh<T.BufferGeometry, T.MeshBasicMaterial>
+    ).material.map!;
+    const material = picture.material as T.MeshStandardMaterial;
+    material.map?.dispose();
+    material.map = map;
+    material.needsUpdate = true;
+    art.children.forEach((child) => {
+      const m = child as T.Mesh;
+      m.geometry.dispose();
+      (m.material as T.Material).dispose();
+    });
+  }
   const book = new T.Group();
   mom.add(book);
   box(0, 0.87, 0.4, 0.6, 0.07, 0.4, "#517b61", false, book);
@@ -873,6 +874,7 @@ export function createWorld(scene: T.Scene) {
     force = false,
     story?: FamilyStory,
   ) {
+    paintForDay(day);
     const absent = !!story && day === story.surgeryDay;
     mom.visible = !absent;
     if (absent) {
@@ -1810,7 +1812,7 @@ export function createWorld(scene: T.Scene) {
     .slice(0, 12)
     .entries()) {
     const g = new T.Group();
-    g.position.set(tree.x, 1.35, tree.z + tree.radius + 0.4);
+    g.position.set(tree.x, 1.35, tree.z + tree.radius + 1.5);
     g.userData.treeRadius = tree.radius;
     g.userData.tree = { x: tree.x, z: tree.z };
     g.name = "moms-birdhouse";
@@ -1834,6 +1836,9 @@ export function createWorld(scene: T.Scene) {
     const hole = ball(0, 0.03, 0.18, 0.075, "#3d392f", g);
     hole.scale.z = 0.1;
     box(0, -0.12, 0.25, 0.04, 0.04, 0.2, "#a48162", false, g);
+    box(0, -0.78, 0, 0.11, 1.55, 0.11, "#a48162", false, g).name =
+      "birdhouse-stilt";
+    box(0, -1.32, 0, 0.42, 0.08, 0.32, "#a48162", false, g);
     outdoorBirdhouses.push(g);
   }
   function showBirdhouses(count: number, paints: BirdhousePaint[] = []) {
@@ -2618,6 +2623,14 @@ export function createWorld(scene: T.Scene) {
   const life = createTownLife(scene, rects, targets, speakers, player, mom);
   return {
     life,
+    cookingProps: [
+      cooking,
+      bacon,
+      birdhouses,
+      painting,
+      book,
+      ...activityProps.values(),
+    ],
     houseBirds,
     updateHouseBirds,
     robertsonsRoof,

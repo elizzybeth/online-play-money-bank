@@ -1,0 +1,196 @@
+import { assessment, newMillionaire } from "../../src/millionaire";
+import { test, expect, type Page } from "@playwright/test";
+import { fresh } from "../../src/game";
+async function frames(page: Page, n = 10) {
+  for (let i = 0; i < n; i++) await page.clock.fastForward(32);
+}
+async function start(page: Page, extra: any) {
+  const s = Object.assign(
+    fresh(),
+    {
+      awake: true,
+      metMom: true,
+      day: 3,
+      cash: 10000,
+      position: { x: -2.5, z: 10 },
+    },
+    extra,
+  );
+  await page.clock.install({ time: new Date("2026-01-01T00:00:00Z") });
+  await page.clock.pauseAt(new Date("2026-01-02T00:00:00Z"));
+  await page.addInitScript((s) => {
+    if (!localStorage.getItem("money-tree-v1"))
+      localStorage.setItem("money-tree-v1", JSON.stringify(s));
+  }, s);
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto("./?test");
+  await page.getByRole("button", { name: "Wake up", exact: false }).click();
+  await frames(page);
+  return errors;
+}
+test("Mom prepares a pan, bed-day cooking routes through her doorway, and food starts after eating", async ({
+  page,
+}) => {
+  const errors = await start(page, {
+    groceries: { eggs: 1, rice: 1, beans: 1, tortillas: 1 },
+  });
+  await page.keyboard.press("e");
+  await frames(page);
+  await expect(
+    page.getByRole("button", { name: "Yes, let’s cook" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Yes, let’s cook" }).click();
+  await page.evaluate(() => (window as any).game.teleport(-12.5, 11.2));
+  await frames(page);
+  await expect(page.locator("#prompt")).toContainText("Cook");
+  await page.keyboard.press("e");
+  await frames(page, 12);
+  const started = await page.evaluate(() => (window as any).game.homeLiving());
+  expect(started.cooking.recipe).toBe(15);
+  expect(started.cooking.bed).toBe(true);
+  expect(started.cooking.route.some((p: any) => p.x > -9)).toBe(true);
+  expect(
+    (await page.evaluate(() => (window as any).game.state())).foodBuff,
+  ).toBeUndefined();
+  await page.screenshot({ path: "../../outputs/money-tree-new-cooking.png" });
+  for (let i = 0; i < 83; i++) await page.clock.fastForward(250);
+  await expect(page.locator("#food-effect")).toContainText(
+    "Better breakfast burrito",
+  );
+  const s = await page.evaluate(() => (window as any).game.state());
+  expect(s.pendingMeal).toBeUndefined();
+  expect(s.foodBuff.remaining).toBeGreaterThan(175);
+  expect(s.groceries).toEqual({ eggs: 0, rice: 0, beans: 0, tortillas: 0 });
+  await page.screenshot({ path: "../../outputs/money-tree-new-meal.png" });
+  expect(errors).toEqual([]);
+});
+test("floor furnishings use red/green placement, save and rebuild after refresh", async ({
+  page,
+}) => {
+  const errors = await start(page, {
+    position: { x: -15, z: 1 },
+    furnitureBag: ["chair"],
+  });
+  await page.keyboard.press("i");
+  await page
+    .getByRole("button", { name: "Place Velvet reading chair" })
+    .click();
+  await page.evaluate(() => (window as any).game.setYaw(Math.PI));
+  await frames(page);
+  expect(
+    (await page.evaluate(() => (window as any).game.homeLiving())).placing
+      .valid,
+  ).toBe(true);
+  await page.keyboard.press("e");
+  await frames(page);
+  expect(
+    (await page.evaluate(() => (window as any).game.state())).furniture,
+  ).toHaveLength(1);
+  await page.reload();
+  await page.getByRole("button", { name: "Wake up", exact: false }).click();
+  await frames(page);
+  expect(
+    (await page.evaluate(() => (window as any).game.homeLiving())).models,
+  ).toBe(1);
+  expect(errors).toEqual([]);
+});
+test("parked bike E has a visible one-second hop and the higher first-person viewpoint", async ({
+  page,
+}) => {
+  await start(page, {
+    position: { x: 3, z: 30 },
+    bikes: ["tassels"],
+    selectedBike: "tassels",
+  });
+  await page.keyboard.press("h");
+  await frames(page, 10);
+  expect(
+    (await page.evaluate(() => (window as any).game.homeLiving())).mounting,
+  ).toBeGreaterThan(0);
+  expect(
+    (await page.evaluate(() => (window as any).game.bicycle())).riding,
+  ).toBe(false);
+  await frames(page, 45);
+  expect(
+    (await page.evaluate(() => (window as any).game.bicycle())).riding,
+  ).toBe(true);
+  await page.keyboard.press("h");
+  await frames(page, 5);
+  await expect(page.locator("#prompt")).toContainText("Mount bicycle");
+  await page.keyboard.press("e");
+  await frames(page, 55);
+  expect(
+    (await page.evaluate(() => (window as any).game.bicycle())).firstPerson,
+  ).toBe(true);
+  expect(
+    (await page.evaluate(() => (window as any).game.camera())).position[1],
+  ).toBeGreaterThan(2);
+});
+
+test("painting placement rejects the bedroom window and uses a clear wall", async ({
+  page,
+}) => {
+  await start(page, { position: { x: -15, z: 1 }, furnitureBag: ["sunset"] });
+  await page.keyboard.press("i");
+  await page.getByRole("button", { name: "Place Sunset painting" }).click();
+  await page.evaluate(() => (window as any).game.setYaw(0));
+  await frames(page);
+  expect(
+    (await page.evaluate(() => (window as any).game.homeLiving())).placing
+      .valid,
+  ).toBe(false);
+  await page.evaluate(() => (window as any).game.teleport(-12, 1));
+  await frames(page);
+  expect(
+    (await page.evaluate(() => (window as any).game.homeLiving())).placing
+      .valid,
+  ).toBe(true);
+  await page.keyboard.press("e");
+  await frames(page);
+  await page.screenshot({ path: "../../outputs/money-tree-new-painting.png" });
+  expect(
+    (await page.evaluate(() => (window as any).game.state())).furniture,
+  ).toHaveLength(1);
+});
+test("Willow Lane camera stays near the player and desert thoughts stay centered after visiting", async ({
+  page,
+}) => {
+  const m = {
+    ...newMillionaire(),
+    afterPepe: 10000,
+    unlocked: true,
+    member: "fire",
+    result: "fire",
+    answers: assessment.map(() => 2),
+    welcomeSeed: true,
+    summitSeeds: true,
+    titheAccepted: true,
+    mountainEarned: 0,
+  };
+  await start(page, {
+    position: { x: 46, z: -80 },
+    foundTVSeeds: true,
+    foundGardenSeeds: true,
+    pepePopped: true,
+    pepeShowStarted: true,
+    pepeInflation: 12,
+    millionaire: m,
+  });
+  for (const z of [-90, -100]) {
+    await page.evaluate((z) => (window as any).game.teleport(46, z), z);
+    await frames(page, 5);
+    const v = await page.evaluate(() => ({
+      p: (window as any).game.state().position,
+      c: (window as any).game.camera().position,
+    }));
+    expect(Math.hypot(v.c[0] - v.p.x, v.c[2] - v.p.z)).toBeLessThan(9);
+  }
+  await page.evaluate(() => (window as any).game.teleport(34, -210));
+  await frames(page, 10);
+  const bubble = page.locator("#thought");
+  await expect(bubble).toBeVisible();
+  const box = await bubble.boundingBox();
+  expect(Math.abs(box!.x + box!.width / 2 - 640)).toBeLessThan(2);
+  await expect(bubble).not.toContainText(/who lives|what.*top/i);
+});

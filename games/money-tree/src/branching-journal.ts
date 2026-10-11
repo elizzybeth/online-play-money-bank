@@ -177,7 +177,7 @@ export function constructJournal(
     paragraphs: string[] = [];
   function addMountainNarrative() {
     const mountainEvents = c.events.filter((e) =>
-      /gap opened behind Sigma Town|assessment matched me|Joined .*membership card|Agreed to contribute|left the terraces to build lavish mansions/.test(
+      /A Child at a mansion|I played |Five dollars is kind|I looked inside one of the mansions|Cooked and shared |Hung |Mom painted |gap opened behind Sigma Town|assessment matched me|Joined .*membership card|Agreed to contribute|left the terraces to build lavish mansions/.test(
         e,
       ),
     );
@@ -192,7 +192,7 @@ export function constructJournal(
     const contributions = c.events.filter((e) => e.startsWith("Contributed "));
     if (contributions.length)
       paragraphs.push(
-        `The community took its tenth from my new earnings today. The children’s houses seem much larger than the ones back home.`,
+        `The community took its tenth from my money tree earnings today.`,
       );
   }
   const recentPages = c.previous.slice(-8).map(normalize);

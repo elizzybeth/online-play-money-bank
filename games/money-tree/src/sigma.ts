@@ -1,3 +1,4 @@
+import { purchasePrice } from "./meals";
 import type { State } from "./game";
 import { recordEarnings } from "./millionaire";
 export const sigmaPlots = [
@@ -89,8 +90,8 @@ export function unlockSigma(s: State) {
 }
 export function buyDrink(s: State, id: DrinkId) {
   const d = drinks.find((d) => d.id === id);
-  if (!s.foundTVSeeds || !d || s.cash < d.cost) return false;
-  s.cash -= d.cost;
+  if (!s.foundTVSeeds || !d || s.cash < purchasePrice(s, d.cost)) return false;
+  s.cash -= purchasePrice(s, d.cost);
   s.drink = { id, remaining: d.seconds };
   s.events.push(`Bought ${d.name} at Grindset.`);
   return true;

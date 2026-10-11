@@ -151,7 +151,7 @@ test("mounting a stationary bike does not invent a journal ride", async ({
     position: { x: 3, z: 30 },
   });
   await page.keyboard.press("h");
-  for (let i = 0; i < 30; i++) await page.clock.fastForward(32);
+  for (let i = 0; i < 45; i++) await page.clock.fastForward(32);
   expect(
     await page.evaluate(() => (window as any).game.state().events),
   ).not.toContain("Rode my Ribbon Rider bicycle.");

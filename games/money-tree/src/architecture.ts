@@ -8,14 +8,22 @@ export function fitWindow(
   thickness: number,
   panes?: { x: number; y: number; width: number; height: number }[],
 ) {
-  const openings = panes ?? [
-    {
-      x: 0,
-      y: 1.95 - wall.position.y,
-      width: Math.min(2.4, length * 0.55),
-      height: 1.45,
-    },
-  ];
+  const openings = (
+    panes ?? [
+      {
+        x: 0,
+        y: 1.95 - wall.position.y,
+        width: Math.min(2.4, length * 0.55),
+        height: 1.45,
+      },
+    ]
+  ).filter(
+    (p) =>
+      Math.abs(p.x) + p.width / 2 < length / 2 &&
+      Math.abs(p.y) + p.height / 2 < height / 2,
+  );
+  // Lintels cannot host a ground-level pane below their actual geometry.
+  if (!openings.length) return;
   const outline = new T.Shape();
   outline.moveTo(-length / 2, -height / 2);
   outline.lineTo(length / 2, -height / 2);

@@ -101,6 +101,7 @@ test("bike pitch is locked, harvest and conversations stay mounted, planting is 
   ).toBe(3);
   const walking = await page.evaluate(() => (window as any).game.cameraPitch());
   await page.keyboard.press("h");
+  await frames(page, 24);
   const pitch = await page.evaluate(() => (window as any).game.cameraPitch());
   await page.keyboard.down("ArrowUp");
   await frames(page, 15);

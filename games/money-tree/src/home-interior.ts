@@ -84,7 +84,7 @@ export function decorateHome(scene: T.Scene, rects: Rect[]) {
     box(x, 2.55, z, width + 0.08, 0.1, 0.5, "#12717b");
   }
   bookcase(-12.1, 6.42, 2.6);
-  bookcase(-14.9, -1.63, 2.8);
+
   function plant(x: number, z: number, h: number, c: string) {
     mesh(new T.CylinderGeometry(0.27, 0.2, 0.43, 16), c, x, 0.23, z).name =
       "glazed-houseplant-pot";
@@ -222,13 +222,14 @@ export function decorateHome(scene: T.Scene, rects: Rect[]) {
   }
   const map = new T.CanvasTexture(art);
   map.colorSpace = T.SRGBColorSpace;
-  box(-1.19, 2.05, 10.2, 0.06, 1.58, 1.12, "#dcad4b");
+  box(-8.81, 2.05, 11.6, 0.06, 1.58, 1.12, "#dcad4b");
   const picture = new T.Mesh(
     new T.PlaneGeometry(0.98, 1.44),
     new T.MeshBasicMaterial({ map }),
   );
-  picture.rotation.y = -Math.PI / 2;
-  picture.position.set(-1.23, 2.05, 10.2);
+  picture.name = "moms-wall-painting";
+  picture.rotation.y = Math.PI / 2;
+  picture.position.set(-8.77, 2.05, 11.6);
   root.add(picture);
   for (const z of [7.7, 12.3])
     for (let j = 0; j < 6; j++)
@@ -259,8 +260,9 @@ export function decorateHome(scene: T.Scene, rects: Rect[]) {
     );
   }
   rects.push({ x: -14.1, z: 8.1, w: 1.06, d: 1.06, clearHeight: 0.87 });
-  box(-10.2, 0.6, 12.6, 1.05, 0.25, 1.05, "#0a667a");
-  mesh(new T.SphereGeometry(1, 18, 12), "#11506d", -10.2, 1.1, 13.06).scale.set(
+  const chairStart = root.children.length;
+  box(-6.6, 0.6, 10.2, 1.05, 0.25, 1.05, "#0a667a");
+  mesh(new T.SphereGeometry(1, 18, 12), "#11506d", -6.6, 1.1, 10.66).scale.set(
     0.57,
     0.62,
     0.16,
@@ -269,21 +271,27 @@ export function decorateHome(scene: T.Scene, rects: Rect[]) {
     mesh(
       new T.SphereGeometry(1, 18, 12),
       "#146b79",
-      -10.2 + side * 0.51,
+      -6.6 + side * 0.51,
       0.82,
-      12.6,
+      10.2,
     ).scale.set(0.14, 0.22, 0.52);
-    for (const z of [12.25, 12.95])
-      cyl(-10.2 + side * 0.37, 0.24, z, 0.045, 0.42, "#b88642");
+    for (const z of [9.85, 10.55])
+      cyl(-6.6 + side * 0.37, 0.24, z, 0.045, 0.42, "#b88642");
   }
-  mesh(
-    new T.SphereGeometry(1, 18, 12),
-    "#e8b125",
-    -10.2,
-    0.98,
-    12.88,
-  ).scale.set(0.34, 0.33, 0.12);
-  rects.push({ x: -10.2, z: 12.6, w: 1.25, d: 1.35, clearHeight: 1.72 });
+  mesh(new T.SphereGeometry(1, 18, 12), "#e8b125", -6.6, 0.98, 10.48).scale.set(
+    0.34,
+    0.33,
+    0.12,
+  );
+  const chairCenter = new T.Vector3(-6.6, 0, 10.2);
+  for (const child of root.children.slice(chairStart)) {
+    child.position
+      .sub(chairCenter)
+      .applyAxisAngle(new T.Vector3(0, 1, 0), -Math.PI / 2)
+      .add(chairCenter);
+    child.rotation.y -= Math.PI / 2;
+  }
+  rects.push({ x: -6.6, z: 10.2, w: 1.25, d: 1.35, clearHeight: 1.72 });
   // Batch decorative solids by material so the extra books do not add hundreds of draw calls.
   root.updateMatrixWorld(true);
   for (const mat of mats.values()) {

@@ -56,3 +56,8 @@ Reviewed against the current source and regression suite, October 10, 2026. This
 ## Release verification
 
 Pending current-batch cross-browser CI and live verification. Coverage above identifies executable evidence, not a claim that every cosmetic detail is automatically proven by tests. Rate-limit/account history cannot establish the cause of any missing feature; source review establishes the implementation state.
+
+
+## October 11 follow-up coverage
+
+This batch covers the Willow Lane camera limit, Spoke & Saddle doorway, home bookcase/art/chair moves, clear grove approach, Sigma adjacency, level-based home furnishing catalog and placement, persistent Mom paintings, all four groceries and fifteen dishes with twenty-second shared meals and food effects, parked-bike E mounting and raised POV, centered stage-aware desert thoughts, plant-based bacon reply, Community Guide default, fertile terrace messaging, interaction-grounded mansion/app journals, curved car/yacht models, Food of the Gods alignment and signs, COMPOST heading, held chicken camera/E release, standalone birdhouse stilts and Fuck’s haberdashery-area range.

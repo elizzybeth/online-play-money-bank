@@ -31,3 +31,13 @@ test("windows cut through the wall and fit transparent glass inside its thicknes
     );
   }
 });
+
+test("doorway lintels never sprout a window below the wall", () => {
+  const wall = new T.Mesh(
+    new T.BoxGeometry(5, 4.1, 0.25),
+    new T.MeshStandardMaterial(),
+  );
+  wall.position.y = 5.15;
+  fitWindow(wall, true, 5, 4.1, 0.25);
+  assert.equal(wall.children.length, 0);
+});

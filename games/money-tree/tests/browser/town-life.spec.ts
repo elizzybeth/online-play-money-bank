@@ -116,7 +116,7 @@ test("Gigachad sells real pastry and Mom shares it; speech keeps thoughts hidden
     metMom: true,
     foundTVSeeds: true,
     cash: 1000,
-    position: { x: 21, z: -70 },
+    position: { x: 21, z: -77 },
   });
   await start(page, s);
   await expect(page.locator("#prompt")).toContainText("Gigachad");
@@ -147,6 +147,8 @@ test("Gigachad sells real pastry and Mom shares it; speech keeps thoughts hidden
   ).toBe(true);
   await expect(page.locator(".speech-bubble")).toContainText("delicious");
   await frames(page, 110);
+  await page.keyboard.press("e");
+  await frames(page, 5);
   expect(
     await page.evaluate(() => (window as any).game.townLife().sharing),
   ).toBe(false);
@@ -232,6 +234,8 @@ test("five hens and a rooster wander and Tuck jumps into your arms; Mom has a us
     await page.evaluate(() => (window as any).game.townLife().cuddling),
   ).toBe(0);
   await frames(page, 90);
+  await page.keyboard.press("e");
+  await frames(page, 5);
   expect(
     await page.evaluate(() => (window as any).game.townLife().cuddling),
   ).toBeUndefined();

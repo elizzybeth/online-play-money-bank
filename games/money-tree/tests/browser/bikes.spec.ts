@@ -78,7 +78,7 @@ test("H gives a first-person cockpit, slowest bike beats running, B rings, walls
   await page.evaluate(() => (window as any).game.setYaw(0));
   await frames(page);
   await page.keyboard.press("h");
-  await frames(page, 20);
+  await frames(page, 55);
   expect(
     await page.evaluate(() => (window as any).game.bicycle().firstPerson),
   ).toBe(true);
@@ -108,6 +108,7 @@ test("H gives a first-person cockpit, slowest bike beats running, B rings, walls
   ).toBe(false);
   await page.evaluate(() => (window as any).game.teleport(17, -28));
   await page.keyboard.press("h");
+  await frames(page, 55);
   await page.evaluate(() => (window as any).game.setYaw(Math.PI / 2));
   await page.keyboard.down("w");
   await frames(page, 90);
@@ -122,6 +123,7 @@ test("H gives a first-person cockpit, slowest bike beats running, B rings, walls
   await page.evaluate(() => (window as any).game.teleport(-18, -19));
   await page.evaluate(() => (window as any).game.setYaw(0));
   await page.keyboard.press("h");
+  await frames(page, 55);
   await page.keyboard.down("w");
   await frames(page, 35);
   await page.keyboard.up("w");
@@ -142,7 +144,7 @@ test("penny-farthing rides higher and owned bike cards allow switching", async (
   });
   await page.keyboard.press("i");
   await page.locator('[data-bicycle="penny"]').click();
-  await frames(page, 30);
+  await frames(page, 55);
   expect(
     await page.evaluate(() => (window as any).game.state().selectedBike),
   ).toBe("penny");
@@ -151,7 +153,7 @@ test("penny-farthing rides higher and owned bike cards allow switching", async (
   );
   expect(
     await page.evaluate(() => (window as any).game.camera().position[1]),
-  ).toBeCloseTo(2.45, 2);
+  ).toBeCloseTo(2.8, 2);
   await expect(page.locator("#bike-bell-help")).toBeVisible();
   await page.keyboard.press("h");
   await frames(page, 1);

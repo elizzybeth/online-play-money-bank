@@ -244,13 +244,7 @@ export function createTownLife(
   const chair = new T.Group();
   chair.name = "moms-bedroom-chair";
   chair.position.set(-6.6, 0, 10.2);
-  const c = maker(chair);
-  c.box(0, 0.65, 0, 0.85, 0.17, 0.8, "#af3970");
-  c.box(0, 1.1, -0.35, 0.9, 0.85, 0.15, "#682451");
-  for (const x of [-0.33, 0.33])
-    for (const z of [-0.3, 0.3]) c.box(x, 0.3, z, 0.085, 0.6, 0.085, "#8f622f");
-  scene.add(chair);
-  rects.push({ x: -6.6, z: 10.2, w: 0.9, d: 0.85, clearHeight: 1.5 });
+  // The upholstered living-room chair now sits beside Mom’s bed.
   targets.push({ id: "mom-chair", x: -6.6, z: 11.4, label: "Sit nearby Mom" });
   const names = ["Tuck", "Cluck", "Pluck", "Luck", "Fuck", "Fancy Chicken"];
   const chickens = names.map((name, i) => {
@@ -329,8 +323,8 @@ export function createTownLife(
       }
       object.scale.setScalar(1.15);
     }
-    const x = [-26, -12, 14, 24, 5, -2][i],
-      z = [24, 27, 22, 9, -12, 29][i];
+    const x = [-26, -12, 14, 24, 32, -2][i],
+      z = [24, 27, 22, 9, -28, 29][i];
     object.position.set(x, 0, z);
     scene.add(object);
     const target = { id: `chicken-${i}`, x, z, label: `Cuddle ${name}` };
@@ -346,7 +340,9 @@ export function createTownLife(
     };
     return { name, object, target, roaming };
   });
-  let cuddle: { i: number; t: number; origin: T.Vector3 } | undefined;
+  let cuddle:
+    | { i: number; t: number; origin: T.Vector3; releasing?: boolean }
+    | undefined;
   let sharing: { t: number; pieces: T.Group[] } | undefined;
   const pose = (actor: T.Group, time: number) => {
     for (const side of [-1, 1])
@@ -373,6 +369,9 @@ export function createTownLife(
     },
     get sharing() {
       return !!sharing;
+    },
+    putDown() {
+      if (cuddle) cuddle.releasing = true;
     },
     cuddle(i: number) {
       if (cuddle || sharing || !chickens[i]) return false;
@@ -408,7 +407,9 @@ export function createTownLife(
                 ) < 0.75,
             ),
           false,
-          { minX: -33, maxX: 33, minZ: -18, maxZ: 33 },
+          i === 4
+            ? { minX: 29, maxX: 34, minZ: -35, maxZ: -22 }
+            : { minX: -33, maxX: 33, minZ: -18, maxZ: 33 },
         );
         ch.object.position.set(ch.roaming.position.x, 0, ch.roaming.position.z);
         if (
@@ -449,7 +450,7 @@ export function createTownLife(
         pose(player, time);
         player.getObjectByName("head")!.rotation.z = 0.22;
         ch.object.rotation.x = -0.1;
-        if (cuddle.t >= 3) {
+        if (cuddle.releasing && cuddle.t >= 0.5) {
           scene.attach(ch.object);
           let x = player.position.x + 1,
             z = player.position.z + 1;

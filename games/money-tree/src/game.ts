@@ -1,4 +1,16 @@
 import {
+  validFurnishings,
+  type FurnishingId,
+  type PlacedFurniture,
+} from "./furnishings";
+import {
+  validFood,
+  foodPower,
+  purchasePrice,
+  type Ingredient,
+  type FoodBuff,
+} from "./meals";
+import {
   type Millionaire,
   migrateMillionaire,
   validMillionaire,
@@ -54,6 +66,12 @@ export type Plot = {
 };
 export type State = {
   version: 1;
+  groceries?: Partial<Record<Ingredient, number>>;
+  foodBuff?: FoodBuff;
+  pendingMeal?: number;
+  furnitureBag?: FurnishingId[];
+  furniture?: PlacedFurniture[];
+  momCanvasDays?: number[];
   compostScraps?: number;
   spanakopita?: number;
   spanakopitaShared?: number;
@@ -181,11 +199,11 @@ export function buy(
   const costs = { seeds: 200, shovel: 100, can: 100, fertilizer: 500 };
   if (
     (item === "seeds" && s.boughtSeeds) ||
-    s.cash < costs[item] ||
+    s.cash < purchasePrice(s, costs[item]) ||
     ((item === "shovel" || item === "can") && s[item])
   )
     return false;
-  s.cash -= costs[item];
+  s.cash -= purchasePrice(s, costs[item]);
   if (item === "seeds") {
     s.seeds += 5;
     s.boughtSeeds = true;
@@ -226,13 +244,22 @@ export function plant(s: State, i: number) {
       `Collected ${scraps} compost scraps while replacing a dead money tree.`,
     );
   }
-  s.seeds--;
+  if (foodPower(s, "seed")) {
+    s.rng = (s.rng * 16807) % 2147483647;
+    if (s.rng / 2147483647 >= 0.5) s.seeds--;
+  } else s.seeds--;
   s.plots[i].stage = "planted";
   if (s.plots[i].mountain) {
     s.plots[i].fertilized = true;
     s.plots[i].stage = "growing";
     s.plots[i].remaining = 120;
     s.plots[i].yield = 0;
+  }
+  if (!s.plots[i].mountain && foodPower(s, "garden")) {
+    s.plots[i].stage = "growing";
+    s.plots[i].fertilized = true;
+    s.plots[i].fertilizedDay = s.day;
+    s.plots[i].remaining = 120;
   }
   s.events.push("Planted a money seed.");
   if (s.plots[i].community) {
@@ -311,6 +338,9 @@ export function plantingBatch(s: State, i: number): number[] {
       dx = Math.abs(p.x - origin.x),
       dz = Math.abs(p.z - origin.z);
     return (
+      (s.plots[i].community &&
+        s.plots[j].community &&
+        Math.hypot(dx, dz) <= 4.65) ||
       (dx >= 1.8 && dx <= 3.2 && dz < 0.6) ||
       (dz >= 2.8 && dz <= 3.6 && dx < 0.6)
     );
@@ -345,9 +375,10 @@ export function harvest(s: State, i: number) {
   );
   if (wearing(s, "banker"))
     noteHatPower(s, "to get an extra dollar from a harvest", "banker");
-  const net = recordEarnings(s, n, !!p.mountain);
+  const income = foodPower(s, "harvest") ? Math.round(n * 1.2) : n;
+  const net = recordEarnings(s, income, !!p.mountain);
   s.cash += net;
-  s.totalEarned = (s.totalEarned ?? 0) + n;
+  s.totalEarned = (s.totalEarned ?? 0) + income;
   if (wearing(s, "cap") || buff(s, "growth")) {
     s.rng = (s.rng * 16807) % 2147483647;
     if (
@@ -365,7 +396,7 @@ export function harvest(s: State, i: number) {
   p.stage = "harvested";
   p.yield = 0;
   p.fertilized = false;
-  s.events.push(`Harvested ${money(n)} from a money tree.`);
+  s.events.push(`Harvested ${money(income)} from a money tree.`);
   return net;
 }
 export const SURGERY_GOAL = 1_000_000;
@@ -494,6 +525,11 @@ export function sleep(s: State) {
     s.birdhousePaintDay !== s.day
   )
     s.birdhousesBuilt = Math.min(12, (s.birdhousesBuilt ?? 0) + 1);
+  if (
+    momStatus(s.day, s.familyStory).activity === "painting" &&
+    !(s.momCanvasDays ?? []).includes(s.day)
+  )
+    (s.momCanvasDays ??= []).push(s.day);
   s.events = [];
   s.day++;
   s.plots.forEach((p) => delete p.fertilizedDay);
@@ -506,6 +542,7 @@ export function sleep(s: State) {
   s.dailyNet = 0;
   growOvernight(s);
   delete s.drink;
+  delete s.foodBuff;
   tickSigma(s, 180, false);
   return true;
 }
@@ -625,6 +662,8 @@ export function decode(raw: string | null): State | null {
     const s = JSON.parse(raw);
     if (
       s.version !== 1 ||
+      !validFood(s) ||
+      !validFurnishings(s) ||
       [
         "compostScraps",
         "spanakopita",
@@ -1115,8 +1154,9 @@ export function removeHat(s: State, id: HatId) {
 }
 export function buyHat(s: State, id: HatId) {
   const hat = hatById(id);
-  if (!hat || s.hats.includes(id) || s.cash < hat.price) return false;
-  s.cash -= hat.price;
+  if (!hat || s.hats.includes(id) || s.cash < purchasePrice(s, hat.price))
+    return false;
+  s.cash -= purchasePrice(s, hat.price);
   s.hats.push(id);
   equipHat(s, id);
   s.events.push(`Bought the ${hat.name}.`);
@@ -1140,7 +1180,8 @@ export const plantingSeconds = (s: State) =>
 export const movementSpeed = (s: State, running: boolean) =>
   (running ? 7 : 4) *
   (wearing(s, "propeller") ? 1.25 : 1) *
-  (buff(s, "sprint") ? 1.3 : 1);
+  (buff(s, "sprint") ? 1.3 : 1) *
+  (foodPower(s, "speed") ? 1.2 : 1);
 
 export const seedStashSpots = [
   { x: -29, z: -33 },
@@ -1266,7 +1307,7 @@ export const withinProperty = (x: number, z: number) =>
   z >= -4.4 &&
   z <= 22.4;
 export function buyGardenSupply(s: State, item: "bed" | "soil") {
-  const cost = item === "bed" ? 3000 : 1000;
+  const cost = purchasePrice(s, item === "bed" ? 3000 : 1000);
   if (
     s.cash < cost ||
     (item === "bed" &&

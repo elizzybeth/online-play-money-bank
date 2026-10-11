@@ -1,3 +1,24 @@
+import {
+  ingredients,
+  meals,
+  mealMask,
+  buyGrocery,
+  startMeal,
+  finishMeal,
+  tickFood,
+  purchasePrice,
+} from "./meals";
+import { makeDish, makeIngredient, foodIllustration } from "./food-models";
+import {
+  furnishingCatalog,
+  furnitureById,
+  homeLevel,
+  canPlaceFurniture,
+  type FurnishingId,
+  type PlacedFurniture,
+  type WallSpace,
+} from "./furnishings";
+import { makeFurnishing } from "./furnishing-models";
 import { notebookLines, notebookSpreads } from "./notebook-layout";
 import {
   compostSoil,
@@ -146,6 +167,7 @@ import {
   blocked,
   clearPosition,
   type State,
+  type Rect,
 } from "./game";
 import { createWorld, type Target } from "./world";
 const $ = (s: string) => document.querySelector<HTMLElement>(s)!;
@@ -309,6 +331,9 @@ if (s.familyStory?.escort) {
 scene.add(camera);
 const bikeCockpit = makeBikeCockpit();
 camera.add(bikeCockpit.object);
+let bikeMountTime = 0;
+let bikeHopFrom = new T.Vector3(),
+  bikeHopTo = new T.Vector3();
 let riding = false,
   rideSpeed = 0,
   actualRideSpeed = 0,
@@ -316,7 +341,7 @@ let riding = false,
 let rideTransition = 0;
 let walkingPitch = 0.42;
 let rideDistance = 0;
-const rideEyeHeight = () => (s.selectedBike === "penny" ? 2.45 : 1.7);
+const rideEyeHeight = () => (s.selectedBike === "penny" ? 2.8 : 2.1);
 const rideCameraOffset = new T.Vector3();
 let parkedBike: T.Group | undefined, parkedBikeId: BikeId | undefined;
 const ridingIndoors = () =>
@@ -356,7 +381,8 @@ function dismountBike() {
     parkedBike.visible = true;
   }
 }
-function mountBike() {
+function mountBike(complete = false) {
+  if (bikeMountTime > 0 && !complete) return;
   if (riding) {
     dismountBike();
     return;
@@ -391,6 +417,24 @@ function mountBike() {
     parkedBike = makeBike(s.selectedBike);
     parkedBikeId = s.selectedBike;
     scene.add(parkedBike);
+  }
+  if (!complete) {
+    bikeHopFrom.set(
+      s.position.x,
+      terrainHeight(s.position.x, s.position.z),
+      s.position.z,
+    );
+    const nearby =
+      parkedBike!.visible && parkedBike!.position.distanceTo(bikeHopFrom) < 2;
+    if (!nearby) parkedBike!.position.copy(bikeHopFrom);
+    bikeHopTo.copy(parkedBike!.position);
+    parkedBike!.rotation.y = yaw;
+    parkedBike!.visible = true;
+    bikeMountTime = 1;
+    keys.clear();
+    dismissSpeech();
+    toast("Hopping onto your bicycle…");
+    return;
   }
   parkedBike!.visible = false;
   riding = true;
@@ -436,13 +480,13 @@ function showBike(id: BikeId) {
   const owned = (s.bikes ?? []).includes(id);
   panel(
     bike.name,
-    `<img class="bike-portrait" src="${hatPortrait(id)}" alt="${bike.name} bicycle"><p>${bike.description}</p><p>${money(bike.price)} · ${Math.round(bike.speed * 3.6)} km/h</p><p>H mounts or dismounts. B rings your bell. Every bicycle is faster than running.</p>`,
+    `<img class="bike-portrait" src="${hatPortrait(id)}" alt="${bike.name} bicycle"><p>${bike.description}</p><p>${money(purchasePrice(s, bike.price))} · ${Math.round(bike.speed * 3.6)} km/h</p><p>H mounts or dismounts. B rings your bell. Every bicycle is faster than running.</p>`,
     [
       {
         label: owned
           ? "Choose this bicycle"
-          : `Buy bicycle · ${money(bike.price)}`,
-        disabled: !owned && s.cash < bike.price,
+          : `Buy bicycle · ${money(purchasePrice(s, bike.price))}`,
+        disabled: !owned && s.cash < purchasePrice(s, bike.price),
         run: () => {
           const ok = owned ? selectBike(s, id) : buyBike(s, id);
           if (ok) {
@@ -717,6 +761,7 @@ function letterToAuntie() {
 }
 function askMom() {
   if (momAway(s)) return;
+  if (offerCooking()) return;
   s.momLastTalkDay = s.day;
   momSpoke = true;
   if (storyPhase(s) === "scheduled")
@@ -750,6 +795,24 @@ function askMom() {
     return;
   }
   const status = momStatus(s.day, s.familyStory);
+  if (status.activity === "bacon" && s.millionaire?.member === "fire") {
+    speak(
+      "mom",
+      "<p>Are you ready for the best bacon sandwich of your life, sweetheart?</p>",
+      [
+        {
+          label: "Love you too. I’ve gone plant-based, Mom",
+          run: () =>
+            speak(
+              "mom",
+              "<p>Of course, love. I’ll make something plant-based for you. Thank you for reminding me.</p>",
+              [{ label: "Love you too", run: dismissSpeech }],
+            ),
+        },
+      ],
+    );
+    return;
+  }
   const reply =
     momReply(s) +
     (s.day % 4 === 2 ? " Cuddle a chicken for me when you go out, love." : "");
@@ -1043,6 +1106,7 @@ function playMomPuzzle() {
 }
 function returnToMom() {
   if (momAway(s)) return;
+  if (offerCooking()) return;
   if (s.familyStory) return askMom();
   s.metMom = true;
   visit("Checked in with Mom after coming home.");
@@ -1631,7 +1695,7 @@ function showHat(id: HatId) {
   const hat = hatById(id)!;
   panel(
     hat.name,
-    `<img class="hat-portrait" src="${hatPortrait(id)}" alt="${hat.name}"><p>${hatPower(id, s.foundCapSeeds)}</p><p>${money(hat.price)} · Your pocket: ${money(s.cash)}</p>`,
+    `<img class="hat-portrait" src="${hatPortrait(id)}" alt="${hat.name}"><p>${hatPower(id, s.foundCapSeeds)}</p><p>${money(purchasePrice(s, hat.price))} · Your pocket: ${money(s.cash)}</p>`,
     [
       ...(id === "cap" && !s.foundCapSeeds
         ? [
@@ -1658,10 +1722,10 @@ function showHat(id: HatId) {
           ? wearing(s, id)
             ? "Already wearing"
             : "Put on this hat"
-          : `Buy & ${wornHats(s).length >= 3 ? "keep" : "wear"} · ${money(hat.price)}`,
+          : `Buy & ${wornHats(s).length >= 3 ? "keep" : "wear"} · ${money(purchasePrice(s, hat.price))}`,
         disabled: s.hats.includes(id)
           ? wearing(s, id) || wornHats(s).length >= 3
-          : s.cash < hat.price,
+          : s.cash < purchasePrice(s, hat.price),
         run: () => {
           if (s.hats.includes(id) ? equipHat(s, id) : buyHat(s, id)) {
             save();
@@ -1768,6 +1832,13 @@ function bag() {
             },
           ]
         : []),
+      ...ingredients
+        .filter((k) => !!s.groceries?.[k])
+        .map((k) => ({ label: `${k}: ${s.groceries![k]} in bag`, run: bag })),
+      ...(s.furnitureBag ?? []).map((item) => ({
+        label: `Place ${furnitureById(item).name}`,
+        run: () => beginFurniture(item),
+      })),
       { label: "Back to the day", default: true, run: close },
     ],
     "YOUR LITTLE COLLECTION",
@@ -1908,6 +1979,567 @@ function bank(afterTransfer = false) {
     "YOUR PIGGY BANK",
   );
 }
+function homeShop() {
+  const stock = furnishingCatalog.filter((f) => f.level <= homeLevel(s));
+  panel(
+    "Robertsons: groceries and home",
+    `<p>Eggs, rice, beans and tortillas are always available. Bring any combination home to cook with Mom.</p><p>Two new furnishing kinds arrive at each level: paintings and chairs, then monstera and snake plants, then pothos and rugs. Paintings have several designs.</p><p>Food bonuses last during awake play and end at sleep.</p>`,
+    [
+      ...ingredients.map((item) => ({
+        label: `${item[0].toUpperCase() + item.slice(1)} · ${money(purchasePrice(s, 100))} · in bag ${s.groceries?.[item] ?? 0}`,
+        disabled: s.cash < purchasePrice(s, 100),
+        run: () => {
+          if (buyGrocery(s, item)) {
+            save();
+            homeShop();
+          }
+        },
+      })),
+      ...stock.map((f) => ({
+        label: `${f.name} · ${money(purchasePrice(s, f.price))}`,
+        disabled: s.cash < purchasePrice(s, f.price),
+        run: () => {
+          const price = purchasePrice(s, f.price);
+          if (s.cash < price) return;
+          s.cash -= price;
+          (s.furnitureBag ??= []).push(f.id);
+          s.events.push(`Bought ${f.name} for home.`);
+          save();
+          homeShop();
+        },
+      })),
+      { label: "Back to the day", default: true, run: close },
+    ],
+  );
+}
+let placingFurniture:
+  | {
+      item: FurnishingId;
+      ghost: T.Group;
+      rotation: number;
+      point?: PlacedFurniture;
+      valid: boolean;
+    }
+  | undefined;
+const furnishingRoot = new T.Group();
+scene.add(furnishingRoot);
+let furnishingVersion = "";
+let furnishingRects: Rect[] = [];
+function syncFurnishings() {
+  const version = JSON.stringify(s.furniture ?? []);
+  if (version === furnishingVersion) return;
+  furnishingVersion = version;
+  for (const r of furnishingRects) {
+    const i = world.rects.indexOf(r);
+    if (i >= 0) world.rects.splice(i, 1);
+  }
+  furnishingRects = [];
+  furnishingRoot.clear();
+  for (const p of s.furniture ?? []) {
+    const model = makeFurnishing(p.item, p.seed);
+    model.position.set(p.x, p.y, p.z);
+    model.rotation.y = p.rotation;
+    furnishingRoot.add(model);
+    const f = furnitureById(p.item);
+    if (!f.wall && p.item !== "rug") {
+      const r = {
+        x: p.x,
+        z: p.z,
+        w:
+          Math.abs(Math.cos(p.rotation)) * f.w +
+          Math.abs(Math.sin(p.rotation)) * f.d,
+        d:
+          Math.abs(Math.sin(p.rotation)) * f.w +
+          Math.abs(Math.cos(p.rotation)) * f.d,
+      };
+      furnishingRects.push(r);
+      world.rects.push(r);
+    }
+  }
+}
+function homeWalls(): WallSpace[] {
+  const result: WallSpace[] = [];
+  for (const o of world.occluders) {
+    if (
+      !(o instanceof T.Mesh) ||
+      !o.userData.cameraWall ||
+      o.position.x < -21.3 ||
+      o.position.x > -0.7 ||
+      o.position.z < -2.3 ||
+      o.position.z > 14.3
+    )
+      continue;
+    const dims = o.userData.boxDimensions;
+    if (!dims) continue;
+    const { w, h, d } = dims as { w: number; h: number; d: number };
+    if (h < 2.6) continue;
+    const axis = w < d ? "x" : "z",
+      value = o.position[axis],
+      mid = axis === "x" ? o.position.z : o.position.x,
+      length = Math.max(w, d);
+    const windows: WallSpace["windows"] = [];
+    o.updateMatrixWorld(true);
+    o.traverse((child) => {
+      if (child.name === "inset-window") {
+        const b = new T.Box3().setFromObject(child);
+        windows.push({
+          from: axis === "x" ? b.min.z : b.min.x,
+          to: axis === "x" ? b.max.z : b.max.x,
+          bottom: b.min.y,
+          top: b.max.y,
+        });
+      }
+    });
+    const existingArt = world.homeDecor.getObjectByName("moms-wall-painting");
+    if (existingArt && axis === "x" && Math.abs(value + 9) < 0.3) {
+      const b = new T.Box3().setFromObject(existingArt);
+      windows.push({
+        from: b.min.z,
+        to: b.max.z,
+        bottom: b.min.y,
+        top: b.max.y,
+      });
+    }
+    for (const sign of [-1, 1])
+      result.push({
+        axis,
+        value: value + sign * 0.15,
+        from: mid - length / 2,
+        to: mid + length / 2,
+        rotation:
+          axis === "x" ? (sign * Math.PI) / 2 : sign === 1 ? 0 : Math.PI,
+        windows,
+      });
+  }
+  return result;
+}
+function furnishingObstacles() {
+  return world.rects
+    .filter((r) => !furnishingRects.includes(r))
+    .concat([
+      { x: -12.1, z: 6.42, w: 2.6, d: 0.7 },
+      { x: -18, z: 7.4, w: 1.3, d: 1.3 },
+      ...[-20.35, -9.65, -20.2, -1.65].map((x, i) => ({
+        x,
+        z: [7, 13.3, -1, 13.2][i],
+        w: 0.7,
+        d: 0.7,
+      })),
+    ]);
+}
+function beginFurniture(item: FurnishingId) {
+  if (!s.furnitureBag?.includes(item)) return;
+  close();
+  const ghost = makeFurnishing(item);
+  scene.add(ghost);
+  placingFurniture = { item, ghost, rotation: 0, valid: false };
+  toast(
+    "Move and aim to place. Green fits; red is obstructed. R rotates floor items. E places. Escape cancels.",
+  );
+}
+function updateFurniturePlacement() {
+  const f = placingFurniture;
+  if (!f) return;
+  let point: PlacedFurniture = {
+    item: f.item,
+    ...bedPosition(),
+    y: 0,
+    rotation: f.rotation,
+  };
+  if (furnitureById(f.item).wall) {
+    const walls = homeWalls();
+    const facing = viewForward();
+    const candidates = walls
+      .map((w) => {
+        const origin = w.axis === "x" ? s.position.x : s.position.z,
+          dir = w.axis === "x" ? facing.x : facing.z,
+          t = (w.value - origin) / dir;
+        return { w, t };
+      })
+      .filter((a) => a.t > 0 && a.t < 5)
+      .sort((a, b) => a.t - b.t);
+    if (candidates[0]) {
+      const { w, t } = candidates[0];
+      point = {
+        item: f.item,
+        x: s.position.x + facing.x * t,
+        z: s.position.z + facing.z * t,
+        y: T.MathUtils.clamp(2 - (pitch - 0.42) * 2, 1, 2.5),
+        rotation: w.rotation,
+      };
+    } else point.y = -10;
+  }
+  f.point = point;
+  f.valid = canPlaceFurniture(
+    point,
+    furnishingObstacles(),
+    homeWalls(),
+    s.furniture ?? [],
+  );
+  f.ghost.position.set(point.x, point.y, point.z);
+  f.ghost.rotation.y = point.rotation;
+  f.ghost.traverse((o) => {
+    if (o instanceof T.Mesh) {
+      const mat = o.material as T.MeshStandardMaterial;
+      mat.transparent = true;
+      mat.opacity = 0.65;
+      mat.color.set(f.valid ? "#63d684" : "#e55e64");
+    }
+  });
+}
+function commitFurniture() {
+  const f = placingFurniture;
+  if (!f?.valid || !f.point)
+    return toast(
+      "Choose a clear wall without a window, or unoccupied floor space.",
+    );
+  const at = s.furnitureBag!.indexOf(f.item);
+  if (at < 0) return;
+  s.furnitureBag!.splice(at, 1);
+  (s.furniture ??= []).push(f.point);
+  s.events.push(`Hung or placed ${furnitureById(f.item).name} at home.`);
+  f.ghost.removeFromParent();
+  placingFurniture = undefined;
+  syncFurnishings();
+  save();
+  toast("A little more personality for home.");
+}
+function hangMomCanvases() {
+  for (const day of s.momCanvasDays ?? []) {
+    if (s.furniture?.some((p) => p.seed === day)) continue;
+    let hung = false;
+    for (const wall of homeWalls()) {
+      for (
+        let along = wall.from + 0.85;
+        along < wall.to - 0.85;
+        along += 1.35
+      ) {
+        const point: PlacedFurniture = {
+          item: (
+            ["sunset", "botanical", "geometric", "seascape"] as FurnishingId[]
+          )[day % 4],
+          x: wall.axis === "x" ? wall.value : along,
+          z: wall.axis === "z" ? wall.value : along,
+          y: 2.1,
+          rotation: wall.rotation,
+          seed: day,
+        };
+        if (canPlaceFurniture(point, [], homeWalls(), s.furniture ?? [])) {
+          (s.furniture ??= []).push(point);
+          s.events.push(
+            `Mom painted a new, unique canvas and we put it on a clear wall.`,
+          );
+          hung = true;
+          save();
+          break;
+        }
+      }
+      if (hung) break;
+    }
+  }
+}
+let kitchenPrepared = false;
+const preparedPan = new T.Mesh(
+  new T.CylinderGeometry(0.5, 0.45, 0.1, 28),
+  new T.MeshStandardMaterial({ color: "#28282e" }),
+);
+preparedPan.name = "player-cooking-pan";
+preparedPan.position.set(-12.5, 1.13, 12.8);
+preparedPan.visible = false;
+scene.add(preparedPan);
+world.targets.push({
+  id: "player-stove",
+  x: -12.5,
+  z: 11.2,
+  label: "Cook with Mom",
+});
+let cookingScene:
+  | {
+      recipe: number;
+      elapsed: number;
+      route: Point[];
+      root: T.Group;
+      dish: T.Group;
+      momOrigin: T.Vector3;
+      playerOrigin: Point;
+      bed: boolean;
+    }
+  | undefined;
+const foodHud = document.createElement("div");
+foodHud.id = "food-effect";
+foodHud.className = "money-counter";
+resourceHud.append(foodHud);
+function offerCooking() {
+  if (
+    !s.awake ||
+    momAway(s) ||
+    !mealMask(s) ||
+    ["cooking", "bacon"].includes(momStatus(s.day, s.familyStory).activity) ||
+    kitchenPrepared ||
+    cookingScene
+  )
+    return false;
+  speak(
+    "mom",
+    "<p>You brought groceries home! Would you like to cook together? I can clear the stove and get a pan ready for you.</p>",
+    [
+      {
+        label: "Yes, let’s cook",
+        run: () => {
+          kitchenPrepared = true;
+          world.cookingProps.forEach((p) => (p.visible = false));
+          if (
+            !["bedrest", "resting", "reading"].includes(
+              momStatus(s.day, s.familyStory).activity,
+            )
+          )
+            world.mom.position.x -= 1.5;
+          world.momCollider.x = world.mom.position.x;
+          dismissSpeech();
+          toast(
+            "Mom has prepared the stove. Walk to the pan and press E to cook.",
+          );
+        },
+      },
+      { label: "Maybe later", run: dismissSpeech },
+    ],
+  );
+  return true;
+}
+function beginCooking() {
+  if (!kitchenPrepared && !s.pendingMeal) return;
+  const recipe = s.pendingMeal ?? startMeal(s);
+  if (!recipe) return;
+  const bed = momStatus(s.day, s.familyStory).activity === "bedrest",
+    end = bed ? { x: -6.6, z: 11.45 } : { x: -17.5, z: 10.9 };
+  const start = { x: -12.5, z: 11.2 };
+  const route = sceneRoute(
+    start,
+    end,
+    world.rects.filter((r) => r !== world.momCollider),
+  );
+  if (!route.length) {
+    toast("The way to our seats needs to be clear.");
+    return;
+  }
+  kitchenPrepared = false;
+  keys.clear();
+  s.position = start;
+  world.player.position.set(start.x, 0, start.z);
+  world.cookingProps.forEach((p) => (p.visible = false));
+  const root = new T.Group();
+  scene.add(root);
+  const dish = makeDish(recipe);
+  dish.position.set(-12.5, 1.15, 12.8);
+  root.add(dish);
+  ingredients.forEach((_, i) => {
+    if (recipe & (1 << i)) {
+      const piece = makeIngredient(i);
+      piece.position.set(-12.5, 1.8, 12.4);
+      piece.userData.addAt = i;
+      root.add(piece);
+    }
+  });
+  const second = makeDish(recipe);
+  second.name = "moms-meal-plate";
+  second.visible = false;
+  root.add(second);
+  const pan = new T.Mesh(
+    new T.CylinderGeometry(0.5, 0.44, 0.12, 28),
+    new T.MeshStandardMaterial({
+      color: "#29292e",
+      metalness: 0.6,
+      roughness: 0.35,
+    }),
+  );
+  pan.position.set(-12.5, 1.11, 12.8);
+  root.add(pan);
+  const handle = new T.Mesh(
+    new T.BoxGeometry(0.6, 0.065, 0.1),
+    new T.MeshStandardMaterial({ color: "#543a2e" }),
+  );
+  handle.position.set(-11.77, 1.13, 12.8);
+  root.add(handle);
+  const momOrigin = world.mom.position.clone();
+  cookingScene = {
+    recipe,
+    elapsed: 0,
+    route,
+    root,
+    dish,
+    momOrigin,
+    playerOrigin: start,
+    bed,
+  };
+  save();
+  toast(`Cooking ${meals[recipe].name}. We’ll eat together after it sizzles.`);
+}
+function updateCooking(dt: number) {
+  const c = cookingScene;
+  if (!c) return;
+  c.elapsed += dt;
+  keys.clear();
+  const t = c.elapsed;
+  world.cookingProps.forEach((p) => (p.visible = false));
+  for (const piece of c.root.children.filter((p) =>
+    p.name.startsWith("ingredient-"),
+  )) {
+    const stage = t - piece.userData.addAt;
+    piece.visible = stage >= 0 && stage < 1.2;
+    piece.position.y = 1.8 - Math.max(0, stage) * 0.5;
+    piece.position.z = 12.4 + Math.min(1, Math.max(0, stage)) * 0.4;
+  }
+  const second = c.root.getObjectByName("moms-meal-plate")!;
+  second.visible = t >= 13;
+  if (t < 9) {
+    world.player.rotation.y = 0;
+    world.player.position.set(-12.5, 0, 11.2);
+    c.dish.scale.setScalar(Math.min(1, 0.15 + t / 6));
+    c.dish.position.y =
+      1.15 +
+      (t < 4 ? Math.abs(Math.sin(t * 3)) * 0.16 : Math.sin(t * 18) * 0.003);
+  } else if (t < 13) {
+    const p = alongRoute(c.route, (t - 9) / 4);
+    s.position = { x: p.x, z: p.z };
+    world.player.position.set(p.x, 0, p.z);
+    c.dish.position
+      .copy(world.player.position)
+      .add(new T.Vector3(0, 1.05, 0.5));
+  } else {
+    s.position = c.bed ? { x: -6.6, z: 10.2 } : { x: -18.9, z: 10.9 };
+    world.player.position.set(s.position.x, 0.62, s.position.z);
+    world.player.rotation.y = c.bed ? Math.PI / 2 : Math.PI / 2;
+    world.setPlayerSeated(true);
+    if (!c.bed) {
+      world.mom.position.set(-18.9, 0.69, 9.3);
+      world.mom.rotation.set(0, Math.PI / 2, 0);
+    }
+    c.dish.position
+      .copy(world.player.position)
+      .add(new T.Vector3(0.45, 0.8, 0));
+    c.dish.scale.setScalar(Math.max(0.35, 1 - (t - 13) * 0.08));
+  }
+  const hand = world.player.getObjectByName("hand-1");
+  if (t >= 13) {
+    // Both actors hold a plate and lift a small bite to their mouths.
+    world.player.updateMatrixWorld(true);
+    world.mom.updateMatrixWorld(true);
+    c.dish.position.copy(
+      world.player.localToWorld(new T.Vector3(-0.2, 0.85, 0.48)),
+    );
+    second.position.copy(
+      world.mom.localToWorld(new T.Vector3(-0.2, c.bed ? 0.7 : 0.85, 0.48)),
+    );
+    second.scale.setScalar(Math.max(0.35, 1 - (t - 13) * 0.08));
+    for (const [actor, offset] of [
+      [world.player, 0],
+      [world.mom, 0.6],
+    ] as const) {
+      const lift = (1 - Math.cos((t - 13 + offset) * Math.PI)) / 2;
+      actor
+        .getObjectByName("hand--1")
+        ?.position.set(-0.25, c.bed && actor === world.mom ? 0.65 : 0.8, 0.48);
+      const eatingHand = actor.getObjectByName("hand-1");
+      eatingHand?.position.set(0.25 - lift * 0.17, 0.88 + lift * 0.55, 0.48);
+      actor.updateMatrixWorld(true);
+      const morselName =
+        actor === world.player ? "player-meal-bite" : "mom-meal-bite";
+      let morsel = c.root.getObjectByName(morselName);
+      if (!morsel) {
+        morsel = new T.Mesh(
+          new T.SphereGeometry(0.055, 10, 8),
+          new T.MeshStandardMaterial({
+            color: c.recipe & 1 ? "#f4be35" : "#eac68b",
+          }),
+        );
+        morsel.name = morselName;
+        c.root.add(morsel);
+      }
+      morsel.visible = lift > 0.15 && lift < 0.98;
+      if (eatingHand)
+        morsel.position
+          .copy(eatingHand.getWorldPosition(new T.Vector3()))
+          .add(new T.Vector3(0, 0.04, 0));
+    }
+  } else if (hand) {
+    hand.position.set(0.35, 1.1 + Math.sin(t * 4) * 0.06, 0.65);
+  }
+  if (
+    t >= 4 &&
+    t < 9 &&
+    Math.floor(t * 8) !== Math.floor((t - dt) * 8) &&
+    audio &&
+    !muted
+  ) {
+    const o = audio.createOscillator(),
+      g = audio.createGain(),
+      now = audio.currentTime;
+    o.type = "triangle";
+    o.frequency.value = 700 + Math.sin(t * 87) * 300;
+    g.gain.setValueAtTime(0.012, now);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.07);
+    o.connect(g);
+    g.connect(audio.destination);
+    o.start();
+    o.stop(now + 0.08);
+  }
+  if (t >= 20) {
+    finishMeal(s);
+    c.root.removeFromParent();
+    cookingScene = undefined;
+    world.setPlayerSeated(false);
+    for (const side of [-1, 1])
+      world.mom
+        .getObjectByName(`hand-${side}`)
+        ?.position.set(side * 0.43, 0.79, 0);
+    world.mom.position.copy(c.momOrigin);
+    world.setMomDay(s.day, true, true, s.familyStory);
+    s.position = c.bed ? { x: -6.6, z: 11.45 } : { x: -17.5, z: 10.9 };
+    world.player.position.set(s.position.x, 0, s.position.z);
+    save();
+    toast(
+      `${meals[c.recipe].name}: ${meals[c.recipe].effect} for ${meals[c.recipe].seconds} seconds. Mom loved sharing it with you.`,
+    );
+  }
+}
+let desertClock = 0,
+  desertLast = new T.Vector2(),
+  desertLine = 0;
+function updateDesertThought(dt: number) {
+  const m = s.millionaire;
+  if (!m?.member || s.position.z >= -170 || s.position.z <= -330 || speaking)
+    return;
+  const moved = desertLast.distanceTo(
+    new T.Vector2(s.position.x, s.position.z),
+  );
+  desertLast.set(s.position.x, s.position.z);
+  if (moved > 0.01) desertClock += dt;
+  if (desertClock < 6 && thoughtTime > 0) return;
+  desertClock = 0;
+  const n = mansionCount(m),
+    visited = !!m.titheAccepted || !!m.chats["visited-summit"];
+  const name = fellowship(m.member).name;
+  const lines = n
+    ? [
+        "Those towering columns and gilded balconies make our whole street look tiny.",
+        "A sports car, a yacht, and a house that could swallow Robertsons. What an extravagant display.",
+        "The architecture is impressive, but does anybody need this much house?",
+        `Is planting on Mt. Millionaire worth giving ten percent of every harvest to ${name}?`,
+      ]
+    : visited
+      ? [
+          "Still dust and tumbleweeds below the terraces. An awful lot of empty land.",
+          `The soil is fertile, but every harvest sends a tenth to ${name}. Is it worth it?`,
+        ]
+      : [
+          "Dust, tumbleweeds, and so much empty land.",
+          "I wonder what I will find at the top of this mountain.",
+        ];
+  thought.textContent = lines[desertLine++ % lines.length];
+  thought.hidden = false;
+  thoughtTime = 6;
+}
+
 function shop(item: "seeds" | "can" | "shovel" | "fertilizer") {
   const names = {
       seeds: "Five mysterious seeds",
@@ -1915,7 +2547,12 @@ function shop(item: "seeds" | "can" | "shovel" | "fertilizer") {
       shovel: "Shovel",
       fertilizer: "Fertilizer · five doses",
     },
-    prices = { seeds: 200, can: 100, shovel: 100, fertilizer: 500 };
+    prices = {
+      seeds: purchasePrice(s, 200),
+      can: purchasePrice(s, 100),
+      shovel: purchasePrice(s, 100),
+      fertilizer: purchasePrice(s, 500),
+    };
   panel(
     names[item],
     `<p>${item === "seeds" ? "“That'll be $2.” Robertson slides a little paper bag across the counter." : item === "can" ? "A well-loved can. Just what a thirsty seed needs." : item === "shovel" ? "For less time digging and more time dreaming." : "Five doses per box. Each dose feeds one tree for overnight harvests up to $9."}</p><p>Price: <b>${money(prices[item])}</b> · You carry <b>${money(s.cash)}</b>.</p>`,
@@ -1970,6 +2607,7 @@ function robertson() {
       ...(!s.boughtSeeds
         ? [{ label: "Yes, seeds please · $2", run: () => shop("seeds") }]
         : []),
+      { label: "Groceries and home furnishings", run: homeShop },
       { label: "Look around", default: !!s.boughtSeeds, run: dismissSpeech },
       ...(!s.can && s.cash + s.bank < 100 && !s.recovered
         ? [
@@ -1996,7 +2634,7 @@ function gardenSupply(item: "bed" | "soil") {
     [
       {
         label: item === "bed" ? "Buy garden bed · $30" : "Buy soil · $10",
-        disabled: s.cash < (item === "bed" ? 3000 : 1000),
+        disabled: s.cash < purchasePrice(s, item === "bed" ? 3000 : 1000),
         run: () => {
           if (buyGardenSupply(s, item)) {
             save();
@@ -2210,8 +2848,8 @@ function coffeeMenu() {
     `<p>Pocket: ${money(s.cash)}. Each drink lasts up to 3 minutes of active play. Sleeping ends your drink effect, even if time remains. A new drink replaces the current bonus.</p>${s.drink ? `<p>Current: ${drinks.find((d) => d.id === s.drink!.id)!.name}, ${Math.ceil(s.drink.remaining)} seconds left.</p>` : ""}`,
     [
       ...drinks.map((d) => ({
-        label: `${d.name} · ${money(d.cost)} · ${d.effect}`,
-        disabled: s.cash < d.cost,
+        label: `${d.name} · ${money(purchasePrice(s, d.cost))} · ${d.effect}`,
+        disabled: s.cash < purchasePrice(s, d.cost),
         destructive: true,
         run: () => {
           if (buyDrink(s, d.id)) {
@@ -2355,11 +2993,11 @@ function religionConversation(id: Fellowship, speaker: string, key: string) {
     speaker,
     `<p>${escapeHTML(terraceLine(id, count, true))}</p><p class="fine">One hundred terrace sites. Plant, sleep, harvest. No water or fertilizer required.</p>`,
     [
+      { label: "Thank you", default: true, run: dismissSpeech },
       {
         label: "Tell me more",
         run: () => religionConversation(id, speaker, key),
       },
-      { label: "Thank you", run: dismissSpeech },
     ],
   );
 }
@@ -2368,6 +3006,7 @@ function summitDialogue(step = 0) {
   if (!m?.member) return;
   if (m.titheAccepted)
     return religionConversation(m.member, "millionaire-summit", "summit");
+  m.chats["visited-summit"] = 1;
   const chapters = summitConversation(m.member),
     chapter = chapters[step];
   speak("millionaire-summit", `<p>${escapeHTML(chapter[0])}</p>`, [
@@ -2408,6 +3047,15 @@ function childConversation(index: number) {
     );
   const visits = m.chats["mansion-visits"] ?? 0;
   m.chats["mansion-visits"] = visits + 1;
+  const houseVisits = m.chats[`mansion-${index}`] ?? 0;
+  m.chats[`mansion-${index}`] = houseVisits + 1;
+  s.events.push(
+    `A Child at a mansion offered me ${appNames[index]}, a phone app costing $5. The house was enormous compared with ours.`,
+  );
+  if (houseVisits === 1)
+    s.events.push(
+      "I looked inside one of the mansions, and it was just totally empty. The Child was sitting in the middle of an empty room, all alone. How sad.",
+    );
   save();
   speak(id, `<p>${escapeHTML(mansionLine(m.member, visits))}</p>`, [
     {
@@ -2423,7 +3071,16 @@ function childConversation(index: number) {
         }
       },
     },
-    { label: "No thanks", run: dismissSpeech },
+    {
+      label: "No thanks",
+      run: () => {
+        s.events.push(
+          "Five dollars is kind of a lot for an app. That could buy a whole box of fertilizer.",
+        );
+        save();
+        dismissSpeech();
+      },
+    },
   ]);
 }
 function phoneLibrary() {
@@ -2443,6 +3100,10 @@ function phoneLibrary() {
   );
 }
 function phoneGame(index: number) {
+  s.events.push(
+    `I played ${appNames[index]}, a little ${["snake", "pong", "frogger", "brick-breaking", "memory-matching", "falling-object catching"][index]} game on the Child’s phone app.`,
+  );
+  save();
   phoneCleanup?.();
   phoneCleanup = undefined;
   panel(appNames[index], '<div id="phone-game"></div>', [
@@ -2781,6 +3442,25 @@ function tvMenu() {
 }
 
 function interact() {
+  if (world.life.cuddling !== undefined) {
+    world.life.putDown();
+    return;
+  }
+  if (cookingScene) return;
+  if (
+    (kitchenPrepared || s.pendingMeal) &&
+    Math.hypot(s.position.x + 12.5, s.position.z - 11.2) < 2
+  )
+    return beginCooking();
+  if (
+    !riding &&
+    parkedBike?.visible &&
+    Math.hypot(
+      parkedBike.position.x - s.position.x,
+      parkedBike.position.z - s.position.z,
+    ) < 2
+  )
+    return mountBike();
   if (world.life.busy) return;
   if (birdhouseScene || celebration || hatHanging) return;
   if (!begun || paused || action || meditationTime > 0) return;
@@ -3364,6 +4044,11 @@ addEventListener("keydown", (e) => {
   if (e.repeat) return;
   const key = e.key.toLowerCase();
   if (key === "escape") {
+    if (placingFurniture) {
+      placingFurniture.ghost.removeFromParent();
+      placingFurniture = undefined;
+      return;
+    }
     if (placingBed) {
       placingBed = false;
       bedGhost.visible = false;
@@ -3386,7 +4071,16 @@ addEventListener("keydown", (e) => {
     }
     return;
   }
-  if (!begun || world.life.busy) return;
+  if (key === "e" && world.life.cuddling !== undefined) {
+    world.life.putDown();
+    return;
+  }
+  if (placingFurniture) {
+    if (key === "r") placingFurniture.rotation += Math.PI / 2;
+    if (key === "e") commitFurniture();
+    return;
+  }
+  if (!begun || world.life.busy || cookingScene || bikeMountTime > 0) return;
   if (celebration) return;
   if ((s.pepeShowStarted && !s.pepePopped) || pepeViewHold > 0) return;
   if (key === "h") {
@@ -3663,9 +4357,21 @@ function targetScore(t: Target) {
 }
 function selectTarget() {
   const { x, z } = s.position;
+  if (
+    !riding &&
+    parkedBike?.visible &&
+    Math.hypot(parkedBike.position.x - x, parkedBike.position.z - z) < 2
+  )
+    return {
+      id: "parked-bike",
+      x: parkedBike.position.x,
+      z: parkedBike.position.z,
+      label: "Mount bicycle",
+    };
   return world.targets
     .filter(
       (t) =>
+        (t.id !== "player-stove" || kitchenPrepared || !!s.pendingMeal) &&
         ((!t.id.startsWith("willow-") &&
           !t.id.startsWith("fellowship-") &&
           !t.id.startsWith("millionaire-")) ||
@@ -3981,6 +4687,12 @@ function updateUI() {
     }
     prompt = label === "Ready tomorrow" ? label : `<kbd>E</kbd> ${label}`;
   }
+  if (placingFurniture)
+    prompt = placingFurniture.valid
+      ? "<kbd>E</kbd> Place furnishing · R rotate · Escape cancels"
+      : "Find clear wall or floor space · Escape cancels";
+  if (world.life.cuddling !== undefined)
+    prompt = "<kbd>E</kbd> Put chicken down";
   if (placingBed)
     prompt = canPlaceBed(s, bedPosition().x, bedPosition().z, bedObstacles())
       ? "<kbd>E</kbd> Place garden bed · Escape cancels"
@@ -3994,6 +4706,13 @@ function updateUI() {
     prompt = s.pepePopped
       ? "Seed packets are falling!"
       : `Pepe is inflating · ${Math.ceil(12 - (s.pepeInflation ?? 0))}s`;
+  if (cookingScene)
+    prompt =
+      cookingScene.elapsed < 9
+        ? "Cooking together…"
+        : cookingScene.elapsed < 13
+          ? "Taking our plates to Mom…"
+          : "Sharing our meal…";
   $("#prompt").innerHTML = prompt;
   $("#prompt").classList.toggle("unavailable", unavailable);
   $("#prompt").classList.toggle("seated", sitting);
@@ -4064,6 +4783,8 @@ function frame(now: number) {
   if (
     !celebration &&
     !teaSeated &&
+    !cookingScene &&
+    !kitchenPrepared &&
     world.setMomDay(s.day, atHome(), false, s.familyStory) &&
     s.awake &&
     !sitting &&
@@ -4102,7 +4823,7 @@ function frame(now: number) {
   if (wantedRoof > 0.95 && roofMaterial.opacity > 0.95) {
     if (roofIndex < 0) world.occluders.push(world.homeRoof);
   } else if (roofIndex >= 0) world.occluders.splice(roofIndex, 1);
-  if (world.life.busy) keys.clear();
+  if (world.life.busy || cookingScene || bikeMountTime > 0) keys.clear();
   const active =
     begun &&
     !paused &&
@@ -4443,7 +5164,9 @@ function frame(now: number) {
             save();
             toast(
               s.plots[plantedId]?.stage === "growing"
-                ? "Your rain hat watered the seed. Add fertilizer if you have some."
+                ? s.plots[plantedId].mountain
+                  ? "Planted in fertile terrace soil. Ready after sleep."
+                  : "Seed watered. Add fertilizer if you have some."
                 : "A seed, a promise. Now give it some water.",
             );
           }
@@ -4451,6 +5174,7 @@ function frame(now: number) {
       }
       tick(s, elapsed);
       tickSigma(s, elapsed);
+      if (!cookingScene) tickFood(s, elapsed);
       const homeNow = atHome();
       const momInside =
         !momAway(s) &&
@@ -4543,20 +5267,6 @@ function frame(now: number) {
   if (active && s.awake && !speaking && !paused) {
     const greeting = world.millionaire.approachGreeting(s, dt);
     if (greeting) fellowshipConversation(greeting);
-    if (
-      s.millionaire?.member &&
-      mansionCount(s.millionaire) === 0 &&
-      s.position.z < -170 &&
-      s.position.z > -330 &&
-      !s.events.includes("Noticed the empty land below Mt. Millionaire.")
-    ) {
-      s.events.push("Noticed the empty land below Mt. Millionaire.");
-      thought.textContent =
-        "So much empty land. Nothing but dust and tumbleweeds out here. Who lives below this mountain?";
-      thought.hidden = false;
-      thoughtTime = 10;
-      save();
-    }
     const owner = world.millionaire.greeting(s);
     if (owner !== undefined) childConversation(owner);
   }
@@ -4653,6 +5363,20 @@ function frame(now: number) {
     camera.position.set(-16.8, 3.8, 4.2);
     cameraAim.set(-19.1, 1.35, 0.75);
     camera.lookAt(cameraAim);
+  } else if (world.life.cuddling !== undefined) {
+    const center = world.player.position.clone().add(new T.Vector3(0, 1.35, 0));
+    const front = new T.Vector3(0, 0.45, 3.1).applyAxisAngle(
+      new T.Vector3(0, 1, 0),
+      world.player.rotation.y,
+    );
+    camera.position.lerp(
+      center.clone().add(front),
+      reducedMotion ? 1 : 1 - Math.exp(-dt * 5),
+    );
+    cameraAim.copy(center);
+    camera.lookAt(cameraAim);
+    toastTime = Math.max(toastTime, 0.25);
+    $("#toast").textContent = "E · Put the chicken down";
   } else if (teaSeated) {
     // An interior view of all three chairs and the tea table.
     const easing = reducedMotion ? 1 : 1 - Math.exp(-dt * 7);
@@ -4754,7 +5478,7 @@ function frame(now: number) {
       pepeReturning = false;
     const cameraJump =
       !followInitialized ||
-      (camera.position.distanceTo(target) > 20 && !pepeReturning);
+      (camera.position.distanceTo(target) > length + 1.5 && !pepeReturning);
     followInitialized = true;
     const next = cameraJump
       ? ideal.clone()
@@ -4800,6 +5524,9 @@ function frame(now: number) {
           .sort((a, b) => a.d - b.d);
         next[faces[0].axis] = faces[0].value;
       }
+    // Containment correction must never strand the camera outside its follow boom.
+    if (!pepeReturning && next.distanceTo(target) > length + 0.5)
+      next.copy(ideal);
     camera.position.copy(next);
     const tilt = T.MathUtils.clamp((pitch - 0.42) * 0.9, -0.35, 0.6);
     const forward = viewForward();
@@ -5048,12 +5775,46 @@ function frame(now: number) {
       "--tail-small",
       `${edge + (anchorX - edge) * 0.8 - left}px`,
     );
+    if (s.position.z < -170 && s.position.z > -330) center = innerWidth / 2;
     thought.style.left = `${center}px`;
-    thought.style.top = `${Math.min(anchorY, resourceHud.getBoundingClientRect().top - 24)}px`;
-    thought.style.display = paused || !!speaking || anchor.z > 1 ? "none" : "";
+    thought.style.top = `${s.position.z < -170 && s.position.z > -330 ? innerHeight * 0.28 : Math.min(anchorY, resourceHud.getBoundingClientRect().top - 24)}px`;
+    const inDesert = s.position.z < -170 && s.position.z > -330;
+    if (inDesert) {
+      thought.style.setProperty("--tail-large", `${width / 2}px`);
+      thought.style.setProperty("--tail-small", `${width / 2}px`);
+    }
+    thought.style.display =
+      paused || !!speaking || (!inDesert && anchor.z > 1) ? "none" : "";
   }
   $("#quest").style.visibility = speaking || thoughtTime > 0 ? "hidden" : "";
   world.life.update(active ? dt : 0, now / 1000);
+  hangMomCanvases();
+  syncFurnishings();
+  updateFurniturePlacement();
+  if (active) {
+    updateCooking(dt);
+    updateDesertThought(dt);
+    if (bikeMountTime > 0) {
+      bikeMountTime = Math.max(0, bikeMountTime - dt);
+      world.player.position.lerpVectors(
+        bikeHopFrom,
+        bikeHopTo,
+        1 - bikeMountTime,
+      );
+      world.player.position.y += Math.sin((1 - bikeMountTime) * Math.PI) * 0.5;
+      s.position = { x: world.player.position.x, z: world.player.position.z };
+      if (!bikeMountTime) mountBike(true);
+    }
+  }
+  if (kitchenPrepared) {
+    preparedPan.visible = true;
+  } else preparedPan.visible = false;
+  foodHud.hidden = !s.foodBuff;
+  if (s.foodBuff) {
+    const f = meals[s.foodBuff.recipe];
+    foodHud.innerHTML = `${foodIllustration(s.foodBuff.recipe)}<span>${f.name}<br>${Math.ceil(s.foodBuff.remaining)}s</span>`;
+    foodHud.title = f.effect;
+  }
   world.updateHouseBirds(now / 1000);
   world.sigma.fountain.update(now / 1000);
   updateSpeech(active ? dt : 0);
@@ -5152,6 +5913,24 @@ if (new URLSearchParams(location.search).has("test")) {
         hung: g.userData.hung,
         position: g.position.toArray(),
       })),
+    }),
+    homeLiving: () => ({
+      walls: homeWalls(),
+      prepared: kitchenPrepared,
+      cooking: cookingScene
+        ? {
+            elapsed: cookingScene.elapsed,
+            recipe: cookingScene.recipe,
+            bed: cookingScene.bed,
+            route: cookingScene.route,
+          }
+        : null,
+      placing: placingFurniture
+        ? { valid: placingFurniture.valid, point: placingFurniture.point }
+        : null,
+      models: furnishingRoot.children.length,
+      mounting: bikeMountTime,
+      parked: parkedBike?.visible ? parkedBike.position.toArray() : null,
     }),
     state: () => structuredClone(s),
     playerPosition: () => world.player.position.toArray(),
