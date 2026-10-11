@@ -1362,7 +1362,7 @@ body.riding #bike-bell-help {
 }
 @media (max-width: 600px) {
   :root {
-    --resource-bottom: 52px;
+    --resource-bottom: 72px;
   }
   #resource-hud {
     width: calc(100vw - 24px);

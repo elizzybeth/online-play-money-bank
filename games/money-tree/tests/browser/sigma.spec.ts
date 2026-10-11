@@ -49,7 +49,24 @@ test("sigma garden, fresh Chads, Grindset name input, investments, coffee and sa
   await page.keyboard.up("w");
   const garden = await page.evaluate(() => (window as any).game.sigma());
   expect(garden.plots).toHaveLength(10);
-  await at(page, 16.3, -66);
+  // Street Chads roam; approach the live target rather than its old spawn.
+  await page.evaluate(() => {
+    const game = (window as any).game;
+    const chad = game.sigma().walkers[0].target;
+    for (let i = 0; i < 8; i++) {
+      const angle = (i * Math.PI) / 4;
+      try {
+        game.teleport(
+          chad.x + Math.cos(angle) * 1.6,
+          chad.z + Math.sin(angle) * 1.6,
+        );
+        return;
+      } catch {
+        /* Try another clear side of the live target. */
+      }
+    }
+    throw new Error("No clear approach to the roaming Chad");
+  });
   await expect(page.locator("#prompt")).toContainText("Chad");
   await page.keyboard.press("e");
   const first = await page.locator(".speech-bubble").textContent();
