@@ -2578,7 +2578,7 @@ function updateCooking(dt: number) {
     );
   }
 }
-let desertClock = 0,
+let desertClock = 12,
   desertLast = new T.Vector2(),
   desertLine = 0;
 function updateDesertThought(dt: number) {
