@@ -24,7 +24,7 @@ export class CameraWalls {
     this.restore();
     for (const wall of objects) {
       if (!wall.userData.cameraWall || !wall.visible) continue;
-      const box = new T.Box3().setFromObject(wall).expandByScalar(0.6);
+      const box = new T.Box3().setFromObject(wall);
       const crosses = (a: T.Vector3, b: T.Vector3) => {
         if (box.containsPoint(a) || box.containsPoint(b)) return true;
         const direction = b.clone().sub(a);
@@ -36,6 +36,7 @@ export class CameraWalls {
         );
         return !!hit && hit.distanceTo(a) <= distance;
       };
+      // Actual wall bounds distinguish player proximity from camera obstruction.
       if (
         crosses(target, desired) ||
         crosses(target, current) ||

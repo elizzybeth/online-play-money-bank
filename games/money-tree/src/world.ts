@@ -1,3 +1,4 @@
+import { decorateHome } from "./home-interior";
 import { fitWindow, pitchedRoof } from "./architecture";
 import { type BirdhousePaint } from "./birdhouse-paint";
 import { createWildlife } from "./wildlife";
@@ -486,30 +487,30 @@ export function createWorld(scene: T.Scene) {
   momRoof.name = "mom-bedroom-roof";
   scene.add(momRoof);
   box(-15, -0.02, 6, 12, 0.1, 16, "#dbbe96");
-  box(-21, 1.7, 6, 0.25, 3.4, 16, "#e8d2b3", true);
+  box(-21, 1.7, 6, 0.25, 3.4, 16, "#efb3aa", true);
   box(-5, -0.02, 10, 8, 0.1, 8, "#dbbe96");
-  box(-1, 1.7, 10, 0.25, 3.4, 8, "#e8d2b3", true);
-  for (const z of [6, 14]) box(-5, 1.7, z, 8, 3.4, 0.25, "#e8d2b3", true);
+  box(-1, 1.7, 10, 0.25, 3.4, 8, "#efb3aa", true);
+  for (const z of [6, 14]) box(-5, 1.7, z, 8, 3.4, 0.25, "#efb3aa", true);
   box(-4, 0.3, 10, 2, 0.6, 3.5, "#9a755b", true);
   box(-4, 0.69, 10, 2, 0.25, 3.3, "#f0e5cf");
-  box(-4, 0.87, 10.5, 2, 0.14, 2.2, "#b5a4b5");
+  box(-4, 0.87, 10.5, 2, 0.14, 2.2, "#863d87");
   box(-4, 0.91, 8.95, 1.5, 0.2, 0.7, "#ffefd3");
   box(-2.4, 0.6, 7.2, 1.2, 1.2, 0.7, "#a48162", true);
   ball(-2.4, 1.6, 7.2, 0.25, "#ead596").scale.set(1, 0.7, 1);
 
   doorways.push({ x: -9, z: 7.5, w: 2, d: 2.4 });
-  box(-9, 1.7, 2.25, 0.25, 3.4, 8.5, "#e8d2b3", true);
-  box(-9, 1.7, 11.25, 0.25, 3.4, 5.5, "#e8d2b3", true);
+  box(-9, 1.7, 2.25, 0.25, 3.4, 8.5, "#efb3aa", true);
+  box(-9, 1.7, 11.25, 0.25, 3.4, 5.5, "#efb3aa", true);
   occluders.push(box(-9, 3.28, 7.5, 0.25, 0.24, 2, "#e8d2b3"));
-  box(-15, 1.7, -2, 12, 3.4, 0.25, "#e8d2b3", true);
+  box(-15, 1.7, -2, 12, 3.4, 0.25, "#efb3aa", true);
   for (const z of [6, 14]) {
-    box(-19, 1.7, z, 4, 3.4, 0.25, "#e8d2b3", true);
-    box(-12, 1.7, z, 6, 3.4, 0.25, "#e8d2b3", true);
+    box(-19, 1.7, z, 4, 3.4, 0.25, "#efb3aa", true);
+    box(-12, 1.7, z, 6, 3.4, 0.25, "#efb3aa", true);
     occluders.push(box(-16, 3.28, z, 2, 0.24, 0.25, "#e8d2b3"));
   }
   box(-19.1, 0.3, 1, 2, 0.6, 3.5, "#9a755b", true);
   box(-19.1, 0.69, 1, 2, 0.25, 3.3, "#f0e5cf");
-  box(-19.1, 0.87, 1.5, 2, 0.14, 2.2, "#b3bd98");
+  box(-19.1, 0.87, 1.5, 2, 0.14, 2.2, "#146d7a");
   box(-19.1, 0.91, -0.05, 1.5, 0.2, 0.7, "#ffefd3");
   target("bed", -17.5, 1, "Sleep until tomorrow");
   box(-12, 0.7, 0, 3, 1.4, 1, "#a17f5e", true);
@@ -605,9 +606,9 @@ export function createWorld(scene: T.Scene) {
   ball(-10.6, 1.63, 0.23, 0.1, "#de8f90");
   box(-10.6, 1.9, 0, 0.16, 0.02, 0.025, "#805c59");
   target("bank", -10.8, 1.4, "Use piggy bank");
-  box(-19, 0.45, 10, 2.4, 0.9, 3.3, "#92a296", true);
-  box(-19, 0.85, 10, 1.6, 0.3, 3, "#b6c2a9");
-  box(-20, 0.95, 10, 0.35, 1.4, 3.5, "#899c8c");
+  box(-19, 0.45, 10, 2.4, 0.9, 3.3, "#b34c2f", true);
+  box(-19, 0.85, 10, 1.6, 0.3, 3, "#cb643c");
+  box(-20, 0.95, 10, 0.35, 1.4, 3.5, "#9e382d");
   const mom = person(-18.9, 10, "#d9b6bd", "#7d6257");
   mom.rotation.y = Math.PI / 2;
   const seatedLegs = new T.Group();
@@ -622,8 +623,71 @@ export function createWorld(scene: T.Scene) {
   scene.add(cooking);
   cyl(-12.5, 1.2, 12.8, 0.27, 0.25, "#829f97", cooking);
   box(-12.06, 1.27, 12.8, 0.4, 0.06, 0.1, "#716455", false, cooking);
-  const steam = ball(-12.5, 1.6, 12.8, 0.13, "#e7ece1", cooking);
-  steam.scale.set(0.7, 1.6, 0.7);
+  // A shallow pan of vegetable stew, with food seated inside the rim.
+  const rim = new T.Mesh(
+    new T.TorusGeometry(0.27, 0.025, 6, 24),
+    mat("#ccd0b8"),
+  );
+  rim.rotation.x = Math.PI / 2;
+  rim.position.set(-12.5, 1.34, 12.8);
+  cooking.add(rim);
+  cyl(-12.5, 1.325, 12.8, 0.24, 0.015, "#bb6b32", cooking);
+  for (let j = 0; j < 14; j++) {
+    const a = j * 2.399,
+      radius = 0.04 + (j % 4) * 0.045;
+    const vegetable = box(
+      -12.5 + Math.cos(a) * radius,
+      1.343,
+      12.8 + Math.sin(a) * radius,
+      0.055,
+      0.028,
+      0.04,
+      ["#e58b24", "#588d42", "#e5c36d"][j % 3],
+      false,
+      cooking,
+    );
+    vegetable.rotation.y = a;
+  }
+  for (const dx of [-0.49, 0.49]) {
+    cyl(-12.5 + dx, 1.107, 12.8, 0.2, 0.02, "#262c2c", cooking);
+    cyl(-12.5 + dx, 1.125, 12.8, 0.13, 0.014, "#b54b24", cooking);
+  }
+  const board = box(
+    -11.9,
+    1.15,
+    12.65,
+    0.35,
+    0.04,
+    0.4,
+    "#b7854c",
+    false,
+    cooking,
+  );
+  for (let j = 0; j < 4; j++)
+    cyl(-11.92 + j * 0.04, 1.18, 12.63, 0.025, 0.025, "#e58b24", cooking);
+  box(-12.0, 1.2, 12.87, 0.06, 0.02, 0.27, "#babfba", false, cooking);
+  box(-12.0, 1.2, 13.02, 0.06, 0.04, 0.12, "#583b29", false, cooking);
+  const spoon = cyl(-12.36, 1.51, 12.79, 0.015, 0.34, "#b88644", cooking);
+  spoon.rotation.z = -0.32;
+  const steam = new T.Group();
+  cooking.add(steam);
+  for (let j = 0; j < 3; j++) {
+    const path = new T.CatmullRomCurve3([
+      new T.Vector3(-12.62 + j * 0.1, 1.38, 12.8),
+      new T.Vector3(-12.65 + j * 0.1, 1.55, 12.8),
+      new T.Vector3(-12.58 + j * 0.1, 1.71, 12.8),
+    ]);
+    const wisp = new T.Mesh(
+      new T.TubeGeometry(path, 8, 0.012, 4, false),
+      new T.MeshBasicMaterial({
+        color: "#fff5dd",
+        transparent: true,
+        opacity: 0.22,
+        depthWrite: false,
+      }),
+    );
+    steam.add(wisp);
+  }
   const birdhouses = new T.Group();
   scene.add(birdhouses);
   for (const dx of [-0.42, 0.35]) {
@@ -869,15 +933,21 @@ export function createWorld(scene: T.Scene) {
   );
   tvScreen.position.set(-10.16, 1.65, 10);
   tvScreen.rotation.y = -Math.PI / 2;
+  tvScreen.name = "tv-picture-with-captions";
   scene.add(tvScreen);
+  for (const y of [1.145, 2.155])
+    box(-10.19, y, 10, 0.06, 0.09, 1.83, "#202f31");
+  for (const z of [9.11, 10.89])
+    box(-10.19, 1.65, z, 0.06, 1.1, 0.09, "#202f31");
   target("tv", -11.4, 10, "Change TV channel");
   let cartoonFrame = "";
   function updateCartoon(
     time: number,
     channel: "cartoons" | "news" = "cartoons",
     headline = "Town News",
+    report = "",
   ) {
-    const frame = `${Math.floor(time * 8)}-${channel}-${headline}`;
+    const frame = `${Math.floor(time * 8)}-${channel}-${headline}-${report}`;
     if (frame === cartoonFrame) return;
     cartoonFrame = frame;
     const c = cartoonCanvas.getContext("2d")!;
@@ -919,7 +989,28 @@ export function createWorld(scene: T.Scene) {
       c.fillRect(0, 174, 384, 42);
       c.fillStyle = "#fff5dc";
       c.font = "bold 19px Nunito";
-      c.fillText(headline, 12, 201, 360);
+      c.font = "bold 13px Nunito";
+      c.fillText(headline, 10, 187, 364);
+      // Closed captions live in the television texture, split into readable sentences.
+      const words = report.split(/\s+/),
+        lines: string[] = [];
+      let line = "";
+      c.font = "13px Nunito";
+      for (const word of words) {
+        const next = line ? line + " " + word : word;
+        if (c.measureText(next).width > 360) {
+          lines.push(line);
+          line = word;
+        } else line = next;
+      }
+      if (line) lines.push(line);
+      c.fillText(
+        lines[Math.floor(time / 4) % Math.max(1, lines.length)] ?? "",
+        10,
+        207,
+      );
+      tvScreen.userData.caption = report;
+      tvScreen.userData.headline = headline;
       cartoonTexture.needsUpdate = true;
       return;
     }
@@ -939,6 +1030,7 @@ export function createWorld(scene: T.Scene) {
       circle(x + 18, 40, 20, "#fff7e8");
       circle(x + 36, 45, 14, "#fff7e8");
     }
+    const eating = time % 14 > 10;
     // Original little rabbits chasing a carrot, animated at eight frames per second.
     for (let i = 0; i < 2; i++) {
       const x = 100 + i * 130 + Math.sin(time * 1.2 + i) * 20,
@@ -954,7 +1046,16 @@ export function createWorld(scene: T.Scene) {
       circle(x - 18, y + 20, 10, color);
       circle(x + 18, y + 20, 10, color);
     }
-    const carrot = 192 + Math.sin(time) * 36;
+    const carrot = eating
+      ? 108 + Math.sin(time * 1.2) * 20
+      : 192 + Math.sin(time) * 36;
+    const carrotY = eating ? 132 - Math.abs(Math.sin(time * 3)) * 18 : 181;
+    const bite = eating ? Math.max(0.05, 1 - ((time % 14) - 10) / 3.2) : 1;
+    c.save();
+    c.translate(carrot, carrotY);
+    c.scale(bite, bite);
+    c.translate(-carrot, -181);
+    tvScreen.userData.rabbitEating = eating;
     c.fillStyle = "#ef9853";
     c.beginPath();
     c.moveTo(carrot - 14, 176);
@@ -969,6 +1070,7 @@ export function createWorld(scene: T.Scene) {
     c.moveTo(carrot - 14, 181);
     c.lineTo(carrot - 27, 186);
     c.stroke();
+    c.restore();
     cartoonTexture.needsUpdate = true;
   }
   updateCartoon(0);
@@ -1092,9 +1194,13 @@ export function createWorld(scene: T.Scene) {
       bedSoils[i].visible = p.soilFilled !== false;
       if (p.mountain) {
         bedFrames[i].position.y = terrainHeight(p.x!, p.z!);
-        for (const child of bedFrames[i].children)
-          child.visible = child === bedSoils[i];
-        plots[i].position.y = terrainHeight(p.x!, p.z!) + 0.29;
+        bedFrames[i].visible = false;
+        plots[i].userData.mountain = true;
+        plots[i].position.y = terrainHeight(p.x!, p.z!) + 0.03;
+        const target = targets.find((t) => t.id === `plot${i}`)!;
+        target.label = ["empty", "harvested"].includes(p.stage)
+          ? "Plant in terrace soil"
+          : "Money tree";
       }
     });
     return changed;
@@ -1397,6 +1503,7 @@ export function createWorld(scene: T.Scene) {
       for (let n = 0; n < 5; n++)
         ball(x - 0.16 + n * 0.08, 1.26, z + 0.56, 0.035, "#584c2f", capSeeds);
   });
+  const homeDecor = decorateHome(scene, rects);
   target("couch", -17.2, 11.1, "Sit on the couch");
   function setPlayerSeated(seated: boolean) {
     player.rotation.y = seated ? Math.PI / 2 : player.rotation.y;
@@ -2307,7 +2414,7 @@ export function createWorld(scene: T.Scene) {
         }
       });
     }
-    if (stage === "growing" || stage === "ready") {
+    if (!g.userData.mountain && (stage === "growing" || stage === "ready")) {
       const wetSoil = new T.Mesh(
         new T.RingGeometry(0.08, 0.65, 32),
         new T.MeshStandardMaterial({ color: "#493021", roughness: 0.93 }),
@@ -2428,6 +2535,8 @@ export function createWorld(scene: T.Scene) {
     waterDrops,
     setWatering,
     updateCartoon,
+    tvScreen,
+    homeDecor,
     setDigging,
     updateNotebook,
     notebookPages: page,

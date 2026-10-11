@@ -29,13 +29,14 @@ test("the normal running route takes thirty seconds to the mountain and fifteen 
     assert(y >= previous && y - previous <= 0.101);
     previous = y;
   }
-  assert.equal(terrainHeight(34, -445), 42);
+  assert.equal(terrainHeight(34, -445), 14);
 });
 test("terrace plots are unique, fertile and level with the terrain", () => {
   assert.equal(
     new Set(mountainPlots.map((p) => `${p.x},${p.z}`)).size,
     mountainPlots.length,
   );
+  assert.equal(mountainPlots.length, 100);
   for (const p of mountainPlots) {
     assert(fertileMountainSoil(p.x, p.z));
     assert.equal(terrainHeight(p.x, p.z), p.y);

@@ -38,3 +38,14 @@ test("camera movement through a wall cuts it away even when the new boom is clea
   cuts.restore();
   assert.equal(wall.visible, false);
 });
+
+test("touching a wall does not cut it away while the camera remains on the same side", () => {
+  const wall = new T.Mesh(new T.BoxGeometry(0.3, 3, 8));
+  wall.position.set(2, 1.5, 0);
+  wall.userData.cameraWall = true;
+  const cuts = new CameraWalls();
+  cuts.update([wall], point(1.7), point(-2), point(-3));
+  assert.equal(wall.visible, true);
+  cuts.update([wall], point(1.7), point(3), point(4));
+  assert.equal(wall.visible, false);
+});

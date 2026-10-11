@@ -214,13 +214,18 @@ export function plant(s: State, i: number) {
     );
   s.seeds--;
   s.plots[i].stage = "planted";
-  if (s.plots[i].mountain) s.plots[i].fertilized = true;
+  if (s.plots[i].mountain) {
+    s.plots[i].fertilized = true;
+    s.plots[i].stage = "growing";
+    s.plots[i].remaining = 120;
+    s.plots[i].yield = 0;
+  }
   s.events.push("Planted a money seed.");
   if (s.plots[i].community) {
     s.communityPlanted = true;
     s.events.push("Planted in Sigma Town’s community garden.");
   }
-  if (wearing(s, "rain") && s.can) {
+  if (!s.plots[i].mountain && wearing(s, "rain") && s.can) {
     noteHatPower(s, "to water a new seed automatically", "rain");
     water(s, i);
   }
@@ -614,7 +619,7 @@ export function decode(raw: string | null): State | null {
       ) ||
       !Array.isArray(s.plots) ||
       s.plots.length < 5 ||
-      s.plots.length > 120 ||
+      s.plots.length > 220 ||
       !s.plots.every(
         (p: Plot) =>
           ["empty", "planted", "growing", "ready", "harvested"].includes(
@@ -725,7 +730,8 @@ export function decode(raw: string | null): State | null {
             (Number.isFinite(p.x) &&
               Number.isFinite(p.z) &&
               (p.mountain === true
-                ? fertileMountainSoil(p.x!, p.z!)
+                ? fertileMountainSoil(p.x!, p.z!) ||
+                  (p.x! >= -31 && p.x! <= 99 && p.z! >= -460 && p.z! <= -325)
                 : p.community === true
                   ? sigmaPlots.some((q) => q.x === p.x && q.z === p.z)
                   : withinProperty(p.x!, p.z!)))),

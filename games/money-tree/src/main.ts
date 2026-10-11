@@ -1,3 +1,4 @@
+import { makeMascot } from "./millionaire-models";
 import { HomeAudio } from "./home-audio";
 import { sceneRoute, routeLength, alongRoute, type Point } from "./scene-route";
 import {
@@ -147,6 +148,7 @@ seedHud.id = "seed-hud";
 seedHud.innerHTML = `<img src="${seedPacketImage()}" alt="Money Tree seed packet"><strong>0</strong>`;
 const resourceHud = document.createElement("div");
 resourceHud.id = "resource-hud";
+resourceHud.append($("#stats"), $("#location"));
 const cashHud = document.createElement("div"),
   bankHud = document.createElement("div");
 cashHud.id = "cash-hud";
@@ -263,7 +265,8 @@ if (
   blocked(s.position.x, s.position.z, world.rects) ||
   (s.millionaire?.unlocked && s.position.z < -90
     ? s.position.x < -94 || s.position.x > 144
-    : Math.abs(s.position.x) > 38) ||
+    : s.position.x < -38 ||
+      s.position.x > (s.millionaire?.unlocked ? 50 : 38)) ||
   s.position.z > 38 ||
   s.position.z < (s.millionaire?.unlocked ? -470 : s.foundTVSeeds ? -89 : -39)
 )
@@ -1374,8 +1377,8 @@ function notebook(page = s.journal.length - 1, direction = 0) {
     .querySelector(".notebook-left")!
     .insertAdjacentHTML("beforeend", notebookDoodles(page));
 }
-const hatPortraits = new Map<HatId | BikeId, string>();
-function hatPortrait(id: HatId | BikeId) {
+const hatPortraits = new Map<HatId | BikeId | Fellowship, string>();
+function hatPortrait(id: HatId | BikeId | Fellowship) {
   if (hatPortraits.has(id)) return hatPortraits.get(id)!;
   const preview = new T.Scene();
   preview.background = new T.Color("#f1e4c9");
@@ -1383,12 +1386,28 @@ function hatPortrait(id: HatId | BikeId) {
   const light = new T.DirectionalLight("#fff3d2", 3);
   light.position.set(-3, 5, 4);
   preview.add(light);
-  const model = bikeById(id) ? makeBike(id as BikeId) : makeHat(id as HatId);
+  const isMascot = fellowships.some((f) => f.id === id);
+  const model = isMascot
+    ? makeMascot(id as Fellowship)
+    : bikeById(id)
+      ? makeBike(id as BikeId)
+      : makeHat(id as HatId);
   preview.add(model);
   const cam = new T.PerspectiveCamera(35, 1, 0.1, 20);
   const viewpoint = bikeById(id) ? [3.2, 2.1, 3.6] : [1.5, 1.3, 2.6];
   cam.position.set(viewpoint[0], viewpoint[1], viewpoint[2]);
   cam.lookAt(0, bikeById(id) ? 0.85 : 0.2, 0);
+  if (isMascot) {
+    const bounds = new T.Box3().setFromObject(model),
+      center = bounds.getCenter(new T.Vector3());
+    const span = bounds.getSize(new T.Vector3()).length();
+    cam.far = 40;
+    cam.position
+      .copy(center)
+      .add(new T.Vector3(span * 0.45, span * 0.2, span * 1.6));
+    cam.lookAt(center);
+    cam.updateProjectionMatrix();
+  }
   const target = new T.WebGLRenderTarget(160, 160);
   target.texture.colorSpace = T.SRGBColorSpace;
   const old = renderer.getRenderTarget();
@@ -2026,23 +2045,44 @@ function guruConversation() {
         if (m.result) retakeAssessment(s);
         dismissSpeech();
         save();
-        assessmentQuestion();
+        assessmentLanding();
       },
     },
     { label: "Maybe another time", run: dismissSpeech },
   ]);
+}
+function assessmentLanding() {
+  panel(
+    "WHICH MASCOT ARE YOU?",
+    `<div class="mascot-lineup">${fellowships.map((f) => `<figure style="--mascot-color:${f.color}"><img src="${hatPortrait(f.id)}" alt="${escapeHTML(f.mascot)}"><figcaption>${escapeHTML(f.mascot)}</figcaption></figure>`).join("")}</div><p class="quiz-intro">Your money habits. Your hopes. Your very own spiritual mascot.</p>`,
+    [
+      { label: "Enter test", run: assessmentQuestion },
+      { label: "Take a break", run: close },
+    ],
+  );
+  styleAssessment(true);
+}
+function styleAssessment(landing = false) {
+  const paper = document.querySelector("#modal .panel")!;
+  paper.classList.add("mascot-quiz");
+  paper.classList.toggle("quiz-landing", landing);
+  paper.querySelector("h2")!.innerHTML = "WHICH <span>MASCOT</span> ARE YOU?";
+  paper
+    .querySelector(".choices button:last-child")!
+    .classList.add("quiz-break");
 }
 function assessmentQuestion() {
   const m = s.millionaire!;
   if (m.answers.length === assessment.length) {
     close();
     world.millionaire.update(s, 0);
-    fellowshipConversation(m.result!, true);
+    world.millionaire.approachPlayer(m.result!);
+    toast("Your mascot is coming over to meet you.");
     return;
   }
   const question = assessment[m.answers.length];
   panel(
-    "The willow guru",
+    "WHICH MASCOT ARE YOU?",
     `<p class="fine">Question ${m.answers.length + 1} of ${assessment.length}</p><p>${escapeHTML(question[0])}</p>`,
     [
       ...question.slice(1).map((label, index) => ({
@@ -2056,22 +2096,23 @@ function assessmentQuestion() {
       { label: "Take a break", run: close },
     ],
   );
+  styleAssessment();
 }
 function fellowshipConversation(id: Fellowship, introduction = false) {
   const m = s.millionaire;
   if (!m?.unlocked) return;
   const f = fellowship(id);
+  const host =
+    world.millionaire.hosts[fellowships.findIndex((f) => f.id === id)];
+  if (m.member === id && m.titheAccepted && host.position.z < -330)
+    return religionConversation(id, `fellowship-${id}`, "escort");
   if (m.result !== id)
     return speak(
       `fellowship-${id}`,
-      `<p>Welcome to ${escapeHTML(f.name)}. ${escapeHTML(f.invitation)} If your feelings change, we would be happy to welcome your membership. You can retake the guru’s assessment.</p>`,
+      `<p>If your feelings change, we would be happy to have you join ${escapeHTML(f.name)}. ${escapeHTML(f.invitation)} You can retake the guru’s assessment whenever you like.</p>`,
       [{ label: "Thank you", run: dismissSpeech }],
     );
-  const welcome = introduction
-    ? (speaker: string, text: string, choices: Choice[]) =>
-        panel(f.mascot, text, choices)
-    : speak;
-  welcome(
+  speak(
     `fellowship-${id}`,
     `<p>Welcome to ${escapeHTML(f.name)}! ${escapeHTML(f.invitation)} Follow me up Mount Millionaire!</p>`,
     [
@@ -2096,14 +2137,31 @@ function fellowshipConversation(id: Fellowship, introduction = false) {
           }
           world.millionaire.followGuide();
           save();
-          if (introduction) close();
           dismissSpeech();
         },
       },
       {
         label: "I'll think about it",
-        run: introduction ? close : dismissSpeech,
+        run: dismissSpeech,
       },
+    ],
+  );
+}
+function religionConversation(id: Fellowship, speaker: string, key: string) {
+  const m = s.millionaire!;
+  const chat = `lesson-${key}`,
+    count = m.chats[chat] ?? 0;
+  m.chats[chat] = count + 1;
+  save();
+  speak(
+    speaker,
+    `<p>${escapeHTML(terraceLine(id, count, true))}</p><p class="fine">One hundred terrace sites. Plant, sleep, harvest. No water or fertilizer required.</p>`,
+    [
+      {
+        label: "Tell me more",
+        run: () => religionConversation(id, speaker, key),
+      },
+      { label: "Thank you", run: dismissSpeech },
     ],
   );
 }
@@ -2111,11 +2169,7 @@ function summitDialogue(step = 0) {
   const m = s.millionaire;
   if (!m?.member) return;
   if (m.titheAccepted)
-    return speak(
-      "millionaire-summit",
-      `<p>Welcome back, child of ${escapeHTML(fellowship(m.member).name)}. Every terrace is fertile. Your contribution so far is ${money(m.tithed)}. Happy planting!</p>`,
-      [{ label: "Thank you", run: dismissSpeech }],
-    );
+    return religionConversation(m.member, "millionaire-summit", "summit");
   const chapters = summitConversation(m.member),
     chapter = chapters[step];
   speak("millionaire-summit", `<p>${escapeHTML(chapter[0])}</p>`, [
@@ -2151,7 +2205,7 @@ function childConversation(index: number) {
   if (index >= mansionCount(m))
     return speak(
       id,
-      `<p>${escapeHTML(terraceLine(m.member, count + index * 2))}</p>`,
+      `<p>${escapeHTML(terraceLine(m.member, count + index * 2, !!m.titheAccepted))}</p>`,
       [{ label: "It's good to meet you", run: dismissSpeech }],
     );
   const visits = m.chats["mansion-visits"] ?? 0;
@@ -2524,10 +2578,7 @@ function tvMenu() {
     ],
   );
 }
-const tvCaption = document.createElement("aside");
-tvCaption.id = "tv-news-caption";
-tvCaption.hidden = true;
-document.body.append(tvCaption);
+
 function interact() {
   if (birdhouseScene || celebration || hatHanging) return;
   if (!begun || paused || action || meditationTime > 0) return;
@@ -2870,9 +2921,11 @@ function interact() {
         (p.z ?? 19) - s.position.z,
       );
       toast(
-        s.shovel
-          ? `Digging… Stand still for ${plantingSeconds(s)} seconds to plant ${action.ids.length === 2 ? "both adjoining beds" : "this bed"}.`
-          : `Digging by hand takes ${Number(plantingSeconds(s).toFixed(1))} seconds. A $1 shovel from Robertsons cuts it to ${Number(plantingSeconds({ ...s, shovel: true }).toFixed(1))} seconds. Stand still to plant.`,
+        p.mountain
+          ? `Planting directly in terrace soil… Stand still for ${plantingSeconds(s)} seconds. No watering or fertilizer needed.`
+          : s.shovel
+            ? `Digging… Stand still for ${plantingSeconds(s)} seconds to plant ${action.ids.length === 2 ? "both adjoining beds" : "this bed"}.`
+            : `Digging by hand takes ${Number(plantingSeconds(s).toFixed(1))} seconds. A $1 shovel from Robertsons cuts it to ${Number(plantingSeconds({ ...s, shovel: true }).toFixed(1))} seconds. Stand still to plant.`,
       );
     } else if (p.stage === "ready") {
       const seedsBeforeHarvest = s.seeds;
@@ -2899,7 +2952,12 @@ function interact() {
         );
         save();
         toast("A little nourishment. This tree can grow up to $9 overnight.");
-      } else toast("Watered. This tree will be ready after you sleep.");
+      } else
+        toast(
+          p.mountain
+            ? "This terrace tree needs no water or fertilizer. It will be ready after you sleep."
+            : "Watered. This tree will be ready after you sleep.",
+        );
     } else {
       if (!s.can)
         return toast("You need a watering can. Robertson sells one for $1.");
@@ -3520,11 +3578,15 @@ function updateUI() {
   if (s.awake && s.millionaire?.unlocked && !s.millionaire.member) {
     objective = "A path into the willows";
     hint =
-      "Follow the gap beside the coin ATM in Sigma Town’s back hedge. A guru is waiting beneath the great willow.";
+      "Follow the gap beside the coin ATM in Sigma Town’s east hedge, between the ATM and town entrance. A guru is waiting beneath the great willow.";
   } else if (s.awake && s.millionaire?.member && !s.millionaire.titheAccepted) {
     objective = "Follow your community to Mt. Millionaire";
     hint =
-      "Run north along the willow path, climb the white terraces, and visit the guide in the pagoda.";
+      "Follow your mascot along the willow path and all the way to the pagoda on top of the white terraces.";
+  } else if (s.awake && s.millionaire?.titheAccepted && s.position.z < -330) {
+    objective = "A hundred places to plant";
+    hint =
+      "The dead trees mark fertile terrace soil. Plant seeds, then sleep at home and harvest in the morning. No water or fertilizer needed.";
   }
   $("#objective").textContent = objective;
   $("#hint").textContent = hint;
@@ -4163,7 +4225,7 @@ function frame(now: number) {
   s.position.x = T.MathUtils.clamp(
     s.position.x,
     s.millionaire?.unlocked && s.position.z < -90 ? -94 : -38,
-    s.millionaire?.unlocked && s.position.z < -90 ? 144 : 38,
+    s.millionaire?.unlocked ? (s.position.z < -90 ? 144 : 50) : 38,
   );
   s.position.z = T.MathUtils.clamp(
     s.position.z,
@@ -4183,11 +4245,27 @@ function frame(now: number) {
   world.millionaire.update(s, active && s.awake ? dt : 0);
   if (s.millionaire?.unlocked && !millionairePathNoticed && begun) {
     toast(
-      "A gap has opened in Sigma Town’s back hedge, beside the coin ATM. Follow the path into the willow grove.",
+      "A gap has opened in Sigma Town’s east hedge, between the ATM and town entrance. Follow the path into the willow grove.",
     );
     millionairePathNoticed = true;
   } else if (!s.millionaire?.unlocked) millionairePathNoticed = false;
   if (active && s.awake && !speaking && !paused) {
+    const greeting = world.millionaire.approachGreeting(s, dt);
+    if (greeting) fellowshipConversation(greeting);
+    if (
+      s.millionaire?.member &&
+      mansionCount(s.millionaire) === 0 &&
+      s.position.z < -170 &&
+      s.position.z > -330 &&
+      !s.events.includes("Noticed the empty land below Mt. Millionaire.")
+    ) {
+      s.events.push("Noticed the empty land below Mt. Millionaire.");
+      thought.textContent =
+        "So much empty land. Nothing but dust and tumbleweeds out here. Who lives below this mountain?";
+      thought.hidden = false;
+      thoughtTime = 10;
+      save();
+    }
     const owner = world.millionaire.greeting(s);
     if (owner !== undefined) childConversation(owner);
   }
@@ -4496,18 +4574,8 @@ function frame(now: number) {
     reducedMotion ? 0 : now / 1000,
     s.tvChannel ?? "cartoons",
     report.headline,
+    report.report,
   );
-  tvCaption.hidden =
-    !begun ||
-    !s.awake ||
-    s.tvChannel !== "news" ||
-    paused ||
-    !!speaking ||
-    thoughtTime > 0 ||
-    !!birdhouseScene ||
-    !atHome() ||
-    Math.hypot(s.position.x + 10.1, s.position.z - 10) > 10;
-  tvCaption.innerHTML = `<strong>Town News · ${report.headline}</strong><p>${report.report}</p>`;
   world.wildlife.update(reducedMotion ? 0 : now / 1000);
   if (celebration) {
     if (!paused && !document.hidden) celebration.elapsed += dt;
@@ -4927,6 +4995,18 @@ if (new URLSearchParams(location.search).has("test")) {
         };
       }),
     targets: world.targets,
+    homeDesign: () => ({
+      furnishings: world.homeDecor.children.length,
+      tv: {
+        caption: world.tvScreen.userData.caption,
+        headline: world.tvScreen.userData.headline,
+        eating: world.tvScreen.userData.rabbitEating,
+      },
+      tumbleweeds: world.millionaire.tumbleweeds.map((o) =>
+        o.position.toArray(),
+      ),
+      terraces: s.plots.filter((p) => p.mountain).length,
+    }),
     notebookModel: () => world.notebookPages.userData.writingBounds,
     birdhouseFilm: () =>
       birdhouseScene

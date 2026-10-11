@@ -63,40 +63,26 @@ export function createMillionaireWorld(
     color: string,
     parent: T.Object3D = group,
   ) => part(new T.SphereGeometry(r, 10, 7), color, x, y, z, parent);
-  box(30, -0.3, -285, 270, 0.5, 390, "#618b4e");
-  box(34, 0.01, -108, 4, 0.08, 36, "#c5b48d");
+  box(30, -0.3, -285, 270, 0.5, 390, "#b4a47e");
+  box(46, -0.3, -76, 12, 0.5, 32, "#a4bd77");
+  // East-hedge entrance runs outside town, then merges into the grove clearing.
+  box(43, 0.035, -60, 8, 0.035, 4, "#c5b48d");
+  box(46, 0.035, -82, 4, 0.035, 44, "#c5b48d");
+  box(40, 0.035, -104, 16, 0.035, 4, "#c5b48d");
+  box(34, 0.035, -113, 4, 0.035, 18, "#c5b48d");
+  const clearing = part(
+    new T.CylinderGeometry(13, 13, 0.04, 64),
+    "#c5b48d",
+    34,
+    0.04,
+    -131,
+  );
+  clearing.name = "willow-circular-clearing";
   const guidedPath = new T.Group();
   group.add(guidedPath);
-  box(34, 0.01, -249, 4, 0.08, 182, "#c5b48d", guidedPath);
-  const bend = new T.CatmullRomCurve3([
-    new T.Vector3(34, 0.08, -125),
-    new T.Vector3(42, 0.08, -122),
-    new T.Vector3(42, 0.08, -145),
-    new T.Vector3(34, 0.08, -158),
-  ]);
-  const vertices: number[] = [];
-  for (let i = 0; i < 40; i++) {
-    const a = bend.getPoint(i / 40),
-      b = bend.getPoint((i + 1) / 40),
-      d = b.clone().sub(a).normalize();
-    const n = new T.Vector3(-d.z, 0, d.x).multiplyScalar(2);
-    for (const v of [
-      a.clone().add(n),
-      a.clone().sub(n),
-      b.clone().add(n),
-      a.clone().sub(n),
-      b.clone().sub(n),
-      b.clone().add(n),
-    ])
-      vertices.push(v.x, v.y, v.z);
-  }
-  const bendGeometry = new T.BufferGeometry();
-  bendGeometry.setAttribute(
-    "position",
-    new T.Float32BufferAttribute(vertices, 3),
-  );
-  bendGeometry.computeVertexNormals();
-  part(bendGeometry, "#c5b48d", 0, 0, 0, guidedPath);
+  box(34, 0.015, -242, 4, 0.07, 196, "#c5b48d", guidedPath);
+  // The onward lane joins the circular clearing tangentially, without a seam.
+
   function willow(x: number, z: number, size: number) {
     const root = new T.Group();
     root.position.set(x, 0, z);
@@ -111,32 +97,69 @@ export function createMillionaireWorld(
     );
     const wood: T.BufferGeometry[] = [],
       leaves: T.BufferGeometry[] = [];
-    for (let i = 0; i < 12; i++) {
-      const a = (i * Math.PI) / 6;
-      const radius = size * (0.3 + (i % 3) * 0.025);
+    const leafShape = new T.Shape();
+    leafShape.moveTo(0, 0);
+    leafShape.quadraticCurveTo(0.065, 0.14, 0, 0.38);
+    leafShape.quadraticCurveTo(-0.065, 0.14, 0, 0);
+    const leafTemplate = new T.ShapeGeometry(leafShape, 3);
+    for (let i = 0; i < 16; i++) {
+      const a = (i * Math.PI) / 8;
+      const radius = size * (0.28 + (i % 3) * 0.028);
       const curve = new T.CatmullRomCurve3([
-        new T.Vector3(0, size * 0.55, 0),
+        new T.Vector3(0, size * 0.52, 0),
         new T.Vector3(
           Math.cos(a) * radius * 0.5,
-          size * 0.9,
+          size * 0.85,
           Math.sin(a) * radius * 0.5,
         ),
-        new T.Vector3(Math.cos(a) * radius, size * 0.75, Math.sin(a) * radius),
+        new T.Vector3(Math.cos(a) * radius, size * 0.72, Math.sin(a) * radius),
       ]);
-      wood.push(new T.TubeGeometry(curve, 10, size * 0.025, 5, false));
-      for (let j = 0; j < 5; j++) {
-        const leaf = new T.SphereGeometry(1, 7, 5);
-        leaf.scale(size * 0.075, size * (0.19 + j * 0.004), size * 0.065);
-        leaf.translate(
-          Math.cos(a + 0.13 * j) * radius,
-          size * (0.65 - j * 0.08),
-          Math.sin(a + 0.13 * j) * radius,
-        );
-        leaves.push(leaf);
+      wood.push(new T.TubeGeometry(curve, 9, size * 0.013, 5, false));
+      for (let strand = 0; strand < 5; strand++) {
+        const angle = a + (strand - 2) * 0.075;
+        const reach = radius * (0.85 + strand * 0.055);
+        const top = size * (0.7 - strand * 0.025);
+        const length = size * (0.4 + ((i + strand) % 4) * 0.055);
+        const strandCurve = new T.CatmullRomCurve3([
+          new T.Vector3(Math.cos(angle) * reach, top, Math.sin(angle) * reach),
+          new T.Vector3(
+            Math.cos(angle) * (reach + size * 0.045),
+            top - length * 0.5,
+            Math.sin(angle) * reach,
+          ),
+          new T.Vector3(
+            Math.cos(angle) * reach,
+            top - length,
+            Math.sin(angle) * (reach + size * 0.025),
+          ),
+        ]);
+        wood.push(new T.TubeGeometry(strandCurve, 6, size * 0.0007, 3, false));
+        for (let j = 1; j <= 22; j++) {
+          const point = strandCurve.getPoint(j / 23);
+          for (const side of [-1, 1]) {
+            const leaf = leafTemplate.clone();
+            leaf.scale(size * 0.065, size * 0.065, 1);
+            leaf.rotateZ(side * 0.55 + Math.PI);
+            leaf.rotateY(angle + side * 0.65);
+            leaf.translate(point.x + side * size * 0.004, point.y, point.z);
+            leaves.push(leaf);
+          }
+        }
       }
     }
     part(mergeGeometries(wood)!, "#75604b", 0, 0, 0, root);
-    part(mergeGeometries(leaves)!, "#669b55", 0, 0, 0, root);
+    const curtains = part(mergeGeometries(leaves)!, "#79a952", 0, 0, 0, root);
+    curtains.name = "delicate-willow-leaf-curtains";
+    curtains.material = new T.MeshStandardMaterial({
+      color: "#79a952",
+      side: T.DoubleSide,
+      transparent: true,
+      opacity: 0.72,
+      depthWrite: false,
+      roughness: 0.9,
+    });
+    curtains.castShadow = false;
+    leafTemplate.dispose();
     wood.concat(leaves).forEach((g) => g.dispose());
     rects.push({
       x,
@@ -197,12 +220,12 @@ export function createMillionaireWorld(
       );
       shape.closePath();
       const geometry = new T.ExtrudeGeometry(shape, {
-        depth: terrace.y + 6,
+        depth: terrace.y + 2,
         bevelEnabled: false,
         curveSegments: 32,
         steps: 1,
       });
-      const stone = part(geometry, "#f0efe0", terrace.x, -6, terrace.z);
+      const stone = part(geometry, "#f0efe0", terrace.x, -2, terrace.z);
       stone.rotation.x = -Math.PI / 2;
       const points = Array.from({ length: 65 }, (_, i) => {
         const angle = startAngle + ((endAngle - startAngle) * i) / 64;
@@ -226,8 +249,8 @@ export function createMillionaireWorld(
     "position",
     new T.Float32BufferAttribute(
       [
-        31, 0.08, -340, 37, 0.08, -340, 37, 42.08, -445, 31, 0.08, -340, 37,
-        42.08, -445, 31, 42.08, -445,
+        31, 0.08, -340, 37, 0.08, -340, 37, 14.08, -445, 31, 0.08, -340, 37,
+        14.08, -445, 31, 14.08, -445,
       ],
       3,
     ),
@@ -235,7 +258,7 @@ export function createMillionaireWorld(
   ramp.computeVertexNormals();
   part(ramp, "#e2d9c0", 0, 0, 0);
   const pagoda = new T.Group();
-  pagoda.position.set(34, 42, -451);
+  pagoda.position.set(34, 14, -451);
   group.add(pagoda);
   box(0, 0.12, 0, 14, 0.24, 12, "#eae3cb", pagoda);
   for (const x of [-5, 5])
@@ -272,7 +295,7 @@ export function createMillionaireWorld(
     );
   }
   const summitHost = new T.Group();
-  summitHost.position.set(34, 42.25, -452);
+  summitHost.position.set(34, 14.25, -452);
   group.add(summitHost);
   speakers.push({
     id: "millionaire-summit",
@@ -481,13 +504,68 @@ export function createMillionaireWorld(
     [42, -145],
     [34, -155],
     [34, -340],
+    [34, -370],
+    [34, -400],
+    [34, -430],
+    [34, -445],
+    [36, -449],
   ];
+  let approaching: Fellowship | undefined;
+  function approachPlayer(id: Fellowship) {
+    approaching = id;
+  }
+  function approachGreeting(s: State, dt: number) {
+    if (!approaching) return undefined;
+    const id = approaching;
+    const host = hosts[fellowships.findIndex((f) => f.id === id)];
+    const dx = s.position.x - host.position.x,
+      dz = s.position.z - host.position.z;
+    const distance = Math.hypot(dx, dz);
+    host.rotation.y = Math.atan2(dx, dz);
+    if (distance <= 2.3) {
+      approaching = undefined;
+      return id;
+    }
+    const step = Math.min(distance - 2.2, dt * 2.4);
+    host.position.x += (dx / distance) * step;
+    host.position.z += (dz / distance) * step;
+    host.position.y = terrainHeight(host.position.x, host.position.z);
+    const target = targets.find((t) => t.id === `fellowship-${id}`)!;
+    target.x = host.position.x;
+    target.z = host.position.z + 1.3;
+    return undefined;
+  }
+  const tumbleweeds = Array.from({ length: 12 }, (_, i) => {
+    const root = new T.Group();
+    root.name = "windblown-tumbleweed";
+    const twigs: T.BufferGeometry[] = [];
+    for (let j = 0; j < 9; j++) {
+      const twig = new T.TorusGeometry(0.38 + (j % 3) * 0.08, 0.013, 3, 14);
+      twig.rotateY(j * 1.17);
+      twig.rotateX(j * 0.73);
+      twigs.push(twig);
+    }
+    part(mergeGeometries(twigs)!, "#84694b", 0, 0, 0, root);
+    twigs.forEach((g) => g.dispose());
+    group.add(root);
+    root.position.set(8 + i * 5, 0.55, -173 - i * 11);
+    return root;
+  });
+  let windTime = 0;
   function followGuide() {
     guide = true;
     guideStep = -1;
     guideWait = 2;
   }
   function update(s: State, dt: number) {
+    windTime += dt;
+    tumbleweeds.forEach((root, i) => {
+      root.position.x =
+        -16 + ((windTime * (0.9 + (i % 3) * 0.15) + i * 7) % 100);
+      root.position.z = -173 - i * 11 + Math.sin(windTime * 0.3 + i) * 3;
+      root.position.y = 0.55 + Math.abs(Math.sin(windTime * 2 + i)) * 0.15;
+      root.rotation.set(windTime * 0.6, i * 0.7, -windTime * 1.4);
+    });
     const m = s.millionaire;
     group.visible = !!m?.unlocked;
     if (!group.visible) {
@@ -540,6 +618,7 @@ export function createMillionaireWorld(
         if (length > 0) {
           host.position.x += (dx / length) * step;
           host.position.z += (dz / length) * step;
+          host.position.y = terrainHeight(host.position.x, host.position.z);
           host.rotation.y = Math.atan2(dx, dz);
         }
         if (length <= step) {
@@ -671,6 +750,9 @@ export function createMillionaireWorld(
     mansions,
     update,
     followGuide,
+    approachPlayer,
+    approachGreeting,
+    tumbleweeds,
     greeting,
   };
 }

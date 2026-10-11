@@ -87,8 +87,28 @@ const excuses = [
   "The conservatory is conserving access for now.",
   "The estate manager says the estate needs a little alone time.",
 ];
-export function terraceLine(id: Fellowship, count: number) {
-  const lines = welcomes[id];
+const teachings: Record<Fellowship, string[]> = {
+  arms: [
+    "We build certainty through shared routines: family time, service, healthy habits, and clear moral promises. Your work belongs to something larger.",
+    "Our many investment arms stand for stewardship: homes, farms, businesses. We teach that disciplined saving can support a family and a community.",
+    "We ask members to give a tenth of new earnings. Here the Children receive that contribution. Watch what grows for them as you tend these terraces.",
+    "A strong social structure can offer belonging and guidance. It also asks you to follow common standards. You can decide how much certainty you need.",
+  ],
+  bridge: [
+    "We teach that your guiding spiritual core is more than genes or surroundings. Our courses promise emotional relief and a clearer understanding of yourself.",
+    "The meter is part of our spiritual practice. The needle gives us something to discuss; learning is presented as a lifelong climb up the bridge.",
+    "Freedom is our promise, and courses are our method. Notice when self-improvement becomes another purchase, and whether the promised relief arrives.",
+    "Our fictional church distrusts modern medicine. That is its doctrine, not medical advice. Your health decisions are yours to discuss with qualified clinicians.",
+  ],
+  fire: [
+    "We use breathing, movement, and attention to seek emotional healing and expanded consciousness. White clothes and plant-based meals remind us of conscious living.",
+    "We speak of chakras as energy centers. Our practice treats movement as a way to loosen blocks and bring body and spirit into balance.",
+    "We describe money as tangible energy, and tithing as keeping it flowing. But the flow has a destination: the Children. Pay attention to where it goes.",
+    "Love nature, exercise gently, and bring your practice into ordinary life. You need not abandon the world to live in it consciously.",
+  ],
+};
+export function terraceLine(id: Fellowship, count: number, learned = false) {
+  const lines = learned ? teachings[id] : welcomes[id];
   return lines[count % lines.length];
 }
 export function mansionLine(id: Fellowship, count: number) {
@@ -104,7 +124,7 @@ export function summitConversation(id: Fellowship) {
   const name = fellowship(id).name;
   return [
     [
-      `I’m so glad you have joined ${name}. Every terrace here is fertile. Plant directly in the soil; your trees will grow as if they have already been fertilized.`,
+      `I’m so glad you have joined ${name}. Every terrace here is fertile. One hundred dead trees mark places to plant directly in the soil. No beds, watering, or fertilizer needed. Plant, sleep, and harvest in the morning; your trees receive the fertilizer boost naturally.`,
       "What’s the catch?",
     ],
     [

@@ -1624,3 +1624,172 @@ body.riding #bike-bell-help {
   pointer-events: auto;
   cursor: pointer;
 }
+
+/* Resource counters stay together in the lower right, leaving the horizon open. */
+#resource-hud {
+  left: auto;
+  right: max(12px, env(safe-area-inset-right));
+  transform: none;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  max-width: min(780px, calc(100vw - 24px));
+}
+.mascot-quiz {
+  background: #fff9de;
+  border: 5px solid #ffd823;
+}
+.mascot-quiz h2 {
+  background: #fa2017;
+  color: white;
+  font:
+    900 clamp(28px, 5vw, 60px)/1.05 Nunito,
+    sans-serif;
+  text-shadow: 3px 3px #171717;
+  padding: 20px;
+  margin: -20px -20px 24px;
+  text-align: center;
+}
+.mascot-lineup {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  background: #ffd823;
+  gap: 5px;
+}
+.mascot-lineup figure {
+  margin: 0;
+  background: var(--mascot-color);
+  text-align: center;
+  padding: 10px 4px;
+}
+.mascot-lineup img {
+  width: 100%;
+  max-width: 220px;
+  image-rendering: auto;
+}
+.mascot-lineup figcaption {
+  color: #172a25;
+  font-weight: 900;
+  font-size: 18px;
+}
+.quiz-intro {
+  text-align: center;
+}
+.mascot-quiz .choices {
+  display: grid;
+  grid-template-columns: 1fr;
+}
+.mascot-quiz .quiz-break {
+  color: #76402c;
+  background: #f0d6c3;
+  border-top: 2px solid #c3977c;
+  margin-top: 20px;
+  justify-self: start;
+  font-size: 16px;
+}
+/* A single ruled pitch drives both the printed lines and handwriting baselines. */
+.notebook-page {
+  --rule: 30px;
+  padding-top: 24px;
+  background-position: 0 19px;
+}
+.notebook-page h3 {
+  font:
+    32px/var(--rule) Gaegu,
+    cursive;
+  margin: 0 0 var(--rule);
+}
+.notebook-page p {
+  font:
+    24px/var(--rule) Gaegu,
+    cursive;
+  margin: 0 0 var(--rule);
+}
+@media (max-width: 700px) {
+  .notebook-page {
+    padding-top: 24px;
+  }
+  .notebook-page p {
+    font-size: 23px;
+  }
+}
+
+#resource-hud #stats {
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+#resource-hud #location {
+  position: static;
+  padding: 8px 10px;
+  align-self: center;
+  font-size: 14px;
+  max-width: 160px;
+}
+header {
+  top: auto;
+  left: auto;
+  right: 12px;
+  bottom: calc(var(--resource-bottom) + var(--resource-height) + 12px);
+}
+header .brand {
+  position: fixed;
+  left: 28px;
+  top: 22px;
+}
+#quest {
+  top: auto;
+  left: auto;
+  right: 12px;
+  bottom: calc(var(--resource-bottom) + var(--resource-height) + 65px);
+  width: 265px;
+  padding: 16px;
+}
+#quest h2 {
+  font-size: 20px;
+  margin: 0 0 8px;
+}
+#coin-tracker {
+  top: auto;
+  right: 330px;
+  bottom: calc(var(--resource-bottom) + var(--resource-height) + 65px);
+}
+@media (max-width: 700px) {
+  #quest {
+    width: 220px;
+    padding: 10px;
+  }
+  #quest p {
+    font-size: 11px;
+  }
+  #coin-tracker {
+    right: 260px;
+    max-width: 145px;
+    font-size: 12px;
+  }
+  header .brand {
+    left: 12px;
+    top: 12px;
+  }
+  #resource-hud #location {
+    font-size: 12px;
+  }
+}
+
+.mascot-quiz h2 {
+  font-family: Bungee, sans-serif;
+  font-weight: 400;
+  font-size: clamp(24px, 4vw, 44px);
+}
+
+.quiz-landing {
+  width: min(940px, 94vw);
+}
+.mascot-quiz h2 span {
+  color: #ffe927;
+}
+@media (max-width: 500px) {
+  #coin-tracker {
+    right: 12px;
+    bottom: calc(var(--resource-bottom) + var(--resource-height) + 220px);
+  }
+}

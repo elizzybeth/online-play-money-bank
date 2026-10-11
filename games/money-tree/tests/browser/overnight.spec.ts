@@ -151,9 +151,10 @@ test("TV switches between cartoons and local news, and keeps the chosen channel"
   await expect(page.locator("#modal")).toContainText("What’s on TV?");
   await page.getByRole("button", { name: "Watch Town News" }).click();
   await page.clock.fastForward(32);
-  await expect(page.locator("#tv-news-caption")).toContainText(
-    "twenty-five packets",
-  );
+  await expect(page.locator("#tv-news-caption")).toHaveCount(0);
+  expect(
+    await page.evaluate(() => (window as any).game.homeDesign().tv.caption),
+  ).toContain("twenty-five packets");
   expect(
     await page.evaluate(() => (window as any).game.state().tvChannel),
   ).toBe("news");

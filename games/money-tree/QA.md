@@ -158,3 +158,14 @@ Desktop keyboard and mouse. No touch/gamepad support yet. Home and haberdashery 
 - Inspect the Grindset green/gold Sigma coffee crest; check that the resource drink icon is the only drink indicator.
 - After accepting Mom’s recovery outing, approach Bea outside: ordinary dialogue is replaced by her greeting to both characters. Follow her through the door; she invites you to actual tea chairs.
 - Active conversation choices remain visible even when the speaker’s nameplate is occluded by the camera angle.
+
+### Level 3 and home redesign acceptance
+
+- Level 3 opens the east hedge at `(39, -60)`, between the coin ATM and Sigma Town entry. The old north gap remains closed. The lane turns outside the hedge and merges into a circular willow clearing.
+- Quiz begins with a red/yellow portrait landing screen titled **WHICH MASCOT ARE YOU?**; the secondary break action occupies a separate row. Completion closes the modal before the chosen mascot walks over and speaks. Other mascots offer future membership.
+- The guide waits for the player and leads through the grove, across the barren plain and all the way into the summit pagoda. Airy willow curtains and twelve rolling tumbleweeds are rendered in-world.
+- Terraces are narrower and two units high per tier. One hundred dead-tree sites indicate direct planting. Mountain seeds enter overnight growth immediately, with the natural fertilizer bonus; no watering or fertilizer inventory is consumed. Historic plots migrate without discarding their crops.
+- After the summit seed gift, terrace residents explain their fellowship's beliefs and practices. Construction journals distinguish **1 Child** and **One of six**.
+- Television captions are part of its screen texture, enclosed by a full frame. Cartoon rabbits periodically catch and eat the carrot.
+- Home interiors use jewel colors, patterned rug/cushions/throw, gilded book spines, potted plants, ceramic tea service and arch artwork. Decorative solids are batched by material. Mom's cooking scene contains stew vegetables, pan rim, burners, chopping board, knife, spoon and translucent steam strands.
+- Recovery dialogue describes regaining energy rather than promising to stand when Mom is already active. Walls cut away for camera obstruction, with the player's contact neighborhood excluded. Notebook paragraph spacing uses the same pitch as its printed rules. Resource indicators occupy the lower-right corner.

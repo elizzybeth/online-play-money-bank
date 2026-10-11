@@ -1,3 +1,4 @@
+import { fertileMountainSoil } from "../src/millionaire-land";
 import { createCoin, investCoin, sellCoin, coinValue } from "../src/sigma";
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -24,6 +25,7 @@ import {
   mansionCount,
   buyApp,
   validMillionaire,
+  ensureMountainPlots,
 } from "../src/millionaire";
 test("Level 3 counts fresh post-Pepe earnings, not savings or old earnings", () => {
   const s = fresh();
@@ -73,7 +75,14 @@ test("tithing applies to new earnings and mountain wealth builds six mansions by
   assert.equal(recordEarnings(s, 700), 630);
   assert.equal(s.millionaire!.tithed, 70);
   assert.equal(mansionCount(s.millionaire), 0);
-  assert.equal(recordEarnings(s, 100000, true), 90000);
+  assert.equal(recordEarnings(s, 17000, true), 15300);
+  assert.equal(mansionCount(s.millionaire), 1);
+  assert(
+    s.events.some(
+      (e) => e.startsWith("1 Child of ") && e.includes("One of six now lives"),
+    ),
+  );
+  assert.equal(recordEarnings(s, 83000, true), 74700);
   assert.equal(mansionCount(s.millionaire), 6);
   s.cash = 499;
   assert.equal(buyApp(s, 0), false);
@@ -100,7 +109,8 @@ test("mountain planting grows overnight with fertilizer, saves reload and transf
   const index = s.plots.findIndex((p) => p.mountain);
   assert(plant(s, index));
   assert(s.plots[index].fertilized);
-  assert(water(s, index));
+  assert.equal(s.plots[index].stage, "growing");
+  assert.equal(water(s, index), false);
   growOvernight(s);
   assert.equal(s.plots[index].stage, "ready");
   s.plots[index].yield = 900;
@@ -113,7 +123,7 @@ test("mountain planting grows overnight with fertilizer, saves reload and transf
   const restored = decode(JSON.stringify(s));
   assert(restored);
   assert.deepEqual(restored.millionaire, s.millionaire);
-  assert.equal(restored.plots.filter((p) => p.mountain).length, 32);
+  assert.equal(restored.plots.filter((p) => p.mountain).length, 100);
 });
 
 test("coin tithing excludes recovered principal, tracks partial-sale basis and losses", () => {
@@ -182,4 +192,29 @@ test("legacy saves recover recorded post-Pepe income without including earlier h
   migrateMillionaire(old);
   assert.equal(old.millionaire!.afterPepe, 0);
   assert.equal(old.millionaire!.unlocked, false);
+});
+
+test("old mountain gardens migrate to one hundred sites without losing a planted tree", () => {
+  const s = fresh();
+  s.pepePopped = true;
+  markPepeBaseline(s);
+  recordEarnings(s, 10000);
+  assessment.forEach(() => answerAssessment(s, 0));
+  joinFellowship(s, "arms");
+  acceptTithe(s);
+  const first = s.plots.find((p) => p.mountain)!;
+  first.x = 82;
+  first.z = -340;
+  first.stage = "planted";
+  s.plots = s.plots.filter((p) => !p.mountain || p === first);
+  ensureMountainPlots(s);
+  assert.equal(s.plots.filter((p) => p.mountain).length, 100);
+  assert.equal(first.stage, "growing");
+  assert.equal(first.fertilized, true);
+  assert(fertileMountainSoil(first.x!, first.z!));
+  const coordinates = s.plots
+    .filter((p) => p.mountain)
+    .map((p) => `${p.x},${p.z}`);
+  assert.equal(new Set(coordinates).size, 100);
+  assert.equal(ensureMountainPlots(s), false);
 });
