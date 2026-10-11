@@ -65,7 +65,9 @@ test("named coin creates an accessible ATM with chart, partial buy/sell and pers
   const clearance = await page.evaluate(() => {
     const rects = (window as any).game.rects;
     const atm = rects.find((r: any) => r.x === 36 && r.z === -74);
-    const hedge = rects.find((r: any) => r.x === 39 && r.z === -67.25);
+    const hedge = rects.find(
+      (r: any) => r.x === 39 && Math.abs(r.z - atm.z) <= r.d / 2,
+    );
     return hedge.x - hedge.w / 2 - (atm.x + atm.w / 2);
   });
   expect(clearance).toBeGreaterThan(1.5);
