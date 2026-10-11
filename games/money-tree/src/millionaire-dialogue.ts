@@ -91,7 +91,7 @@ const teachings: Record<Fellowship, string[]> = {
   arms: [
     "We build certainty through shared routines: family time, service, healthy habits, and clear moral promises. Your work belongs to something larger.",
     "Our many investment arms stand for stewardship: homes, farms, businesses. We teach that disciplined saving can support a family and a community.",
-    "We ask members to give a tenth of new earnings. Here the Children receive that contribution. Watch what grows for them as you tend these terraces.",
+    "We ask members to give a tenth of Money Tree earnings. Here the Children receive that contribution. Watch what grows for them as you tend these terraces.",
     "A strong social structure can offer belonging and guidance. It also asks you to follow common standards. You can decide how much certainty you need.",
   ],
   bridge: [
@@ -129,7 +129,7 @@ export function summitConversation(id: Fellowship) {
     ],
     [
       fellowship(id).tithe +
-        " Ten percent of anything new you earn goes back to your community.",
+        " Ten percent of your Money Tree income goes back to your community. Coin sales and phone-game winnings are exempt.",
       "Like, my neighbors?",
     ],
     ["No, not them.", "Then who?"],

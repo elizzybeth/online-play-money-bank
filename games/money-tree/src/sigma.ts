@@ -156,7 +156,7 @@ export function sellCoin(s: State, amount?: number) {
   const principal =
     sold === s.coin.units ? basis : Math.floor((basis * sold) / s.coin.units);
   const profit = Math.max(0, value - principal);
-  const netProfit = profit ? recordEarnings(s, profit) : 0;
+  const netProfit = profit ? recordEarnings(s, profit, false, false) : 0;
   s.cash += value - profit + netProfit;
   s.totalEarned = (s.totalEarned ?? 0) + profit;
   s.coin.basis = Math.max(0, basis - principal);
@@ -195,6 +195,10 @@ export function marketSignals(s: State) {
     ].filter(Boolean).length,
     bicycles: new Set(s.bikes ?? []).size,
     tools: Number(s.can) + Number(s.shovel),
+    spanakopita: s.spanakopita ?? 0,
+    spanakopitaShared: s.spanakopitaShared ?? 0,
+    chickenCuddles: s.chickenCuddles ?? 0,
+    momRecent: s.momLastTalkDay !== undefined && s.day - s.momLastTalkDay <= 2,
   };
 }
 export function healthDay(day: number) {
@@ -273,8 +277,12 @@ export function tickSigma(s: State, dt: number, awakeTime = true) {
           Math.min(12, q.birdhouses) * 0.0001 +
           q.discoveries * 0.0001 +
           Math.min(7, q.bicycles) * 0.0001 +
-          q.tools * 0.00015,
-      ) + (q.health ? 0.001 : -0.001);
+          q.tools * 0.00015 +
+          Math.min(10, q.spanakopita + q.spanakopitaShared) * 0.0001 +
+          Math.min(20, q.chickenCuddles) * 0.00005,
+      ) +
+      (q.health ? 0.001 : -0.001) +
+      (q.momRecent ? 0.0008 : -0.0004);
   for (let i = 0; i < steps; i++) {
     c.rng = (c.rng * 16807) % 2147483647;
     c.exactPrice = Math.max(

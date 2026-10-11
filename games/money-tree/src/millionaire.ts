@@ -105,7 +105,12 @@ function harvestAmounts(events: string[]) {
 export function markPepeBaseline(s: State) {
   s.millionaire ??= newMillionaire();
 }
-export function recordEarnings(s: State, gross: number, mountain = false) {
+export function recordEarnings(
+  s: State,
+  gross: number,
+  mountain = false,
+  treeIncome = true,
+) {
   if (!Number.isSafeInteger(gross) || gross <= 0) return 0;
   const m = s.millionaire;
   if (!m) return gross;
@@ -127,7 +132,8 @@ export function recordEarnings(s: State, gross: number, mountain = false) {
         `${after - before} ${after - before === 1 ? "Child" : "Children"} of ${fellowship(m.member!).name} left the terraces to build lavish mansions. ${after === 1 ? "One" : after} of six now ${after === 1 ? "lives" : "live"} at the mountain’s foot.`,
       );
   }
-  const tithe = m.member && m.titheAccepted ? Math.round(gross / 10) : 0;
+  const tithe =
+    treeIncome && m.member && m.titheAccepted ? Math.round(gross / 10) : 0;
   if (tithe) {
     m.tithed += tithe;
     s.events.push(
@@ -263,7 +269,7 @@ export function acceptTithe(s: State) {
     s.seeds += 25;
   }
   s.events.push(
-    `Agreed to contribute 10% of new earnings to the Children of ${fellowship(m.member).name}; received 25 seed packets.`,
+    `Agreed to contribute 10% of Money Tree earnings to the Children of ${fellowship(m.member).name}; received 25 seed packets.`,
   );
   return true;
 }

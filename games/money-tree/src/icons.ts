@@ -1,4 +1,8 @@
 const artwork: Record<string, string> = {
+  compost:
+    '<path d="M23 35h75v50H23z" fill="#856746"/><path d="M20 32h81v8H20z" fill="#a7b393"/><path d="M36 45l18 9-8 16-12-7zm36 6 14 16-18 9-9-14z" fill="#aac374"/><path d="M60 20v28m0-9q-18 0-18-16 18 0 18 16m0-9q0-16 17-16 0 16-17 16" fill="#588a50"/>',
+  spanakopita:
+    '<path d="M16 80L59 17l46 63z" fill="#d2a04d" stroke="#94642e" stroke-width="3"/><path d="M25 73h70M33 61h54M41 49h37" stroke="#f2d48b" stroke-width="4"/><path d="M44 80h31v7H44z" fill="#5d7b3f"/>',
   money:
     '<path d="M18 23h76v43H18z" fill="#638b55"/><path d="M24 29h76v43H24z" fill="#a3c97c" stroke="#355c40" stroke-width="3"/><path d="M32 37h60v27H32z" fill="none" stroke="#557b4b" stroke-width="2"/><text x="62" y="61" text-anchor="middle" fill="#355c40" font-size="29" font-family="Georgia">$</text><path d="M18 78h83" stroke="#d1d0ae" stroke-width="4"/>',
   seeds:

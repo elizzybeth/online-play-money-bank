@@ -126,7 +126,7 @@ test("mountain planting grows overnight with fertilizer, saves reload and transf
   assert.equal(restored.plots.filter((p) => p.mountain).length, 100);
 });
 
-test("coin tithing excludes recovered principal, tracks partial-sale basis and losses", () => {
+test("coin sales are exempt from tithing and retain partial-sale basis tracking", () => {
   const s = fresh();
   s.foundTVSeeds = true;
   s.communityPlanted = true;
@@ -141,16 +141,16 @@ test("coin tithing excludes recovered principal, tracks partial-sale basis and l
   assert(investCoin(s, 10000));
   s.coin!.price = 200;
   assert(sellCoin(s, 10000));
-  assert.equal(s.cash, 9500);
+  assert.equal(s.cash, 10000);
   assert.equal(s.coin!.basis, 5000);
-  assert.equal(s.millionaire!.tithed, 500);
+  assert.equal(s.millionaire!.tithed, 0);
   assert(sellCoin(s));
-  assert.equal(s.cash, 19000);
-  assert.equal(s.millionaire!.tithed, 1000);
+  assert.equal(s.cash, 20000);
+  assert.equal(s.millionaire!.tithed, 0);
   assert(investCoin(s, 10000));
   s.coin!.price = 100;
   assert(sellCoin(s));
-  assert.equal(s.millionaire!.tithed, 1000);
+  assert.equal(s.millionaire!.tithed, 0);
   assert.equal(s.coin!.basis, 0);
 });
 

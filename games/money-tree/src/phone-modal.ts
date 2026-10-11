@@ -223,9 +223,7 @@ export function mountPhoneGame(
     }
     status.textContent = game.complete
       ? game.score >= 10
-        ? s.millionaire?.titheAccepted
-          ? "Ten points! $1 earned: 90¢ to your pocket, 10¢ to your community."
-          : "Ten points! You earned $1."
+        ? "Ten points! $1.00 earned, all to your pocket."
         : "Out of lives. Try again."
       : `${game.score}/10 points${index === 4 ? "" : ` · ${game.lives} lives`}`;
     boost.disabled = game.complete || game.boosted || s.cash < 100;

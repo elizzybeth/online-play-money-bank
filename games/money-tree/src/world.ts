@@ -1,3 +1,4 @@
+import { createTownLife } from "./town-life-world";
 import { decorateHome } from "./home-interior";
 import { fitWindow, pitchedRoof } from "./architecture";
 import { type BirdhousePaint } from "./birdhouse-paint";
@@ -368,7 +369,7 @@ export function createWorld(scene: T.Scene) {
     wateringTool.visible = waterDrops.visible = active;
     if (!active) return;
     // The handle stays in the hand as the spout tips forward, clear of the torso.
-    const tilt = Math.sin(Math.min(1, time / 1.8) * Math.PI) * 0.65;
+    const tilt = Math.sin(Math.min(1, time / 0.9) * Math.PI) * 0.65;
     wateringTool.rotation.set(0, -Math.PI / 2, -tilt);
     const grip = new T.Vector3(0.65, 1.15, 0.6);
     wateringTool.position
@@ -391,8 +392,8 @@ export function createWorld(scene: T.Scene) {
     player.updateMatrixWorld(true);
     const spout = wateringTool.localToWorld(new T.Vector3(1.06, 0.66, 0));
     waterDrops.children.forEach((drop, i) => {
-      drop.visible = time > 0.2 && time < 1.6;
-      const flight = (time * 2 + i / 32) % 1;
+      drop.visible = time > 0.1 && time < 0.8;
+      const flight = (time * 4 + i / 32) % 1;
       const angle = i * 2.399;
       const radius = 0.1 + (i % 5) * 0.055;
       drop.position
@@ -688,6 +689,50 @@ export function createWorld(scene: T.Scene) {
     );
     steam.add(wisp);
   }
+  const bacon = new T.Group();
+  bacon.name = "bacon-sandwich-cooking";
+  scene.add(bacon);
+  cyl(-12.5, 1.18, 12.8, 0.32, 0.12, "#343838", bacon);
+  box(-12.0, 1.19, 12.8, 0.5, 0.07, 0.1, "#5c4938", false, bacon);
+  for (let j = 0; j < 4; j++) {
+    const strip = box(
+      -12.7 + j * 0.13,
+      1.25,
+      12.8,
+      0.09,
+      0.025,
+      0.39,
+      "#b85238",
+      false,
+      bacon,
+    );
+    strip.rotation.y = (j % 2 ? 1 : -1) * 0.12;
+    for (let k = 0; k < 4; k++)
+      box(
+        -12.7 + j * 0.13,
+        1.267,
+        12.66 + k * 0.08,
+        0.07,
+        0.009,
+        0.035,
+        "#f0c5a1",
+        false,
+        bacon,
+      );
+  }
+  for (const dx of [-0.2, 0.2]) {
+    box(-11.94 + dx, 1.13, 12.5, 0.3, 0.04, 0.34, "#d1a257", false, bacon);
+    box(-11.94 + dx, 1.155, 12.5, 0.26, 0.025, 0.3, "#f2dec0", false, bacon);
+  }
+  const spatula = new T.Group();
+  spatula.name = "moms-spatula";
+  mom.add(spatula);
+  box(0, 0, 0, 0.045, 0.36, 0.05, "#5f4230", false, spatula);
+  box(0, 0.22, 0, 0.17, 0.18, 0.025, "#969e98", false, spatula);
+  for (const x of [-0.04, 0, 0.04])
+    box(x, 0.22, 0.015, 0.016, 0.1, 0.003, "#3a4540", false, spatula);
+  spatula.position.set(0.53, 1.17, 0.45);
+  spatula.rotation.x = 0.9;
   const birdhouses = new T.Group();
   scene.add(birdhouses);
   for (const dx of [-0.42, 0.35]) {
@@ -831,6 +876,7 @@ export function createWorld(scene: T.Scene) {
     const absent = !!story && day === story.surgeryDay;
     mom.visible = !absent;
     if (absent) {
+      bacon.visible = spatula.visible = false;
       const index = rects.indexOf(momCollider);
       if (index >= 0) rects.splice(index, 1);
       momCollider.w = momCollider.d = 0;
@@ -845,6 +891,7 @@ export function createWorld(scene: T.Scene) {
     }
     if (!rects.includes(momCollider)) rects.push(momCollider);
     if (story?.escort) {
+      bacon.visible = spatula.visible = false;
       cooking.visible =
         birdhouses.visible =
         painting.visible =
@@ -892,6 +939,7 @@ export function createWorld(scene: T.Scene) {
     }
     mom.rotation.y = seated ? Math.PI / 2 : garden ? -Math.PI / 2 : 0;
     cooking.visible = status.activity === "cooking";
+    bacon.visible = spatula.visible = status.activity === "bacon";
     birdhouses.visible = status.activity === "birdhouses";
     painting.visible = status.activity === "painting";
     book.visible = status.activity === "reading";
@@ -1762,7 +1810,9 @@ export function createWorld(scene: T.Scene) {
     .slice(0, 12)
     .entries()) {
     const g = new T.Group();
-    g.position.set(tree.x, 1.65, tree.z + 0.32);
+    g.position.set(tree.x, 1.35, tree.z + tree.radius + 0.4);
+    g.userData.treeRadius = tree.radius;
+    g.userData.tree = { x: tree.x, z: tree.z };
     g.name = "moms-birdhouse";
     g.visible = false;
     scene.add(g);
@@ -1801,6 +1851,44 @@ export function createWorld(scene: T.Scene) {
         }
         (mesh.material as T.MeshStandardMaterial).color.set(color);
       }
+    });
+  }
+  const houseBirds = Array.from({ length: 2 }, (_, i) => {
+    const g = new T.Group();
+    g.name = "birdhouse-visitor";
+    ball(0, 0, 0, 0.09, i ? "#caa265" : "#6991ad", g).scale.set(1, 0.8, 1.5);
+    for (const side of [-1, 1]) {
+      const wing = ball(side * 0.1, 0, 0, 0.08, "#526d85", g);
+      wing.name = "wing";
+      wing.scale.set(1.8, 0.15, 1);
+    }
+    scene.add(g);
+    return g;
+  });
+  function updateHouseBirds(time: number) {
+    houseBirds.forEach((bird, i) => {
+      const house = outdoorBirdhouses[i];
+      const cycle = (time + i * 13) % 32;
+      bird.visible = house.visible && cycle < 9;
+      if (!bird.visible) return;
+      const hole = house.position.clone().add(new T.Vector3(0, 0.03, 0.24));
+      const outside = hole.clone().add(new T.Vector3(i ? 2 : -2, 1.2, 4));
+      const t =
+        cycle < 5 ? Math.min(1, cycle / 4) : Math.min(1, (cycle - 5) / 4);
+      bird.position.lerpVectors(
+        cycle < 5 ? outside : hole,
+        cycle < 5 ? hole : outside,
+        t,
+      );
+      if (cycle >= 4 && cycle < 5) bird.visible = false;
+      bird.rotation.y =
+        Math.atan2(hole.x - outside.x, hole.z - outside.z) +
+        (cycle >= 5 ? Math.PI : 0);
+      bird.children
+        .filter((o) => o.name === "wing")
+        .forEach(
+          (w, j) => (w.rotation.z = (j ? 1 : -1) * Math.sin(time * 24) * 0.6),
+        );
     });
   }
   const fertilizerMarkers = new T.Group();
@@ -2517,9 +2605,21 @@ export function createWorld(scene: T.Scene) {
       (object.position.z === 6 && object.position.x < -9)
     )
       continue;
+    if (
+      doorways.some(
+        (door) =>
+          Math.abs(object.position.x - door.x) < 0.3 &&
+          Math.abs(object.position.z - door.z) < 0.3,
+      )
+    )
+      continue;
     fitWindow(object, w > d, Math.max(w, d), h, Math.min(w, d));
   }
+  const life = createTownLife(scene, rects, targets, speakers, player, mom);
   return {
+    life,
+    houseBirds,
+    updateHouseBirds,
     robertsonsRoof,
     bikeShopRoof,
     bikeShopSign,

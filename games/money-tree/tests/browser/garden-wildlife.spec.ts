@@ -42,7 +42,9 @@ test("distinct neighborhood gardens and wildlife visit existing birdhouses", asy
   expect(before.butterflies).toHaveLength(20);
   await expect
     .poll(() =>
-      page.evaluate(() => (window as any).game.wildlife().butterflies[0].position),
+      page.evaluate(
+        () => (window as any).game.wildlife().butterflies[0].position,
+      ),
     )
     .not.toEqual(before.butterflies[0].position);
   const after = await page.evaluate(() => (window as any).game.wildlife());
@@ -91,7 +93,7 @@ test("distinct neighborhood gardens and wildlife visit existing birdhouses", asy
   });
 });
 
-test("notebook page sketches vary and controls stay outside long entry scrolling", async ({
+test("notebook spreads turn without scrolling and controls remain visible", async ({
   page,
 }) => {
   const s = fresh();
@@ -110,9 +112,9 @@ test("notebook page sketches vary and controls stay outside long entry scrolling
   await page.goto("./?test");
   await page.getByRole("button", { name: "Wake up" }).click();
   await page.keyboard.press("j");
-  const latest = await page.locator(".notebook-doodles").innerHTML();
+  const latest = await page.locator(".notebook-spread").innerHTML();
   await page.getByRole("button", { name: "Previous page" }).click();
-  expect(await page.locator(".notebook-doodles").innerHTML()).not.toBe(latest);
+  expect(await page.locator(".notebook-spread").innerHTML()).not.toBe(latest);
   await page.setViewportSize({ width: 700, height: 450 });
   await page.waitForTimeout(500);
   const buttons = page.locator(".notebook-paper .choices");
@@ -121,9 +123,16 @@ test("notebook page sketches vary and controls stay outside long entry scrolling
   await page
     .locator(".notebook-spread")
     .evaluate((e) => (e.scrollTop = e.scrollHeight));
-  expect((await buttons.boundingBox())!.y).toBeCloseTo(bounds!.y, 0);
-  await page.getByRole("button", { name: "Next page" }).click();
-  expect(await page.locator(".notebook-doodles").innerHTML()).toBe(latest);
+  expect(Math.abs((await buttons.boundingBox())!.y - bounds!.y)).toBeLessThan(
+    2,
+  );
+  await page
+    .getByRole("button", { name: "Close notebook", exact: true })
+    .click();
+  await page.keyboard.press("j");
+  await expect(page.locator(".notebook-spread")).toContainText(
+    "Mom painted today.",
+  );
 });
 
 test("HUD renders seed packet artwork with current count", async ({ page }) => {

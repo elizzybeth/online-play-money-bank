@@ -27,7 +27,7 @@ export const hats = [
     price: 1500,
     color: "#2767ce",
     power:
-      "Plant two adjoining beds in one digging action when you have two seeds.",
+      "Plant, water, fertilize and harvest two adjoining beds at once. Uses a seed or dose for each bed.",
   },
   {
     id: "hardhat",

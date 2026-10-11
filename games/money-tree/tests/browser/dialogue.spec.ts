@@ -81,7 +81,7 @@ test("harvest withers, Robertson stops selling seeds, cap seeds replant once and
   await page.keyboard.press("e");
   await page.getByRole("button", { name: "Buy · $5.00" }).click();
   await page.keyboard.press("i");
-  await expect(page.locator(".inventory-card svg")).toHaveCount(7);
+  await expect(page.locator(".inventory-card svg")).toHaveCount(9);
   await expect(page.locator("[data-item=fertilizer]")).toContainText("5 doses");
   await page.getByRole("button", { name: "Back to the day" }).click();
   await page.evaluate(() => (window as any).game.teleport(20.65, -24.6));

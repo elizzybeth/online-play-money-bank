@@ -169,3 +169,20 @@ Desktop keyboard and mouse. No touch/gamepad support yet. Home and haberdashery 
 - Television captions are part of its screen texture, enclosed by a full frame. Cartoon rabbits periodically catch and eat the carrot.
 - Home interiors use jewel colors, patterned rug/cushions/throw, gilded book spines, potted plants, ceramic tea service and arch artwork. Decorative solids are batched by material. Mom's cooking scene contains stew vegetables, pan rim, burners, chopping board, knife, spoon and translucent steam strands.
 - Recovery dialogue describes regaining energy rather than promising to stand when Mom is already active. Walls cut away for camera obstruction, with the player's contact neighborhood excluded. Notebook paragraph spacing uses the same pitch as its printed rules. Resource indicators occupy the lower-right corner.
+
+
+### Town life, quicksave and HUD acceptance
+
+- Q immediately downloads `money-tree-save.json`, including new compost, spanakopita, shared-meal, chicken-cuddle and Mom-visit values. R performs a forward somersault. Browser exit/refresh saves progress. Sleep at the end of every third day offers an optional JSON backup.
+- Notebook writing fills both ruled leaves, wraps within each leaf and turns additional spreads for long entries. No notebook scrollbar, binding overlap or text beneath controls; Close notebook’s E uses dark grey. Inspect desktop and narrow screens.
+- Notebook/Bag/menu form the first row in the upper right; hint card and coin tracker sit beneath. Day and worn hats sit at lower left, place names in title case at top center, resources at lower right. Speech hides thoughts immediately and keeps conversation choices onscreen.
+- Twin Planter plants, waters, fertilizes and harvests two adjoining eligible beds, charging each seed/dose separately. Watering lasts 0.9 seconds.
+- Thread & Thimble's doorway has no glazing. Doge's face stays above its room; all three meme signs sit above entries with depth.
+- Mom's bedroom chair can be approached and sat in. Installed birdhouses sit outside the tree canopy and birds fly through the entrance.
+- Community composter has 2x4-style slats down to the ground and a screened lid, beside the rear sign. After Sigma opens, replant a dead tree to collect 1–3 scraps. Inventory/HUD track scraps; 25 exchange for one soil bag.
+- Food of the Gods beside Grindset sells $3 spanakopita. Gigachad's effects/dill dialogue leads to a purchase. Offer the pastry to Mom and watch both eat; item consumption and thanks persist.
+- Mom's good-day rotation includes bacon strips frying in a pan, bread and a held spatula. She offers the best bacon sandwich of your life; response remains Love you too.
+- Five hens (Tuck, Cluck, Pluck, Luck and Fuck) plus rooster Fancy Chicken wander, avoid obstacles and one another, and scratch. Fancy Chicken has oversized red wattles, a tall comb and curved tail feathers. E brings a chicken into the player's arms against their cheek, then releases it. Mom sometimes asks for a cuddle on her behalf.
+- ATM details explain Mom conversations within two days, spanakopita owned/shared and chicken cuddles as coin-price factors. Same random swings with each factor changed independently produce a different price; saved games preserve them.
+- Tithing takes 10% only from Money Tree harvesting; coin sale profits and phone-game payouts are exempt. Dialogue reflects this. Dialogue and menus sanitize legacy em dashes.
+- The fourth Child's estate has a Geisel-inspired concrete/glass silhouette with splayed supports, widening lower cantilevers, narrower upper tiers, flat crown and landscaped wings. Owner/door/car/yacht progression works as for the other five estates.

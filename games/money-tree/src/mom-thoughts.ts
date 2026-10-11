@@ -291,7 +291,7 @@ export function chooseMomThought(
   const status = momStatus(s.day, s.familyStory);
   const eligible = new Set<string>([
     status.energetic ? "good" : "resting",
-    status.activity,
+    status.activity === "bacon" ? "cooking" : status.activity,
   ]);
   if (!status.energetic && status.activity !== "bedrest" && s.day > 1)
     eligible.add("restingAgain");

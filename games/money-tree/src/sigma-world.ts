@@ -1,3 +1,8 @@
+import {
+  makeComposter,
+  makeWolfFountain,
+  makeSpanakopita,
+} from "./town-life-world";
 import { stepWanderer, type Wanderer } from "./wandering";
 import { makeGardenSign } from "./garden-sign";
 import { sigmaPlots } from "./sigma";
@@ -318,6 +323,7 @@ export function createSigmaWorld(
   const memeStart = town.children.length,
     memeRectStart = rects.length;
   const dog = shell(-3, -49, "#c9a369", "east");
+  const dogPartsStart = town.children.length;
   const dogHead = ball(dog.x, 3.6, dog.z, 4, "#c49653");
   dogHead.scale.set(1, 0.8, 0.9);
   roofs.push(dogHead);
@@ -335,6 +341,7 @@ export function createSigmaWorld(
   }
   ball(dog.x, 3.9, dog.z + 3, 0.7, "#edcf91").scale.set(1.8, 0.8, 0.65);
   ball(dog.x, 4.16, dog.z + 3.4, 0.24, "#272b28");
+  for (const part of town.children.slice(dogPartsStart)) part.position.y += 2.8;
   const frog = shell(-3, -66, "#609758", "east");
   const frogFaceStart = town.children.length;
   const frogRoof = ball(frog.x, 3.6, frog.z, 4, "#609758");
@@ -373,9 +380,9 @@ export function createSigmaWorld(
   roofs.push(buckle);
   // The east wall's outer face is x=.65 before scaling. Signs need a
   // physical standoff, and must sit below the cowboy hat's broad brim.
-  sign("Hawk Tuah", 1.4, 2, -81, 3.6).rotation.y = Math.PI / 2;
-  sign("Doge", 1.4, 2, -49, 3).rotation.y = Math.PI / 2;
-  sign("Pepe", 1.4, 2, -66, 3).rotation.y = Math.PI / 2;
+  sign("Hawk Tuah", 1.4, 3.6, -81, 3.6).rotation.y = Math.PI / 2;
+  sign("Doge", 1.4, 3.6, -49, 3).rotation.y = Math.PI / 2;
+  sign("Pepe", 1.4, 3.6, -66, 3).rotation.y = Math.PI / 2;
   // Enlarge each house around its own center and move the row west for clear space.
   for (const object of town.children.slice(memeStart)) {
     const oldZ = object.position.z;
@@ -688,50 +695,43 @@ export function createSigmaWorld(
   targets.push({ id: "coin-atm", x: 36, z: -72.9, label: "Use coin ATM" });
   atm.visible = false;
   let atmName = "";
-  // Lone wolf sculpture, upturned snout and moon, $1 means nothing.
-  const plinth = mesh(
-    new T.CylinderGeometry(1.7, 2, 1, 12),
-    "#787c7b",
-    23,
-    0.5,
-    -67,
-  );
-  rects.push({ x: 23, z: -67, w: 4, d: 4 });
-  occluders.push(plinth);
-  const wolf = new T.Group();
-  wolf.position.set(23, 1, -67);
-  town.add(wolf);
-  ball(0, 0.8, 0, 0.63, "#8b9295", wolf).scale.set(0.7, 1.5, 0.7);
-  for (const side of [-1, 1])
-    ball(side * 0.3, 0.22, 0.3, 0.27, "#7c8487", wolf);
-  const head = ball(0, 1.65, 0.15, 0.42, "#929a9d", wolf);
-  head.scale.set(0.85, 1, 0.8);
-  const snout = ball(0, 1.95, 0.4, 0.27, "#929a9d", wolf);
-  snout.scale.set(0.65, 1.5, 0.7);
-  snout.rotation.x = 0.5;
-  for (const side of [-1, 1])
-    mesh(
-      new T.ConeGeometry(0.17, 0.5, 3),
-      "#757d80",
-      side * 0.25,
-      2,
-      0.04,
-      wolf,
-    );
-  const tail = mesh(
-    new T.ConeGeometry(0.25, 1.2, 8),
-    "#7b8284",
-    0.5,
-    0.65,
-    -0.45,
-    wolf,
-  );
-  tail.rotation.z = -0.65;
-  ball(0, 2.17, 0.52, 0.11, "#31383c", wolf);
-  mesh(new T.CylinderGeometry(0.045, 0.045, 2.4, 6), "#747c80", 23, 3.2, -67.8);
-  ball(23, 4.65, -67.8, 0.65, "#e0d9bb");
-  sign("Lone Wolf · $1 for luck", 23, 1, -65.1, 3.7);
+  const fountain = makeWolfFountain();
+  fountain.object.position.set(23, 0, -67);
+  town.add(fountain.object);
+  rects.push({ x: 23, z: -67, w: 3.8, d: 3.8, clearHeight: 0.3 });
+  sign("Lone Wolf · $1 for luck", 23, 0.95, -65.1, 3.7);
   targets.push({ id: "wolf", x: 23, z: -64.4, label: "Toss $1 for luck" });
+  const composter = makeComposter();
+  composter.position.set(17.7, 0, -79.6);
+  town.add(composter);
+  rects.push({ x: 17.7, z: -79.6, w: 1.55, d: 1.55, clearHeight: 1.4 });
+  targets.push({
+    id: "composter",
+    x: 17.7,
+    z: -78.2,
+    label: "Trade compost scraps for soil",
+  });
+  sign("25 scraps → Soil", 17.7, 1.9, -79.5, 2.2);
+  // A small walk-up Greek pastry shop beside Grindset, clear of the lane.
+  box(21, 0.02, -73, 5, 0.08, 3, "#d6e9e0");
+  box(21, 1.4, -74.45, 5, 2.8, 0.12, "#d6e9e0");
+  for (const side of [-1, 1])
+    box(21 + side * 2.5, 1.4, -73, 0.12, 2.8, 3, "#d6e9e0");
+  box(21, 3, -73, 5.6, 0.18, 3.5, "#276d7a");
+  box(21, 1.0, -71.3, 4.8, 0.22, 0.75, "#b98c53");
+  rects.push({ x: 21, z: -73, w: 5, d: 3 });
+  sign("Food of the Gods", 21, 2.5, -71.35, 4.8);
+  sign("Spanakopita · $3", 21, 1.25, -70.82, 3.3);
+  const gigachad = chad("gigachad", 21, -72, true);
+  speakers.at(-1)!.name = "Gigachad";
+  targets.at(-1)!.x = 21;
+  targets.at(-1)!.z = -70.2;
+  targets.at(-1)!.label = "Talk to Gigachad";
+  for (const dx of [-1, -0.4, 0.4, 1]) {
+    const pastry = makeSpanakopita();
+    pastry.position.set(21 + dx, 1.16, -71.15);
+    town.add(pastry);
+  }
   const gardenSign = makeGardenSign();
   town.add(gardenSign);
   rects.push({ x: 10, z: -80.5, w: 12.6, d: 0.25, clearHeight: 4.5 });
@@ -857,6 +857,9 @@ export function createSigmaWorld(
       }
     },
     debris,
+    fountain,
+    composter,
+    gigachad,
     setMillionaireOpen,
     walkway,
     paths,

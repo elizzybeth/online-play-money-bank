@@ -17,6 +17,7 @@ export function stepWanderer(
   seconds: number,
   allowed: (p: Point) => boolean,
   waiting = false,
+  bounds = { minX: 0, maxX: 40, minZ: -86, maxZ: -43 },
 ) {
   if (waiting || !Number.isFinite(seconds) || seconds <= 0) return false;
   const dt = Math.min(seconds, 0.25);
@@ -33,10 +34,10 @@ export function stepWanderer(
         z: w.position.z + Math.cos(angle) * distance,
       };
       if (
-        p.x < 0 ||
-        p.x > 40 ||
-        p.z < -86 ||
-        p.z > -43 ||
+        p.x < bounds.minX ||
+        p.x > bounds.maxX ||
+        p.z < bounds.minZ ||
+        p.z > bounds.maxZ ||
         Math.hypot(p.x - w.home.x, p.z - w.home.z) > 12 ||
         !allowed(p)
       )

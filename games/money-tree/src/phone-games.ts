@@ -314,7 +314,7 @@ export function claimPhoneReward(s: State, g: PhoneGame) {
   )
     return false;
   g.paid = true;
-  const net = recordEarnings(s, 100);
+  const net = recordEarnings(s, 100, false, false);
   s.cash += net;
   s.totalEarned = (s.totalEarned ?? 0) + 100;
   s.events.push("Won $1 by scoring ten points in a phone game.");

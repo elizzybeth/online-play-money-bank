@@ -84,7 +84,7 @@ test("unstuck returns home without resetting resources, journal, day or crops; c
   await page.keyboard.press("e");
   await expect(page.locator("#prompt")).toContainText("Planting");
   await page.keyboard.press("Escape");
-  await page.getByRole("button", { name: "I'm stuck — return home" }).click();
+  await page.getByRole("button", { name: "I'm stuck. Return home" }).click();
   await expect(page.locator("#modal")).toBeHidden();
   await expect.poll(async () => (await state(page)).metMom).toBe(true);
   const after = await state(page);

@@ -1,3 +1,10 @@
+import { notebookLines, notebookSpreads } from "./notebook-layout";
+import {
+  compostSoil,
+  buySpanakopita,
+  shareSpanakopita,
+  gardenBatch,
+} from "./town-life";
 import { makeMascot } from "./millionaire-models";
 import { HomeAudio } from "./home-audio";
 import { sceneRoute, routeLength, alongRoute, type Point } from "./scene-route";
@@ -148,7 +155,7 @@ seedHud.id = "seed-hud";
 seedHud.innerHTML = `<img src="${seedPacketImage()}" alt="Money Tree seed packet"><strong>0</strong>`;
 const resourceHud = document.createElement("div");
 resourceHud.id = "resource-hud";
-resourceHud.append($("#stats"), $("#location"));
+document.body.append($("#stats"), $("#location"));
 const cashHud = document.createElement("div"),
   bankHud = document.createElement("div");
 cashHud.id = "cash-hud";
@@ -169,6 +176,10 @@ drinkHud.className = "money-counter";
 drinkHud.innerHTML =
   '<img src="./drink.svg" alt="Coffee"><span><small></small><strong></strong></span>';
 drinkHud.hidden = true;
+const compostHud = document.createElement("div");
+compostHud.id = "compost-hud";
+compostHud.className = "money-counter";
+compostHud.innerHTML = `<span aria-hidden="true" style="font-size:30px">♻</span><span><small>Compost</small><strong>0</strong></span>`;
 const membershipHud = document.createElement("button");
 membershipHud.id = "membership-hud";
 membershipHud.className = "money-counter";
@@ -184,12 +195,22 @@ resourceHud.append(
   netHud,
   seedHud,
   fertilizerHud,
+  compostHud,
   drinkHud,
   membershipHud,
 );
 $("#app").append(resourceHud);
 
 let s: State;
+addEventListener("pagehide", () => {
+  if (s) save();
+});
+addEventListener("beforeunload", () => {
+  if (s) save();
+});
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden && s) save();
+});
 try {
   s = load(localStorage.getItem(SAVE));
 } catch {
@@ -696,6 +717,7 @@ function letterToAuntie() {
 }
 function askMom() {
   if (momAway(s)) return;
+  s.momLastTalkDay = s.day;
   momSpoke = true;
   if (storyPhase(s) === "scheduled")
     return speak(
@@ -720,12 +742,17 @@ function askMom() {
       ...(canVisitBea(s) && !s.familyStory.escort
         ? [{ label: "Let’s walk to Bea’s together", run: walkToBea }]
         : []),
+      ...(s.spanakopita
+        ? [{ label: "Share spanakopita with Mom", run: shareWithMom }]
+        : []),
       { label: "Love you too", run: dismissSpeech },
     ]);
     return;
   }
   const status = momStatus(s.day, s.familyStory);
-  const reply = momReply(s);
+  const reply =
+    momReply(s) +
+    (s.day % 4 === 2 ? " Cuddle a chicken for me when you go out, love." : "");
   visit(
     status.energetic
       ? `Mom had energy for ${status.journal} today.`
@@ -745,6 +772,20 @@ function askMom() {
       : []),
     ...(status.activity === "puzzles"
       ? [{ label: "Let’s play the color puzzle", run: playMomPuzzle }]
+      : []),
+    ...(s.spanakopita
+      ? [{ label: "Share spanakopita with Mom", run: shareWithMom }]
+      : []),
+    ...(s.day % 4 === 2
+      ? [
+          {
+            label: "I’ll cuddle a chicken for you",
+            run: () => {
+              dismissSpeech();
+              toast("Mom asked me to cuddle a chicken for her.");
+            },
+          },
+        ]
       : []),
     { label: playerMomResponse(reply, status.energetic), run: dismissSpeech },
   ]);
@@ -1024,6 +1065,9 @@ function returnToMom() {
           ]
         : []),
       { label: "How are you doing?", run: askMom },
+      ...(s.spanakopita
+        ? [{ label: "Share spanakopita with Mom", run: shareWithMom }]
+        : []),
     ],
   );
 }
@@ -1065,6 +1109,20 @@ function dismissSpeech() {
   speaking = undefined;
 }
 function speak(id: string, text: string, choices: Choice[] = []) {
+  choices = choices.map((c) => ({
+    ...c,
+    label: c.label.replaceAll("—", ". "),
+  }));
+  if (
+    id === "mom" &&
+    s.spanakopita &&
+    !world.life.sharing &&
+    !choices.some((c) => c.label === "Share spanakopita with Mom")
+  )
+    choices.splice(Math.max(0, choices.length - 1), 0, {
+      label: "Share spanakopita with Mom",
+      run: shareWithMom,
+    });
   if (id === "stacy" && (s.stacyConversations ?? 0) > 0) {
     const responses = choices.filter((c) => c.label !== "Previous messages");
     choices = [
@@ -1111,7 +1169,7 @@ function speak(id: string, text: string, choices: Choice[] = []) {
     `${world.speakers.find((n) => n.id === id)?.name ?? id} says`,
   );
   const content = document.createElement("div");
-  content.innerHTML = text;
+  content.innerHTML = text.replaceAll("—", ". ");
   content.setAttribute("aria-live", "polite");
   element.append(content);
   const row = document.createElement("div");
@@ -1151,6 +1209,9 @@ function speak(id: string, text: string, choices: Choice[] = []) {
     element,
     remaining: choices.length ? Infinity : Math.max(8, text.length / 15),
   };
+  thought.hidden = true;
+  thought.style.display = "none";
+  updateSpeech(0);
 }
 function effectivelyVisible(object: T.Object3D) {
   for (let node: T.Object3D | null = object; node; node = node.parent)
@@ -1229,6 +1290,78 @@ function updateSpeech(dt: number) {
     }
   });
 }
+function exportSave() {
+  save();
+  const a = document.createElement("a");
+  const url = URL.createObjectURL(
+    new Blob([JSON.stringify(s)], { type: "application/json" }),
+  );
+  a.href = url;
+  a.download = "money-tree-save.json";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  toast("Game state downloaded.");
+}
+function shareWithMom() {
+  dismissSpeech();
+  if (world.life.busy || !shareSpanakopita(s)) return;
+  keys.clear();
+  world.life.share();
+  save();
+  speak(
+    "mom",
+    "<p>Oh, this is delicious! You thought of me. Thank you, sweetheart. Sharing it with you is the best part.</p>",
+    [{ label: "Love you too", run: dismissSpeech }],
+  );
+}
+function foodOfTheGods() {
+  speak(
+    "gigachad",
+    "<p>Food of the Gods, bro. Fresh spanakopita, $3 a piece.</p>",
+    [
+      {
+        label: "Buy spanakopita for $3",
+        disabled: s.cash < 300,
+        run: () => {
+          if (buySpanakopita(s)) {
+            save();
+            dismissSpeech();
+            toast("Spanakopita in your bag. You can share it with Mom.");
+          }
+        },
+      },
+      {
+        label: "What does spanakopita do?",
+        run: () =>
+          speak(
+            "gigachad",
+            "<p>Does? It’s spanakopita, bro. Spinach, phyllo, feta. What more could you want?</p>",
+            [
+              {
+                label: "I dunno, dill?",
+                run: () =>
+                  speak("gigachad", "<p>Whoa. Great idea.</p>", [
+                    {
+                      label: "One spanakopita, please",
+                      disabled: s.cash < 300,
+                      run: () => {
+                        if (buySpanakopita(s)) {
+                          save();
+                          dismissSpeech();
+                        }
+                      },
+                    },
+                    { label: "See you, bro", run: dismissSpeech },
+                  ]),
+              },
+              { label: "Sounds good", run: dismissSpeech },
+            ],
+          ),
+      },
+      { label: "See you, bro", run: dismissSpeech },
+    ],
+  );
+}
 function save() {
   updateInventoryNotices(0);
   world.updateNotebook(s.journal.at(-1)!, s.journal.length);
@@ -1266,6 +1399,13 @@ function panel(
   choices: Choice[],
   _subtitle = "MONEY TREE",
 ) {
+  toastTime = 0;
+  $("#toast").style.opacity = "0";
+  title = title.replaceAll("—", ". ");
+  choices = choices.map((c) => ({
+    ...c,
+    label: c.label.replaceAll("—", ". "),
+  }));
   releaseMouse();
   dismissSpeech();
   paused = true;
@@ -1280,7 +1420,7 @@ function panel(
   p.setAttribute("aria-label", title);
   p.innerHTML = `<h2>${title}</h2>`;
   const content = document.createElement("div");
-  content.innerHTML = text;
+  content.innerHTML = text.replaceAll("—", ". ");
   p.append(content);
   const row = document.createElement("div");
   row.className = "choices";
@@ -1318,37 +1458,90 @@ const esc = (str: string) =>
         c
       ]!,
   );
-function notebook(page = s.journal.length - 1, direction = 0) {
+function notebook(page = s.journal.length - 1, direction = 0, leaf = 0) {
   page = T.MathUtils.clamp(page, 0, s.journal.length - 1);
-  const entry = s.journal[page];
-  const title = `Day ${page + 1}`;
-
-  const paragraphs = entry.replace(/^Day \d+\s*/, "").split(/\n\n/);
+  const entry = s.journal[page],
+    title = `Day ${page + 1}`;
+  let spreads: string[][][] = [];
+  const previous = () =>
+    leaf > 0 ? notebook(page, -1, leaf - 1) : notebook(page - 1, -1, -1);
+  const next = () =>
+    leaf + 1 < spreads.length
+      ? notebook(page, 1, leaf + 1)
+      : notebook(page + 1, 1);
   panel(
     "Your notebook",
-    `<div class="notebook-spread"><div class="notebook-left" aria-hidden="true"><span>My notebook</span><span class="pencil-note">for Mom</span></div><div class="notebook-page" data-page="${page}"><h3>${title}</h3>${paragraphs.map((e) => `<p>${esc(e)}</p>`).join("")}</div></div><p class="page-number">Page ${page + 1} of ${s.journal.length}</p>` +
-      `<p class="fine">Today's entry will be written when you go to sleep.</p>`,
+    `<div class="notebook-spread notebook-page" data-page="${page}"><section class="notebook-leaf notebook-left"><h3>${title}</h3><p></p></section><section class="notebook-leaf notebook-right"><div class="notebook-continuation" aria-hidden="true"></div><p></p></section></div><p class="page-number"></p><p class="fine">Today's entry will be written when you go to sleep.</p>`,
     [
-      {
-        label: "Previous page",
-        disabled: page === 0,
-        run: () => notebook(page - 1, -1),
-      },
-      {
-        label: "Next page",
-        disabled: page === s.journal.length - 1,
-        run: () => notebook(page + 1, 1),
-      },
+      { label: "Previous page", run: previous },
+      { label: "Next page", run: next },
       { label: "Close notebook", default: true, run: close },
     ],
     "YOUR NOTEBOOK",
   );
-  world.updateNotebook(entry, page + 1);
   const paper = $("#modal .panel");
   paper.classList.add("notebook-paper");
   paper
     .querySelector(".notebook-spread")!
     .parentElement!.classList.add("notebook-content");
+  const render = () => {
+    const left = paper.querySelector<HTMLElement>(".notebook-leaf")!,
+      style = getComputedStyle(left);
+    const rule = parseFloat(style.getPropertyValue("--rule")) || 30;
+    const width =
+      left.clientWidth -
+      parseFloat(style.paddingLeft) -
+      parseFloat(style.paddingRight);
+    const height =
+      left.clientHeight -
+      parseFloat(style.paddingTop) -
+      parseFloat(style.paddingBottom);
+    const font = parseFloat(style.getPropertyValue("--writing-size")) || 24;
+    const context = document.createElement("canvas").getContext("2d")!;
+    context.font = `${font}px Gaegu`;
+    const lines = notebookLines(
+      entry
+        .replace(/^Day \d+\s*/, "")
+        .replaceAll("—", ". ")
+        .split(/\n\n/),
+      Math.max(20, width - 4),
+      (text) => context.measureText(text).width,
+    );
+    // Reserve two ruled rows for the date and one for the paragraph margin.
+    spreads = notebookSpreads(
+      lines,
+      Math.max(2, Math.floor(height / rule) - 3),
+    );
+    leaf = leaf < 0 ? spreads.length - 1 : Math.min(leaf, spreads.length - 1);
+    paper
+      .querySelectorAll<HTMLParagraphElement>(".notebook-leaf p")
+      .forEach(
+        (p, i) =>
+          (p.innerHTML = spreads[leaf][i]
+            .map((line) => (line ? esc(line) : "&nbsp;"))
+            .join(" <br>")),
+      );
+    const buttons =
+      paper.querySelectorAll<HTMLButtonElement>(".choices button");
+    buttons[0].disabled = page === 0 && leaf === 0;
+    buttons[1].disabled =
+      page === s.journal.length - 1 && leaf === spreads.length - 1;
+    paper.querySelector(".page-number")!.textContent =
+      `Page ${page + 1} of ${s.journal.length}${spreads.length > 1 ? ` · Spread ${leaf + 1} of ${spreads.length}` : ""}`;
+  };
+  render();
+  document.fonts.ready.then(() => {
+    if (paper.isConnected) render();
+  });
+  const resize = () => {
+    if (!paper.isConnected) {
+      removeEventListener("resize", resize);
+      return;
+    }
+    render();
+  };
+  addEventListener("resize", resize);
+  world.updateNotebook(entry, page + 1);
   if (direction && !reducedMotion)
     paper.animate(
       [
@@ -1361,22 +1554,22 @@ function notebook(page = s.journal.length - 1, direction = 0) {
       { duration: 240, easing: "ease-out" },
     );
   paper.onkeydown = (e) => {
-    if (e.key === "ArrowLeft" && page > 0) {
+    if (e.key === "ArrowLeft" && (page > 0 || leaf > 0)) {
       e.preventDefault();
-      notebook(page - 1, -1);
+      previous();
     }
-    if (e.key === "ArrowRight" && page < s.journal.length - 1) {
+    if (
+      e.key === "ArrowRight" &&
+      (page < s.journal.length - 1 || leaf + 1 < spreads.length)
+    ) {
       e.preventDefault();
-      notebook(page + 1, 1);
+      next();
     }
   };
   paper.tabIndex = -1;
   paper.focus({ preventScroll: true });
-  paper.scrollTop = 0;
-  paper
-    .querySelector(".notebook-left")!
-    .insertAdjacentHTML("beforeend", notebookDoodles(page));
 }
+
 const hatPortraits = new Map<HatId | BikeId | Fellowship, string>();
 function hatPortrait(id: HatId | BikeId | Fellowship) {
   if (hatPortraits.has(id)) return hatPortraits.get(id)!;
@@ -1531,6 +1724,18 @@ function bag() {
       label: "Watering can",
       value: s.can ? "Owned" : "Not owned",
       available: s.can,
+    },
+    {
+      id: "compost",
+      label: "Compost scraps",
+      value: String(s.compostScraps ?? 0),
+      available: !!s.compostScraps,
+    },
+    {
+      id: "spanakopita",
+      label: "Spanakopita",
+      value: String(s.spanakopita ?? 0),
+      available: !!s.spanakopita,
     },
     {
       id: "fertilizer",
@@ -1842,13 +2047,13 @@ const bedObstacles = () =>
 function pauseMenu() {
   panel(
     "Take a little breather",
-    `<p>Day ${s.day} · Your progress saves automatically.</p><p class="fine">WASD to walk. Click the game to capture the mouse and look around; left/right arrows turn; up/down arrows tilt the camera. Hold Shift to run. Q dodge-rolls. H mounts or dismounts a bicycle; B rings its bell. With Spring Hare equipped, Space jumps over beds and hedges. Escape releases the mouse. E interacts. J opens the notebook. I opens your bag.<br>Growth pauses while menus are open or the tab is hidden.</p>`,
+    `<p>Day ${s.day} · Your progress saves automatically.</p><p class="fine">WASD to walk. Click the game to capture the mouse and look around; left/right arrows turn; up/down arrows tilt the camera. Hold Shift to run. R rolls forward. Q downloads a JSON quicksave. H mounts or dismounts a bicycle; B rings its bell. With Spring Hare equipped, Space jumps over beds and hedges. Escape releases the mouse. E interacts. J opens the notebook. I opens your bag.<br>Growth pauses while menus are open or the tab is hidden.</p>`,
     [
       { label: "Keep playing", run: close },
       ...(s.awake
         ? [
             {
-              label: "I'm stuck — return home",
+              label: "I'm stuck. Return home",
               run: () => {
                 resetTransientMotion();
                 sitting = false;
@@ -1895,14 +2100,7 @@ function pauseMenu() {
       {
         label: "Export save",
         run: () => {
-          save();
-          const a = document.createElement("a");
-          a.href = URL.createObjectURL(
-            new Blob([JSON.stringify(s)], { type: "application/json" }),
-          );
-          a.download = "money-tree-save.json";
-          a.click();
-          setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+          exportSave();
         },
       },
       {
@@ -2295,7 +2493,7 @@ function coinMenu() {
     q = marketSignals(s);
   panel(
     `${escapeHTML(c.name)} coin`,
-    `${coinChart(c.history, c.price)}<div class="coin-balances"><p>Price <strong>${money(c.price)}</strong> per coin</p><p>You own ${(c.units / 1e6).toFixed(4)} coins, worth <strong>${money(coinValue(s))}</strong></p><p>Pocket <strong>${money(s.cash)}</strong> · Total invested ${money(c.invested)}</p></div><label>Buy amount $ <input id="coin-amount" inputmode="decimal" value="1.00"></label><label>Sell amount $ <input id="coin-sell-amount" inputmode="decimal" value="1.00"></label><p id="coin-error" role="status"></p><details><summary>What moves the price?</summary><p>Prices move every 15 seconds of game time. Random swings mix with earnings, savings, conversations, trees, Mom’s good days, active community beds, birdhouses, seed discoveries, bicycles owned and garden tools. Prices can fall.</p><p>${money(q.earned)} earned · ${money(q.saved)} saved · ${q.neighbors} neighbors met · ${q.trees} growing trees · Mom has a ${q.health ? "good" : "tired"} day · longest good streak ${q.longestGoodStreak}.</p><p>${q.communityBeds} active community beds · ${q.birdhouses} birdhouses · ${q.discoveries} seed discoveries · ${q.bicycles} bicycles owned · ${q.tools} garden tools.</p></details>`,
+    `${coinChart(c.history, c.price)}<div class="coin-balances"><p>Price <strong>${money(c.price)}</strong> per coin</p><p>You own ${(c.units / 1e6).toFixed(4)} coins, worth <strong>${money(coinValue(s))}</strong></p><p>Pocket <strong>${money(s.cash)}</strong> · Total invested ${money(c.invested)}</p></div><label>Buy amount $ <input id="coin-amount" inputmode="decimal" value="1.00"></label><label>Sell amount $ <input id="coin-sell-amount" inputmode="decimal" value="1.00"></label><p id="coin-error" role="status"></p><details><summary>What moves the price?</summary><p>Prices move every 15 seconds of game time. Random swings mix with earnings, savings, conversations, trees, Mom’s good days, active community beds, birdhouses, seed discoveries, bicycles owned and garden tools, and whether you have talked with Mom in the last two days, spanakopita and chicken cuddles. Prices can fall.</p><p>${money(q.earned)} earned · ${money(q.saved)} saved · ${q.neighbors} neighbors met · ${q.trees} growing trees · Mom has a ${q.health ? "good" : "tired"} day · longest good streak ${q.longestGoodStreak}.</p><p>${q.communityBeds} active community beds · ${q.birdhouses} birdhouses · ${q.discoveries} seed discoveries · ${q.bicycles} bicycles owned · ${q.tools} garden tools · Talked to Mom recently: ${q.momRecent ? "yes" : "no"} · ${q.spanakopita} spanakopita in your bag · ${q.spanakopitaShared} shared with Mom · ${q.chickenCuddles} chicken cuddles.</p></details>`,
     [
       {
         label: "Sell this amount",
@@ -2365,7 +2563,10 @@ function coinMenu() {
 const coinTracker = document.createElement("aside");
 coinTracker.id = "coin-tracker";
 coinTracker.hidden = true;
-document.body.append(coinTracker);
+const topRightHud = document.createElement("div");
+topRightHud.id = "top-right-hud";
+topRightHud.append($("header"), $("#quest"), coinTracker);
+document.body.append(topRightHud);
 function updateCoinTracker() {
   coinTracker.hidden = !begun || !s.coin;
   if (!s.coin) return;
@@ -2580,6 +2781,7 @@ function tvMenu() {
 }
 
 function interact() {
+  if (world.life.busy) return;
   if (birdhouseScene || celebration || hatHanging) return;
   if (!begun || paused || action || meditationTime > 0) return;
   if (!s.awake) {
@@ -2706,6 +2908,48 @@ function interact() {
     save();
     return;
   }
+  if (id.startsWith("chicken-")) {
+    dismountBike();
+    keys.clear();
+    const i = Number(id.slice(8));
+    if (world.life.cuddle(i)) {
+      s.chickenCuddles = (s.chickenCuddles ?? 0) + 1;
+      visit(`Cuddled ${world.life.chickens[i].name} the chicken.`);
+      save();
+      toast(`A warm cuddle with ${world.life.chickens[i].name}.`);
+    }
+    return;
+  }
+  if (id === "mom-chair") {
+    sitting = true;
+    s.position = { x: -6.6, z: 10.2 };
+    world.setPlayerSeated(true);
+    world.player.rotation.y = Math.PI / 2;
+    keys.clear();
+    save();
+    toast("A quiet moment nearby Mom. Press E to stand up.");
+    return;
+  }
+  if (id === "composter")
+    return panel(
+      "Community compost",
+      `<p>You have ${s.compostScraps ?? 0} scraps. Replanting dead money trees adds 1 to 3 scraps. Trade 25 scraps for one bag of soil.</p>`,
+      [
+        {
+          label: "Trade 25 scraps for soil",
+          disabled: (s.compostScraps ?? 0) < 25,
+          run: () => {
+            if (compostSoil(s)) {
+              save();
+              close();
+              toast("One bag of soil from our community compost.");
+            }
+          },
+        },
+        { label: "Leave", run: close },
+      ],
+    );
+  if (id === "gigachad") return foodOfTheGods();
   if (id === "wolf") {
     if (s.cash < 100)
       return toast("The wolf wants $1. It offers no guarantees.");
@@ -2802,6 +3046,7 @@ function interact() {
             : "Sleep until tomorrow",
           destructive: !!s.drink,
           run: () => {
+            const completedDay = s.day;
             if (!sleep(s)) return;
             visitedOutside = false;
             wasHome = true;
@@ -2812,6 +3057,24 @@ function interact() {
             toast(
               `Good morning. Day ${s.day} begins. My notebook has a new page.`,
             );
+            if (completedDay % 3 === 0 && s.exportReminderDay !== s.day) {
+              s.exportReminderDay = s.day;
+              save();
+              panel(
+                "Keep a copy of your garden",
+                "<p>Three days have passed. Would you like to download a JSON backup? Your game also saves automatically in this browser.</p>",
+                [
+                  {
+                    label: "Download game state",
+                    run: () => {
+                      exportSave();
+                      close();
+                    },
+                  },
+                  { label: "Maybe later", run: close },
+                ],
+              );
+            }
           },
         },
         { label: "Stay up a little longer", run: close },
@@ -2839,11 +3102,15 @@ function interact() {
     return;
   }
   if (id === "mom") {
+    s.momLastTalkDay = s.day;
     momSpoke = true;
     if (s.familyStory || canTellMom(s)) return askMom();
     const metBefore = s.metMom;
     s.metMom = true;
-    if (metBefore || momStatus(s.day, s.familyStory).activity === "bedrest")
+    if (
+      metBefore ||
+      ["bedrest", "bacon"].includes(momStatus(s.day, s.familyStory).activity)
+    )
       return askMom();
     visit("Talked with Mom before heading out.");
     const greeting = momGreeting();
@@ -2851,6 +3118,9 @@ function interact() {
     save();
     return speak("mom", `<p>${greeting}</p>`, [
       { label: "How are you doing?", run: askMom },
+      ...(s.spanakopita
+        ? [{ label: "Share spanakopita with Mom", run: shareWithMom }]
+        : []),
       {
         label: playerMomResponse(
           greeting,
@@ -2930,7 +3200,8 @@ function interact() {
     } else if (p.stage === "ready") {
       const seedsBeforeHarvest = s.seeds;
       const titheBeforeHarvest = s.millionaire?.tithed ?? 0;
-      const n = harvest(s, i);
+      const ids = gardenBatch(s, i, "harvest");
+      const n = ids.reduce((total, j) => total + harvest(s, j), 0);
       const contribution = (s.millionaire?.tithed ?? 0) - titheBeforeHarvest;
       save();
       chime();
@@ -2940,7 +3211,8 @@ function interact() {
       );
     } else if (p.stage === "growing") {
       if (s.fertilizer && !p.fertilized) {
-        fertilize(s, i);
+        const ids = gardenBatch(s, i, "fertilize");
+        ids.forEach((j) => fertilize(s, j));
         fertilizerAnimation = {
           elapsed: 0,
           x: p.x ?? -20 + i * 2,
@@ -2961,7 +3233,7 @@ function interact() {
     } else {
       if (!s.can)
         return toast("You need a watering can. Robertson sells one for $1.");
-      water(s, i);
+      gardenBatch(s, i, "water").forEach((j) => water(s, j));
       fertilizerAnimation = undefined;
       wateringAnimation = { elapsed: 0, x: p.x ?? -20 + i * 2, z: p.z ?? 19 };
       world.player.rotation.y = Math.atan2(
@@ -3102,6 +3374,11 @@ addEventListener("keydown", (e) => {
     if (begun) paused ? close() : pauseMenu();
     return;
   }
+  if (key === "q" && begun) {
+    e.preventDefault();
+    exportSave();
+    return;
+  }
   if (paused) {
     if (key === "e") {
       e.preventDefault();
@@ -3109,7 +3386,7 @@ addEventListener("keydown", (e) => {
     }
     return;
   }
-  if (!begun) return;
+  if (!begun || world.life.busy) return;
   if (celebration) return;
   if ((s.pepeShowStarted && !s.pepePopped) || pepeViewHold > 0) return;
   if (key === "h") {
@@ -3133,7 +3410,7 @@ addEventListener("keydown", (e) => {
     jumpVelocity = 10;
     noteHatPower(s, "to jump", "rabbit");
   } else if (
-    key === "q" &&
+    key === "r" &&
     s.awake &&
     !sitting &&
     !riding &&
@@ -3210,8 +3487,8 @@ function updateRollPose() {
   }
   if (rollPose && rollTime > 0)
     rollPose.rotation.x = reducedMotion
-      ? -0.5
-      : -(1 - rollTime / 0.45) * Math.PI * 2;
+      ? 0.5
+      : (1 - rollTime / 0.45) * Math.PI * 2;
   if (rollPose && rollTime <= 0) {
     for (const child of [...rollPose.children]) {
       child.position.y += 1;
@@ -3406,6 +3683,8 @@ function selectTarget() {
         (s.foundTVSeeds ||
           (!t.id.startsWith("sigma-chad-") &&
             t.id !== "grindset" &&
+            t.id !== "gigachad" &&
+            t.id !== "composter" &&
             t.id !== "wolf")) &&
         (t.id !== "coin-atm" || !!s.coin) &&
         (t.id !== "forest-seeds" ||
@@ -3485,6 +3764,14 @@ function updateUI() {
       `${drink.name}, ${Math.ceil(s.drink.remaining)} seconds remaining. ${drink.effect}`,
     );
   }
+  compostHud.hidden = !s.foundTVSeeds;
+  compostHud.querySelector("strong")!.textContent = String(
+    s.compostScraps ?? 0,
+  );
+  compostHud.setAttribute(
+    "aria-label",
+    `${s.compostScraps ?? 0} compost scraps`,
+  );
   const total = s.cash + s.bank;
   updateCoinTracker();
   seedHud.querySelector("strong")!.textContent = String(s.seeds);
@@ -3512,7 +3799,7 @@ function updateUI() {
           .map((id) => hatById(id)!.name)
           .join(
             " + ",
-          )} · Q to roll${wearing(s, "rabbit") ? " · Space to jump" : ""}</span>`
+          )} · R to roll${wearing(s, "rabbit") ? " · Space to jump" : ""}</span>`
       : ""
   }`;
   document.documentElement.style.setProperty(
@@ -3632,20 +3919,20 @@ function updateUI() {
     s.millionaire?.unlocked && z < -90
       ? z < -335
         ? "Mt. Millionaire"
-        : "The willow grove"
+        : "The Willow Grove"
       : s.foundTVSeeds && z < -40
         ? "Sigma Town"
         : atHome()
-          ? "Home, sweet home"
+          ? "Home, Sweet Home"
           : x < -8 && x > -23 && z >= 14 && z < 24
-            ? "Your little garden"
+            ? "Your Little Garden"
             : z < -21 && z > -39 && x > -4 && x < 16
               ? "Robertsons"
               : z < -23 && z > -35 && x > 18 && x < 30
                 ? "Thread & Thimble"
                 : z < -13
-                  ? "Market lane"
-                  : "Willow lane";
+                  ? "Market Lane"
+                  : "Willow Lane";
   near = selectTarget();
   let prompt =
     s.millionaire?.titheAccepted && !riding && fertileMountainSoil(x, z)
@@ -3815,6 +4102,7 @@ function frame(now: number) {
   if (wantedRoof > 0.95 && roofMaterial.opacity > 0.95) {
     if (roofIndex < 0) world.occluders.push(world.homeRoof);
   } else if (roofIndex >= 0) world.occluders.splice(roofIndex, 1);
+  if (world.life.busy) keys.clear();
   const active =
     begun &&
     !paused &&
@@ -4201,6 +4489,9 @@ function frame(now: number) {
                 ]
               : []),
             { label: "How are you doing?", run: askMom },
+            ...(s.spanakopita
+              ? [{ label: "Share spanakopita with Mom", run: shareWithMom }]
+              : []),
           ]);
       }
       if (
@@ -4632,7 +4923,7 @@ function frame(now: number) {
   if (wateringAnimation && active) {
     wateringAnimation.elapsed += dt;
     if (
-      wateringAnimation.elapsed >= 1.8 ||
+      wateringAnimation.elapsed >= 0.9 ||
       action ||
       fertilizerAnimation ||
       riding ||
@@ -4701,7 +4992,7 @@ function frame(now: number) {
     el.textContent =
       p.stage === "ready" ? "$ Ready to harvest" : "Ready tomorrow";
   }
-  if (thoughtTime > 0 && active) {
+  if (thoughtTime > 0 && active && !speaking) {
     thoughtTime -= dt;
     if (thoughtTime <= 0) thought.hidden = true;
   }
@@ -4759,9 +5050,12 @@ function frame(now: number) {
     );
     thought.style.left = `${center}px`;
     thought.style.top = `${Math.min(anchorY, resourceHud.getBoundingClientRect().top - 24)}px`;
-    thought.style.display = paused || anchor.z > 1 ? "none" : "";
+    thought.style.display = paused || !!speaking || anchor.z > 1 ? "none" : "";
   }
   $("#quest").style.visibility = speaking || thoughtTime > 0 ? "hidden" : "";
+  world.life.update(active ? dt : 0, now / 1000);
+  world.updateHouseBirds(now / 1000);
+  world.sigma.fountain.update(now / 1000);
   updateSpeech(active ? dt : 0);
   updateUI();
   updateInventoryNotices(dt);
@@ -4862,6 +5156,7 @@ if (new URLSearchParams(location.search).has("test")) {
     state: () => structuredClone(s),
     playerPosition: () => world.player.position.toArray(),
     seated: () => sitting,
+    rollPose: () => ({ angle: rollPose?.rotation.x ?? 0, remaining: rollTime }),
     seedHandoff: () => world.sigma.handoffPacket.visible,
     stacySeating: () => ({
       guest: world.sigma.guestChair.position.toArray(),
@@ -4902,6 +5197,18 @@ if (new URLSearchParams(location.search).has("test")) {
         types: g.userData.plantTypes,
         layoutSeed: g.userData.layoutSeed,
       })),
+    }),
+    townLife: () => ({
+      chickens: world.life.chickens.map((c) => ({
+        name: c.name,
+        x: c.object.getWorldPosition(new T.Vector3()).x,
+        z: c.object.getWorldPosition(new T.Vector3()).z,
+      })),
+      cuddling: world.life.cuddling,
+      sharing: world.life.sharing,
+      composter: world.sigma.composter.userData,
+      bacon: scene.getObjectByName("bacon-sandwich-cooking")?.visible,
+      spatula: scene.getObjectByName("moms-spatula")?.visible,
     }),
     birdhouses: () => world.outdoorBirdhouses.filter((g) => g.visible).length,
     hatStack: () =>
@@ -4944,6 +5251,7 @@ if (new URLSearchParams(location.search).has("test")) {
         car: m.car.visible,
         yacht: m.yacht.visible,
         builtHeight: m.home.scale.y,
+        architecture: m.home.userData.architecture ?? "palatial",
       })),
       children: world.millionaire.children.map((o) => o.position.toArray()),
       guide: world.millionaire.hosts.map((o) => ({
