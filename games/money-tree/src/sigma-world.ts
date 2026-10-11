@@ -611,7 +611,7 @@ export function createSigmaWorld(
   town.add(makeCoffeeShop());
   rects.push({ x: 32, z: -77.2, w: 8, d: 0.9, clearHeight: 1.25 });
   rects.push({ x: 32, z: -81.4, w: 8, d: 0.2 });
-  sign("Grindset", 32, 3.55, -76.45, 6);
+  sign("Grindset", 32, 4.6, -76.45, 6);
   const mug = mesh(
     new T.CylinderGeometry(0.85, 0.7, 1.3, 12),
     "#efe3bd",

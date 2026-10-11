@@ -73,3 +73,5 @@ This batch covers the Willow Lane camera limit, Spoke & Saddle doorway, home boo
 - Ambient birds previously perched inside the entrance of a birdhouse. They now perch above its roof; smaller dedicated visitors retain the entrance flights. Fancy Chicken’s wattles are thin curved flaps below the beak, with swinging animation and clear eye height.
 
 Validation: 134 unit tests, production build, eight targeted browser cases, and close-up visual review passed. Full Chromium, Firefox and WebKit CI is required before merge.
+
+Final café visual review found the front crest obscured the newly raised Drinks lettering. The crest is now raised above the rear menu and shelf; the hat-card status baseline and pastry stall clearance were visually confirmed.
