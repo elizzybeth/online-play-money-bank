@@ -1,3 +1,4 @@
+import { HomeAudio } from "./home-audio";
 import { sceneRoute, routeLength, alongRoute, type Point } from "./scene-route";
 import {
   fellowships,
@@ -171,7 +172,19 @@ membershipHud.id = "membership-hud";
 membershipHud.className = "money-counter";
 membershipHud.hidden = true;
 membershipHud.onclick = phoneLibrary;
-resourceHud.append(cashHud, bankHud, netHud, seedHud, drinkHud, membershipHud);
+const fertilizerHud = document.createElement("div");
+fertilizerHud.id = "fertilizer-hud";
+fertilizerHud.className = "money-counter";
+fertilizerHud.innerHTML = `<svg class="fertilizer-icon" aria-hidden="true" viewBox="0 0 48 56" width="34" height="40"><path d="M10 3h28l-2 8 6 39q-18 6-36 0l6-39z" fill="#ead8aa" stroke="#8c7652" stroke-width="2"/><path d="M8 19h32l2 23H6z" fill="#4d7957"/><path d="M24 39V25m0 7q-10 0-10-8 10 0 10 8m0-3q0-9 10-9 0 9-10 9" fill="#bcd38e" stroke="#bcd38e" stroke-width="2"/></svg><span><small>Fertilizer</small><strong>0</strong></span>`;
+resourceHud.append(
+  cashHud,
+  bankHud,
+  netHud,
+  seedHud,
+  fertilizerHud,
+  drinkHud,
+  membershipHud,
+);
 $("#app").append(resourceHud);
 
 let s: State;
@@ -656,8 +669,31 @@ function paintBirdhouses() {
       }),
   );
 }
+function letterToAuntie() {
+  dismissSpeech();
+  panel(
+    "A letter to Auntie",
+    `<label for="auntie-letter">What would you like Mom to add?</label><textarea id="auntie-letter" maxlength="1000" rows="4"></textarea>`,
+    [
+      {
+        label: "Add to the letter",
+        run: () => {
+          close();
+          speak("mom", "<p>Beautiful sentiment. I’ll add that.</p>", [
+            { label: "Love you too", run: dismissSpeech },
+          ]);
+          visit("Added a sentiment to Mom’s letter to Auntie.");
+          save();
+        },
+      },
+      { label: "Maybe later", run: close },
+    ],
+  );
+  document.getElementById("auntie-letter")!.focus();
+}
 function askMom() {
   if (momAway(s)) return;
+  momSpoke = true;
   if (storyPhase(s) === "scheduled")
     return speak(
       "mom",
@@ -700,6 +736,9 @@ function askMom() {
       : []),
     ...(status.activity === "birdhouses" && s.birdhousePaintDay !== s.day
       ? [{ label: "Let’s pick the paint colors", run: paintBirdhouses }]
+      : []),
+    ...(status.activity === "letters"
+      ? [{ label: "Add something to Auntie’s letter", run: letterToAuntie }]
       : []),
     ...(status.activity === "puzzles"
       ? [{ label: "Let’s play the color puzzle", run: playMomPuzzle }]
@@ -788,6 +827,22 @@ function positionStoryMom(x: number, z: number, seated = false) {
   const t = world.targets.find((t) => t.id === "mom")!;
   t.x = x + 1;
   t.z = z;
+}
+let beaGuide: { route: Point[]; distance: number } | undefined;
+function guideIntoBea() {
+  const solids = world.rects.filter(
+    (r) =>
+      Math.hypot(r.x - world.bea.position.x, r.z - world.bea.position.z) >
+        0.1 && r !== world.momCollider,
+  );
+  const route = sceneRoute(
+    { x: world.bea.position.x, z: world.bea.position.z },
+    { x: 10.25, z: 15.2 },
+    solids,
+  );
+  if (!route.length) return toast("Come around to the front door, dears.");
+  beaGuide = { route, distance: 0 };
+  dismissSpeech();
 }
 function beaTea(step = s.familyStory?.teaStep ?? 0) {
   if (!s.familyStory?.escort) return;
@@ -1160,7 +1215,9 @@ function updateSpeech(dt: number) {
         return;
       }
       const bubble = speaking.element;
-      bubble.hidden = hidden;
+      // Keep an established conversation usable even if a wall or the camera
+      // obscures the speaker's nameplate. Interaction reach already gates it.
+      bubble.hidden = !begun || !s.awake || paused;
       const half = bubble.offsetWidth / 2;
       bubble.style.left = `${Math.max(half + 12, Math.min(innerWidth - half - 12, x))}px`;
       const hudTop = resourceHud.getBoundingClientRect().top;
@@ -1524,6 +1581,36 @@ function bag() {
       }),
   );
 }
+let hatHanging:
+  | {
+      id: HatId;
+      elapsed: number;
+      model: T.Group;
+      from: T.Vector3;
+      to: T.Vector3;
+    }
+  | undefined;
+function hangHat(id: HatId) {
+  const model = makeHat(id);
+  const from = world.wornHat.getWorldPosition(new T.Vector3());
+  removeHat(s, id);
+  const index = s.hats.filter((h) => !wearing(s, h)).indexOf(id);
+  const to = new T.Vector3(
+    -20.2 + (index % 2 ? 0.36 : -0.36),
+    0.6 + Math.floor(index / 2) * 0.46,
+    4.97,
+  );
+  model.position.copy(from);
+  scene.add(model);
+  hatHanging = { id, model, from, to, elapsed: 0 };
+  world.player.rotation.y = Math.atan2(
+    to.x - s.position.x,
+    to.z - s.position.z,
+  );
+  close();
+  keys.clear();
+  save();
+}
 function hatRack() {
   panel(
     "Your hat rack",
@@ -1534,8 +1621,10 @@ function hatRack() {
     (button) =>
       (button.onclick = () => {
         const id = button.dataset.rackHat as HatId;
-        if (wearing(s, id)) removeHat(s, id);
-        else if (!equipHat(s, id))
+        if (wearing(s, id)) {
+          hangHat(id);
+          return;
+        } else if (!equipHat(s, id))
           toast("Three hats already! Hang one on the rack first.");
         save();
         hatRack();
@@ -2232,8 +2321,6 @@ function updateCoinTracker() {
   coinTracker.innerHTML = `<strong>${escapeHTML(c.name)}</strong><br>${trend} ${money(c.price)} / coin<br>Holding ${money(coinValue(s))}`;
   coinTracker.title =
     "An in-game coin. Use the ATM beside Grindset to buy or sell.";
-  if (s.drink)
-    coinTracker.innerHTML += `<br>${drinks.find((d) => d.id === s.drink!.id)!.name}: ${Math.ceil(s.drink.remaining)}s`;
 }
 
 function sitWithStacy() {
@@ -2442,7 +2529,7 @@ tvCaption.id = "tv-news-caption";
 tvCaption.hidden = true;
 document.body.append(tvCaption);
 function interact() {
-  if (birdhouseScene || celebration) return;
+  if (birdhouseScene || celebration || hatHanging) return;
   if (!begun || paused || action || meditationTime > 0) return;
   if (!s.awake) {
     s.awake = true;
@@ -2521,6 +2608,12 @@ function interact() {
       "npc1",
       "<p>Welcome, both of you! Come sit down at my table. I will pour the tea.</p>",
       [{ label: "Sit down with Mom", run: () => beaTea() }],
+    );
+  if (id === "npc1" && s.familyStory?.escort)
+    return speak(
+      "npc1",
+      "<p>Oh, how wonderful to see you both! You’re looking brighter, dear. Come along, let’s go inside for tea.</p>",
+      [{ label: "Lead us in", run: guideIntoBea }],
     );
   if (id.startsWith("bike-")) return showBike(id.slice(5) as BikeId);
   if (id === "bicycle") {
@@ -2695,6 +2788,7 @@ function interact() {
     return;
   }
   if (id === "mom") {
+    momSpoke = true;
     if (s.familyStory || canTellMom(s)) return askMom();
     const metBefore = s.metMom;
     s.metMom = true;
@@ -2827,6 +2921,8 @@ function interact() {
 }
 let audio: AudioContext | undefined;
 let seedChimes = 0;
+const homeAudio = new HomeAudio();
+const keyboardAudio = new HomeAudio();
 function seedChime() {
   if (!audio || muted) return;
   seedChimes++;
@@ -2908,22 +3004,8 @@ $("#begin").onclick = () => {
   last = performance.now();
   $("#intro").hidden = true;
   try {
+    audio?.close();
     audio = new AudioContext();
-    const noise = audio.createBuffer(1, audio.sampleRate * 3, audio.sampleRate),
-      data = noise.getChannelData(0);
-    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
-    const breeze = audio.createBufferSource();
-    breeze.buffer = noise;
-    breeze.loop = true;
-    const filter = audio.createBiquadFilter();
-    filter.type = "lowpass";
-    filter.frequency.value = 380;
-    const volume = audio.createGain();
-    volume.gain.value = 0.012;
-    breeze.connect(filter);
-    filter.connect(volume);
-    volume.connect(audio.destination);
-    breeze.start();
   } catch {}
   toast(
     s.awake
@@ -3082,6 +3164,19 @@ function updateRollPose() {
   }
 }
 function resetTransientMotion() {
+  homeAudio.stop();
+  keyboardAudio.stop();
+  beaGuide = undefined;
+  if (hatHanging) {
+    scene.remove(hatHanging.model);
+    hatHanging.model.traverse((o) => {
+      if (o instanceof T.Mesh) {
+        o.geometry.dispose();
+        (o.material as T.Material).dispose();
+      }
+    });
+    hatHanging = undefined;
+  }
   cameraWalls.restore();
   followInitialized = false;
   inventoryState = s;
@@ -3124,6 +3219,7 @@ function resetTransientMotion() {
   jumpHeight = 0;
   jumpVelocity = 0;
   updateRollPose();
+
   sitting = false;
   world.setPlayerSeated(false);
   keys.clear();
@@ -3266,7 +3362,12 @@ function selectTarget() {
         (t.id !== "pepe-door" || !canEnterPepe(s)) &&
         (t.id !== "tv-seeds" || (!!s.foundGardenSeeds && !s.foundTVSeeds)) &&
         targetDistance(t) <
-          (wearing(s, "lantern") || buff(s, "reach") ? 3 : 2.1) &&
+          (t.id === "mom" &&
+          momStatus(s.day, s.familyStory).activity === "bedrest"
+            ? 3.8
+            : wearing(s, "lantern") || buff(s, "reach")
+              ? 3
+              : 2.1) &&
         hasSight(t),
     )
     .sort((a, b) => targetScore(a) - targetScore(b))[0];
@@ -3295,6 +3396,15 @@ function hasSight(t: Target) {
     .some((h) => h.distance < d - 0.1);
 }
 function updateUI() {
+  fertilizerHud.hidden = !(
+    s.fertilizerPurchased ||
+    s.fertilizer > 0 ||
+    s.events.some((e) => e.includes("fertilizer")) ||
+    s.journalHistory?.some((d) =>
+      d.events.some((e) => e.includes("fertilizer")),
+    )
+  );
+  fertilizerHud.querySelector("strong")!.textContent = String(s.fertilizer);
   membershipHud.hidden = !s.millionaire?.member;
   if (s.millionaire?.member) {
     const f = fellowship(s.millionaire.member);
@@ -3547,7 +3657,10 @@ function updateUI() {
 function frame(now: number) {
   frameNumber++;
   world.setHat(wornHats(s));
-  world.setRackHats(s.hats);
+  world.setRackHats(
+    s.hats.filter((id) => !wearing(s, id) && id !== hatHanging?.id),
+  );
+  world.setFertilizerMarkers(s.plots, s.day);
   world.showBirdhouses(s.birdhousesBuilt ?? 0, s.birdhousePaint);
   if (birdhouseScene)
     world.outdoorBirdhouses.forEach((g, i) => {
@@ -3641,8 +3754,42 @@ function frame(now: number) {
     if (roofIndex < 0) world.occluders.push(world.homeRoof);
   } else if (roofIndex >= 0) world.occluders.splice(roofIndex, 1);
   const active =
-    begun && !paused && !document.hidden && !birdhouseScene && !celebration;
-  world.setBeaInside(inBeaHouse(s.position) || teaSeated);
+    begun &&
+    !paused &&
+    !document.hidden &&
+    !birdhouseScene &&
+    !celebration &&
+    !hatHanging;
+  if (beaGuide) {
+    if (
+      active &&
+      Math.hypot(
+        s.position.x - world.bea.position.x,
+        s.position.z - world.bea.position.z,
+      ) < 7
+    )
+      beaGuide.distance += dt * 2.6;
+    const point = alongRoute(
+      beaGuide.route,
+      beaGuide.distance / routeLength(beaGuide.route),
+    );
+    const dx = point.x - world.bea.position.x,
+      dz = point.z - world.bea.position.z;
+    if (Math.hypot(dx, dz) > 0.001) world.bea.rotation.y = Math.atan2(dx, dz);
+    world.bea.position.set(point.x, 0, point.z);
+    const target = world.targets.find((t) => t.id === "npc1")!;
+    target.x = point.x;
+    target.z = point.z + 1;
+    world.beaCollider.x = point.x;
+    world.beaCollider.z = point.z;
+    if (beaGuide.distance >= routeLength(beaGuide.route)) {
+      beaGuide = undefined;
+      world.setBeaInside(true);
+      speak("npc1", "<p>Come sit down, both of you. I’ll pour the tea.</p>", [
+        { label: "Sit down with Mom", run: () => beaTea() },
+      ]);
+    }
+  } else world.setBeaInside(inBeaHouse(s.position) || teaSeated);
   const beaRoof = scene.getObjectByName("bea-house-roof") as T.Mesh;
   if (beaRoof) {
     const m = beaRoof.material as T.MeshStandardMaterial;
@@ -4314,8 +4461,37 @@ function frame(now: number) {
     s.position.z > -39;
   for (const name of ["robertsons-name", "robertsons-trade"])
     scene.getObjectByName(name)!.visible = !insideRobertsons;
+  const roof = world.robertsonsRoof;
+  const roofMat = roof.material as T.MeshStandardMaterial;
+  roofMat.opacity +=
+    ((insideRobertsons ? 0 : 1) - roofMat.opacity) * (1 - Math.exp(-dt * 9));
+  roof.visible = roofMat.opacity > 0.02;
+  roofMat.depthWrite = roofMat.opacity > 0.95;
+  roof.castShadow = roofMat.opacity > 0.95;
   const news = newsReports(s);
   const report = news[Math.floor(now / 18000) % news.length];
+  const soundsActive =
+    begun && s.awake && !paused && !document.hidden && !muted && atHome();
+  const keyboardDistance = Math.hypot(
+    s.position.x - world.mom.position.x,
+    s.position.z - world.mom.position.z,
+  );
+  const tvDistance = Math.hypot(s.position.x + 10.1, s.position.z - 10);
+  keyboardAudio.update(
+    audio,
+    soundsActive &&
+      !momAway(s) &&
+      momStatus(s.day, s.familyStory).activity === "music" &&
+      keyboardDistance < 10
+      ? "keyboard"
+      : "",
+    Math.max(0, 1 - keyboardDistance / 10) * 0.04,
+  );
+  homeAudio.update(
+    audio,
+    soundsActive && tvDistance < 10 ? (s.tvChannel ?? "cartoons") : "",
+    Math.max(0, 1 - tvDistance / 10) * 0.022,
+  );
   world.updateCartoon(
     reducedMotion ? 0 : now / 1000,
     s.tvChannel ?? "cartoons",
@@ -4415,6 +4591,29 @@ function frame(now: number) {
     fertilizerAnimation?.z ?? 0,
   );
   updateRollPose();
+  if (hatHanging) {
+    if (!paused && !document.hidden) hatHanging.elapsed += dt;
+    const a = hatHanging,
+      progress = Math.min(1, a.elapsed / 1.8),
+      q = progress * progress * (3 - 2 * progress);
+    a.model.position.copy(a.from).lerp(a.to, q);
+    a.model.position.y += Math.sin(progress * Math.PI) * 0.35;
+    a.model.scale.setScalar(1 - q * 0.54);
+    a.model.rotation.y = q * 0.3;
+    world.player
+      .getObjectByName("hand-1")!
+      .position.copy(world.player.worldToLocal(a.model.position.clone()));
+    if (progress === 1) {
+      scene.remove(a.model);
+      a.model.traverse((o) => {
+        if (o instanceof T.Mesh) {
+          o.geometry.dispose();
+          (o.material as T.Material).dispose();
+        }
+      });
+      hatHanging = undefined;
+    }
+  }
   for (let i = 0; i < s.plots.length; i++) {
     const p = s.plots[i],
       el = timers[i];
@@ -4875,6 +5074,23 @@ if (new URLSearchParams(location.search).has("test")) {
       feet: world.mom.children
         .filter((o) => o.name === "foot")
         .map((o) => o.getWorldPosition(new T.Vector3()).toArray()),
+    }),
+    polish: () => ({
+      fertilizerMarkers: world.fertilizerMarkers.children.map((o) => ({
+        name: o.name,
+        grains: o.children.length,
+      })),
+      rack: world.rackHats.children.map((o) => o.name),
+      hanging: !!hatHanging,
+      guiding: !!beaGuide,
+      windows: scene.getObjectsByProperty("name", "inset-window").length,
+      roofs: [world.robertsonsRoof, world.hatShopRoof, world.bikeShopRoof].map(
+        (o) => ({
+          name: o.name,
+          base: o.position.y,
+          top: new T.Box3().setFromObject(o).max.y,
+        }),
+      ),
     }),
     fertilizerAnimation: () => ({
       active: !!fertilizerAnimation,

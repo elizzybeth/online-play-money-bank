@@ -97,6 +97,12 @@ test("bedroom rack swaps a full stack and keeps decorative hats at top", async (
   await expect(page.locator("#prompt")).toContainText("Manage your hats");
   await page.keyboard.press("e");
   await page.locator("[data-rack-hat=cap]").click();
+  await expect(page.locator("#modal")).toBeHidden();
+  await expect
+    .poll(() => page.evaluate(() => (window as any).game.polish().hanging))
+    .toBe(false);
+  await page.keyboard.press("e");
+  await expect(page.locator("#modal")).toBeVisible();
   await page.locator("[data-rack-hat=rabbit]").click();
   expect(
     (await page.evaluate(() => (window as any).game.state())).equippedHats,

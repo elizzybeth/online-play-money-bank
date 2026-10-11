@@ -4,6 +4,80 @@ export function signCanvas(text: string, width = 768, height = 192) {
   c.width = width;
   c.height = height;
   const g = c.getContext("2d")!;
+  if (text === "Grindset") {
+    g.fillStyle = "#143f38";
+    g.fillRect(0, 0, width, height);
+    g.strokeStyle = g.fillStyle = "#ead0a0";
+    g.lineWidth = 3;
+    const x = height * 0.51,
+      y = height * 0.48,
+      r = height * 0.42;
+    for (const scale of [1, 0.88]) {
+      g.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const a = (Math.PI / 3) * i - Math.PI / 2;
+        const px = x + Math.cos(a) * r * scale,
+          py = y + Math.sin(a) * r * scale;
+        i ? g.lineTo(px, py) : g.moveTo(px, py);
+      }
+      g.closePath();
+      g.stroke();
+    }
+    g.beginPath();
+    g.moveTo(x - r * 0.7, y);
+    g.lineTo(x + r * 0.7, y);
+    g.moveTo(x, y);
+    g.lineTo(x, y + r * 0.86);
+    g.stroke();
+    // Espresso and an upward arrow: the daily sigma ritual.
+    g.beginPath();
+    g.ellipse(x, y - 18, 21, 6, 0, 0, Math.PI * 2);
+    g.moveTo(x - 21, y - 18);
+    g.quadraticCurveTo(x - 17, y + 1, x, y + 1);
+    g.quadraticCurveTo(x + 17, y + 1, x + 21, y - 18);
+    g.moveTo(x + 22, y - 15);
+    g.bezierCurveTo(x + 39, y - 20, x + 38, y - 2, x + 22, y - 7);
+    g.stroke();
+    g.beginPath();
+    g.moveTo(x - 38, y - 26);
+    g.lineTo(x - 17, y - 48);
+    g.lineTo(x + 15, y - 48);
+    g.lineTo(x + 37, y - 65);
+    g.moveTo(x + 24, y - 64);
+    g.lineTo(x + 37, y - 65);
+    g.lineTo(x + 36, y - 51);
+    g.stroke();
+    for (const dx of [-34, -17]) {
+      g.beginPath();
+      g.moveTo(x + dx, y + 47);
+      g.lineTo(x + dx, y + 9);
+      for (const h of [15, 26, 37]) {
+        g.moveTo(x + dx - 7, y + h + 6);
+        g.lineTo(x + dx, y + h - 4);
+        g.lineTo(x + dx + 7, y + h + 6);
+      }
+      g.stroke();
+    }
+    for (const [dx, dy] of [
+      [14, 13],
+      [34, 21],
+      [18, 35],
+      [35, 46],
+    ]) {
+      g.beginPath();
+      g.ellipse(x + dx, y + dy, 8, 11, -0.55, 0, Math.PI * 2);
+      g.stroke();
+      g.font = "12px Georgia";
+      g.fillText("Σ", x + dx - 4, y + dy + 4);
+    }
+    g.textAlign = "left";
+    g.textBaseline = "middle";
+    g.font = `${height * 0.39}px Henny Penny`;
+    g.fillText("GRINDSET", height * 1.04, height * 0.43, width - height * 1.1);
+    g.font = `${height * 0.1}px sans-serif`;
+    g.fillText("SIP • HODL • ASCEND", height * 1.08, height * 0.79);
+    return c;
+  }
   if (text === "Robertsons") {
     g.fillStyle = "#e64131";
     g.beginPath();

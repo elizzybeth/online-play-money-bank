@@ -49,6 +49,7 @@ export type Plot = {
   stage: "empty" | "planted" | "growing" | "ready" | "harvested";
   remaining: number;
   fertilized: boolean;
+  fertilizedDay?: number;
   yield: number;
 };
 export type State = {
@@ -89,6 +90,7 @@ export type State = {
   shovel: boolean;
   can: boolean;
   fertilizer: number;
+  fertilizerPurchased?: boolean;
   gardenBeds?: number;
   soilBags?: number;
   awake: boolean;
@@ -181,8 +183,10 @@ export function buy(
   if (item === "seeds") {
     s.seeds += 5;
     s.boughtSeeds = true;
-  } else if (item === "fertilizer") s.fertilizer += 5;
-  else s[item] = true;
+  } else if (item === "fertilizer") {
+    s.fertilizer += 5;
+    s.fertilizerPurchased = true;
+  } else s[item] = true;
   s.events.push(
     `Bought ${item === "can" ? "a watering can" : item === "seeds" ? "five mysterious seeds" : item === "shovel" ? "a shovel" : "a box of five fertilizer doses"}.`,
   );
@@ -250,6 +254,7 @@ export function fertilize(s: State, i: number) {
   if (!conserve) s.fertilizer--;
   else s.events.push("Saved a fertilizer dose with my Moonrise Wizard.");
   p.fertilized = true;
+  p.fertilizedDay = s.day;
   if (p.stage === "growing") p.remaining *= 2 / 3;
   s.events.push("Fed a tree with fertilizer.");
   return true;
@@ -472,6 +477,7 @@ export function sleep(s: State) {
     s.birdhousesBuilt = Math.min(12, (s.birdhousesBuilt ?? 0) + 1);
   s.events = [];
   s.day++;
+  s.plots.forEach((p) => delete p.fertilizedDay);
   if (s.familyStory && s.day === s.familyStory.surgeryDay)
     s.events.push("Mom went to the hospital for surgery. Auntie is with her.");
   if (s.familyStory && s.day === s.familyStory.surgeryDay + 1)
@@ -596,6 +602,8 @@ export function decode(raw: string | null): State | null {
     const s = JSON.parse(raw);
     if (
       s.version !== 1 ||
+      (s.fertilizerPurchased !== undefined &&
+        typeof s.fertilizerPurchased !== "boolean") ||
       !Number.isSafeInteger(s.day) ||
       s.day < 1 ||
       !["cash", "bank", "seeds", "fertilizer"].every(
@@ -615,6 +623,10 @@ export function decode(raw: string | null): State | null {
           Number.isFinite(p.remaining) &&
           p.remaining >= 0 &&
           typeof p.fertilized === "boolean" &&
+          (p.fertilizedDay === undefined ||
+            (Number.isSafeInteger(p.fertilizedDay) &&
+              p.fertilizedDay > 0 &&
+              p.fertilizedDay <= s.day)) &&
           Number.isSafeInteger(p.yield) &&
           p.yield >= 0 &&
           p.yield <= (p.fertilized ? 900 : 700),
