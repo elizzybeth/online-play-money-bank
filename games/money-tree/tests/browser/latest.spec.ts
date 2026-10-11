@@ -54,7 +54,7 @@ test("fertilizer scatters visibly, inventory delta appears, and hat rack explain
       .getByRole("button", { name: "End conversation" })
       .click({ force: true });
   await page.keyboard.press("e");
-  await expect(page.locator(".hat-power")).toContainText("Plant two adjoining beds");
+  await expect(page.locator(".hat-power")).toContainText("Plant, water, fertilize and harvest two adjoining beds");
   const gardens = await page.evaluate(
     () => (window as any).game.wildlife().gardens,
   );

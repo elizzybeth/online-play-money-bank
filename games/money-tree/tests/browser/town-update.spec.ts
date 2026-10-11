@@ -176,7 +176,8 @@ test("Mom rests in separate bedroom, birdhouses remain outside, interior camera 
   await expect(page.locator("#prompt")).toContainText("Mom");
   await page.keyboard.press("e");
   await expect(page.locator(".speech-bubble")).toContainText("bed");
-  await expect(page.locator("#thought")).toBeVisible();
+  // Speech takes priority over Mom's accompanying private thought.
+  await expect(page.locator("#thought")).toBeHidden();
   expect(
     (await page.evaluate(() => (window as any).game.state())).events.some(
       (e: string) => e.includes("exhausted in bed"),

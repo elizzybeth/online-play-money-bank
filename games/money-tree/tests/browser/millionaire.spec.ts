@@ -214,7 +214,7 @@ test("a mansion owner comes through the doorway and sells a working phone app", 
   await expect(page.locator("#modal")).toBeHidden();
 });
 
-test("a real phone memory game pays a dollar once with the tithe and preserves app ownership", async ({
+test("a real phone memory game pays a dollar once without tithing and preserves app ownership", async ({
   page,
 }) => {
   const s = base();
@@ -258,13 +258,13 @@ test("a real phone memory game pays a dollar once with the tithe and preserves a
     await frames(page, 2);
   }
   const earned = await page.evaluate(() => (window as any).game.state());
-  expect(earned.cash).toBe(5590);
-  expect(earned.millionaire.tithed).toBe(10);
+  expect(earned.cash).toBe(5600);
+  expect(earned.millionaire.tithed).toBe(0);
   expect(earned.millionaire.apps).toEqual([4]);
-  await expect(page.locator("#phone-game")).toContainText("90¢");
+  await expect(page.locator("#phone-game")).toContainText("$1.00");
   await frames(page, 40);
   expect((await page.evaluate(() => (window as any).game.state())).cash).toBe(
-    5590,
+    5600,
   );
   await page.getByRole("button", { name: "Put phone away" }).click();
   await page.locator("#membership-hud").click();

@@ -67,7 +67,8 @@ test("sign panels have physical clearance, resources sit below the scene on desk
     const footer = await page.locator("footer").boundingBox();
     expect(boxes[0].bottom).toBeLessThan(footer!.y);
     for (const b of boxes) {
-      expect(b.y).toBeGreaterThan(550);
+      // Narrow screens wrap the expanded inventory above the lower-left day.
+      expect(b.y).toBeGreaterThan(500);
       expect(b.x).toBeGreaterThanOrEqual(0);
       expect(b.right).toBeLessThanOrEqual(width);
       expect(b.bottom).toBeLessThan(800);
