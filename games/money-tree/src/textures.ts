@@ -5,6 +5,7 @@ export type Surface =
   | "bark"
   | "leaf"
   | "hair"
+  | "fur"
   | "cloth"
   | "plaster"
   | "shingles"
@@ -34,6 +35,26 @@ export function surfaceTexture(kind: Surface, rx = 1, ry = 1) {
     );
   }
   c.lineCap = "round";
+  if (kind === "fur") {
+    c.fillStyle = "#dfdfdf";
+    c.fillRect(0, 0, 256, 256);
+    for (let i = 0; i < 9500; i++) {
+      const x = random() * 256,
+        y = random() * 256;
+      c.strokeStyle =
+        i % 3 ? "rgba(125,125,125,0.19)" : "rgba(255,255,255,0.5)";
+      c.lineWidth = 0.55;
+      c.beginPath();
+      c.moveTo(x, y);
+      c.quadraticCurveTo(
+        x + 1,
+        y + 2,
+        x + random() * 3 - 1.5,
+        y + 3 + random() * 5,
+      );
+      c.stroke();
+    }
+  }
   if (kind === "grass" || kind === "leaf")
     for (let i = 0; i < 700; i++) {
       const x = random() * 256,

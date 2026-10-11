@@ -1,3 +1,4 @@
+import { terrainHeight } from "./millionaire-land";
 import { purchasePrice } from "./meals";
 import { type State, wearing } from "./game";
 export function compostSoil(s: State) {
@@ -42,6 +43,25 @@ export function gardenBatch(s: State, i: number, job: GardenJob) {
   if (!eligible(i)) return [];
   if (!wearing(s, "inspector") || (job === "fertilize" && s.fertilizer < 2))
     return [i];
+  if (s.plots[i].mountain) {
+    const origin = s.plots[i];
+    const tier = terrainHeight(origin.x!, origin.z!);
+    const neighbors = s.plots
+      .map((p, j) => ({ p, j }))
+      .filter(
+        ({ p, j }) =>
+          j !== i &&
+          p.mountain &&
+          eligible(j) &&
+          terrainHeight(p.x!, p.z!) === tier,
+      )
+      .sort(
+        (a, b) =>
+          Math.hypot(a.p.x! - origin.x!, a.p.z! - origin.z!) -
+          Math.hypot(b.p.x! - origin.x!, b.p.z! - origin.z!),
+      );
+    return neighbors.length ? [i, neighbors[0].j] : [i];
+  }
   const origin = s.plots[i];
   const neighbor = s.plots.findIndex((p, j) => {
     if (j === i || !eligible(j)) return false;
