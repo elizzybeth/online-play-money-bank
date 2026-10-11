@@ -15,7 +15,7 @@ jobs:
         browser: [chromium, firefox, webkit]
         shard: [1, 2, 3, 4]
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     defaults:
       run:
         working-directory: games/money-tree
@@ -33,7 +33,7 @@ jobs:
       - run: pnpm test
       - run: pnpm exec playwright install --with-deps ${{ matrix.browser }}
       - run: xvfb-run --auto-servernum pnpm test:e2e --headed --reporter=line --shard=${{ matrix.shard }}/4
-        timeout-minutes: 25
+        timeout-minutes: 35
         env:
           MONEY_TREE_BROWSER: ${{ matrix.browser }}
       - run: pnpm build

@@ -1,3 +1,4 @@
+import { purchasePrice } from "./meals";
 import { type State, wearing } from "./game";
 export function compostSoil(s: State) {
   if (!s.foundTVSeeds || (s.compostScraps ?? 0) < 25) return false;
@@ -9,8 +10,8 @@ export function compostSoil(s: State) {
   return true;
 }
 export function buySpanakopita(s: State) {
-  if (!s.foundTVSeeds || s.cash < 300) return false;
-  s.cash -= 300;
+  if (!s.foundTVSeeds || s.cash < purchasePrice(s, 300)) return false;
+  s.cash -= purchasePrice(s, 300);
   s.spanakopita = (s.spanakopita ?? 0) + 1;
   s.events.push("Bought spanakopita from Gigachad for $3.");
   return true;
@@ -47,6 +48,9 @@ export function gardenBatch(s: State, i: number, job: GardenJob) {
     const dx = Math.abs((p.x ?? -20 + j * 2) - (origin.x ?? -20 + i * 2));
     const dz = Math.abs((p.z ?? 19) - (origin.z ?? 19));
     return (
+      (s.plots[i].community &&
+        s.plots[j].community &&
+        Math.hypot(dx, dz) <= 4.65) ||
       (dx >= 1.8 && dx <= 3.2 && dz < 0.6) ||
       (dz >= 2.8 && dz <= 3.6 && dx < 0.6)
     );

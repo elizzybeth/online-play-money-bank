@@ -1,3 +1,4 @@
+import { purchasePrice } from "./meals";
 import type { State } from "./game";
 import { mountainPlots, fertileMountainSoil } from "./millionaire-land";
 export const fellowships = [
@@ -357,10 +358,10 @@ export function buyApp(s: State, index: number) {
     index < 0 ||
     index >= mansionCount(m) ||
     m.apps.includes(index) ||
-    s.cash < 500
+    s.cash < purchasePrice(s, 500)
   )
     return false;
-  s.cash -= 500;
+  s.cash -= purchasePrice(s, 500);
   m.apps.push(index);
   s.events.push(`Bought ${appNames[index]} for $5.`);
   return true;

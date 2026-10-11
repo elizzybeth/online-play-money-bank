@@ -43,6 +43,8 @@ test("five named hens and Fancy Chicken have a reachable cuddle and chair lifecy
     life.chickens.map((c) => c.name),
     ["Tuck", "Cluck", "Pluck", "Luck", "Fuck", "Fancy Chicken"],
   );
+  const distantHen = life.chickens[4].object;
+  assert(distantHen.position.x >= 29 && distantHen.position.z <= -22);
   const rooster = life.chickens[5].object;
   assert(rooster.userData.rooster);
   assert(
@@ -55,6 +57,9 @@ test("five named hens and Fancy Chicken have a reachable cuddle and chair lifecy
   assert.equal(life.chickens[0].object.parent, player);
   assert.equal(life.cuddle(1), false);
   life.update(2.5, 3);
+  assert.equal(life.busy, true);
+  life.putDown();
+  life.update(0.1, 3.1);
   assert.equal(life.chickens[0].object.parent, scene);
   assert.equal(life.busy, false);
 });

@@ -186,3 +186,13 @@ Desktop keyboard and mouse. No touch/gamepad support yet. Home and haberdashery 
 - ATM details explain Mom conversations within two days, spanakopita owned/shared and chicken cuddles as coin-price factors. Same random swings with each factor changed independently produce a different price; saved games preserve them.
 - Tithing takes 10% only from Money Tree harvesting; coin sale profits and phone-game payouts are exempt. Dialogue reflects this. Dialogue and menus sanitize legacy em dashes.
 - The fourth Child's estate has a Geisel-inspired concrete/glass silhouette with splayed supports, widening lower cantilevers, narrower upper tiers, flat crown and landscaped wings. Owner/door/car/yacht progression works as for the other five estates.
+
+
+## Home cooking and furnishings, October 11
+
+- Fifteen grocery combinations consume one unit of each ingredient type. Cooking, carrying plates through the room doorway and sharing a meal take twenty seconds. Effects begin after eating, preserve remaining duration on refresh and end at sleep. Discount, yield, movement, seed conservation and one-step gardening powers use the ordinary economy and harvest ledger.
+- Robertson stocks all four groceries permanently. Two furnishing kinds unlock at each of the three levels. Wall previews reject windows, existing art and edges; floor previews reject walls, furniture and other placements. All inventory and placements export in JSON. Mom’s painting days produce a unique numbered canvas.
+- Willow camera distance is bounded after obstacle correction. Spoke & Saddle lintels cannot create panes below their geometry. The bedroom bookcase is removed; Mom’s painting and relocated living-room chair use her solid partition wall and bedside space.
+- Twin Planter supports Sigma’s staggered community sites. Parked bikes mount with E and a one-second third-person hop; eye height is raised. Desert thoughts stay centered and reflect a prior summit visit and the mansions. Community Guide’s default reply is Thank you. Journals record only actual mansion interactions and app use; the second visit records the empty room.
+- Food of the Gods lines up with Grindset, with both signs above the roof. COMPOST labels the exchange bin. Birdhouses stand on freestanding wooden stilts. Cuddles retain a front camera view until E releases the chicken. Fuck prefers the Thread & Thimble area.
+- Wealth models use Porsche 911 Carrera and Sunseeker Manhattan 55 design references: curved coupe body, wheels, glass, lamps, exhaust; pointed yacht hull, teak decks, rails, flybridge and cabin windows.

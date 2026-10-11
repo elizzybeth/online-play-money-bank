@@ -1,3 +1,4 @@
+import { purchasePrice } from "./meals";
 import type { State } from "./game";
 export const bikes = [
   {
@@ -76,9 +77,13 @@ export const inBikeShop = (p: { x: number; z: number }) =>
   p.z < bikeShopBounds.south;
 export function buyBike(s: State, id: BikeId) {
   const bike = bikeById(id);
-  if (!bike || (s.bikes ?? []).includes(id) || s.cash < bike.price)
+  if (
+    !bike ||
+    (s.bikes ?? []).includes(id) ||
+    s.cash < purchasePrice(s, bike.price)
+  )
     return false;
-  s.cash -= bike.price;
+  s.cash -= purchasePrice(s, bike.price);
   (s.bikes ??= []).push(id);
   s.selectedBike = id;
   s.events.push(`Bought the ${bike.name} bicycle.`);

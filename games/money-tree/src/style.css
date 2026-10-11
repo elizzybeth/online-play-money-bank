@@ -1954,3 +1954,6 @@ header .brand {
 body:has(#intro:not([hidden])) :is(#top-right-hud, #stats) {
   visibility: hidden;
 }
+
+#food-effect svg { width:44px; height:44px; flex-shrink:0; }
+#food-effect[hidden] { display:none; }

@@ -1,3 +1,5 @@
+import { ingredients } from "./meals";
+import { furnishingCatalog } from "./furnishings";
 import type { State } from "./game";
 import { hats } from "./hats";
 import { bikes } from "./bikes";
@@ -6,6 +8,13 @@ export function inventorySnapshot(s: State): Record<string, number> {
     "Pocket money": s.cash,
     "Saved money": s.bank,
     Seeds: s.seeds,
+    ...Object.fromEntries(ingredients.map((k) => [k, s.groceries?.[k] ?? 0])),
+    ...Object.fromEntries(
+      furnishingCatalog.map((f) => [
+        f.name,
+        (s.furnitureBag ?? []).filter((id) => id === f.id).length,
+      ]),
+    ),
     "Compost scraps": s.compostScraps ?? 0,
     Spanakopita: s.spanakopita ?? 0,
     "Fertilizer doses": s.fertilizer,

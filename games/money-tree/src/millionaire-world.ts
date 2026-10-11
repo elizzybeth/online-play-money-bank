@@ -1,3 +1,4 @@
+import { makeSportsCar, makeYacht } from "./wealth-models";
 import * as T from "three";
 import { buildGeiselMansion } from "./geisel-mansion";
 import { fitWindow } from "./architecture";
@@ -176,7 +177,11 @@ export function createMillionaireWorld(
       col = i % 6;
     const x = 4 + col * 12 + Math.sin(i * 2.3) * 3,
       z = -108 - row * 9 + Math.cos(i * 1.7) * 2;
-    if (Math.abs(x - 34) > 8) willow(x, z, 7 + (i % 4));
+    // Keep both trunks and hanging foliage out of the approach corridor.
+    const approach =
+      (Math.abs(z + 104) < 7 && x > 30 && x < 52) ||
+      (Math.abs(x - 46) < 7 && z > -108);
+    if (Math.abs(x - 34) > 8 && !approach) willow(x, z, 7 + (i % 4));
   }
   const guru = makeGuru();
   guru.position.set(34, 0, -130);
@@ -442,40 +447,12 @@ export function createMillionaireWorld(
       }
     }
     box(0, 0.08, 25, 9, 0.12, 18, "#dcd3bb", home);
-    const car = new T.Group();
-    car.name = "mansion-car";
+    const car = makeSportsCar();
     car.position.set(-14, 0.4, 23);
     home.add(car);
-    box(0, 0.5, 0, 3.8, 0.9, 7, "#3d2e43", car);
-    box(0, 1.2, -0.4, 3.2, 0.9, 3.3, "#6f9da7", car);
-    for (const x of [-1.9, 1.9])
-      for (const z of [-2, 2]) {
-        const wheel = part(
-          new T.CylinderGeometry(0.65, 0.65, 0.3, 12),
-          "#292e30",
-          x,
-          0,
-          z,
-          car,
-        );
-        wheel.rotation.z = Math.PI / 2;
-      }
-    const yacht = new T.Group();
-    yacht.name = "mansion-yacht";
+    const yacht = makeYacht();
     yacht.position.set(14, 1, 24);
     home.add(yacht);
-    const hull = part(
-      new T.SphereGeometry(1, 14, 8),
-      "#fff5dd",
-      0,
-      0,
-      0,
-      yacht,
-    );
-    hull.scale.set(3, 1.8, 7);
-    box(0, 1.8, 0, 4, 2, 6, "#e9e7da", yacht);
-    box(0, 2.2, 0.4, 4.05, 1, 3.5, "#527d8a", yacht);
-    for (const z of [-4, 4]) box(0, 3, z, 4, 0.15, 0.15, "#c9a447", yacht);
     home.children.forEach((o) => {
       if (o instanceof T.Mesh && o.position.y > 2) occluders.push(o);
     });
