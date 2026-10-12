@@ -1,3 +1,4 @@
+import { createRoosterCharge } from "./rooster-charge";
 import * as T from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { blocked, type Rect } from "./game";
@@ -263,7 +264,8 @@ export function createTownLife(
     for (const side of [-1, 1]) {
       m.ball(side * 0.23, 0.46, 0, 0.18, color).scale.set(0.3, 1, 1.25);
       m.box(side * 0.11, 0.13, 0.05, 0.027, 0.2, 0.027, "#d79a37");
-      m.box(side * 0.11, 0.04, 0.13, 0.14, 0.02, 0.18, "#d79a37");
+      m.box(side * 0.11, 0.04, 0.13, 0.14, 0.02, 0.18, "#d79a37").name =
+        `chicken-foot-${side}`;
     }
     const head = m.ball(0, 0.79, 0.25, 0.17, color);
     head.name = "head";
@@ -359,6 +361,8 @@ export function createTownLife(
     };
     return { name, object, target, roaming };
   });
+  const roosterCharge = createRoosterCharge();
+  let previousPlayer = new T.Vector2(player.position.x, player.position.z);
   let cuddle:
     | { i: number; t: number; origin: T.Vector3; releasing?: boolean }
     | undefined;
@@ -408,7 +412,15 @@ export function createTownLife(
       sharing = { t: 0, pieces };
       return true;
     },
+    get roosterCharge() {
+      return { phase: roosterCharge.phase, kicks: roosterCharge.kicks };
+    },
     update(dt: number, time: number) {
+      const moving =
+        previousPlayer.distanceTo(
+          new T.Vector2(player.position.x, player.position.z),
+        ) > 0.001;
+      previousPlayer.set(player.position.x, player.position.z);
       chickens.forEach((ch, i) => {
         if (cuddle?.i === i) return;
         const previous = { ...ch.roaming.position };
@@ -455,6 +467,34 @@ export function createTownLife(
           wattle.rotation.x = Math.sin(time * 5 + i) * 0.1;
           wattle.rotation.z =
             wattle.userData.side * (0.09 + Math.sin(time * 4 + i) * 0.045);
+        }
+        if (i === 5) {
+          const charge = roosterCharge.update(
+            dt,
+            { x: ch.object.position.x, z: ch.object.position.z },
+            ch.object.rotation.y,
+            { x: player.position.x, z: player.position.z },
+            player.rotation.y,
+            moving,
+            (p) => !blocked(p.x, p.z, rects, 0.38),
+            player.visible && !sharing && !cuddle && player.position.y < 0.2,
+          );
+          if (roosterCharge.phase !== "idle") {
+            ch.object.position.set(
+              charge.position.x,
+              charge.lift,
+              charge.position.z,
+            );
+            ch.object.rotation.y = charge.heading;
+            ch.roaming.position = charge.position;
+            ch.roaming.pause = 1;
+          }
+          for (const side of [-1, 1]) {
+            const foot = ch.object.getObjectByName(`chicken-foot-${side}`)!;
+            foot.rotation.x = -charge.kick * 1.2;
+            foot.position.z = 0.13 + charge.kick * 0.28;
+          }
+          ch.object.userData.charging = roosterCharge.phase;
         }
         ch.target.x = ch.object.position.x;
         ch.target.z = ch.object.position.z;

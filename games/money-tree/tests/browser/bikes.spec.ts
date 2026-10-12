@@ -224,48 +224,52 @@ test("outside rack swaps owned bicycles and F activates only the riding bike", a
   );
 });
 
-test("F triggers every bike's distinct feature and BMX hopping lifts then restores the viewpoint", async ({
-  page,
-}) => {
-  test.setTimeout(300000);
-  await start(page, {
-    bikes: bikes.map((b) => b.id),
-    selectedBike: "tassels",
-    position: { x: 3, z: 30 },
-  });
+test.describe("individual bike features", () => {
+  test.describe.configure({ mode: "parallel" });
   for (const bike of bikes) {
-    await page.keyboard.press("i");
-    await page.locator(`[data-bicycle="${bike.id}"]`).click();
-    await frames(page, 55);
-    const before = await page.evaluate(
-      () => (window as any).game.camera().position[1],
-    );
-    await page.keyboard.press("f");
-    expect(
-      await page.evaluate(() => (window as any).game.bikeSpecial().active),
-    ).toBe(bike.id);
-    await expect(page.locator("#bike-special-name")).toContainText(
-      bikeFeatures[bike.id].name,
-    );
-    await frames(page, 10);
-    if (bike.id === "bmx") {
-      expect(
-        await page.evaluate(() => (window as any).game.camera().position[1]),
-      ).toBeGreaterThan(before + 0.4);
-      await frames(page, 25);
-      expect(
-        await page.evaluate(() => (window as any).game.camera().position[1]),
-      ).toBeCloseTo(before, 2);
-    } else {
-      expect(
-        await page.evaluate(() => (window as any).game.bikeSpecial().particles),
-      ).toBeGreaterThan(0);
-    }
-    if (bike.id === "tassels")
-      await page.screenshot({
-        path: "../../outputs/money-tree-bike-confetti.png",
+    test(`F triggers ${bike.id}: ${bikeFeatures[bike.id].name}`, async ({
+      page,
+    }) => {
+      await start(page, {
+        bikes: bikes.map((b) => b.id),
+        selectedBike: "tassels",
+        position: { x: 3, z: 30 },
       });
-    await page.keyboard.press("h");
-    await frames(page, 1);
+      await page.keyboard.press("i");
+      await page.locator(`[data-bicycle="${bike.id}"]`).click();
+      await frames(page, 55);
+      const before = await page.evaluate(
+        () => (window as any).game.camera().position[1],
+      );
+      await page.keyboard.press("f");
+      expect(
+        await page.evaluate(() => (window as any).game.bikeSpecial().active),
+      ).toBe(bike.id);
+      await expect(page.locator("#bike-special-name")).toContainText(
+        bikeFeatures[bike.id].name,
+      );
+      await frames(page, 10);
+      if (bike.id === "bmx") {
+        expect(
+          await page.evaluate(() => (window as any).game.camera().position[1]),
+        ).toBeGreaterThan(before + 0.4);
+        await frames(page, 25);
+        expect(
+          await page.evaluate(() => (window as any).game.camera().position[1]),
+        ).toBeCloseTo(before, 2);
+      } else {
+        expect(
+          await page.evaluate(
+            () => (window as any).game.bikeSpecial().particles,
+          ),
+        ).toBeGreaterThan(0);
+      }
+      if (bike.id === "tassels")
+        await page.screenshot({
+          path: "../../outputs/money-tree-bike-confetti.png",
+        });
+      await page.keyboard.press("h");
+      await frames(page, 1);
+    });
   }
 });

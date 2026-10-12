@@ -425,18 +425,57 @@ export function makeGuru() {
   );
   beard.rotation.z = Math.PI;
   beard.scale.z = 0.6;
-  for (let i = 0; i < 9; i++) {
-    const a = (i * Math.PI) / 8;
+  const necklace = new T.Group();
+  necklace.name = "guru-beaded-necklace";
+  g.add(necklace);
+  tube(
+    necklace,
+    "#9d7444",
+    Array.from({ length: 17 }, (_, i) => {
+      const a = (i * Math.PI) / 16;
+      return [Math.cos(a) * 0.39, 1.42 - Math.sin(a) * 0.34, 0.38] as [
+        number,
+        number,
+        number,
+      ];
+    }),
+    0.012,
+  );
+  for (let i = 0; i < 17; i++) {
+    const a = (i * Math.PI) / 16;
     ball(
-      g,
+      necklace,
       "#6c4836",
-      Math.cos(a) * 0.3,
-      1.41 - Math.sin(a) * 0.2,
-      0.32,
-      0.045,
+      Math.cos(a) * 0.39,
+      1.42 - Math.sin(a) * 0.34,
+      0.38,
+      0.043,
     );
   }
-  for (let i = 0; i < 4; i++)
-    ball(g, "#f9cd47", -0.8 + i * 0.065, 1.46, 0.43, 0.035);
+  const bracelet = new T.Group();
+  bracelet.name = "guru-wrist-bracelet";
+  bracelet.position.set(0.79, 1.24, 0.36);
+  bracelet.rotation.x = -0.3;
+  g.add(bracelet);
+  const ring = part(
+    bracelet,
+    new T.TorusGeometry(0.108, 0.012, 8, 24),
+    "#d6a02d",
+    0,
+    0,
+    0,
+  );
+  ring.rotation.x = Math.PI / 2;
+  for (let i = 0; i < 10; i++) {
+    const a = (i * Math.PI) / 5;
+    ball(
+      bracelet,
+      "#f9cd47",
+      Math.cos(a) * 0.108,
+      0,
+      Math.sin(a) * 0.108,
+      0.024,
+    );
+  }
   return g;
 }

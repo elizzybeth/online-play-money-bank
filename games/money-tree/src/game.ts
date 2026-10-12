@@ -328,6 +328,25 @@ export function plantingBatch(s: State, i: number): number[] {
     ["empty", "harvested"].includes(s.plots[j].stage);
   if (!available(i) || s.seeds < 1) return [];
   if (!wearing(s, "inspector") || s.seeds < 2) return [i];
+  if (s.plots[i].mountain) {
+    const origin = s.plots[i];
+    const tier = terrainHeight(origin.x!, origin.z!);
+    const neighbors = s.plots
+      .map((p, j) => ({ p, j }))
+      .filter(
+        ({ p, j }) =>
+          j !== i &&
+          p.mountain &&
+          available(j) &&
+          terrainHeight(p.x!, p.z!) === tier,
+      )
+      .sort(
+        (a, b) =>
+          Math.hypot(a.p.x! - origin.x!, a.p.z! - origin.z!) -
+          Math.hypot(b.p.x! - origin.x!, b.p.z! - origin.z!),
+      );
+    return neighbors.length ? [i, neighbors[0].j] : [i];
+  }
   const position = (j: number) => ({
     x: s.plots[j].x ?? -20 + j * 2,
     z: s.plots[j].z ?? 19,

@@ -1,3 +1,4 @@
+import { makeCookingPan } from "./cooking-pan";
 import {
   ingredients,
   meals,
@@ -2330,10 +2331,7 @@ function hangMomCanvases() {
   }
 }
 let kitchenPrepared = false;
-const preparedPan = new T.Mesh(
-  new T.CylinderGeometry(0.5, 0.45, 0.1, 28),
-  new T.MeshStandardMaterial({ color: "#28282e" }),
-);
+const preparedPan = makeCookingPan();
 preparedPan.name = "player-cooking-pan";
 preparedPan.position.set(-12.5, 1.13, 12.8);
 preparedPan.visible = false;
@@ -2435,22 +2433,9 @@ function beginCooking() {
   second.name = "moms-meal-plate";
   second.visible = false;
   root.add(second);
-  const pan = new T.Mesh(
-    new T.CylinderGeometry(0.5, 0.44, 0.12, 28),
-    new T.MeshStandardMaterial({
-      color: "#29292e",
-      metalness: 0.6,
-      roughness: 0.35,
-    }),
-  );
+  const pan = makeCookingPan();
   pan.position.set(-12.5, 1.11, 12.8);
   root.add(pan);
-  const handle = new T.Mesh(
-    new T.BoxGeometry(0.6, 0.065, 0.1),
-    new T.MeshStandardMaterial({ color: "#543a2e" }),
-  );
-  handle.position.set(-11.77, 1.13, 12.8);
-  root.add(handle);
   const momOrigin = world.mom.position.clone();
   cookingScene = {
     recipe,
@@ -2593,7 +2578,7 @@ function updateCooking(dt: number) {
     );
   }
 }
-let desertClock = 0,
+let desertClock = 12,
   desertLast = new T.Vector2(),
   desertLine = 0;
 function updateDesertThought(dt: number) {
@@ -2605,7 +2590,7 @@ function updateDesertThought(dt: number) {
   );
   desertLast.set(s.position.x, s.position.z);
   if (moved > 0.01) desertClock += dt;
-  if (desertClock < 6 && thoughtTime > 0) return;
+  if (desertClock < 12 || thoughtTime > 0) return;
   desertClock = 0;
   const n = mansionCount(m),
     visited = !!m.titheAccepted || !!m.chats["visited-summit"];
@@ -3643,6 +3628,7 @@ function interact() {
       "<p>Oh, how wonderful to see you both! You’re looking brighter, dear. Come along, let’s go inside for tea.</p>",
       [{ label: "Lead us in", run: guideIntoBea }],
     );
+  if (id === "robertsons-home") return homeShop();
   if (id === "bike-rack") return bikeRackMenu();
   if (id.startsWith("bike-")) return showBike(id.slice(5) as BikeId);
   if (id === "bicycle") {
@@ -3680,7 +3666,7 @@ function interact() {
       thought.hidden = false;
       thoughtTime = 9;
     }
-    toast("E to stand up. You can stay a while.");
+    toast("E to stand up. T to change the TV channel.");
     save();
     return;
   }
@@ -4187,6 +4173,11 @@ addEventListener("keydown", (e) => {
     mountBike();
     return;
   }
+  if (key === "t" && sitting && couchZoom !== undefined) {
+    e.preventDefault();
+    tvMenu();
+    return;
+  }
   if (key === "f") {
     activateBikeFeature();
     return;
@@ -4514,12 +4505,14 @@ function selectTarget() {
         (t.id !== "pepe-door" || !canEnterPepe(s)) &&
         (t.id !== "tv-seeds" || (!!s.foundGardenSeeds && !s.foundTVSeeds)) &&
         targetDistance(t) <
-          (t.id === "mom" &&
-          momStatus(s.day, s.familyStory).activity === "bedrest"
-            ? 3.8
-            : wearing(s, "lantern") || buff(s, "reach")
-              ? 3
-              : 2.1) &&
+          (t.id.startsWith("bike-") && t.id !== "bike-rack"
+            ? 4.5
+            : t.id === "mom" &&
+                momStatus(s.day, s.familyStory).activity === "bedrest"
+              ? 3.8
+              : wearing(s, "lantern") || buff(s, "reach")
+                ? 3
+                : 2.1) &&
         hasSight(t),
     )
     .sort((a, b) => targetScore(a) - targetScore(b))[0];
@@ -4807,7 +4800,7 @@ function updateUI() {
     prompt =
       meditationTime > 0
         ? `Meditating · ${Math.ceil(meditationTime)}s`
-        : "<kbd>E</kbd> Stand up";
+        : `<kbd>E</kbd> Stand up${couchZoom !== undefined ? " · <kbd>T</kbd> TV channel" : ""}`;
   if ((s.pepeShowStarted && !s.pepePopped) || pepeViewHold > 0)
     prompt = s.pepePopped
       ? "Seed packets are falling!"
@@ -6216,6 +6209,59 @@ if (new URLSearchParams(location.search).has("test")) {
         position: o.position.toArray(),
       })),
     }),
+    renderShopHomeReview: (view: string) => {
+      const shots: Record<string, number[][]> = {
+        bed: [
+          [-7.7, 2.7, 11.3],
+          [-3.6, 1.1, 7.6],
+        ],
+        shop: [
+          [4, 3.3, -29],
+          [-3, 1.5, -30],
+        ],
+        memes: [
+          [-1, 12, -34],
+          [-18, 10, -65],
+        ],
+        guru: [
+          [34, 2.0, -126],
+          [34, 1.35, -130],
+        ],
+        pan: [
+          [-11.1, 2.25, 13.5],
+          [-12.3, 1.25, 12.8],
+        ],
+      };
+      const [position, aim] = shots[view];
+      camera.position.fromArray(position);
+      camera.lookAt(new T.Vector3().fromArray(aim));
+      const visible = world.millionaire.group.visible;
+      if (view === "guru") world.millionaire.group.visible = true;
+      renderer.render(scene, camera);
+      world.millionaire.group.visible = visible;
+    },
+    shopHomeReview: () => {
+      const bounds = (name: string) => {
+        const object = scene.getObjectByName(name)!;
+        object.updateWorldMatrix(true, true);
+        const b = new T.Box3().setFromObject(object);
+        return {
+          min: b.min.toArray(),
+          max: b.max.toArray(),
+          position: object.position.toArray(),
+        };
+      };
+      return {
+        bed: bounds("moms-bed-frame"),
+        pan: bounds("player-cooking-pan"),
+        display: bounds("robertsons-groceries-and-furnishings"),
+        groceries: bounds("grocery-wall-display"),
+        furnishings: bounds("furnishing-wall-display"),
+        necklace: bounds("guru-beaded-necklace"),
+        bracelet: bounds("guru-wrist-bracelet"),
+        rooster: world.life.roosterCharge,
+      };
+    },
     sigma: () => ({
       entranceSign: world.sigma.entranceSign.position.toArray(),
       walkers: world.sigma.walkers.map((w) => ({

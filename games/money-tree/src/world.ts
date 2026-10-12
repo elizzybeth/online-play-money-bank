@@ -1,3 +1,4 @@
+import { makeRobertsonsDisplay } from "./robertsons-display";
 import { makeBikeRack } from "./bike-rack";
 import { makeBedsideTable } from "./bedside-model";
 import { makeFurnishing } from "./furnishing-models";
@@ -496,10 +497,10 @@ export function createWorld(scene: T.Scene) {
   box(-5, -0.02, 10, 8, 0.1, 8, "#dbbe96");
   box(-1, 1.7, 10, 0.25, 3.4, 8, "#efb3aa", true);
   for (const z of [6, 14]) box(-5, 1.7, z, 8, 3.4, 0.25, "#efb3aa", true);
-  box(-4, 0.3, 10, 2, 0.6, 3.5, "#9a755b", true);
-  box(-4, 0.69, 10, 2, 0.25, 3.3, "#f0e5cf");
-  box(-4, 0.87, 10.5, 2, 0.14, 2.2, "#863d87");
-  box(-4, 0.91, 8.95, 1.5, 0.2, 0.7, "#ffefd3");
+  box(-4, 0.3, 7.9, 2, 0.6, 3.5, "#9a755b", true).name = "moms-bed-frame";
+  box(-4, 0.69, 7.9, 2, 0.25, 3.3, "#f0e5cf");
+  box(-4, 0.87, 8.4, 2, 0.14, 2.2, "#863d87");
+  box(-4, 0.91, 6.85, 1.5, 0.2, 0.7, "#ffefd3");
   const bedside = makeBedsideTable();
   bedside.position.set(-2.4, 0, 7.2);
   scene.add(bedside);
@@ -927,7 +928,7 @@ export function createWorld(scene: T.Scene) {
               : -12.5,
       inBed ? 1.14 : seated ? 0.69 : 0,
       inBed
-        ? 10.75
+        ? 8.65
         : garden
           ? 18
           : seated
@@ -1431,13 +1432,19 @@ export function createWorld(scene: T.Scene) {
   label("Robertsons", 8, 4.8, -20.7, 8).name = "robertsons-name";
   label("Hardware & Grocer", 8, 3.1, -20.7, 8, "#334a3c", 8).name =
     "robertsons-trade";
-  for (const x of [-3.15, 15.15]) {
+  for (const x of [15.15]) {
     box(x, 1, -29, 1, 2, 7, "#947859", true);
     for (let j = 0; j < 6; j++) {
       box(x, 1.3, -32 + j * 1.1, 0.65, 0.5, 0.6, j % 2 ? "#c9b466" : "#c78e6f");
       box(x, 2.2, -32 + j * 1.1, 0.65, 0.5, 0.6, j % 2 ? "#8caa86" : "#d2ad93");
     }
   }
+  scene.add(makeRobertsonsDisplay());
+  rects.push(
+    { x: -3.05, z: -35, w: 1.05, d: 5.5, clearHeight: 3.3 },
+    { x: -3.05, z: -25, w: 1.05, d: 5.5, clearHeight: 3.6 },
+  );
+  target("robertsons-home", -1.9, -25, "Browse groceries and furnishings");
   box(8, 0.5, -33, 5, 1, 1, "#8b7456", true);
   speakers.push({
     id: "robertson",

@@ -291,6 +291,7 @@ export function createSigmaWorld(
     entrance: "south" | "east" = "south",
   ) {
     houseBounds.push({ x, z, w: 7, d: 7 });
+    const wallHeight = z === -81 ? 5.5 : 4.2;
     for (const r of [
       { x: x - 3.5, z, w: 0.3, d: 7 },
       ...(entrance === "east"
@@ -307,11 +308,46 @@ export function createSigmaWorld(
             { x: x + 2.3, z: z + 3.5, w: 2.4, d: 0.3 },
           ]),
     ]) {
-      const m = box(r.x, 1.45, r.z, r.w, 2.9, r.d, c);
+      const m = box(r.x, wallHeight / 2, r.z, r.w, wallHeight, r.d, c);
       m.userData.cameraWall = true;
       m.material = surfaceMaterial(c, "plaster", 2, 2);
       rects.push(r);
       occluders.push(m);
+    }
+    // Stone plinths, cornice, framed entrance and bronze wall lights tie the row together.
+    for (const r of rects.slice(-5)) {
+      if (Math.abs(r.x - x) > 4 || Math.abs(r.z - z) > 4) continue;
+      box(r.x, 0.18, r.z, r.w + 0.08, 0.22, r.d + 0.08, "#746955");
+      box(r.x, wallHeight - 0.12, r.z, r.w + 0.1, 0.18, r.d + 0.1, "#dfc69d");
+    }
+    const east = entrance === "east";
+    box(
+      east ? x + 3.5 : x,
+      (wallHeight + 2.9) / 2,
+      east ? z : z + 3.5,
+      east ? 0.3 : 2.2,
+      wallHeight - 2.9,
+      east ? 2.2 : 0.3,
+      c,
+    );
+    for (const side of [-1, 1]) {
+      box(
+        east ? x + 3.67 : x + side * 1.14,
+        1.48,
+        east ? z + side * 1.14 : z + 3.67,
+        east ? 0.14 : 0.2,
+        2.96,
+        east ? 0.2 : 0.14,
+        "#e6d2a9",
+      );
+      const lantern = ball(
+        east ? x + 3.77 : x + side * 1.9,
+        2.18,
+        east ? z + side * 1.9 : z + 3.77,
+        0.13,
+        "#ffd893",
+      );
+      (lantern.material as T.MeshStandardMaterial).emissive.set("#bc863f");
     }
     box(x, -0.005, z, 7, 0.1, 7, z === -81 ? "#302d37" : "#a78963").material =
       surfaceMaterial(z === -81 ? "#302d37" : "#a78963", "wood", 3, 3);
@@ -324,8 +360,15 @@ export function createSigmaWorld(
     memeRectStart = rects.length;
   const dog = shell(-3, -49, "#c9a369", "east");
   const dogPartsStart = town.children.length;
-  const dogHead = ball(dog.x, 3.6, dog.z, 4, "#c49653");
+  const dogHead = mesh(
+    new T.SphereGeometry(4, 32, 24),
+    "#c49653",
+    dog.x,
+    3.6,
+    dog.z,
+  );
   dogHead.scale.set(1, 0.8, 0.9);
+  dogHead.material = surfaceMaterial("#d0a26b", "fur", 5, 4);
   roofs.push(dogHead);
   for (const side of [-1, 1]) {
     const ear = mesh(
@@ -342,6 +385,42 @@ export function createSigmaWorld(
   ball(dog.x, 3.9, dog.z + 3, 0.7, "#edcf91").scale.set(1.8, 0.8, 0.65);
   ball(dog.x, 4.16, dog.z + 3.4, 0.24, "#272b28");
   for (const part of town.children.slice(dogPartsStart)) part.position.y += 2.8;
+  const furGeo = new T.BufferGeometry();
+  const furVertices: number[] = [];
+  for (let i = 0; i < 360; i++) {
+    const a = i * 2.39996,
+      v = -0.85 + 1.7 * (i / 359),
+      r = Math.sqrt(1 - v * v);
+    const base = new T.Vector3(
+      Math.cos(a) * r * 4,
+      v * 3.2,
+      Math.sin(a) * r * 3.6,
+    );
+    const n = new T.Vector3(
+      base.x / 16,
+      base.y / 10.24,
+      base.z / 12.96,
+    ).normalize();
+    const tangent = new T.Vector3(-Math.sin(a), 0, Math.cos(a)).multiplyScalar(
+      0.065,
+    );
+    const tip = base
+      .clone()
+      .addScaledVector(n, 0.09)
+      .add(new T.Vector3(0, -0.09, 0));
+    for (const vtx of [
+      base.clone().add(tangent),
+      base.clone().sub(tangent),
+      tip,
+    ])
+      furVertices.push(vtx.x, vtx.y, vtx.z);
+  }
+  furGeo.setAttribute("position", new T.Float32BufferAttribute(furVertices, 3));
+  furGeo.computeVertexNormals();
+  const fur = mesh(furGeo, "#c6a16c", dog.x, 6.4, dog.z);
+  fur.name = "doge-fur-tufts";
+  (fur.material as T.MeshStandardMaterial).side = T.DoubleSide;
+  roofs.push(fur);
   const frog = shell(-3, -66, "#609758", "east");
   const frogFaceStart = town.children.length;
   const frogRoof = ball(frog.x, 3.6, frog.z, 4, "#609758");
@@ -355,15 +434,45 @@ export function createSigmaWorld(
   }
   box(frog.x, 3.85, frog.z + 3.45, 3.2, 0.16, 0.1, "#42593a");
   const frogParts = town.children.slice(frogFaceStart) as T.Mesh[];
+  for (const part of frogParts) {
+    part.position.y += 2.8;
+    const old = part.material as T.MeshStandardMaterial;
+    part.material = new T.MeshPhysicalMaterial({
+      color: old.color,
+      roughness: 0.36,
+      clearcoat: 0.3,
+      clearcoatRoughness: 0.45,
+    });
+    old.dispose();
+  }
+
   const hawk = shell(-3, -81, "#e4bea1", "east");
   const cowboyBrim = ball(hawk.x, 3.1, hawk.z, 5.5, "#b58958");
-  cowboyBrim.scale.set(1, 0.055, 0.72);
+  cowboyBrim.position.y = 5.4;
+  cowboyBrim.geometry.dispose();
+  const brimGeometry = new T.CircleGeometry(5.05, 64, 0, Math.PI * 2);
+  const pos = brimGeometry.getAttribute("position");
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i),
+      z = pos.getY(i) * 0.7;
+    pos.setXYZ(
+      i,
+      x,
+      0.18 + 0.95 * (Math.abs(x) / 5.05) ** 3 - 0.18 * (z / 3.54) ** 2,
+      z,
+    );
+  }
+  brimGeometry.computeVertexNormals();
+  cowboyBrim.geometry = brimGeometry;
+  cowboyBrim.material = surfaceMaterial("#b58958", "cloth", 9, 6);
+  (cowboyBrim.material as T.MeshStandardMaterial).side = T.DoubleSide;
+
   roofs.push(cowboyBrim);
   const crown = mesh(
     new T.CylinderGeometry(2.15, 2.7, 3.2, 24),
     "#bc9365",
     hawk.x,
-    4.65,
+    6.95,
     hawk.z,
   );
   crown.material = surfaceMaterial("#bc9365", "cloth");
@@ -372,12 +481,26 @@ export function createSigmaWorld(
     new T.CylinderGeometry(2.65, 2.7, 0.36, 24),
     "#5f4230",
     hawk.x,
-    3.45,
+    5.75,
     hawk.z,
   );
   roofs.push(hatBand);
-  const buckle = box(hawk.x, 3.45, hawk.z + 2.68, 0.8, 0.4, 0.12, "#e5c477");
+  const buckle = box(hawk.x, 5.75, hawk.z + 2.68, 0.8, 0.4, 0.12, "#e5c477");
   roofs.push(buckle);
+  for (let i = 0; i < 12; i++) {
+    const a = (i * Math.PI) / 6;
+    const stud = ball(
+      hawk.x + Math.cos(a) * 2.68,
+      5.76,
+      hawk.z + Math.sin(a) * 2.68,
+      0.065,
+      "#d6c5a1",
+    );
+    roofs.push(stud);
+  }
+  const crease = box(hawk.x, 8.55, hawk.z, 0.24, 0.05, 2.9, "#8e6b43");
+  roofs.push(crease);
+
   // The east wall's outer face is x=.65 before scaling. Signs need a
   // physical standoff, and must sit below the cowboy hat's broad brim.
   sign("Hawk Tuah", 1.4, 3.6, -81, 3.6).rotation.y = Math.PI / 2;
