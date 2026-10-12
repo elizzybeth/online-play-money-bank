@@ -93,3 +93,41 @@ test("valid backup restores progress after a rejected primary save", async ({
     await page.evaluate(() => localStorage.getItem("money-tree-v1-rejected")),
   ).toBe("corrupt");
 });
+
+test("recovery imports a valid save directly and keeps it after refresh", async ({
+  page,
+}) => {
+  await page.clock.install({ time: new Date("2026-01-01") });
+  await page.clock.pauseAt(new Date("2026-01-02"));
+  await page.addInitScript(() => {
+    if (!localStorage.getItem("money-tree-v1"))
+      localStorage.setItem("money-tree-v1", "broken");
+  });
+  await page.goto("./?test");
+  await page.getByRole("button", { name: "Wake up" }).click();
+  const chooser = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "Import save", exact: true }).click();
+  await (
+    await chooser
+  ).setFiles({
+    name: "recovered.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(
+      JSON.stringify({ ...fresh(), day: 21, bank: 116837, cash: 810 }),
+    ),
+  });
+  await expect(page.getByRole("dialog")).toBeHidden();
+  expect(
+    await page.evaluate(
+      () => JSON.parse(localStorage.getItem("money-tree-v1")!).day,
+    ),
+  ).toBe(21);
+  await page.reload();
+  await page.getByRole("button", { name: "Wake up" }).click();
+  expect(await page.evaluate(() => (window as any).game.state().bank)).toBe(
+    116837,
+  );
+  expect(
+    await page.evaluate(() => localStorage.getItem("money-tree-v1-rejected")),
+  ).toBe("broken");
+});

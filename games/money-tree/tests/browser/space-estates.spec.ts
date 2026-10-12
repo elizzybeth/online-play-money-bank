@@ -129,37 +129,41 @@ for (const style of ["hearst", "vernon"] as const)
       });
     }
   });
-test("meteor makes one crater tree and one price crash and persists through reload", async ({
-  page,
-}) => {
-  const s = base();
-  s.day = 2;
-  s.position = { x: -75, z: -180 };
-  createCoin(s, "SpaceTree");
-  s.coin!.price = 10000;
-  s.coin!.exactPrice = 10000;
-  s.adventure = { meteorNextDay: 2, meteorNextAt: 0 };
-  await start(page, s);
-  await page.evaluate(() => (window as any).game.advanceSpace(3));
-  await frames(page, 90);
-  const state = await page.evaluate(() => (window as any).game.state());
-  expect(state.adventure.meteors).toHaveLength(1);
-  expect(state.adventure.meteors[0].landed).toBe(true);
-  expect(state.coin.price).toBe(4800);
-  expect(state.plots[state.adventure.meteors[0].plot].stage).toBe("ready");
-  await page.reload();
-  await page.getByRole("button", { name: "Wake up" }).click();
-  await frames(page);
-  const reloaded = await page.evaluate(() => (window as any).game.state());
-  expect(reloaded.coin.price).toBe(4800);
-  expect(reloaded.adventure.meteors).toHaveLength(1);
-  if (process.env.MONEY_TREE_CAPTURE) {
-    await page.evaluate(() => (window as any).game.craterView());
-    await page.screenshot({
-      path: process.env.MONEY_TREE_CAPTURE + "/crater.png",
-    });
-  }
-});
+for (const distant of [false, true])
+  test(`meteor makes one crater tree and one price crash and persists through reload (distant=${distant})`, async ({
+    page,
+  }) => {
+    const s = base();
+    s.day = 2;
+    s.position = distant ? { x: -16, z: 4 } : { x: -75, z: -180 };
+    createCoin(s, "SpaceTree");
+    s.coin!.price = 10000;
+    s.coin!.exactPrice = 10000;
+    s.adventure = { meteorNextDay: 2, meteorNextAt: 0 };
+    await start(page, s);
+    await page.evaluate(() => (window as any).game.advanceSpace(3));
+    await frames(page, 90);
+    const state = await page.evaluate(() => (window as any).game.state());
+    expect(state.adventure.meteors).toHaveLength(1);
+    expect(state.adventure.meteors[0].landed).toBe(true);
+    expect(state.plots[state.adventure.meteors[0].plot].meteor).toBe(
+      state.adventure.meteors[0].id,
+    );
+    expect(state.coin.price).toBe(4800);
+    expect(state.plots[state.adventure.meteors[0].plot].stage).toBe("ready");
+    await page.reload();
+    await page.getByRole("button", { name: "Wake up" }).click();
+    await frames(page);
+    const reloaded = await page.evaluate(() => (window as any).game.state());
+    expect(reloaded.coin.price).toBe(4800);
+    expect(reloaded.adventure.meteors).toHaveLength(1);
+    if (process.env.MONEY_TREE_CAPTURE) {
+      await page.evaluate(() => (window as any).game.craterView());
+      await page.screenshot({
+        path: process.env.MONEY_TREE_CAPTURE + "/crater.png",
+      });
+    }
+  });
 async function approach(page: Page, id: string) {
   await page.evaluate((id) => {
     const game = (window as any).game,

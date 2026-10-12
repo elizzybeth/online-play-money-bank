@@ -2967,43 +2967,7 @@ function pauseMenu() {
       {
         label: "Import save",
         destructive: true,
-        run: () => {
-          const input = document.createElement("input");
-          input.type = "file";
-          input.accept = ".json";
-          input.onchange = async () => {
-            const file = input.files?.[0];
-            if (!file) return;
-            const next = decode(await file.text());
-            if (!next) {
-              toast(
-                "That save could not be read. Your current garden is safe.",
-              );
-              return;
-            }
-            action = undefined;
-            momSpoke = false;
-            world.player.userData.farewell = false;
-
-            s = next;
-            saveStore?.write(s, true);
-            resetTransientMotion();
-            wasHome = atHome();
-            visitedOutside = s.awake && !wasHome;
-            if (
-              blocked(s.position.x, s.position.z, world.rects) ||
-              Math.abs(s.position.x) > 38 ||
-              s.position.z > 38 ||
-              s.position.z <
-                (s.millionaire?.unlocked ? -470 : s.foundTVSeeds ? -89 : -39)
-            )
-              s.position = { x: -16, z: 4 };
-            plotVersions.length = 0;
-            save();
-            close();
-          };
-          input.click();
-        },
+        run: importSave,
       },
       {
         label: "Start a new garden",
@@ -4288,6 +4252,43 @@ function chime() {
     o.stop(audio.currentTime + 0.7 + i * 0.1);
   }
 }
+function importSave() {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".json";
+  input.onchange = async () => {
+    const file = input.files?.[0];
+    if (!file) return;
+    const next = decode(await file.text());
+    if (!next) {
+      toast("That save could not be read. Your current garden is safe.");
+      return;
+    }
+    action = undefined;
+    momSpoke = false;
+    world.player.userData.farewell = false;
+
+    s = next;
+    saveStore?.write(s, true);
+    resetTransientMotion();
+    wasHome = atHome();
+    visitedOutside = s.awake && !wasHome;
+    if (
+      blocked(s.position.x, s.position.z, world.rects) ||
+      Math.abs(s.position.x) > 38 ||
+      s.position.z > 38 ||
+      s.position.z <
+        (s.millionaire?.unlocked ? -470 : s.foundTVSeeds ? -89 : -39)
+    )
+      s.position = { x: -16, z: 4 };
+    plotVersions.length = 0;
+    save();
+    close();
+    if (!begun) $("#begin").click();
+  };
+  input.click();
+}
+
 function cancelNewGame() {
   close();
   $("#intro").hidden = false;
@@ -4349,6 +4350,7 @@ $("#begin").onclick = () => {
             setTimeout(() => URL.revokeObjectURL(url), 1000);
           },
         },
+        { label: "Import save", run: importSave },
         {
           label: "Back",
           default: true,

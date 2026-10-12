@@ -111,30 +111,7 @@ export function createMeteorWorld(scene: T.Scene, onImpact: () => void) {
             if (landMeteor(s, m.id)) onImpact();
           }
         }
-        if (m.landed) {
-          if (m.plot === undefined) {
-            m.plot = s.plots.length;
-            s.plots.push({
-              x: m.x,
-              z: m.z,
-              mountain: false,
-              soilFilled: true,
-              stage: "ready",
-              remaining: 0,
-              fertilized: false,
-              yield: 700,
-            });
-          } else if (born?.id === m.id) {
-            s.plots[m.plot] = {
-              x: m.x,
-              z: m.z,
-              soilFilled: true,
-              stage: "ready",
-              remaining: 0,
-              fertilized: false,
-              yield: 700,
-            };
-          }
+        if (m.landed && m.plot !== undefined) {
           m.harvested = s.plots[m.plot]?.stage === "harvested";
         }
       }
