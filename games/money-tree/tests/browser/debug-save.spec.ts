@@ -8,6 +8,8 @@ test("pause debug unlock survives refresh and preserves a pre-debug backup", asy
   page.on("console", (m) => {
     if (m.type() === "error") errors.push(m.text());
   });
+  await page.clock.install({ time: new Date("2026-01-01") });
+  await page.clock.pauseAt(new Date("2026-01-02"));
   await page.goto("./?test");
   await page.getByRole("button", { name: "Wake up" }).click();
   await page.keyboard.press("Escape");
