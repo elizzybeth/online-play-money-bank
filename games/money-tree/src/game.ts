@@ -818,6 +818,24 @@ export function decode(raw: string | null): State | null {
       )
     )
       return null;
+    // Early meteor visuals dropped the plot's ID. Restore only an unambiguous
+    // link already recorded by a landed meteor at this exact plot and position.
+    for (const m of s.adventure?.meteors ?? []) {
+      const p = s.plots[m.plot];
+      if (
+        m.landed &&
+        p &&
+        p.meteor === undefined &&
+        !p.mountain &&
+        !p.community &&
+        p.x === m.x &&
+        p.z === m.z &&
+        s.adventure.meteors.filter(
+          (other: import("./adventure").Meteor) => other.plot === m.plot,
+        ).length === 1
+      )
+        p.meteor = m.id;
+    }
     if (
       !s.plots.every(
         (p: Plot, i: number) =>

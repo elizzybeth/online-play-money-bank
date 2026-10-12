@@ -217,3 +217,38 @@ test("a meteor without a launched coin records the discovery without inventing a
   assert.doesNotMatch(s.events.at(-1)!, /coin|tumbl|plung/);
   assert.ok(decode(JSON.stringify(s)));
 });
+
+test("legacy meteor plots recover their recorded ID without changing progress", () => {
+  const s = fresh();
+  s.day = 21;
+  s.cash = 810;
+  s.bank = 116837;
+  s.adventure = {
+    meteors: [
+      {
+        id: 1,
+        day: 21,
+        x: -80,
+        z: -180,
+        landed: false,
+        harvested: false,
+        crashed: false,
+      },
+    ],
+  };
+  landMeteor(s, 1);
+  const index = s.adventure.meteors![0].plot!;
+  delete s.plots[index].meteor;
+  s.plots[index].stage = "harvested";
+  s.plots[index].yield = 0;
+  const restored = decode(JSON.stringify(s));
+  assert.ok(restored);
+  assert.equal(restored.plots[index].meteor, 1);
+  assert.equal(restored.plots[index].stage, "harvested");
+  assert.equal(restored.day, 21);
+  assert.equal(restored.bank, 116837);
+  assert.equal(restored.cash, 810);
+  assert.ok(decode(JSON.stringify(restored)));
+  s.plots[index].x = -81;
+  assert.equal(decode(JSON.stringify(s)), null);
+});
