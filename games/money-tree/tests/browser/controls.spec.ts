@@ -156,10 +156,23 @@ test("title-screen new game preserves saves until explicit confirmation", async 
     .getByRole("button", { name: "Withdraw amount", exact: true })
     .click();
   await page.getByRole("button", { name: "Close", exact: true }).click();
-  const saved = await page.evaluate(() =>
+  const beforeReload = await page.evaluate(() =>
     JSON.parse(localStorage.getItem("money-tree-v1")!),
   );
   await page.reload();
+  const saved = await page.evaluate(() => (window as any).game.state());
+  // Unload can persist one last active frame. Title-screen confirmations must
+  // preserve that loaded snapshot, including its clock, exactly.
+  expect(saved).toEqual({
+    ...beforeReload,
+    adventure: {
+      ...beforeReload.adventure,
+      awakeSeconds: saved.adventure.awakeSeconds,
+    },
+  });
+  expect(saved.adventure.awakeSeconds).toBeGreaterThanOrEqual(
+    beforeReload.adventure.awakeSeconds,
+  );
   const newGame = page.locator("#new-game");
   await expect(newGame).toBeVisible();
   await expect(page.locator("#intro small")).toHaveCount(0);
