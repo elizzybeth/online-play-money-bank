@@ -1,3 +1,4 @@
+import { flatPath } from "./flat-path";
 import { desertGround } from "./meteor-world";
 import { makeDesertPlants } from "./desert-plants";
 import { makeSportsCar, makeYacht } from "./wealth-models";
@@ -67,25 +68,69 @@ export function createMillionaireWorld(
     color: string,
     parent: T.Object3D = group,
   ) => part(new T.SphereGeometry(r, 10, 7), color, x, y, z, parent);
+  const boundaryRects = [
+    { x: -94.8, z: -280, w: 0.8, d: 382 },
+    { x: 160.8, z: -280, w: 0.8, d: 382 },
+    { x: 33, z: -470.8, w: 256.4, d: 0.8 },
+    { x: -33.4, z: -89.6, w: 122, d: 0.8 },
+    { x: 106.6, z: -89.6, w: 108.4, d: 0.8 },
+  ];
+  const boundary = new T.Group();
+  boundary.name = "level-three-boundary-wall";
+  group.add(boundary);
+  const wallParts: T.BufferGeometry[] = [],
+    caps: T.BufferGeometry[] = [];
+  for (const r of boundaryRects) {
+    wallParts.push(
+      new T.BoxGeometry(r.w, 1.15, r.d).translate(r.x, 0.575, r.z),
+    );
+    caps.push(
+      new T.BoxGeometry(r.w + 0.12, 0.14, r.d + 0.12).translate(r.x, 1.22, r.z),
+    );
+  }
+  for (const [pieces, color] of [
+    [wallParts, "#a19379"],
+    [caps, "#d6c9ac"],
+  ] as const) {
+    const mesh = new T.Mesh(mergeGeometries([...pieces])!, material(color));
+    mesh.castShadow = mesh.receiveShadow = true;
+    boundary.add(mesh);
+    pieces.forEach((g) => g.dispose());
+  }
   group.add(desertGround());
   box(46, -0.3, -76, 12, 0.5, 32, "#a4bd77");
   // East-hedge entrance runs outside town, then merges into the grove clearing.
-  const entrancePath = box(42, 0.035, -61, 10, 0.035, 6, "#c5b48d");
+  const entrancePath = part(
+    flatPath(
+      [
+        { x: 42, z: -61, w: 10, d: 6 },
+        { x: 46, z: -82, w: 4, d: 44 },
+        { x: 40, z: -104, w: 16, d: 4 },
+        { x: 34, z: -113, w: 4, d: 18 },
+      ],
+      0.055,
+    ),
+    "#c5b48d",
+    0,
+    0,
+    0,
+  );
   entrancePath.name = "millionaire-town-path-connection";
-  box(46, 0.035, -82, 4, 0.035, 44, "#c5b48d");
-  box(40, 0.035, -104, 16, 0.035, 4, "#c5b48d");
-  box(34, 0.035, -113, 4, 0.035, 18, "#c5b48d");
+  entrancePath.userData.depthAudit = true;
   const clearing = part(
     new T.CylinderGeometry(13, 13, 0.04, 64),
     "#c5b48d",
     34,
-    0.04,
+    0.08,
     -131,
   );
   clearing.name = "willow-circular-clearing";
+  clearing.userData.depthAudit = true;
   const guidedPath = new T.Group();
   group.add(guidedPath);
-  box(34, 0.015, -242, 4, 0.07, 196, "#c5b48d", guidedPath);
+  const onward = box(34, 0.015, -242, 4, 0.07, 196, "#c5b48d", guidedPath);
+  onward.name = "millionaire-onward-path";
+  onward.userData.depthAudit = true;
   // The onward lane joins the circular clearing tangentially, without a seam.
 
   function willow(x: number, z: number, size: number) {
@@ -230,12 +275,14 @@ export function createMillionaireWorld(
       );
       shape.closePath();
       const geometry = new T.ExtrudeGeometry(shape, {
-        depth: terrace.y + 2,
+        depth: terrace.y + 2.045,
         bevelEnabled: false,
         curveSegments: 32,
         steps: 1,
       });
       const stone = part(geometry, "#f0efe0", terrace.x, -2, terrace.z);
+      stone.name = `mountain-terrace-${terrace.y}-${side}`;
+      stone.userData.depthAudit = true;
       stone.rotation.x = -Math.PI / 2;
       const points = Array.from({ length: 65 }, (_, i) => {
         const angle = startAngle + ((endAngle - startAngle) * i) / 64;
@@ -560,6 +607,11 @@ export function createMillionaireWorld(
     });
     const m = s.millionaire;
     group.visible = !!m?.unlocked;
+    for (const boundaryRect of boundaryRects) {
+      const index = rects.indexOf(boundaryRect);
+      if (group.visible && index < 0) rects.push(boundaryRect);
+      if (!group.visible && index >= 0) rects.splice(index, 1);
+    }
     if (!group.visible) {
       for (const rect of [
         ...bodies.map((b) => b.rect),

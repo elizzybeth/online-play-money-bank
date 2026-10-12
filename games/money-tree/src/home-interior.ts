@@ -287,7 +287,10 @@ export function decorateHome(scene: T.Scene, rects: Rect[]) {
       (o): o is T.Mesh => o instanceof T.Mesh && o.material === mat,
     );
     const geometry = mergeGeometries(
-      pieces.map((o) => o.geometry.clone().applyMatrix4(o.matrix)),
+      pieces.map((o) => {
+        const geometry = o.geometry.clone().applyMatrix4(o.matrix);
+        return geometry.index ? geometry.toNonIndexed() : geometry;
+      }),
     );
     if (geometry) {
       const batch = new T.Mesh(geometry, mat);

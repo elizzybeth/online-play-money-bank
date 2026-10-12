@@ -150,6 +150,7 @@ export function createSigmaWorld(
     surfaceMaterial("#d7cba9", "path", 1, 1),
   );
   walkway.name = "sigma-continuous-sidewalk";
+  walkway.userData.depthAudit = true;
   walkway.receiveShadow = true;
   town.add(walkway);
   const entranceSign = sign("Sigma Town", 34, 4.8, -43, 5);

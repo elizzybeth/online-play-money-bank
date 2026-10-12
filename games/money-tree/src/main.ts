@@ -1,3 +1,8 @@
+import { debugActions, applyDebugAction, type DebugAction } from "./debug-menu";
+import { SaveStore } from "./save-store";
+import { depthAudit } from "./depth-audit";
+import { makeGrocery } from "./grocery-models";
+import { productPortrait } from "./product-portrait";
 import { createNeighborGardens } from "./neighbor-gardens";
 import { createEstateWorld } from "./estate-world";
 import { makeTruck, makeRepoMan } from "./estate-models";
@@ -256,10 +261,20 @@ addEventListener("beforeunload", () => {
 document.addEventListener("visibilitychange", () => {
   if (document.hidden && s) save();
 });
+let saveStore: SaveStore | undefined;
 try {
-  s = load(localStorage.getItem(SAVE));
+  saveStore = new SaveStore(localStorage);
+  s = saveStore.read();
 } catch {
   s = fresh();
+}
+if (saveStore?.protected || saveStore?.recovered) {
+  const notice = document.createElement("p");
+  notice.setAttribute("role", "status");
+  notice.textContent = saveStore.protected
+    ? "Your saved data could not be read. It has been preserved and will not be overwritten."
+    : "Recovered your last valid backup. The unreadable save has also been preserved.";
+  document.querySelector(".intro-card")!.append(notice);
 }
 let muted = false,
   lowQuality = false,
@@ -1553,7 +1568,15 @@ function save() {
   updateInventoryNotices(0);
   world.updateNotebook(s.journal.at(-1)!, s.journal.length);
   try {
-    localStorage.setItem(SAVE, JSON.stringify(s));
+    if (!saveStore || !saveStore.write(s)) {
+      if (!storageWarning) {
+        storageWarning = true;
+        toast(
+          "Your previous save is preserved. This game state could not be saved; export your progress from the pause menu.",
+        );
+      }
+      return;
+    }
   } catch {
     if (!storageWarning) {
       storageWarning = true;
@@ -2102,38 +2125,64 @@ function bank(afterTransfer = false) {
     "YOUR PIGGY BANK",
   );
 }
-function homeShop() {
-  const stock = furnishingCatalog.filter((f) => f.level <= homeLevel(s));
+const productPortraits = new Map<string, string>();
+function shopPortrait(id: string, model: () => T.Object3D) {
+  if (!productPortraits.has(id))
+    productPortraits.set(id, productPortrait(renderer, model()));
+  return productPortraits.get(id)!;
+}
+function homeShop(department: "groceries" | "furnishings" = "furnishings") {
+  const groceries = department === "groceries";
+  const stock = groceries
+    ? ingredients.map((id) => ({
+        id,
+        name: id[0].toUpperCase() + id.slice(1),
+        price: 100,
+        image: () => makeGrocery(id),
+        quantity: s.groceries?.[id] ?? 0,
+        buy: () => buyGrocery(s, id),
+      }))
+    : furnishingCatalog
+        .filter((f) => f.level <= homeLevel(s) && f.level < 4)
+        .map((f) => ({
+          ...f,
+          image: () => makeFurnishing(f.id),
+          quantity: (s.furnitureBag ?? []).filter((id) => id === f.id).length,
+          buy: () => {
+            const price = purchasePrice(s, f.price);
+            if (s.cash < price) return false;
+            s.cash -= price;
+            (s.furnitureBag ??= []).push(f.id);
+            s.events.push(`Bought ${f.name} for home.`);
+            return true;
+          },
+        }));
   panel(
-    "Robertsons: groceries and home",
-    `<p>Eggs, rice, beans and tortillas are always available. Bring any combination home to cook with Mom.</p><p>Two new furnishing kinds arrive at each level: paintings, chairs and a pink pouf, then monstera and snake plants, then pothos and rugs. Paintings have several designs.</p><p>Food bonuses last during awake play and end at sleep.</p>`,
+    groceries ? "Robertsons: Groceries" : "Robertsons: Home Furnishings",
+    `<p>${groceries ? "Bring groceries home to cook with Mom. Food bonuses last until sleep." : "Choose furnishings for your home. New items arrive as you explore."}</p><p>Your pocket: <b>${money(s.cash)}</b></p><div class="inventory-grid shop-grid">${stock.map((item) => `<button type="button" class="inventory-card shop-card" data-product="${item.id}" aria-label="${item.name} · ${money(purchasePrice(s, item.price))}" ${s.cash < purchasePrice(s, item.price) ? "disabled" : ""}><img src="${shopPortrait(item.id, item.image)}" alt="${item.name}"><span>${item.name}</span><small>In bag: ${item.quantity}</small><b>Buy · ${money(purchasePrice(s, item.price))}</b></button>`).join("")}</div>`,
     [
-      ...ingredients.map((item) => ({
-        label: `${item[0].toUpperCase() + item.slice(1)} · ${money(purchasePrice(s, 100))} · in bag ${s.groceries?.[item] ?? 0}`,
-        disabled: s.cash < purchasePrice(s, 100),
-        run: () => {
-          if (buyGrocery(s, item)) {
-            save();
-            homeShop();
-          }
-        },
-      })),
-      ...stock.map((f) => ({
-        label: `${f.name} · ${money(purchasePrice(s, f.price))}`,
-        disabled: s.cash < purchasePrice(s, f.price),
-        run: () => {
-          const price = purchasePrice(s, f.price);
-          if (s.cash < price) return;
-          s.cash -= price;
-          (s.furnitureBag ??= []).push(f.id);
-          s.events.push(`Bought ${f.name} for home.`);
-          save();
-          homeShop();
-        },
-      })),
+      {
+        label: groceries ? "Home Furnishings" : "Groceries",
+        run: () => homeShop(groceries ? "furnishings" : "groceries"),
+      },
       { label: "Back to the day", default: true, run: close },
     ],
   );
+  $("#modal .panel").classList.add("inventory-panel", "shop-panel");
+  document
+    .querySelectorAll<HTMLButtonElement>("[data-product]")
+    .forEach((button) => {
+      button.onclick = () => {
+        const item = stock.find((item) => item.id === button.dataset.product)!;
+        if (!item.buy()) return;
+        save();
+        homeShop(department);
+        const next = document.querySelector<HTMLButtonElement>(
+          `[data-product="${item.id}"]`,
+        );
+        if (next && !next.disabled) next.focus();
+      };
+    });
 }
 let placingFurniture:
   | {
@@ -2705,7 +2754,8 @@ function robertson() {
       ...(!s.boughtSeeds
         ? [{ label: "Yes, seeds please · $2", run: () => shop("seeds") }]
         : []),
-      { label: "Groceries and home furnishings", run: homeShop },
+      { label: "Groceries", run: () => homeShop("groceries") },
+      { label: "Home Furnishings", run: () => homeShop("furnishings") },
       { label: "Look around", default: !!s.boughtSeeds, run: dismissSpeech },
       ...(!s.can && s.cash + s.bank < 100 && !s.recovered
         ? [
@@ -2780,12 +2830,87 @@ const bedObstacles = () =>
     { x: -15, z: 6, w: 12, d: 16 },
     { x: -5, z: 10, w: 8, d: 8 },
   ]);
+function debugMenu(group?: string, message = "") {
+  const run = (id: DebugAction) => {
+    const next = structuredClone(s);
+    applyDebugAction(next, id);
+    if (!decode(JSON.stringify(next))) {
+      debugMenu(
+        group,
+        "That change could not be saved. Your current progress is unchanged.",
+      );
+      return;
+    }
+    try {
+      if (!localStorage.getItem(SAVE + "-debug-backup"))
+        localStorage.setItem(SAVE + "-debug-backup", JSON.stringify(s));
+    } catch {
+      debugMenu(
+        group,
+        "Could not preserve a pre-debug backup. Export your save before testing.",
+      );
+      return;
+    }
+    s = next;
+    resetTransientMotion();
+    sitting = false;
+    world.setPlayerSeated(false);
+    world.setSigmaUnlocked(!!s.foundTVSeeds);
+    world.syncBeds(s.plots);
+    plotVersions.length = 0;
+    save();
+    debugMenu(
+      group,
+      debugActions.find((a) => a.id === id)!.label + " — applied.",
+    );
+  };
+  panel(
+    group ? `Debug: ${group}` : "Debug menu",
+    `<p>Testing tools change this save and save automatically. A pre-debug backup is kept in this browser.</p><p role="status">${escapeHTML(message)}</p>`,
+    [
+      ...(group
+        ? debugActions
+            .filter((a) => a.group === group)
+            .map((a) => ({ label: a.label, run: () => run(a.id) }))
+        : [...new Set(debugActions.map((a) => a.group))].map((name) => ({
+            label: name,
+            run: () => debugMenu(name),
+          }))),
+      { label: "Export current save", run: exportSave },
+      {
+        label: "Export pre-debug backup",
+        run: () => {
+          const raw = localStorage.getItem(SAVE + "-debug-backup");
+          if (!raw) {
+            debugMenu(group, "Use a testing tool first to create the backup.");
+            return;
+          }
+          const url = URL.createObjectURL(
+            new Blob([raw], { type: "application/json" }),
+          );
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "money-tree-before-debug.json";
+          a.click();
+          URL.revokeObjectURL(url);
+        },
+      },
+      {
+        label: group ? "Back to debug menu" : "Back to pause",
+        run: () => (group ? debugMenu() : pauseMenu()),
+      },
+      { label: "Keep playing", run: close },
+    ],
+    "TESTING",
+  );
+}
 function pauseMenu() {
   panel(
     "Take a little breather",
     `<p>Day ${s.day} · Your progress saves automatically.</p><p class="fine">WASD to walk. Click the game to capture the mouse and look around; left/right arrows turn; up/down arrows tilt the camera. Hold Shift to run. R rolls forward. Q downloads a JSON quicksave. H mounts or dismounts a bicycle; B rings its bell; F activates its special feature while riding. With Spring Hare equipped, Space jumps over beds and hedges. Escape releases the mouse. E interacts. J opens the notebook. I opens your bag.<br>Growth pauses while menus are open or the tab is hidden.</p>`,
     [
       { label: "Keep playing", run: close },
+      { label: "Debug menu", run: () => debugMenu() },
       ...(s.awake
         ? [
             {
@@ -2861,6 +2986,7 @@ function pauseMenu() {
             world.player.userData.farewell = false;
 
             s = next;
+            saveStore?.write(s, true);
             resetTransientMotion();
             wasHome = atHome();
             visitedOutside = s.awake && !wasHome;
@@ -2896,6 +3022,7 @@ function pauseMenu() {
                   world.player.userData.farewell = false;
 
                   s = fresh();
+                  saveStore?.write(s, true);
                   resetTransientMotion();
                   sitting = false;
                   world.setPlayerSeated(false);
@@ -3724,7 +3851,8 @@ function interact(skipTrader = false): void {
       "<p>Oh, how wonderful to see you both! You’re looking brighter, dear. Come along, let’s go inside for tea.</p>",
       [{ label: "Lead us in", run: guideIntoBea }],
     );
-  if (id === "robertsons-home") return homeShop();
+  if (id === "robertsons-home") return homeShop("furnishings");
+  if (id === "robertsons-groceries") return homeShop("groceries");
   if (id === "bike-rack") return bikeRackMenu();
   if (id.startsWith("bike-")) return showBike(id.slice(5) as BikeId);
   if (id === "bicycle") {
@@ -4181,6 +4309,7 @@ $("#new-game").onclick = () => {
           world.player.userData.farewell = false;
 
           s = fresh();
+          saveStore?.write(s, true);
           resetTransientMotion();
           sitting = false;
           world.setPlayerSeated(false);
@@ -4200,6 +4329,37 @@ $("#new-game").onclick = () => {
   );
 };
 $("#begin").onclick = () => {
+  if (saveStore?.protected) {
+    panel(
+      "Your saved game needs recovery",
+      "<p>Your original saved data has been kept unchanged. Export it for recovery, or use Start new game only if you want to replace it.</p>",
+      [
+        {
+          label: "Export preserved save",
+          disabled: !saveStore?.rejected,
+          run: () => {
+            const url = URL.createObjectURL(
+              new Blob([saveStore!.rejected!], { type: "application/json" }),
+            );
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = "money-tree-preserved-save.json";
+            link.click();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+          },
+        },
+        {
+          label: "Back",
+          default: true,
+          run: () => {
+            close();
+            $("#intro").hidden = false;
+          },
+        },
+      ],
+    );
+    return;
+  }
   begun = true;
 
   last = performance.now();
@@ -5866,7 +6026,7 @@ function frame(now: number) {
   );
   homeAudio.update(
     audio,
-    soundsActive && tvDistance < 10 ? (s.tvChannel ?? "cartoons") : "",
+    soundsActive && tvDistance < 10 && s.tvChannel === "news" ? "news" : "",
     Math.max(0, 1 - tvDistance / 10) * 0.022,
   );
   world.updateCartoon(
@@ -6259,6 +6419,13 @@ if (new URLSearchParams(location.search).has("test")) {
       syncTimers();
       save();
     },
+    craterView: () => {
+      const m = s.adventure?.meteors?.find((m) => m.landed);
+      if (!m) return;
+      camera.position.set(m.x + 13, 10, m.z + 16);
+      camera.lookAt(m.x, -1, m.z);
+      renderer.render(scene, camera);
+    },
     estateView: () => {
       camera.position.set(mansionLot.x, 14, mansionLot.z + 42);
       camera.lookAt(mansionLot.x, 5, mansionLot.z);
@@ -6466,6 +6633,7 @@ if (new URLSearchParams(location.search).has("test")) {
           visible: mesh.visible,
         };
       }),
+    depthAudit: () => depthAudit(scene, { taggedOnly: true, upwardOnly: true }),
     targets: world.targets,
     homeDesign: () => ({
       furnishings: world.homeDecor.children.length,

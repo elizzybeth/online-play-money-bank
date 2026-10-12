@@ -422,12 +422,10 @@ export function createWorld(scene: T.Scene) {
   sleeper.rotation.x = -Math.PI / 2;
   sleeper.position.set(-19.1, 1.14, 1.75);
   sleeping.add(sleeper);
-  box(0, -0.25, -25, 100, 0.5, 140, colors.grass).material = surfaceMaterial(
-    colors.grass,
-    "grass",
-    50,
-    45,
-  );
+  const townGround = box(0, -0.25, -25, 100, 0.5, 140, colors.grass);
+  townGround.name = "town-ground";
+  townGround.userData.depthAudit = true;
+  townGround.material = surfaceMaterial(colors.grass, "grass", 50, 45);
   // Draw the union once: overlapping sidewalk rectangles used to flicker.
   const xs = [
     ...new Set(paths.flatMap((p) => [p.x - p.w / 2, p.x + p.w / 2])),
@@ -471,6 +469,7 @@ export function createWorld(scene: T.Scene) {
     surfaceMaterial("#d7cba9", "path", 1, 1),
   );
   sidewalk.name = "continuous-sidewalk";
+  sidewalk.userData.depthAudit = true;
   scene.add(sidewalk);
   // Home: north bedroom, south living room; open doorways on south walls.
   const roofMaterial = surfaceMaterial("#ad7762", "shingles", 5, 3);
@@ -1444,7 +1443,8 @@ export function createWorld(scene: T.Scene) {
     { x: -3.05, z: -35, w: 1.05, d: 5.5, clearHeight: 3.3 },
     { x: -3.05, z: -25, w: 1.05, d: 5.5, clearHeight: 3.6 },
   );
-  target("robertsons-home", -1.9, -25, "Browse groceries and furnishings");
+  target("robertsons-home", -1.9, -25, "Browse Home Furnishings");
+  target("robertsons-groceries", -1.9, -35, "Browse Groceries");
   box(8, 0.5, -33, 5, 1, 1, "#8b7456", true);
   speakers.push({
     id: "robertson",
@@ -1671,7 +1671,7 @@ export function createWorld(scene: T.Scene) {
   bikeShopRoof.geometry = pitchedRoof(20.5, 18.5);
   bikeShopRoof.name = "spoke-saddle-roof";
   // The roof fascia is at z=-20.75. Keep the sign in front of it.
-  const bikeShopSign = label("SPOKE & SADDLE", -18, 3.1, -20.5, 6);
+  const bikeShopSign = label("SPOKE & SADDLE", -18, 5.5, -20.5, 6);
   box(-9, 0.65, -34.5, 1, 1.3, 3, "#947859", true);
   box(-9, 1.35, -34.5, 1.2, 0.12, 3.2, "#8f9ea2");
   for (const z of [-35.4, -34.5, -33.6])

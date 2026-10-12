@@ -2040,3 +2040,34 @@ body:has(#intro:not([hidden])) :is(#top-right-hud, #stats) {
     font-size: 11px;
   }
 }
+
+.shop-card img {
+  width: 100%;
+  max-width: 160px;
+  aspect-ratio: 1;
+  object-fit: contain;
+  border-radius: 12px;
+  margin-bottom: 10px;
+}
+.shop-card b {
+  color: inherit;
+  margin-top: auto;
+  padding-top: 8px;
+}
+.shop-card small {
+  color: inherit;
+  opacity: 0.9;
+}
+.shop-card:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.shop-card:not(:disabled):hover {
+  border-color: #355443;
+  background: #e3ddbf;
+  color: #233d34;
+}
+.shop-card:focus-visible {
+  outline: 3px solid #355443;
+  outline-offset: 2px;
+}
