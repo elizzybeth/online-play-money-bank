@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { readFile } from "node:fs/promises";
 import { fresh } from "../../src/game";
 test("pause debug unlock survives refresh and preserves a pre-debug backup", async ({
   page,
@@ -52,7 +53,18 @@ test("rejected Chrome save is preserved through begin and refresh instead of ove
   await expect(
     page.getByRole("dialog", { name: "Your saved game needs recovery" }),
   ).toBeVisible();
+  await expect(page.locator("#intro")).toBeHidden();
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export preserved save" }).click();
+  const download = await downloadPromise;
+  expect(await readFile((await download.path())!, "utf8")).toBe(bad);
+  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await expect(page.locator("#intro")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Wake up" })).toBeFocused();
   await page.reload();
+  await page.getByRole("button", { name: "Wake up" }).click();
+  await expect(page.locator("#intro")).toBeHidden();
+  await page.getByRole("button", { name: "Back", exact: true }).click();
   expect(await page.evaluate(() => localStorage.getItem("money-tree-v1"))).toBe(
     bad,
   );

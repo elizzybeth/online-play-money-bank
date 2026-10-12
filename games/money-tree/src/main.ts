@@ -4330,6 +4330,7 @@ $("#new-game").onclick = () => {
 };
 $("#begin").onclick = () => {
   if (saveStore?.protected) {
+    $("#intro").hidden = true;
     panel(
       "Your saved game needs recovery",
       "<p>Your original saved data has been kept unchanged. Export it for recovery, or use Start new game only if you want to replace it.</p>",
@@ -4354,6 +4355,7 @@ $("#begin").onclick = () => {
           run: () => {
             close();
             $("#intro").hidden = false;
+            $("#begin").focus();
           },
         },
       ],
