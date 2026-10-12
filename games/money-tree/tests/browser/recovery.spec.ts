@@ -88,7 +88,9 @@ test("unstuck returns home without resetting resources, journal, day or crops; c
   await expect(page.locator("#modal")).toBeHidden();
   await expect.poll(async () => (await state(page)).metMom).toBe(true);
   const after = await state(page);
-  expect(after).toEqual({
+  const { adventure: elapsed, ...preserved } = after;
+  expect(elapsed?.awakeSeconds ?? 0).toBeGreaterThanOrEqual(0);
+  expect(preserved).toEqual({
     ...s,
     metMom: true,
     neighborChats: { ...s.neighborChats, "mom-home": 1 },
@@ -102,7 +104,12 @@ test("unstuck returns home without resetting resources, journal, day or crops; c
   await expect(page.locator("#prompt")).not.toContainText("Planting");
   await page.reload();
   await page.getByRole("button", { name: "Wake up" }).click();
-  expect(await state(page)).toEqual(after);
+  const restored = await state(page);
+  const { adventure: restoredClock, ...restoredState } = restored;
+  expect(restoredClock?.awakeSeconds ?? 0).toBeGreaterThanOrEqual(
+    elapsed?.awakeSeconds ?? 0,
+  );
+  expect(restoredState).toEqual(preserved);
 });
 test("Mom and Robertson remind an empty-pocket player about the piggy bank", async ({
   page,

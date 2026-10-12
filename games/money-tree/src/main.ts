@@ -6075,7 +6075,7 @@ function frame(now: number) {
   );
   featherModel.visible = !!s.adventure?.feather;
   estateWorld.update(s);
-  meteorWorld.update(s, active ? dt : 0);
+  meteorWorld.update(s, active && s.awake ? dt : 0);
   world.syncBeds(s.plots);
   world.life.update(active ? dt : 0, now / 1000);
   hangMomCanvases();

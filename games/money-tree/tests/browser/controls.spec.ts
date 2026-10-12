@@ -156,7 +156,9 @@ test("title-screen new game preserves saves until explicit confirmation", async 
     .getByRole("button", { name: "Withdraw amount", exact: true })
     .click();
   await page.getByRole("button", { name: "Close", exact: true }).click();
-  const saved = await page.evaluate(() => (window as any).game.state());
+  const saved = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("money-tree-v1")!),
+  );
   await page.reload();
   const newGame = page.locator("#new-game");
   await expect(newGame).toBeVisible();
