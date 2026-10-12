@@ -253,7 +253,7 @@ test("missed daily payment drives the repo man to a permanently locked, empty ho
     (await page.evaluate(() => (window as any).game.state())).position.z,
   ).toBeGreaterThan(-328.3);
 });
-test("feather gift retains the hen name and disappears from hair after greeting Mom", async ({
+test("feather gift retains the hen name and completes after the player reply and handoff", async ({
   page,
 }) => {
   const s = base();
@@ -267,6 +267,8 @@ test("feather gift retains the hen name and disappears from hair after greeting 
   )
     await page.keyboard.press("e");
   await expect(page.locator(".speech-bubble")).toContainText("Cluck");
+  await page.keyboard.press("e");
+  await frames(page, 90);
   await expect(page.locator(".speech-bubble")).toContainText("good luck");
   const gifted = await page.evaluate(() => (window as any).game.state());
   expect(gifted.adventure.feather).toBeUndefined();
