@@ -160,7 +160,7 @@ export function landMeteor(s: State, id: number) {
       samplePrice(s);
     }
     s.events.push(
-      "A meteor fell into the desert. One money tree grew at its heart. The mansion owners panicked, and my coin plunged.",
+      `A meteor fell into the desert. One money tree grew at its heart.${s.coin ? ` Fear of another strike sent ${s.coin.name} tumbling.` : ""}`,
     );
   }
   return true;

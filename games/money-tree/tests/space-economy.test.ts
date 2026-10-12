@@ -206,3 +206,14 @@ test("one hundred reflections are unique and locked topics cannot leak; shufflin
   assert.equal(new Set(s.adventure!.reflections).size, 20);
   assert.deepEqual(shuffledAnswers([0, 1, 2], () => 0).sort(), [0, 1, 2]);
 });
+
+test("a meteor without a launched coin records the discovery without inventing a price crash", () => {
+  const s = estate();
+  s.day = 2;
+  s.adventure = { meteorNextDay: 2, meteorNextAt: 0 };
+  const m = advanceAdventure(s, 1)!;
+  landMeteor(s, m.id);
+  assert.match(s.events.at(-1)!, /money tree/);
+  assert.doesNotMatch(s.events.at(-1)!, /coin|tumbl|plung/);
+  assert.ok(decode(JSON.stringify(s)));
+});

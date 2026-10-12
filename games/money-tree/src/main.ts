@@ -3047,7 +3047,7 @@ function fellowshipConversation(
     return;
   const m = s.millionaire;
   if (!m?.unlocked) return;
-  if (!skipHousing && m.member === id && mansionCount(m) === 6)
+  if (!skipHousing && m.member === id && childrenHomesBuilt())
     return mansionOffer(`fellowship-${id}`, () =>
       fellowshipConversation(id, introduction, true),
     );
@@ -3105,7 +3105,7 @@ function religionConversation(
 ): void {
   if (churchGreeting(speaker, () => religionConversation(id, speaker, key)))
     return;
-  if (!skipHousing && mansionCount(s.millionaire) === 6)
+  if (!skipHousing && childrenHomesBuilt())
     return mansionOffer(speaker, () =>
       religionConversation(id, speaker, key, true),
     );
@@ -7018,4 +7018,13 @@ for (let i = 0; i < 7; i++) {
   barb.position.set(i % 2 ? 0.028 : -0.028, -0.12 + i * 0.035, 0);
   barb.scale.set(1, 0.8, 0.22);
   featherModel.add(barb);
+}
+
+function childrenHomesBuilt() {
+  return (
+    mansionCount(s.millionaire) === 6 &&
+    world.millionaire.mansions.every(
+      (m) => m.home.visible && m.home.scale.y === 1,
+    )
+  );
 }

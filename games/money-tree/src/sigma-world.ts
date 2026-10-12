@@ -161,7 +161,7 @@ export function createSigmaWorld(
     g.position.set(x, 0, z);
     town.add(g);
     g.userData.isNPC = true;
-    g.userData.chad = true;
+    g.userData.chad = id !== "stacy";
     const torso = ball(0, 0.85, 0, 0.45, "#9f9f9f", g);
     torso.scale.set(1.35, 1, 0.7);
     const head = box(0, 1.55, 0, 0.73, 0.78, 0.64, "#b4b4b4", g);
