@@ -76,8 +76,10 @@ test("overhead NPC speech and separate name label", async ({ page }) => {
   await page.getByRole("button", { name: "Wake up" }).click();
   await page.keyboard.press("e");
   await page.evaluate(() => {
-    (window as any).game.teleport(12, 7.5);
-    (window as any).game.setYaw(Math.PI / 2);
+    const game = (window as any).game;
+    const jun = game.targets.find((t: any) => t.id === "npc2");
+    game.teleport(jun.x, jun.z + 2);
+    game.setYaw(Math.PI / 2);
   });
   await expect(page.locator("#prompt")).toContainText("Jun");
   await page.keyboard.press("e");
