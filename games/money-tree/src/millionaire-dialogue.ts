@@ -98,7 +98,7 @@ const teachings: Record<Fellowship, string[]> = {
     "We teach that your guiding spiritual core is more than genes or surroundings. Our courses promise emotional relief and a clearer understanding of yourself.",
     "The meter is part of our spiritual practice. The needle gives us something to discuss; learning is presented as a lifelong climb up the bridge.",
     "Freedom is our promise, and courses are our method. Notice when self-improvement becomes another purchase, and whether the promised relief arrives.",
-    "Our fictional church distrusts modern medicine. That is its doctrine, not medical advice. Your health decisions are yours to discuss with qualified clinicians.",
+    "Our church distrusts modern medicine. That is our doctrine.",
   ],
   fire: [
     "We use breathing, movement, and attention to seek emotional healing and expanded consciousness. White clothes and plant-based meals remind us of conscious living.",

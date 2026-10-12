@@ -161,6 +161,7 @@ export function createSigmaWorld(
     g.position.set(x, 0, z);
     town.add(g);
     g.userData.isNPC = true;
+    g.userData.chad = true;
     const torso = ball(0, 0.85, 0, 0.45, "#9f9f9f", g);
     torso.scale.set(1.35, 1, 0.7);
     const head = box(0, 1.55, 0, 0.73, 0.78, 0.64, "#b4b4b4", g);
@@ -838,12 +839,41 @@ export function createSigmaWorld(
   sign("25 scraps → Soil", 17.7, 1.9, -79.5, 2.2);
   // A small walk-up Greek pastry shop beside Grindset, clear of the lane.
   box(21, 0.02, -79.95, 3, 0.08, 3, "#d6e9e0");
-  box(21, 1.4, -81.4, 3, 2.8, 0.12, "#d6e9e0");
+  box(21, 1.4, -81.4, 3, 2.8, 0.12, "#f1f9fb");
   for (const side of [-1, 1])
     box(21 + side * 1.5, 1.4, -79.95, 0.12, 2.8, 3, "#d6e9e0");
-  box(21, 3, -79.95, 3.3, 0.18, 3.5, "#276d7a");
-  box(21, 1.0, -78.25, 2.9, 0.22, 0.75, "#b98c53");
+  box(21, 3, -79.95, 3.3, 0.18, 3.5, "#174b9c");
+  box(21, 1.0, -78.25, 2.9, 0.22, 0.75, "#2463a5");
   rects.push({ x: 21, z: -79.95, w: 3, d: 3 });
+  for (let i = 0; i < 10; i++)
+    for (let j = 0; j < 4; j++)
+      box(
+        19.65 + i * 0.3,
+        0.45 + j * 0.33,
+        -81.3,
+        0.26,
+        0.29,
+        0.025,
+        (i + j) % 2 ? "#f5fafb" : "#4a83b6",
+      );
+  for (const x of [19.6, 22.4]) {
+    box(x, 2.9, -79.95, 0.07, 0.12, 3, "#faf8e9");
+    const pot = new T.Mesh(
+      new T.CylinderGeometry(0.14, 0.1, 0.25, 10),
+      new T.MeshStandardMaterial({ color: "#2059a5" }),
+    );
+    pot.position.set(x, 2.65, -80.5);
+    town.add(pot);
+    for (let leaf = 0; leaf < 6; leaf++) {
+      const vine = new T.Mesh(
+        new T.SphereGeometry(0.1, 8, 6),
+        new T.MeshStandardMaterial({ color: "#52995b" }),
+      );
+      vine.scale.set(1, 0.4, 1);
+      vine.position.set(x + Math.sin(leaf) * 0.1, 2.5 - leaf * 0.12, -80.5);
+      town.add(vine);
+    }
+  }
   sign("Food of the Gods", 21, 4.7, -77.77, 3.3);
   sign("Spanakopita · $3", 21, 3.5, -77.77, 3.3);
   const gigachad = chad("gigachad", 21, -78.95, true);

@@ -2,6 +2,7 @@ import type { State } from "./game";
 import { appNames } from "./millionaire";
 import {
   newPhoneGame,
+  phoneKey,
   phoneDirection,
   phoneCard,
   tickPhoneGame,
@@ -36,10 +37,10 @@ export function mountPhoneGame(
   const hint = document.createElement("p");
   hint.textContent =
     index === 4
-      ? "Match ten pairs to earn $1."
+      ? "WASD or arrows to move, Enter to flip. Match ten pairs to earn $1."
       : index === 2
-        ? "Use the arrows to cross the road ten times. Ten points earns $1."
-        : "Use the arrows or drag to move. Ten points earns $1.";
+        ? "Use WASD or the arrows to cross the road ten times. Ten points earns $1."
+        : "Use WASD or the arrows or drag to move. Ten points earns $1.";
   frame.append(hint);
   const controls = document.createElement("div");
   controls.style.cssText =
@@ -83,6 +84,8 @@ export function mountPhoneGame(
   replay.onclick = () => {
     game = newPhoneGame(index, 17 + session++);
     replay.hidden = true;
+    last = performance.now();
+    root.focus({ preventScroll: true });
     draw();
   };
   frame.append(replay);
@@ -201,6 +204,11 @@ export function mountPhoneGame(
             ? "#fffbec"
             : "#456a57";
         c.fillRect(x, y, 67, 64);
+        if (i === game.cursor) {
+          c.strokeStyle = "#e3ac39";
+          c.lineWidth = 3;
+          c.strokeRect(x + 2, y + 2, 63, 60);
+        }
         c.fillStyle = face ? colors[value] : "#e2e7ba";
         c.font = "bold 25px Georgia";
         c.textAlign = "center";
@@ -230,20 +238,15 @@ export function mountPhoneGame(
     replay.hidden = !game.complete;
   }
   function key(e: KeyboardEvent) {
-    const direction: Record<string, [number, number]> = {
-      ArrowLeft: [-1, 0],
-      a: [-1, 0],
-      ArrowRight: [1, 0],
-      d: [1, 0],
-      ArrowUp: [0, -1],
-      w: [0, -1],
-      ArrowDown: [0, 1],
-      s: [0, 1],
-    };
-    if (direction[e.key]) {
+    if (
+      e.target instanceof HTMLButtonElement &&
+      (e.key === "Enter" || e.key === " ")
+    )
+      return;
+    if (phoneKey(game, e.key)) {
       e.preventDefault();
       e.stopPropagation();
-      phoneDirection(game, ...direction[e.key]);
+      draw();
     }
   }
   root.addEventListener("keydown", key);

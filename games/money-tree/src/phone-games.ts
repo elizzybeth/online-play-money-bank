@@ -8,6 +8,7 @@ export type Dot = {
   bad?: boolean;
 };
 export type PhoneGame = {
+  cursor: number;
   kind: number;
   score: number;
   lives: number;
@@ -37,6 +38,7 @@ export function newPhoneGame(kind: number, seed = 17): PhoneGame {
   if (!Number.isInteger(kind) || kind < 0 || kind > 5)
     throw new Error("Unknown phone game");
   const g: PhoneGame = {
+    cursor: 0,
     kind,
     score: 0,
     lives: 3,
@@ -125,7 +127,9 @@ export function phoneDirection(g: PhoneGame, x: number, y: number) {
       score(g);
       g.ball = { x: 0.5, y: 0.94 };
     }
-  } else g.player = Math.max(0.07, Math.min(0.93, g.player + x * 0.075));
+  } else if (g.kind === 4)
+    g.cursor = Math.max(0, Math.min(19, g.cursor + x + y * 4));
+  else g.player = Math.max(0.07, Math.min(0.93, g.player + x * 0.075));
 }
 export function phoneCard(g: PhoneGame, index: number) {
   if (
@@ -319,4 +323,27 @@ export function claimPhoneReward(s: State, g: PhoneGame) {
   s.totalEarned = (s.totalEarned ?? 0) + 100;
   s.events.push("Won $1 by scoring ten points in a phone game.");
   return true;
+}
+
+export function phoneKey(g: PhoneGame, key: string) {
+  const directions: Record<string, [number, number]> = {
+    arrowleft: [-1, 0],
+    a: [-1, 0],
+    arrowright: [1, 0],
+    d: [1, 0],
+    arrowup: [0, -1],
+    w: [0, -1],
+    arrowdown: [0, 1],
+    s: [0, 1],
+  };
+  const direction = directions[key.toLowerCase()];
+  if (direction) {
+    phoneDirection(g, ...direction);
+    return true;
+  }
+  if (g.kind === 4 && (key === "Enter" || key === " ")) {
+    phoneCard(g, g.cursor);
+    return true;
+  }
+  return false;
 }

@@ -1247,7 +1247,7 @@ export function createWorld(scene: T.Scene) {
     }
     data.forEach((p, i) => {
       bedSoils[i].visible = p.soilFilled !== false;
-      if (p.mountain) {
+      if (p.mountain || p.meteor) {
         bedFrames[i].position.y = terrainHeight(p.x!, p.z!);
         bedFrames[i].visible = false;
         plots[i].userData.mountain = true;

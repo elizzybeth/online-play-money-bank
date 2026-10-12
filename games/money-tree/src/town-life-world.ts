@@ -348,7 +348,12 @@ export function createTownLife(
       z = [24, 27, 22, 9, -28, 29][i];
     object.position.set(x, 0, z);
     scene.add(object);
-    const target = { id: `chicken-${i}`, x, z, label: `Cuddle ${name}` };
+    const target = {
+      id: `chicken-${i}`,
+      x,
+      z,
+      label: i === 5 ? "Toss Fancy Chicken a berry" : `Cuddle ${name}`,
+    };
     targets.push(target);
     speakers.push({ id: target.id, name, object });
     const roaming: Wanderer = {
@@ -367,6 +372,8 @@ export function createTownLife(
     | { i: number; t: number; origin: T.Vector3; releasing?: boolean }
     | undefined;
   let sharing: { t: number; pieces: T.Group[] } | undefined;
+  let berry:
+    { t: number; mesh: T.Mesh; start: T.Vector3; end: T.Vector3 } | undefined;
   const pose = (actor: T.Group, time: number) => {
     for (const side of [-1, 1])
       actor
@@ -385,7 +392,7 @@ export function createTownLife(
     chickens,
     chair,
     get busy() {
-      return !!cuddle || !!sharing;
+      return !!cuddle || !!sharing || !!berry;
     },
     get cuddling() {
       return cuddle?.i;
@@ -397,8 +404,32 @@ export function createTownLife(
       if (cuddle) cuddle.releasing = true;
     },
     cuddle(i: number) {
-      if (cuddle || sharing || !chickens[i]) return false;
+      if (i === 5 || cuddle || sharing || berry || !chickens[i]) return false;
       cuddle = { i, t: 0, origin: chickens[i].object.position.clone() };
+      return true;
+    },
+    tossBerry() {
+      if (cuddle || sharing || berry) return false;
+      const ch = chickens[5].object;
+      const end = ch.position
+        .clone()
+        .add(
+          new T.Vector3(0, 0.07, 0.65).applyAxisAngle(
+            new T.Vector3(0, 1, 0),
+            ch.rotation.y,
+          ),
+        );
+      const mesh = new T.Mesh(
+        new T.SphereGeometry(0.07, 10, 8),
+        new T.MeshStandardMaterial({ color: 0xa92442 }),
+      );
+      scene.add(mesh);
+      berry = {
+        t: 0,
+        mesh,
+        start: player.position.clone().add(new T.Vector3(0, 1.25, 0)),
+        end,
+      };
       return true;
     },
     share() {
@@ -421,7 +452,28 @@ export function createTownLife(
           new T.Vector2(player.position.x, player.position.z),
         ) > 0.001;
       previousPlayer.set(player.position.x, player.position.z);
+      if (berry) {
+        berry.t += dt;
+        const t = Math.min(1, berry.t / 0.35);
+        berry.mesh.position.lerpVectors(berry.start, berry.end, t);
+        berry.mesh.position.y += Math.sin(t * Math.PI) * 0.65;
+        const ch = chickens[5].object;
+        ch.rotation.x =
+          berry.t > 0.35 ? Math.sin((berry.t - 0.35) * Math.PI * 4) * 0.22 : 0;
+        if (berry.t >= 1) {
+          ch.rotation.x = 0;
+          scene.remove(berry.mesh);
+          berry.mesh.geometry.dispose();
+          (berry.mesh.material as T.Material).dispose();
+          berry = undefined;
+        }
+      }
       chickens.forEach((ch, i) => {
+        if (berry && i === 5) {
+          ch.target.x = ch.object.position.x;
+          ch.target.z = ch.object.position.z;
+          return;
+        }
         if (cuddle?.i === i) return;
         const previous = { ...ch.roaming.position };
         stepWanderer(
@@ -477,7 +529,11 @@ export function createTownLife(
             player.rotation.y,
             moving,
             (p) => !blocked(p.x, p.z, rects, 0.38),
-            player.visible && !sharing && !cuddle && player.position.y < 0.2,
+            player.visible &&
+              !sharing &&
+              !cuddle &&
+              !berry &&
+              player.position.y < 0.2,
           );
           if (roosterCharge.phase !== "idle") {
             ch.object.position.set(
