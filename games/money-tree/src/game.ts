@@ -1,3 +1,5 @@
+import { dailyEconomy, validAdventure, type Adventure } from "./adventure";
+import { validHousing, type Housing } from "./housing";
 import { normalizeChildReports } from "./child-reports";
 import {
   validFurnishings,
@@ -54,6 +56,7 @@ import {
 } from "./journal";
 import { hatById, type HatId } from "./hats";
 export type Plot = {
+  meteor?: number;
   x?: number;
   z?: number;
   soilFilled?: boolean;
@@ -67,6 +70,8 @@ export type Plot = {
 };
 export type State = {
   version: 1;
+  adventure?: Adventure;
+  housing?: Housing;
   groceries?: Partial<Record<Ingredient, number>>;
   foodBuff?: FoodBuff;
   pendingMeal?: number;
@@ -534,6 +539,7 @@ export function summarizeDay(
 }
 export function sleep(s: State) {
   if (momAway(s) && !s.familyStory?.called) return false;
+  dailyEconomy(s);
   const entry = writeBranchedDay(s);
   (s.journalHistory ??= []).push(rememberDay(s));
   const firstHarvest =
@@ -682,6 +688,8 @@ export function decode(raw: string | null): State | null {
     const s = JSON.parse(raw);
     if (
       s.version !== 1 ||
+      !validAdventure(s.adventure, s.day) ||
+      !validHousing(s.housing, s.day) ||
       !validFood(s) ||
       !validFurnishings(s) ||
       [
@@ -824,9 +832,18 @@ export function decode(raw: string | null): State | null {
               (p.mountain === true
                 ? fertileMountainSoil(p.x!, p.z!) ||
                   (p.x! >= -31 && p.x! <= 99 && p.z! >= -460 && p.z! <= -325)
-                : p.community === true
-                  ? sigmaPlots.some((q) => q.x === p.x && q.z === p.z)
-                  : withinProperty(p.x!, p.z!)))),
+                : p.meteor !== undefined
+                  ? Number.isSafeInteger(p.meteor) &&
+                    !!s.adventure?.meteors?.some(
+                      (m: import("./adventure").Meteor) =>
+                        m.id === p.meteor &&
+                        m.plot === i &&
+                        m.x === p.x &&
+                        m.z === p.z,
+                    )
+                  : p.community === true
+                    ? sigmaPlots.some((q) => q.x === p.x && q.z === p.z)
+                    : withinProperty(p.x!, p.z!)))),
       )
     )
       return null;
@@ -1065,7 +1082,7 @@ export function clearPosition(
   north = -39,
 ) {
   const clear = (x: number, z: number) =>
-    (north < -90 && z < -90 ? x >= -94 && x <= 144 : Math.abs(x) <= 38) &&
+    (north < -90 && z < -90 ? x >= -94 && x <= 160 : Math.abs(x) <= 38) &&
     z >= north &&
     z <= 38 &&
     !blocked(x, z, rects);
@@ -1332,7 +1349,7 @@ export function buyGardenSupply(s: State, item: "bed" | "soil") {
   if (
     s.cash < cost ||
     (item === "bed" &&
-      s.plots.filter((p) => !p.community && !p.mountain).length +
+      s.plots.filter((p) => !p.community && !p.mountain && !p.meteor).length +
         (s.gardenBeds ?? 0) >=
         50) ||
     (item === "soil" && (s.soilBags ?? 0) >= 1000)
@@ -1351,7 +1368,8 @@ export function buyGardenSupply(s: State, item: "bed" | "soil") {
 export function canPlaceBed(s: State, x: number, z: number, obstacles: Rect[]) {
   return (
     withinProperty(x, z) &&
-    s.plots.filter((p) => !p.community).length < 50 &&
+    s.plots.filter((p) => !p.community && !p.mountain && !p.meteor).length <
+      50 &&
     !obstacles.some(
       (r) =>
         Math.abs(x - r.x) < 0.9 + r.w / 2 && Math.abs(z - r.z) < 1.6 + r.d / 2,

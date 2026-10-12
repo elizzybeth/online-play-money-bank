@@ -11,8 +11,28 @@ export function coinCandles(history: number[]) {
     };
   });
 }
-export function coinChart(history: number[], price: number) {
-  const candles = coinCandles(history.length ? history : [price]);
+export function coinChart(
+  history: number[],
+  price: number,
+  label = "15 seconds per candle · recent game time",
+) {
+  const prices = history.length ? history : [price];
+  const candles =
+    prices.length <= 24
+      ? coinCandles(prices)
+      : Array.from({ length: 24 }, (_, i) => {
+          const start = Math.floor((i * prices.length) / 24),
+            end = Math.floor(((i + 1) * prices.length) / 24),
+            bucket = prices.slice(start, end),
+            open = prices[Math.max(0, start - 1)],
+            close = bucket.at(-1)!;
+          return {
+            open,
+            close,
+            high: Math.max(open, ...bucket),
+            low: Math.min(open, ...bucket),
+          };
+        });
   const low = Math.min(...candles.map((c) => c.low)),
     high = Math.max(...candles.map((c) => c.high));
   const padding = Math.max(2, (high - low) * 0.15);
@@ -31,5 +51,5 @@ export function coinChart(history: number[], price: number) {
       return `<g class="coin-candle"><title>Price interval ${i + 1}: open $${(c.open / 100).toFixed(2)}, close $${(c.close / 100).toFixed(2)}</title><path d="M${x} ${y(c.high)} V${y(c.low)}" stroke="${color}" stroke-width="2"/><rect x="${x - 6}" y="${Math.min(y(c.open), y(c.close))}" width="12" height="${Math.max(2, Math.abs(y(c.open) - y(c.close)))}" fill="${color}"/></g>`;
     })
     .join("");
-  return `<figure class="coin-chart"><svg viewBox="0 0 640 240" role="img" aria-label="Coin price candlestick chart. ${candles.length} recorded price intervals, latest price $${(price / 100).toFixed(2)}.">${ticks}${bars}<path d="M16 ${y(price)} H548" stroke="#16846d" stroke-dasharray="4 4"/><text x="16" y="235" fill="#475b68" font-size="12">15 seconds per candle · recent game time</text></svg><figcaption>${candles.length === 1 ? "Your coin just started. More candles appear as you play." : "Recorded prices. Green is up, red is down."}</figcaption></figure>`;
+  return `<figure class="coin-chart"><svg viewBox="0 0 640 240" role="img" aria-label="Coin price candlestick chart. ${candles.length} recorded price intervals, latest price $${(price / 100).toFixed(2)}.">${ticks}${bars}<path d="M16 ${y(price)} H548" stroke="#16846d" stroke-dasharray="4 4"/><text x="16" y="235" fill="#475b68" font-size="12">${label}</text></svg><figcaption>${candles.length === 1 ? "Your coin just started. More candles appear as you play." : "Recorded prices. Green is up, red is down."}</figcaption></figure>`;
 }

@@ -182,7 +182,7 @@ test("a mansion owner comes through the doorway and sells a working phone app", 
     titheAccepted: true,
     mountainEarned: 100000,
   };
-  s.position = { x: 107, z: -295 };
+  s.position = { x: 138, z: -295 };
   await setup(page, s);
   await frames(page, 100);
   expect(
@@ -238,7 +238,7 @@ test("a real phone memory game pays a dollar once without tithing and preserves 
     titheAccepted: true,
     mountainEarned: 100000,
   };
-  s.position = { x: 107, z: -383 };
+  s.position = { x: 138, z: -399 };
   await setup(page, s);
   await frames(page, 100);
   if (

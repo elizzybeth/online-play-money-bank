@@ -1,3 +1,14 @@
+let craters: { x: number; z: number }[] = [];
+export function setCraterSites(sites: { x: number; z: number }[]) {
+  craters = sites;
+}
+export function craterHeight(r: number) {
+  return r < 7
+    ? -2.5 + 3.8 * (r / 7) ** 2
+    : r < 8
+      ? 1.3 + (r - 7) * 0.2
+      : (1.5 * (10 - r)) / 2;
+}
 export const willowMeeting = { x: 34, z: -130 };
 export const mountainFoot = { x: 34, z: -340 };
 export const mountainSummit = { x: 34, z: -445 };
@@ -9,6 +20,8 @@ export const mountainTerraces = Array.from({ length: 8 }, (_, tier) => ({
   rz: 15,
 }));
 export function terrainHeight(x: number, z: number) {
+  const crater = craters.find((c) => Math.hypot(x - c.x, z - c.z) < 10);
+  if (crater) return craterHeight(Math.hypot(x - crater.x, z - crater.z));
   if (Math.abs(x - 34) <= 3 && z <= -340 && z >= -445)
     return (-z - 340) * (14 / 105);
   const terrace = mountainTerraces
@@ -39,6 +52,6 @@ export const mountainPlots = mountainTerraces
   )
   .map((p) => ({ ...p, y: terrainHeight(p.x, p.z) }));
 export const mansionSites = Array.from({ length: 6 }, (_, i) => ({
-  x: i % 2 ? -53 : 107,
-  z: -315 - Math.floor(i / 2) * 44,
+  x: i % 2 ? -70 : 138,
+  z: -315 - Math.floor(i / 2) * 52,
 }));

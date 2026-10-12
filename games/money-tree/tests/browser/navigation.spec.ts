@@ -238,7 +238,11 @@ test("approaching a neighbor does not intersect their rendered head", async ({
   await page.goto("./?test");
   await page.getByRole("button", { name: "Wake up" }).click();
   await page.keyboard.press("e");
-  await page.evaluate(() => (window as any).game.teleport(10, 21.4));
+  await page.evaluate(() => {
+    const game = (window as any).game;
+    const bea = game.targets.find((t: any) => t.id === "npc1");
+    game.teleport(bea.x, bea.z + 3);
+  });
   await page.waitForTimeout(1800);
   await page.keyboard.down("w");
   await page.waitForTimeout(1200);

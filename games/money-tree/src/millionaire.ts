@@ -251,6 +251,9 @@ export function retakeAssessment(s: State) {
 export function joinFellowship(s: State, id: Fellowship) {
   const m = s.millionaire;
   if (!m || m.result !== id || m.member === id) return false;
+  if (m.member && (m.titheAccepted || m.chats["visited-summit"])) {
+    (s.adventure ??= {}).churchChange = { from: m.member, heardBy: [] };
+  }
   m.member = id;
   ensureMountainPlots(s);
   if (!m.welcomeSeed) {

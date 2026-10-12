@@ -24,6 +24,101 @@ export function makeFurnishing(id: FurnishingId, seed = 0) {
     y: number,
     z: number,
   ) => add(new T.BoxGeometry(w, h, d), c, x, y, z);
+  if (
+    id === "royal-bed" ||
+    id === "gilded-chair" ||
+    id === "marble-planter" ||
+    id === "palace-rug"
+  ) {
+    const gold = "#cba34b",
+      wood = "#694429",
+      velvet = "#853b61";
+    const ball = (x: number, y: number, z: number, r: number) =>
+      add(new T.SphereGeometry(r, 12, 8), gold, x, y, z);
+    if (id === "royal-bed") {
+      box(2.4, 0.4, 3.2, wood, 0, 0.3, 0);
+      box(2.2, 0.3, 3, "#f1dfbc", 0, 0.65, 0);
+      box(2.15, 0.13, 2.3, velvet, 0, 0.87, 0.32);
+      box(2.3, 1.35, 0.18, wood, 0, 0.95, -1.5);
+      box(1.5, 0.12, 0.55, "#fff1d4", 0, 0.92, -1.08);
+      for (const x of [-1.08, 1.08])
+        for (const z of [-1.47, 1.47]) {
+          add(new T.CylinderGeometry(0.09, 0.12, 2.9, 12), wood, x, 1.45, z);
+          ball(x, 3, z, 0.14);
+        }
+      box(2.45, 0.15, 3.3, gold, 0, 2.86, 0);
+      for (let i = -4; i <= 4; i++) ball(i * 0.23, 1.43, -1.62, 0.055);
+    }
+    if (id === "gilded-chair") {
+      box(1.15, 0.24, 1.25, wood, 0, 0.5, 0);
+      box(1.05, 0.2, 1.1, velvet, 0, 0.72, 0);
+      box(1.15, 1.55, 0.18, gold, 0, 1.25, -0.5);
+      box(0.92, 1.35, 0.12, velvet, 0, 1.25, -0.38);
+      for (const x of [-0.5, 0.5]) {
+        box(0.12, 0.9, 1.1, gold, x, 0.78, 0);
+        for (const z of [-0.45, 0.45])
+          add(new T.CylinderGeometry(0.065, 0.11, 0.5, 10), wood, x, 0.25, z);
+        ball(x, 1.3, -0.4, 0.1);
+      }
+      for (const y of [0.9, 1.2, 1.5])
+        for (const x of [-0.25, 0, 0.25]) ball(x, y, -0.3, 0.035);
+    }
+    if (id === "marble-planter") {
+      add(
+        new T.LatheGeometry(
+          [
+            new T.Vector2(0.4, 0),
+            new T.Vector2(0.4, 0.14),
+            new T.Vector2(0.25, 0.25),
+            new T.Vector2(0.3, 0.55),
+            new T.Vector2(0.52, 0.95),
+            new T.Vector2(0.48, 1.1),
+            new T.Vector2(0.54, 1.15),
+          ],
+          24,
+        ),
+        "#e8ddc8",
+      );
+      for (let i = 0; i < 12; i++) {
+        const a = (i * Math.PI) / 6;
+        add(
+          new T.CylinderGeometry(0.025, 0.025, 0.52, 6),
+          gold,
+          Math.cos(a) * 0.36,
+          0.7,
+          Math.sin(a) * 0.36,
+        );
+      }
+      for (let i = 0; i < 9; i++) {
+        const a = i * 2.4;
+        const leaf = add(
+          new T.SphereGeometry(0.3, 10, 6),
+          "#4b7741",
+          Math.cos(a) * 0.35,
+          1.2 + i * 0.08,
+          Math.sin(a) * 0.35,
+        );
+        leaf.scale.set(1, 0.18, 0.6);
+      }
+    }
+    if (id === "palace-rug") {
+      box(4, 0.025, 3, "#723958", 0, 0.015, 0);
+      for (const x of [-1.8, 1.8]) box(0.12, 0.028, 2.8, gold, x, 0.03, 0);
+      for (const z of [-1.3, 1.3]) box(3.7, 0.028, 0.12, gold, 0, 0.03, z);
+      for (let i = -3; i <= 3; i++)
+        for (let j = -2; j <= 2; j++) {
+          const ornament = add(
+            new T.CylinderGeometry(0.16, 0.16, 0.015, 4),
+            "#d1a853",
+            i * 0.5,
+            0.035,
+            j * 0.48,
+          );
+          ornament.rotation.y = Math.PI / 4;
+        }
+    }
+    return root;
+  }
   if (furnitureById(id).wall) {
     const canvas = document.createElement("canvas");
     canvas.width = 384;

@@ -1,3 +1,5 @@
+import { desertGround } from "./meteor-world";
+import { makeDesertPlants } from "./desert-plants";
 import { makeSportsCar, makeYacht } from "./wealth-models";
 import * as T from "three";
 import { buildGeiselMansion } from "./geisel-mansion";
@@ -65,7 +67,7 @@ export function createMillionaireWorld(
     color: string,
     parent: T.Object3D = group,
   ) => part(new T.SphereGeometry(r, 10, 7), color, x, y, z, parent);
-  box(30, -0.3, -285, 270, 0.5, 390, "#b4a47e");
+  group.add(desertGround());
   box(46, -0.3, -76, 12, 0.5, 32, "#a4bd77");
   // East-hedge entrance runs outside town, then merges into the grove clearing.
   const entrancePath = box(42, 0.035, -61, 10, 0.035, 6, "#c5b48d");
@@ -184,6 +186,7 @@ export function createMillionaireWorld(
       (Math.abs(x - 46) < 7 && z > -108);
     if (Math.abs(x - 34) > 8 && !approach) willow(x, z, 7 + (i % 4));
   }
+  group.add(makeDesertPlants());
   const guru = makeGuru();
   guru.position.set(34, 0, -130);
   group.add(guru);

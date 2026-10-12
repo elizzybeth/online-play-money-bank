@@ -107,6 +107,9 @@ test("sigma garden, fresh Chads, Grindset name input, investments, coffee and sa
     4800,
   );
   await page.keyboard.press("e");
+  await page
+    .getByRole("button", { name: "Something else", exact: true })
+    .click();
   await page.getByRole("button", { name: "See the drinks" }).click();
   await page.getByRole("button", { name: /Hustle Espresso/ }).click();
   expect(

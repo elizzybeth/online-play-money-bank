@@ -1,3 +1,12 @@
+import { cuddleNeglect } from "./adventure";
+import {
+  traderFlow,
+  roundResistance,
+  samplePrice,
+  validMarket,
+  type PriceSample,
+  type Trader,
+} from "./market";
 import { purchasePrice } from "./meals";
 import type { State } from "./game";
 import { recordEarnings } from "./millionaire";
@@ -23,6 +32,9 @@ export type Coin = {
   rng: number;
   elapsed: number;
   history: number[];
+  samples?: PriceSample[];
+  traders?: Trader[];
+  marketTick?: number;
 };
 export type DrinkId = "sprint" | "dig" | "growth" | "yield" | "reach";
 export const drinks: {
@@ -113,6 +125,8 @@ export function createCoin(s: State, raw: string) {
     rng: 97213,
     elapsed: 0,
     history: [100],
+    samples: [{ day: s.day, tick: 0, price: 100 }],
+    marketTick: 0,
   };
   s.events.push(`Named my pretend coin ${name}.`);
   return true;
@@ -199,6 +213,7 @@ export function marketSignals(s: State) {
     spanakopita: s.spanakopita ?? 0,
     spanakopitaShared: s.spanakopitaShared ?? 0,
     chickenCuddles: s.chickenCuddles ?? 0,
+    cuddleNeglect: cuddleNeglect(s),
     momRecent: s.momLastTalkDay !== undefined && s.day - s.momLastTalkDay <= 2,
   };
 }
@@ -283,18 +298,23 @@ export function tickSigma(s: State, dt: number, awakeTime = true) {
           Math.min(20, q.chickenCuddles) * 0.00005,
       ) +
       (q.health ? 0.001 : -0.001) +
-      (q.momRecent ? 0.0008 : -0.0004);
+      (q.momRecent ? 0.0008 : -0.0004) -
+      q.cuddleNeglect * 0.014;
   for (let i = 0; i < steps; i++) {
     c.rng = (c.rng * 16807) % 2147483647;
+    const before = c.exactPrice ?? c.price,
+      flow = traderFlow(s);
     c.exactPrice = Math.max(
       1,
       Math.min(
         100000,
         (c.exactPrice ?? c.price) *
-          (1 + (c.rng / 2147483647 - 0.5) * 0.16 + drift),
+          (1 + (c.rng / 2147483647 - 0.5) * 0.16 + drift + flow),
       ),
     );
+    c.exactPrice = roundResistance(before, c.exactPrice, c.rng / 2147483647);
     c.price = Math.round(c.exactPrice);
+    samplePrice(s);
     c.history.push(c.price);
     c.history = c.history.slice(-24);
   }
@@ -487,6 +507,7 @@ export function validCoin(c: unknown): c is Coin {
   if (!c || typeof c !== "object") return false;
   const x = c as Coin;
   return (
+    validMarket(x) &&
     typeof x.name === "string" &&
     coinName(x.name) === x.name &&
     Number.isInteger(x.price) &&

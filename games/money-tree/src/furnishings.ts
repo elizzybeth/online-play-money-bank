@@ -9,7 +9,12 @@ export type FurnishingId =
   | "monstera"
   | "snake"
   | "pothos"
-  | "rug";
+  | "rug"
+  | "royal-bed"
+  | "gilded-chair"
+  | "marble-planter"
+  | "palace-rug"
+  | "gilded-painting";
 export type PlacedFurniture = {
   item: FurnishingId;
   x: number;
@@ -105,6 +110,49 @@ export const furnishingCatalog: {
   },
   { id: "rug", name: "Woven jewel rug", price: 900, level: 3, w: 2.4, d: 1.6 },
 ];
+furnishingCatalog.push(
+  {
+    id: "royal-bed",
+    name: "Carved canopy bed",
+    price: 50000,
+    level: 4,
+    w: 2.4,
+    d: 3.2,
+  },
+  {
+    id: "gilded-chair",
+    name: "Gilded velvet throne chair",
+    price: 18000,
+    level: 4,
+    w: 1.3,
+    d: 1.4,
+  },
+  {
+    id: "marble-planter",
+    name: "Carved marble urn planter",
+    price: 12000,
+    level: 4,
+    w: 1.2,
+    d: 1.2,
+  },
+  {
+    id: "palace-rug",
+    name: "Ornate palace carpet",
+    price: 24000,
+    level: 4,
+    w: 4,
+    d: 3,
+  },
+  {
+    id: "gilded-painting",
+    name: "Gilded gallery painting",
+    price: 15000,
+    level: 4,
+    w: 1.2,
+    d: 0.1,
+    wall: true,
+  },
+);
 export const homeLevel = (s: State) =>
   s.millionaire?.unlocked ? 3 : s.foundTVSeeds ? 2 : 1;
 export function furnitureById(id: FurnishingId) {
@@ -123,6 +171,7 @@ export function canPlaceFurniture(
   obstacles: Rect[],
   walls: WallSpace[],
   placed: PlacedFurniture[],
+  estate = false,
 ) {
   const item = furnitureById(p.item);
   if (!item || ![p.x, p.y, p.z, p.rotation].every(Number.isFinite))
@@ -162,6 +211,11 @@ export function canPlaceFurniture(
     );
   }
   const inside =
+    (estate &&
+      p.x - w / 2 > 71.8 &&
+      p.x + w / 2 < 104.2 &&
+      p.z - d / 2 > -351.2 &&
+      p.z + d / 2 < -328.8) ||
     (p.x - w / 2 > -20.85 &&
       p.x + w / 2 < -9.15 &&
       p.z - d / 2 > -1.85 &&
@@ -206,8 +260,13 @@ export function validFurnishings(s: any) {
           (p: PlacedFurniture) =>
             !!furnitureById(p.item) &&
             [p.x, p.y, p.z, p.rotation].every(Number.isFinite) &&
-            Math.abs(p.x) < 100 &&
-            Math.abs(p.z) < 100 &&
+            Math.abs(p.x) < 110 &&
+            (Math.abs(p.z) < 100 ||
+              (s.housing &&
+                p.x >= 71 &&
+                p.x <= 105 &&
+                p.z >= -352 &&
+                p.z <= -328)) &&
             p.y >= 0 &&
             p.y < 4 &&
             (p.seed === undefined ||
