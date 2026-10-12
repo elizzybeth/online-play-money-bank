@@ -1,3 +1,4 @@
+import { makeChickenFeather } from "./chicken-feather";
 import { debugActions, applyDebugAction, type DebugAction } from "./debug-menu";
 import { SaveStore } from "./save-store";
 import { depthAudit } from "./depth-audit";
@@ -884,13 +885,13 @@ function letterToAuntie() {
 function askMom() {
   if (momAway(s)) return;
   if (s.adventure?.feather) {
-    const name = giveFeather(s)!;
-    save();
-    return speak(
-      "mom",
-      `<p>I brought you a feather from ${escapeHTML(name)}, Mom.</p><p>Thank you, love! It will bring you good luck.</p>`,
-      [{ label: "Love you too", run: dismissSpeech }],
-    );
+    const name = s.adventure.feather.chicken;
+    return speak("mom", "<p>What have you brought me, sweetheart?</p>", [
+      {
+        label: `I brought you a feather from ${name}, Mom.`,
+        run: startFeatherHandoff,
+      },
+    ]);
   }
   if (offerCooking()) return;
   s.momLastTalkDay = s.day;
@@ -3690,7 +3691,7 @@ function interact(skipTrader = false): void {
     ) < 2
   )
     return mountBike();
-  if (world.life.busy) return;
+  if (world.life.busy || featherHandoff) return;
   if (birdhouseScene || celebration || hatHanging || estateFilm) return;
   if (!begun || paused || action || meditationTime > 0) return;
   if (!s.awake) {
@@ -4435,7 +4436,14 @@ addEventListener("keydown", (e) => {
     if (key === "e") commitFurniture();
     return;
   }
-  if (!begun || world.life.busy || cookingScene || bikeMountTime > 0) return;
+  if (
+    !begun ||
+    world.life.busy ||
+    cookingScene ||
+    featherHandoff ||
+    bikeMountTime > 0
+  )
+    return;
   if (celebration) return;
   if ((s.pepeShowStarted && !s.pepePopped) || pepeViewHold > 0) return;
   if (key === "h") {
@@ -5213,7 +5221,8 @@ function frame(now: number) {
   if (wantedRoof > 0.95 && roofMaterial.opacity > 0.95) {
     if (roofIndex < 0) world.occluders.push(world.homeRoof);
   } else if (roofIndex >= 0) world.occluders.splice(roofIndex, 1);
-  if (world.life.busy || cookingScene || bikeMountTime > 0) keys.clear();
+  if (world.life.busy || cookingScene || featherHandoff || bikeMountTime > 0)
+    keys.clear();
   const active =
     begun &&
     !paused &&
@@ -5798,7 +5807,7 @@ function frame(now: number) {
     camera.lookAt(cameraAim);
     toastTime = Math.max(toastTime, 0.25);
     $("#toast").textContent = "E · Put the chicken down";
-  } else if (world.life.sharing) {
+  } else if (world.life.sharing || featherHandoff) {
     const center = world.player.position
       .clone()
       .lerp(world.mom.position, 0.5)
@@ -6241,11 +6250,12 @@ function frame(now: number) {
   estateWorld.update(s);
   meteorWorld.update(s, active && s.awake ? dt : 0);
   world.syncBeds(s.plots);
-  world.life.update(active ? dt : 0, now / 1000);
+  world.life.update(active && !featherHandoff ? dt : 0, now / 1000);
   hangMomCanvases();
   syncFurnishings();
   updateFurniturePlacement();
   if (active) {
+    updateFeatherHandoff(dt);
     updateCooking(dt);
     updateDesertThought(dt);
     if (bikeMountTime > 0) {
@@ -6415,6 +6425,11 @@ if (new URLSearchParams(location.search).has("test")) {
       film: estateFilm ? { kind: estateFilm.kind, t: estateFilm.t } : null,
       meteors: s.adventure?.meteors ?? [],
       feather: featherModel.visible,
+      featherHandoff: featherHandoff?.t ?? null,
+      featherParent: featherModel.parent?.name,
+      featherOwner:
+        featherModel.parent?.parent === world.mom ? "mom" : "player",
+      featherPosition: featherModel.getWorldPosition(new T.Vector3()).toArray(),
       draws: renderer.info.render.calls,
     }),
     advanceSpace: (dt: number) => {
@@ -7172,24 +7187,88 @@ const neighborGardens = createNeighborGardens(
   world.rects,
   world.player,
 );
-const featherModel = new T.Group();
+const featherModel = makeChickenFeather();
 featherModel.name = "chicken-feather-in-hair";
+featherModel.visible = !!s.adventure?.feather;
 world.player.add(featherModel);
-featherModel.position.set(0.23, 2.05, 0.05);
-featherModel.rotation.z = -0.3;
-const featherStem = new T.Mesh(
-  new T.CylinderGeometry(0.008, 0.008, 0.38, 6),
-  new T.MeshStandardMaterial({ color: "#f1dfb0" }),
-);
-featherModel.add(featherStem);
-for (let i = 0; i < 7; i++) {
-  const barb = new T.Mesh(
-    new T.SphereGeometry(0.05, 8, 6),
-    new T.MeshStandardMaterial({ color: i % 2 ? "#d1b78b" : "#f1e8cf" }),
+const featherHairPosition = new T.Vector3(0.62, 1.95, 0.16);
+featherModel.position.copy(featherHairPosition);
+featherModel.rotation.set(0.2, 0.6, -0.35);
+let featherHandoff:
+  { t: number; playerRotation: number; momRotation: number } | undefined;
+function startFeatherHandoff() {
+  if (
+    !s.adventure?.feather ||
+    featherHandoff ||
+    world.life.busy ||
+    cookingScene
+  )
+    return;
+  dismissSpeech();
+  keys.clear();
+  if (riding) dismountBike();
+  spanakopitaShot = {
+    position: camera.position.clone(),
+    aim: cameraAim.clone(),
+  };
+  featherHandoff = {
+    t: 0,
+    playerRotation: world.player.rotation.y,
+    momRotation: world.mom.rotation.y,
+  };
+  world.player.rotation.y = Math.atan2(
+    world.mom.position.x - world.player.position.x,
+    world.mom.position.z - world.player.position.z,
   );
-  barb.position.set(i % 2 ? 0.028 : -0.028, -0.12 + i * 0.035, 0);
-  barb.scale.set(1, 0.8, 0.22);
-  featherModel.add(barb);
+  world.mom.rotation.y = world.player.rotation.y + Math.PI;
+}
+function updateFeatherHandoff(dt: number) {
+  const film = featherHandoff;
+  if (!film) return;
+  film.t += dt;
+  const t = film.t;
+  const playerHand = world.player.getObjectByName("hand-1")!;
+  const momHand = world.mom.getObjectByName("hand-1")!;
+  const reach = Math.min(1, t / 0.8);
+  playerHand.position.lerpVectors(
+    new T.Vector3(0.43, 0.79, 0),
+    featherHairPosition,
+    reach,
+  );
+  if (t >= 0.8) {
+    const pass = Math.min(1, (t - 0.8) / 1.2);
+    world.mom.updateMatrixWorld(true);
+    const receiving = world.player.worldToLocal(
+      world.mom.localToWorld(new T.Vector3(0.25, 1.1, 0.5)),
+    );
+    playerHand.position.lerpVectors(featherHairPosition, receiving, pass);
+    momHand.position.set(0.25, 1.1, 0.5);
+    if (featherModel.parent === world.player) {
+      world.player.updateMatrixWorld(true);
+      playerHand.attach(featherModel);
+      featherModel.position.set(0, 0.14, 0.04);
+      featherModel.rotation.set(0, 0, -0.3);
+    }
+    if (t >= 2 && featherModel.parent !== momHand) {
+      momHand.attach(featherModel);
+      featherModel.position.set(0, 0.14, 0.04);
+    }
+  }
+  if (t < 3) return;
+  world.player.add(featherModel);
+  featherModel.position.copy(featherHairPosition);
+  featherModel.rotation.set(0.2, 0.6, -0.35);
+  featherModel.visible = false;
+  playerHand.position.set(0.43, 0.79, 0);
+  momHand.position.set(0.43, 0.79, 0);
+  world.player.rotation.y = film.playerRotation;
+  world.mom.rotation.y = film.momRotation;
+  featherHandoff = undefined;
+  giveFeather(s);
+  save();
+  speak("mom", "<p>Thank you, love! It will bring you good luck.</p>", [
+    { label: "Love you too", run: dismissSpeech },
+  ]);
 }
 
 function childrenHomesBuilt() {
