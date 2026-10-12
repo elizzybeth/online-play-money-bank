@@ -153,6 +153,12 @@ test("meteor makes one crater tree and one price crash and persists through relo
   const reloaded = await page.evaluate(() => (window as any).game.state());
   expect(reloaded.coin.price).toBe(4800);
   expect(reloaded.adventure.meteors).toHaveLength(1);
+  if (process.env.MONEY_TREE_CAPTURE) {
+    await page.evaluate(() => (window as any).game.craterView());
+    await page.screenshot({
+      path: process.env.MONEY_TREE_CAPTURE + "/crater.png",
+    });
+  }
 });
 async function approach(page: Page, id: string) {
   await page.evaluate((id) => {

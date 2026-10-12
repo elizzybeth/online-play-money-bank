@@ -1,7 +1,8 @@
+import { makeMeteorCrater } from "./meteor-crater";
 import * as T from "three";
 import type { State } from "./game";
 import { advanceAdventure, landMeteor } from "./adventure";
-import { setCraterSites, craterHeight } from "./millionaire-land";
+import { setCraterSites } from "./millionaire-land";
 export const meteorSites = [
   [-80, -180],
   [142, -220],
@@ -15,6 +16,12 @@ export function desertGround() {
   shape.moveTo(-105, -480);
   shape.lineTo(165, -480);
   shape.lineTo(165, -90);
+  // The town's grass already covers this strip. Cut it out rather than stack
+  // another ground plane at exactly y=0 across the Level 3 transition.
+  shape.lineTo(50, -90);
+  shape.lineTo(50, -95);
+  shape.lineTo(-50, -95);
+  shape.lineTo(-50, -90);
   shape.lineTo(-105, -90);
   shape.closePath();
   for (const [x, z] of meteorSites) {
@@ -28,6 +35,8 @@ export function desertGround() {
     geometry,
     new T.MeshStandardMaterial({ color: "#b4a47e", side: T.DoubleSide }),
   );
+  mesh.name = "desert-ground";
+  mesh.userData.depthAudit = true;
   mesh.receiveShadow = true;
   return mesh;
 }
@@ -40,57 +49,20 @@ export function createMeteorWorld(scene: T.Scene, onImpact: () => void) {
       new T.CircleGeometry(10, 64),
       new T.MeshStandardMaterial({ color: "#b4a47e", side: T.DoubleSide }),
     );
+    disk.name = "inactive-crater-ground";
+    disk.userData.depthAudit = true;
     disk.rotation.x = -Math.PI / 2;
     disk.position.set(x, 0, z);
     group.add(disk);
     return disk;
   });
-  const craters = new Map<number, T.Mesh>();
+  const craters = new Map<number, T.Group>();
   const flights = new Map<number, { t: number; mesh: T.Mesh }>();
   let previous = "";
   function crater(x: number, z: number) {
-    const vertices: number[] = [],
-      indices: number[] = [];
-    const segments = 64,
-      rings = 20;
-    for (let ring = 0; ring <= rings; ring++)
-      for (let i = 0; i <= segments; i++) {
-        const a = (i * Math.PI * 2) / segments,
-          r = (ring / rings) * 10,
-          y =
-            craterHeight(r) + (ring > 0 ? Math.sin(i * 3.4 + ring) * 0.06 : 0);
-        vertices.push(x + Math.cos(a) * r, y, z + Math.sin(a) * r);
-      }
-    for (let ring = 0; ring < rings; ring++)
-      for (let i = 0; i < segments; i++) {
-        const n = ring * (segments + 1) + i;
-        indices.push(
-          n,
-          n + 1,
-          n + segments + 1,
-          n + 1,
-          n + segments + 2,
-          n + segments + 1,
-        );
-      }
-    const geometry = new T.BufferGeometry();
-    geometry.setAttribute(
-      "position",
-      new T.Float32BufferAttribute(vertices, 3),
-    );
-    geometry.setIndex(indices);
-    geometry.computeVertexNormals();
-    const mesh = new T.Mesh(
-      geometry,
-      new T.MeshStandardMaterial({
-        color: "#a48767",
-        roughness: 1,
-        side: T.DoubleSide,
-      }),
-    );
-    mesh.receiveShadow = mesh.castShadow = true;
-    group.add(mesh);
-    return mesh;
+    const root = makeMeteorCrater(x, z);
+    group.add(root);
+    return root;
   }
   return {
     group,
@@ -174,8 +146,15 @@ export function createMeteorWorld(scene: T.Scene, onImpact: () => void) {
         for (const [id, mesh] of craters)
           if (!s.adventure?.meteors?.some((m) => m.id === id)) {
             group.remove(mesh);
-            mesh.geometry.dispose();
-            (mesh.material as T.Material).dispose();
+            mesh.traverse((o) => {
+              if (o instanceof T.Mesh) {
+                o.geometry.dispose();
+                for (const m of Array.isArray(o.material)
+                  ? o.material
+                  : [o.material])
+                  m.dispose();
+              }
+            });
             craters.delete(id);
           }
         for (const m of s.adventure?.meteors ?? [])
