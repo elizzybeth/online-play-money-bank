@@ -2648,7 +2648,7 @@ function updateCooking(dt: number) {
   }
   if (t >= 20) {
     finishMeal(s);
-    c.root.removeFromParent();
+    disposeAnimation(c.root);
     cookingScene = undefined;
     world.setPlayerSeated(false);
     for (const side of [-1, 1])
@@ -4585,19 +4585,20 @@ function updateRollPose() {
     rollPose = undefined;
   }
 }
+function disposeAnimation(root: T.Object3D) {
+  root.removeFromParent();
+  root.traverse((o) => {
+    if (o instanceof T.Mesh) {
+      o.geometry.dispose();
+      for (const material of Array.isArray(o.material)
+        ? o.material
+        : [o.material])
+        material.dispose();
+    }
+  });
+}
+
 function resetTransientMotion() {
-  const disposeAnimation = (root: T.Object3D) => {
-    root.removeFromParent();
-    root.traverse((o) => {
-      if (o instanceof T.Mesh) {
-        o.geometry.dispose();
-        for (const material of Array.isArray(o.material)
-          ? o.material
-          : [o.material])
-          material.dispose();
-      }
-    });
-  };
   world.life.cancelInteractions();
   if (cookingScene) disposeAnimation(cookingScene.root);
   cookingScene = undefined;
@@ -7207,17 +7208,11 @@ function updateEstateFilm(dt: number) {
       "REPO MAN: You failed to make your mortgage payment. You’re losing the house. The doors are locked.",
     );
   if (film.t >= 8) {
-    scene.remove(film.truck);
-    film.truck.traverse((o) => {
-      if (o instanceof T.Mesh) {
-        o.geometry.dispose();
-        (o.material as T.Material).dispose();
-      }
-    });
+    disposeAnimation(film.truck);
     h.movingInSeen = true;
     if (!h.momBed) world.setMomDay(s.day, false, true, s.familyStory);
     if (film.kind === "repo") h.evictionSeen = true;
-    if (film.actor) scene.remove(film.actor);
+    if (film.actor) disposeAnimation(film.actor);
     estateFilm = undefined;
     followInitialized = false;
     camera.position.copy(film.camera);

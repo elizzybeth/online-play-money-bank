@@ -819,14 +819,18 @@ export function decode(raw: string | null): State | null {
       )
     )
       return null;
-    // Early meteor visuals dropped the plot's ID. Restore only an unambiguous
-    // link already recorded by a landed meteor at this exact plot and position.
+    // Repair the two legacy meteor-link bugs only at an exact, unique site:
+    // a missing landed ID, or the previous six-site cycle ID during a repeat flight.
     for (const m of s.adventure?.meteors ?? []) {
       const p = s.plots[m.plot];
       if (
-        m.landed &&
         p &&
-        p.meteor === undefined &&
+        ((m.landed && p.meteor === undefined) ||
+          (!m.landed &&
+            !m.crashed &&
+            !m.harvested &&
+            m.id > 6 &&
+            p.meteor === m.id - 6)) &&
         !p.mountain &&
         !p.community &&
         p.x === m.x &&

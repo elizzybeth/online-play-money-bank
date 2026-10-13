@@ -263,6 +263,15 @@ test("repeat meteor impact remains a valid save while flying and after landing",
     const m = advanceAdventure(s, 10)!;
     assert.ok(m);
     assert.ok(decode(JSON.stringify(s)), `flying meteor ${m.id}`);
+    if (m.id > 6) {
+      const oldExport = structuredClone(s);
+      oldExport.plots[m.plot!].meteor = m.id - 6;
+      const repaired = decode(JSON.stringify(oldExport));
+      assert.ok(repaired, "old repeat-flight export");
+      assert.equal(repaired.plots[m.plot!].meteor, m.id);
+      assert.equal(repaired.cash, oldExport.cash);
+      assert.deepEqual(repaired.coin, oldExport.coin);
+    }
     landMeteor(s, m.id);
     assert.ok(decode(JSON.stringify(s)), `landed meteor ${m.id}`);
   }
