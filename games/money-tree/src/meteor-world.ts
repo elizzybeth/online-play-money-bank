@@ -64,9 +64,30 @@ export function createMeteorWorld(scene: T.Scene, onImpact: () => void) {
     group.add(root);
     return root;
   }
+  let currentState: State | undefined;
+  const dispose = (object: T.Object3D) => {
+    object.removeFromParent();
+    object.traverse((o) => {
+      if (o instanceof T.Mesh) {
+        o.geometry.dispose();
+        for (const material of Array.isArray(o.material)
+          ? o.material
+          : [o.material])
+          material.dispose();
+      }
+    });
+  };
   return {
     group,
     update(s: State, dt: number) {
+      if (currentState !== s) {
+        flights.forEach((flight) => dispose(flight.mesh));
+        craters.forEach(dispose);
+        flights.clear();
+        craters.clear();
+        previous = "";
+        currentState = s;
+      }
       const born = dt > 0 ? advanceAdventure(s, dt) : null;
       group.visible = !!s.millionaire?.unlocked;
       if (!group.visible) {

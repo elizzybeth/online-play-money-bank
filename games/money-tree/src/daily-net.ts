@@ -5,20 +5,24 @@ export class DailyNetLedger {
   private state: State;
   private day: number;
   private total: number;
+  private net: number;
   constructor(state: State) {
     this.state = state;
     this.day = state.day;
     this.total = state.cash + state.bank;
+    this.net = state.dailyNet ?? 0;
   }
   update(state: State) {
     const total = state.cash + state.bank;
     if (state !== this.state) {
       this.state = state;
+      this.net = state.dailyNet ?? 0;
     } else if (state.day !== this.day) {
-      state.dailyNet = 0;
+      this.net = 0;
     } else {
-      state.dailyNet = (state.dailyNet ?? 0) + total - this.total;
+      this.net += total - this.total;
     }
+    state.dailyNet = this.net;
     this.total = total;
     this.day = state.day;
   }

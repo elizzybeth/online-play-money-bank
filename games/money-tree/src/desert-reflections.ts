@@ -151,7 +151,8 @@ export function chooseDesertReflection(s: State, random = Math.random) {
             (s.housing?.status !== "owned" && s.cash + s.bank < 100000000))) ||
         (r.kind === "home" &&
           s.housing?.status === "owned" &&
-          (r.id !== 81 || s.housing.mortgage)),
+          (r.id !== 81 || s.housing.mortgage) &&
+          (r.id !== 83 || !s.housing.momBed)),
     );
   let choices = eligible.filter((r) => !a.reflections?.includes(r.id));
   if (!choices.length) {

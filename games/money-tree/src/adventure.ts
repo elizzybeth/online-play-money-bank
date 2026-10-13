@@ -48,7 +48,14 @@ export function dailyEconomy(s: State) {
   housingDay(s);
 }
 export function requestFeather(s: State) {
-  adventure(s).featherRequested = true;
+  const a = adventure(s);
+  if (
+    a.feather ||
+    s.events.some((event) => event.startsWith("Gave Mom the feather from "))
+  )
+    return false;
+  a.featherRequested = true;
+  return true;
 }
 export function noteChickenCuddle(s: State, chicken: string) {
   if (chicken === "Fancy Chicken") return false;
@@ -125,6 +132,10 @@ export function advanceAdventure(s: State, dt: number) {
     plot: previous?.plot,
   };
   (a.meteors ??= []).push(meteor);
+  // A repeat strike inherits the previous site while the meteor is in flight.
+  // Keep its plot link valid before any autosave or tab-close write.
+  if (previous?.plot !== undefined && s.plots[previous.plot])
+    s.plots[previous.plot].meteor = id;
   a.meteorNextDay = s.day + 1 + (seed % 3);
   a.meteorNextAt = (a.awakeSeconds ?? 0) + 30 + (seed % 61);
   return meteor;

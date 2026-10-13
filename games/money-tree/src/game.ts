@@ -1,3 +1,4 @@
+import { withinPlayableBounds } from "./world-bounds";
 import { dailyEconomy, validAdventure, type Adventure } from "./adventure";
 import { validHousing, type Housing } from "./housing";
 import { normalizeChildReports } from "./child-reports";
@@ -865,6 +866,14 @@ export function decode(raw: string | null): State | null {
       )
     )
       return null;
+    if (
+      s.adventure?.meteors?.some((m: import("./adventure").Meteor) => {
+        if (m.plot === undefined) return false;
+        const p = s.plots[m.plot];
+        return !p || p.meteor !== m.id || p.x !== m.x || p.z !== m.z;
+      })
+    )
+      return null;
     s.neighborChats ??= {};
     if (
       !s.neighborChats ||
@@ -1100,7 +1109,11 @@ export function clearPosition(
   north = -39,
 ) {
   const clear = (x: number, z: number) =>
-    (north < -90 && z < -90 ? x >= -94 && x <= 160 : Math.abs(x) <= 38) &&
+    withinPlayableBounds({
+      position: { x, z },
+      millionaire: north < -90 ? { unlocked: true } : undefined,
+      foundTVSeeds: north < -39,
+    }) &&
     z >= north &&
     z <= 38 &&
     !blocked(x, z, rects);

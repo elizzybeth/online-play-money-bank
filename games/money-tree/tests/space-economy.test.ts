@@ -252,3 +252,45 @@ test("legacy meteor plots recover their recorded ID without changing progress", 
   s.plots[index].x = -81;
   assert.equal(decode(JSON.stringify(s)), null);
 });
+
+test("repeat meteor impact remains a valid save while flying and after landing", () => {
+  const s = coin();
+  for (let i = 0; i < 8; i++) {
+    s.day = s.adventure?.meteorNextDay ?? 2;
+    s.adventure ??= {};
+    s.adventure.meteorNextDay = s.day;
+    s.adventure.meteorNextAt = 0;
+    const m = advanceAdventure(s, 10)!;
+    assert.ok(m);
+    assert.ok(decode(JSON.stringify(s)), `flying meteor ${m.id}`);
+    landMeteor(s, m.id);
+    assert.ok(decode(JSON.stringify(s)), `landed meteor ${m.id}`);
+  }
+  assert.equal(s.adventure!.meteors!.length, 6);
+  const damaged = structuredClone(s);
+  damaged.adventure!.meteors![0].plot = damaged.plots.length + 1;
+  assert.equal(decode(JSON.stringify(damaged)), null);
+});
+
+test("Mom does not request a completed feather gift again that day", () => {
+  const s = fresh();
+  assert.ok(requestFeather(s));
+  noteChickenCuddle(s, "Cluck");
+  assert.equal(requestFeather(s), false);
+  giveFeather(s);
+  assert.equal(requestFeather(s), false);
+  s.day++;
+  s.events = [];
+  assert.ok(requestFeather(s));
+});
+
+test("mansion reflections recognize Mom already has a bed", () => {
+  const s = estate();
+  buyMansion(s, "hearst", true);
+  s.housing!.momBed = true;
+  for (let i = 0; i < 100; i++)
+    assert.notEqual(
+      chooseDesertReflection(s, () => i / 100),
+      "Mom needs a bed, not a grand entrance.",
+    );
+});

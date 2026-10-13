@@ -400,6 +400,36 @@ export function createTownLife(
     get sharing() {
       return !!sharing;
     },
+    cancelInteractions() {
+      if (cuddle) {
+        const ch = chickens[cuddle.i];
+        scene.add(ch.object);
+        ch.object.position.copy(cuddle.origin);
+        ch.object.rotation.x = 0;
+        ch.roaming.position = { x: cuddle.origin.x, z: cuddle.origin.z };
+        ch.target.x = cuddle.origin.x;
+        ch.target.z = cuddle.origin.z;
+        cuddle = undefined;
+      }
+      if (sharing) {
+        sharing.pieces.forEach((piece) => {
+          piece.removeFromParent();
+          piece.traverse((o) => {
+            if (o instanceof T.Mesh) o.geometry.dispose();
+          });
+        });
+        sharing = undefined;
+      }
+      if (berry) {
+        berry.mesh.removeFromParent();
+        berry.mesh.geometry.dispose();
+        (berry.mesh.material as T.Material).dispose();
+        berry = undefined;
+      }
+      reset(player);
+      reset(mom);
+      previousPlayer.set(player.position.x, player.position.z);
+    },
     putDown() {
       if (cuddle) cuddle.releasing = true;
     },
