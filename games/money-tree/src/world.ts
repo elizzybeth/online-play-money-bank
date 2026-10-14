@@ -215,7 +215,9 @@ export function createWorld(scene: T.Scene) {
     return mesh;
   }
   function target(id: string, x: number, z: number, label: string) {
-    targets.push({ id, x, z, label });
+    const point = { id, x, z, label };
+    targets.push(point);
+    return point;
   }
   function person(
     x: number,
@@ -1162,6 +1164,7 @@ export function createWorld(scene: T.Scene) {
   soilTexture.wrapS = soilTexture.wrapT = T.RepeatWrapping;
   soilTexture.repeat.set(1, 2);
   // Garden and open fence gate.
+  const bedTargets: Target[] = [];
   const bedFrames: T.Group[] = [],
     bedSoils: T.Mesh[] = [];
   function addBed(i: number, x: number, z: number) {
@@ -1220,7 +1223,7 @@ export function createWorld(scene: T.Scene) {
     g.position.set(x, 0.29, z);
     scene.add(g);
     plots.push(g);
-    target(`plot${i}`, x, z + 1.6, `Garden plot ${i + 1}`);
+    bedTargets.push(target(`plot${i}`, x, z + 1.6, `Garden plot ${i + 1}`));
   }
   for (let i = 0; i < 5; i++) addBed(i, -20 + i * 2, 19);
   function syncBeds(data: Plot[]) {
@@ -1237,6 +1240,7 @@ export function createWorld(scene: T.Scene) {
       plots.pop()!.removeFromParent();
       bedFrames.pop()!.removeFromParent();
       bedSoils.pop();
+      bedTargets.pop();
       const at = targets.findIndex((t) => t.id === `plot${i}`);
       if (at >= 0) targets.splice(at, 1);
     }
@@ -1251,7 +1255,7 @@ export function createWorld(scene: T.Scene) {
         bedFrames[i].visible = false;
         plots[i].userData.mountain = true;
         plots[i].position.y = terrainHeight(p.x!, p.z!) + 0.03;
-        const target = targets.find((t) => t.id === `plot${i}`)!;
+        const target = bedTargets[i];
         target.label = ["empty", "harvested"].includes(p.stage)
           ? "Plant in terrace soil"
           : "Money tree";
