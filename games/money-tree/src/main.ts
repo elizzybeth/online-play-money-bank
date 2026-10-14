@@ -3468,13 +3468,26 @@ bankHudStack.id = "bank-hud-stack";
 bankHudStack.append(cashHud, bankHud);
 topRightHud.append($("header"), $("#quest"), coinTracker, bankHudStack);
 document.body.append(topRightHud);
+const hudMarkup = new WeakMap<HTMLElement, string>();
+function setText(element: Node, text: string) {
+  if (element.textContent !== text) element.textContent = text;
+}
+function setHudHTML(element: HTMLElement, html: string) {
+  if (hudMarkup.get(element) === html) return;
+  element.innerHTML = html;
+  hudMarkup.set(element, html);
+}
+
 function updateCoinTracker() {
   coinTracker.hidden = !begun || !s.coin;
   if (!s.coin) return;
   const c = s.coin,
     old = c.history.at(-2) ?? c.price,
     trend = c.price > old ? "▲" : c.price < old ? "▼" : "•";
-  coinTracker.innerHTML = `<strong>${escapeHTML(c.name)}</strong><br>${trend} ${money(c.price)} / coin<br>Holding ${money(coinValue(s))}`;
+  setHudHTML(
+    coinTracker,
+    `<strong>${escapeHTML(c.name)}</strong><br>${trend} ${money(c.price)} / coin<br>Holding ${money(coinValue(s))}`,
+  );
   coinTracker.title =
     "An in-game coin. Use the ATM beside Grindset to buy or sell.";
 }
@@ -4777,11 +4790,6 @@ function targetDistance(t: Target) {
   const point = interactionPoint(t);
   return Math.hypot(s.position.x - point.x, s.position.z - point.z);
 }
-function targetScore(t: Target) {
-  const ready =
-    t.id.startsWith("plot") && s.plots[+t.id.slice(4)].stage === "ready";
-  return targetDistance(t) - (ready ? 0.35 : 0);
-}
 function atBikeRack() {
   return Math.hypot(s.position.x + 24, s.position.z + 14.7) < 1.5;
 }
@@ -4799,54 +4807,64 @@ function selectTarget() {
       z: parkedBike.position.z,
       label: "Mount bicycle",
     };
-  return world.targets
-    .filter(
-      (t) =>
-        (t.id !== "player-stove" || kitchenPrepared || !!s.pendingMeal) &&
-        ((!t.id.startsWith("willow-") &&
-          !t.id.startsWith("fellowship-") &&
-          !t.id.startsWith("millionaire-")) ||
-          !!s.millionaire?.unlocked) &&
-        (!t.id.startsWith("fellowship-") ||
-          !!s.millionaire?.result ||
-          !!s.millionaire?.member) &&
-        (!t.id.startsWith("millionaire-") || !!s.millionaire?.member) &&
-        (!t.id.startsWith("fellowship-") ||
-          effectivelyVisible(
-            world.speakers.find((o) => o.id === t.id)!.object,
-          )) &&
-        (t.id !== "mom" || !momAway(s)) &&
-        (t.id !== "bea-chair" || inBeaHouse(s.position)) &&
-        (s.foundTVSeeds ||
-          (!t.id.startsWith("sigma-chad-") &&
-            t.id !== "grindset" &&
-            t.id !== "gigachad" &&
-            t.id !== "composter" &&
-            t.id !== "wolf")) &&
-        (t.id !== "coin-atm" || !!s.coin) &&
-        (t.id !== "forest-seeds" ||
-          (!!s.foundCapSeeds && !s.foundForestSeeds)) &&
-        (t.id !== "store-seeds" ||
-          (!!s.foundForestSeeds && !s.foundStoreSeeds)) &&
-        (t.id !== "garden-seeds" ||
-          (!!s.foundStoreSeeds && !s.foundGardenSeeds)) &&
-        (!t.id.startsWith("pepe-seed-") ||
-          (!!s.pepePopped &&
-            !s.pepePackets?.includes(Number(t.id.slice(10))))) &&
-        (t.id !== "pepe-door" || !canEnterPepe(s)) &&
-        (t.id !== "tv-seeds" || (!!s.foundGardenSeeds && !s.foundTVSeeds)) &&
-        targetDistance(t) <
-          (t.id.startsWith("bike-") && t.id !== "bike-rack"
-            ? 4.5
-            : t.id === "mom" &&
-                momStatus(s.day, s.familyStory).activity === "bedrest"
-              ? 3.8
-              : wearing(s, "lantern") || buff(s, "reach")
-                ? 3
-                : 2.1) &&
-        hasSight(t),
-    )
-    .sort((a, b) => targetScore(a) - targetScore(b))[0];
+  let best: Target | undefined;
+  let bestScore = Infinity;
+  for (const t of world.targets) {
+    let distance = 0;
+    if (
+      (t.id !== "player-stove" || kitchenPrepared || !!s.pendingMeal) &&
+      ((!t.id.startsWith("willow-") &&
+        !t.id.startsWith("fellowship-") &&
+        !t.id.startsWith("millionaire-")) ||
+        !!s.millionaire?.unlocked) &&
+      (!t.id.startsWith("fellowship-") ||
+        !!s.millionaire?.result ||
+        !!s.millionaire?.member) &&
+      (!t.id.startsWith("millionaire-") || !!s.millionaire?.member) &&
+      (!t.id.startsWith("fellowship-") ||
+        effectivelyVisible(
+          world.speakers.find((o) => o.id === t.id)!.object,
+        )) &&
+      (t.id !== "mom" || !momAway(s)) &&
+      (t.id !== "bea-chair" || inBeaHouse(s.position)) &&
+      (s.foundTVSeeds ||
+        (!t.id.startsWith("sigma-chad-") &&
+          t.id !== "grindset" &&
+          t.id !== "gigachad" &&
+          t.id !== "composter" &&
+          t.id !== "wolf")) &&
+      (t.id !== "coin-atm" || !!s.coin) &&
+      (t.id !== "forest-seeds" || (!!s.foundCapSeeds && !s.foundForestSeeds)) &&
+      (t.id !== "store-seeds" ||
+        (!!s.foundForestSeeds && !s.foundStoreSeeds)) &&
+      (t.id !== "garden-seeds" ||
+        (!!s.foundStoreSeeds && !s.foundGardenSeeds)) &&
+      (!t.id.startsWith("pepe-seed-") ||
+        (!!s.pepePopped && !s.pepePackets?.includes(Number(t.id.slice(10))))) &&
+      (t.id !== "pepe-door" || !canEnterPepe(s)) &&
+      (t.id !== "tv-seeds" || (!!s.foundGardenSeeds && !s.foundTVSeeds)) &&
+      (distance = targetDistance(t)) <
+        (t.id.startsWith("bike-") && t.id !== "bike-rack"
+          ? 4.5
+          : t.id === "mom" &&
+              momStatus(s.day, s.familyStory).activity === "bedrest"
+            ? 3.8
+            : wearing(s, "lantern") || buff(s, "reach")
+              ? 3
+              : 2.1)
+    ) {
+      const score =
+        distance -
+        (t.id.startsWith("plot") && s.plots[+t.id.slice(4)].stage === "ready"
+          ? 0.35
+          : 0);
+      if (score < bestScore && hasSight(t)) {
+        best = t;
+        bestScore = score;
+      }
+    }
+  }
+  return best;
 }
 function hasSight(t: Target) {
   const a = new T.Vector3(
@@ -4875,7 +4893,10 @@ function updateUI() {
   mortgageHud.hidden = !s.housing?.mortgage || s.housing.status !== "owned";
   if (!mortgageHud.hidden) {
     const h = s.housing!;
-    mortgageHud.innerHTML = `<span>⌂</span><span><small>Mortgage · $10/day</small><strong>${money(h.balance)}</strong><small>${money(h.principalPaid)} principal paid · $6 principal / $4 interest</small></span>`;
+    setHudHTML(
+      mortgageHud,
+      `<span>⌂</span><span><small>Mortgage · $10/day</small><strong>${money(h.balance)}</strong><small>${money(h.principalPaid)} principal paid · $6 principal / $4 interest</small></span>`,
+    );
   }
 
   fertilizerHud.hidden = !(
@@ -4886,11 +4907,14 @@ function updateUI() {
       d.events.some((e) => e.includes("fertilizer")),
     )
   );
-  fertilizerHud.querySelector("strong")!.textContent = String(s.fertilizer);
+  setText(fertilizerHud.querySelector("strong")!, String(s.fertilizer));
   membershipHud.hidden = !s.millionaire?.member;
   if (s.millionaire?.member) {
     const f = fellowship(s.millionaire.member);
-    membershipHud.innerHTML = `<span class="membership-icon" aria-hidden="true">▣</span><span><small>Membership</small><strong>${f.id === "arms" ? "M.I.A." : f.id === "bridge" ? "Bridge" : "Breath of Fire"}</strong></span>`;
+    setHudHTML(
+      membershipHud,
+      `<span class="membership-icon" aria-hidden="true">▣</span><span><small>Membership</small><strong>${f.id === "arms" ? "M.I.A." : f.id === "bridge" ? "Bridge" : "Breath of Fire"}</strong></span>`,
+    );
     membershipHud.title = `${f.name} membership card. Open your phone apps.`;
     membershipHud.setAttribute(
       "aria-label",
@@ -4900,9 +4924,11 @@ function updateUI() {
   drinkHud.hidden = !s.drink;
   if (s.drink) {
     const drink = drinks.find((d) => d.id === s.drink!.id)!;
-    drinkHud.querySelector("small")!.textContent = drink.name;
-    drinkHud.querySelector("strong")!.textContent =
-      `${Math.ceil(s.drink.remaining)}s`;
+    setText(drinkHud.querySelector("small")!, drink.name);
+    setText(
+      drinkHud.querySelector("strong")!,
+      `${Math.ceil(s.drink.remaining)}s`,
+    );
     drinkHud.title = drink.effect;
     drinkHud.setAttribute(
       "aria-label",
@@ -4910,35 +4936,35 @@ function updateUI() {
     );
   }
   compostHud.hidden = !s.foundTVSeeds;
-  compostHud.querySelector("strong")!.textContent = String(
-    s.compostScraps ?? 0,
-  );
+  setText(compostHud.querySelector("strong")!, String(s.compostScraps ?? 0));
   compostHud.setAttribute(
     "aria-label",
     `${s.compostScraps ?? 0} compost scraps`,
   );
   const total = s.cash + s.bank;
   updateCoinTracker();
-  seedHud.querySelector("strong")!.textContent = String(s.seeds);
+  setText(seedHud.querySelector("strong")!, String(s.seeds));
   seedHud.setAttribute("aria-label", `${s.seeds} money tree seeds`);
   dailyNetLedger.update(s);
   const net = s.dailyNet ?? 0;
-  netHud.querySelector(".daily-net-icon")!.textContent = net < 0 ? "↘" : "↗";
+  setText(netHud.querySelector(".daily-net-icon")!, net < 0 ? "↘" : "↗");
   netHud.classList.toggle("negative", net < 0);
-  netHud.querySelector("strong")!.textContent =
-    `${net < 0 ? "−" : "+"}${money(Math.abs(net))}`;
+  setText(
+    netHud.querySelector("strong")!,
+    `${net < 0 ? "−" : "+"}${money(Math.abs(net))}`,
+  );
   netHud.setAttribute(
     "aria-label",
     `${net < 0 ? "−" : "+"}${money(Math.abs(net))} Daily Net`,
   );
-  cashHud.querySelector("strong")!.textContent = money(s.cash);
-  bankHud.querySelector("strong")!.textContent = money(s.bank);
+  setText(cashHud.querySelector("strong")!, money(s.cash));
+  setText(bankHud.querySelector("strong")!, money(s.bank));
   cashHud.setAttribute("aria-label", `${money(s.cash)} pocket money`);
   bankHud.setAttribute(
     "aria-label",
     `${money(s.bank)} saved in the piggy bank`,
   );
-  $("#stats").textContent = `Day ${s.day}`;
+  setText($("#stats"), `Day ${s.day}`);
   document.documentElement.style.setProperty(
     "--resource-height",
     `${resourceHud.offsetHeight}px`,
@@ -5017,8 +5043,8 @@ function updateUI() {
     hint =
       "Investigate the meteor craters in the desert. A ready Money Tree grows at each new landing site.";
   }
-  $("#objective").textContent = objective;
-  $("#hint").textContent = hint;
+  setText($("#objective"), objective);
+  setText($("#hint"), hint);
   const phase = storyPhase(s);
   if (phase !== "saving") {
     const aims = {
@@ -5049,23 +5075,28 @@ function updateUI() {
         `${money(total)} saved · ${money(Math.max(0, 10_000_000 - total))} left toward $100,000.`,
       ],
     };
-    $("#objective").textContent = aims[phase][0];
-    $("#hint").textContent = aims[phase][1];
+    setText($("#objective"), aims[phase][0]);
+    setText($("#hint"), aims[phase][1]);
   } else if (canTellMom(s)) {
-    $("#objective").textContent = "Tell Mom you’ve got $10k";
-    $("#hint").textContent =
-      "You have enough in your pocket and savings to pay for her surgery. Go see Mom.";
+    setText($("#objective"), "Tell Mom you’ve got $10k");
+    setText(
+      $("#hint"),
+      "You have enough in your pocket and savings to pay for her surgery. Go see Mom.",
+    );
   }
   if (s.adventure?.meteors?.some((m) => m.landed && !m.harvested)) {
-    $("#objective").textContent = "Something fell from the sky";
-    $("#hint").textContent =
-      "Investigate the meteor craters in the desert. A ready Money Tree grows at each new landing site.";
+    setText($("#objective"), "Something fell from the sky");
+    setText(
+      $("#hint"),
+      "Investigate the meteor craters in the desert. A ready Money Tree grows at each new landing site.",
+    );
   }
   const { x, z } = s.position;
-  $("#location").textContent =
+  setText(
+    $("#location"),
     s.housing?.status === "owned" &&
-    Math.abs(x - mansionLot.x) < 16 &&
-    Math.abs(z - mansionLot.z) < 11
+      Math.abs(x - mansionLot.x) < 16 &&
+      Math.abs(z - mansionLot.z) < 11
       ? `${s.housing.style === "hearst" ? "Hearst Castle" : "Mount Vernon"} · Home`
       : s.housing?.storeOpened && x > -48 && x < -28 && z > -327 && z < -309
         ? "Mansion Marvels"
@@ -5085,7 +5116,8 @@ function updateUI() {
                     ? "Thread & Thimble"
                     : z < -13
                       ? "Market Lane"
-                      : "Willow Lane";
+                      : "Willow Lane",
+  );
   near = selectTarget();
   let prompt =
     s.millionaire?.titheAccepted && !riding && fertileMountainSoil(x, z)
@@ -5165,7 +5197,8 @@ function updateUI() {
         : cookingScene.elapsed < 13
           ? "Taking our plates to Mom…"
           : "Sharing our meal…";
-  $("#prompt").innerHTML = prompt;
+  const promptElement = $("#prompt");
+  if (promptElement.innerHTML !== prompt) promptElement.innerHTML = prompt;
   $("#prompt").classList.toggle("unavailable", unavailable);
   $("#prompt").classList.toggle("seated", sitting);
   $("#prompt").setAttribute("aria-disabled", String(unavailable));
@@ -5174,6 +5207,7 @@ function updateUI() {
     $("#progress span").style.width =
       `${(action.elapsed / action.duration) * 100}%`;
 }
+const timerPosition = new T.Vector3();
 function frame(now: number) {
   frameNumber++;
   world.setHat(wornHats(s));
@@ -6202,23 +6236,27 @@ function frame(now: number) {
     }
   }
   for (let i = 0; i < s.plots.length; i++) {
-    const p = s.plots[i],
-      el = timers[i];
-    const position = world.plots[i].position
-      .clone()
-      .add(new T.Vector3(0, 0.45, 0));
-    const distance = position.distanceTo(camera.position);
-    position.project(camera);
-    el.hidden =
-      !begun ||
-      !s.awake ||
-      distance > 17 ||
-      position.z > 1 ||
-      p.stage !== "ready";
-    el.style.left = `${(position.x * 0.5 + 0.5) * innerWidth}px`;
-    el.style.top = `${(-position.y * 0.5 + 0.5) * innerHeight}px`;
-    el.textContent =
-      p.stage === "ready" ? "$ Ready to harvest" : "Ready tomorrow";
+    const el = timers[i];
+    if (!begun || !s.awake || s.plots[i].stage !== "ready") {
+      if (!el.hidden) el.hidden = true;
+      continue;
+    }
+    timerPosition.copy(world.plots[i].position);
+    timerPosition.y += 0.45;
+    if (timerPosition.distanceToSquared(camera.position) > 17 * 17) {
+      if (!el.hidden) el.hidden = true;
+      continue;
+    }
+    timerPosition.project(camera);
+    if (timerPosition.z > 1) {
+      if (!el.hidden) el.hidden = true;
+      continue;
+    }
+    if (el.hidden) el.hidden = false;
+    el.style.left = `${(timerPosition.x * 0.5 + 0.5) * innerWidth}px`;
+    el.style.top = `${(-timerPosition.y * 0.5 + 0.5) * innerHeight}px`;
+    if (el.textContent !== "$ Ready to harvest")
+      el.textContent = "$ Ready to harvest";
   }
   if (thoughtTime > 0 && active && !speaking) {
     thoughtTime -= dt;
@@ -6323,7 +6361,10 @@ function frame(now: number) {
   foodHud.hidden = !s.foodBuff;
   if (s.foodBuff) {
     const f = meals[s.foodBuff.recipe];
-    foodHud.innerHTML = `${foodIllustration(s.foodBuff.recipe)}<span>${f.name}<br>${Math.ceil(s.foodBuff.remaining)}s</span>`;
+    setHudHTML(
+      foodHud,
+      `${foodIllustration(s.foodBuff.recipe)}<span>${f.name}<br>${Math.ceil(s.foodBuff.remaining)}s</span>`,
+    );
     foodHud.title = f.effect;
   }
   world.updateHouseBirds(now / 1000);
