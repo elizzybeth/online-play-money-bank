@@ -20,9 +20,9 @@ test("pause debug unlock survives refresh and preserves a pre-debug backup", asy
   await expect(page.getByRole("dialog").getByRole("status")).toContainText(
     "applied",
   );
-  const saved = await page.evaluate(() => ({
-    current: JSON.parse(localStorage.getItem("money-tree-v1")!),
-    backup: JSON.parse(localStorage.getItem("money-tree-v1-debug-backup")!),
+  const saved = await page.evaluate(async () => ({
+    current: await (window as any).game.savedState("money-tree-v1"),
+    backup: await (window as any).game.savedState("money-tree-v1-debug-backup"),
   }));
   expect(saved.current.millionaire.unlocked).toBe(true);
   expect(saved.backup.millionaire?.unlocked).toBeFalsy();
@@ -65,11 +65,15 @@ test("rejected Chrome save is preserved through begin and refresh instead of ove
   await page.getByRole("button", { name: "Wake up" }).click();
   await expect(page.locator("#intro")).toBeHidden();
   await page.getByRole("button", { name: "Back", exact: true }).click();
-  expect(await page.evaluate(() => localStorage.getItem("money-tree-v1"))).toBe(
-    bad,
-  );
   expect(
-    await page.evaluate(() => localStorage.getItem("money-tree-v1-rejected")),
+    await page.evaluate(
+      async () => await (window as any).game.savedRaw("money-tree-v1"),
+    ),
+  ).toBe(bad);
+  expect(
+    await page.evaluate(
+      async () => await (window as any).game.savedRaw("money-tree-v1-rejected"),
+    ),
   ).toBe(bad);
 });
 test("valid backup restores progress after a rejected primary save", async ({
@@ -85,12 +89,16 @@ test("valid backup restores progress after a rejected primary save", async ({
   }, valid);
   await page.goto("./?test");
   await page.getByRole("button", { name: "Wake up" }).click();
-  expect(await page.evaluate(() => (window as any).game.state().day)).toBe(17);
-  expect(await page.evaluate(() => (window as any).game.state().cash)).toBe(
-    45678,
-  );
   expect(
-    await page.evaluate(() => localStorage.getItem("money-tree-v1-rejected")),
+    await page.evaluate(async () => (window as any).game.state().day),
+  ).toBe(17);
+  expect(
+    await page.evaluate(async () => (window as any).game.state().cash),
+  ).toBe(45678);
+  expect(
+    await page.evaluate(
+      async () => await (window as any).game.savedRaw("money-tree-v1-rejected"),
+    ),
   ).toBe("corrupt");
 });
 
@@ -119,15 +127,17 @@ test("recovery imports a valid save directly and keeps it after refresh", async 
   await expect(page.getByRole("dialog")).toBeHidden();
   expect(
     await page.evaluate(
-      () => JSON.parse(localStorage.getItem("money-tree-v1")!).day,
+      async () => (await (window as any).game.savedState("money-tree-v1")).day,
     ),
   ).toBe(21);
   await page.reload();
   await page.getByRole("button", { name: "Wake up" }).click();
-  expect(await page.evaluate(() => (window as any).game.state().bank)).toBe(
-    116837,
-  );
   expect(
-    await page.evaluate(() => localStorage.getItem("money-tree-v1-rejected")),
+    await page.evaluate(async () => (window as any).game.state().bank),
+  ).toBe(116837);
+  expect(
+    await page.evaluate(
+      async () => await (window as any).game.savedRaw("money-tree-v1-rejected"),
+    ),
   ).toBe("broken");
 });

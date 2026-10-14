@@ -160,10 +160,13 @@ export function landMeteor(s: State, id: number) {
   } else s.plots[m.plot] = tree;
   if (!m.crashed) {
     m.crashed = true;
-    if (s.coin) {
+    let priceFell = false;
+    if (s.coin && (s.coin.exactPrice ?? s.coin.price) >= 100 && !(s.coin.recoverySeconds! > 0)) {
+      priceFell = true;
+      s.coin.recoverySeconds = 180;
       s.coin.exactPrice = Math.max(
         1,
-        (s.coin.exactPrice ?? s.coin.price) * 0.48,
+        (s.coin.exactPrice ?? s.coin.price) * (m.id % 9 === 0 ? 0.55 : 0.82),
       );
       s.coin.price = Math.round(s.coin.exactPrice);
       s.coin.history.push(s.coin.price);
@@ -171,7 +174,7 @@ export function landMeteor(s: State, id: number) {
       samplePrice(s);
     }
     s.events.push(
-      `A meteor fell into the desert. One money tree grew at its heart.${s.coin ? ` Fear of another strike sent ${s.coin.name} tumbling.` : ""}`,
+      `A meteor fell into the desert. One money tree grew at its heart.${s.coin ? (priceFell ? ` Fear of another strike sent ${s.coin.name} tumbling.` : " The market’s recovery protection kept the coin steady.") : ""}`,
     );
   }
   return true;

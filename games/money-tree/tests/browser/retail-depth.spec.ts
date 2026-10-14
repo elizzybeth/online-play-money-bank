@@ -95,7 +95,7 @@ test("Level 3 exposed terrain passes the depth audit and the higher bike sign cl
   expect(
     await page.evaluate(() => {
       const g = (window as any).game;
-      return [-94.8, 160.8, 33, -33.4, 106.6].every((x) =>
+      return [-94.8, 160.8, 33, -25.95, 105.35].every((x) =>
         g.rects.some(
           (r: any) =>
             r.x === x && (r.z === -280 || r.z === -470.8 || r.z === -89.6),

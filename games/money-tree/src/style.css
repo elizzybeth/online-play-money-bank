@@ -1763,7 +1763,7 @@ header .brand {
 }
 @media (max-width: 700px) {
   #quest {
-    width: 220px;
+    width: max-content;
     padding: 10px;
   }
   #quest p {
@@ -1997,7 +1997,8 @@ body:has(#intro:not([hidden])) :is(#top-right-hud, #stats) {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  width: 265px;
+  width: max-content;
+  align-self: flex-end;
 }
 #bank-hud-stack .money-counter {
   flex: 1;
@@ -2016,7 +2017,7 @@ body:has(#intro:not([hidden])) :is(#top-right-hud, #stats) {
 }
 @media (max-width: 700px) {
   #bank-hud-stack {
-    width: 220px;
+    width: max-content;
   }
   #resource-hud {
     grid-auto-columns: max-content;
@@ -2070,4 +2071,26 @@ body:has(#intro:not([hidden])) :is(#top-right-hud, #stats) {
 .shop-card:focus-visible {
   outline: 3px solid #355443;
   outline-offset: 2px;
+}
+
+.mansion-previews {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.mansion-previews figure {
+  margin: 0;
+  min-width: 0;
+  text-align: center;
+}
+.mansion-previews img {
+  width: 100%;
+  height: 120px;
+  object-fit: contain;
+  background: #f1e4c9;
+  border-radius: 12px;
+}
+.mansion-previews figcaption {
+  font-size: 14px;
+  line-height: 1.25;
 }

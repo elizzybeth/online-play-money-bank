@@ -135,9 +135,9 @@ test("meteors recur one to three days apart, remain bounded, and crash exactly o
   const m = advanceAdventure(s, 100)!;
   assert.ok(m);
   assert.equal(landMeteor(s, m.id), true);
-  assert.equal(s.coin!.price, 4800);
+  assert.equal(s.coin!.price, 8200);
   assert.equal(landMeteor(s, m.id), false);
-  assert.equal(s.coin!.price, 4800);
+  assert.equal(s.coin!.price, 8200);
   for (let i = 0; i < 50; i++) {
     const before = s.day;
     s.day = s.adventure!.meteorNextDay!;

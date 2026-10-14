@@ -1,5 +1,12 @@
 import type { State } from "./game";
-export const ingredients = ["eggs", "rice", "beans", "tortillas"] as const;
+export const ingredients = [
+  "eggs",
+  "rice",
+  "beans",
+  "tortillas",
+  "pepper",
+  "tomato",
+] as const;
 export type Ingredient = (typeof ingredients)[number];
 export type FoodBuff = { recipe: number; remaining: number };
 export type Meal = {
@@ -100,6 +107,42 @@ export const meals: Record<number, Meal> = {
     effect: "50% chance to keep a seed when planting",
   },
 };
+// Preserve the original fifteen recipes; vegetables add combinations without
+// changing their bit positions in existing saves.
+for (let mask = 16; mask < 64; mask++) {
+  const pepper = !!(mask & 16),
+    tomato = !!(mask & 32),
+    base = mask & 15;
+  const name =
+    pepper && tomato
+      ? base & 8
+        ? "Garden fajitas"
+        : base & 1
+          ? "Garden shakshuka"
+          : "Pepper and tomato stew"
+      : pepper
+        ? base & 2
+          ? "Stuffed peppers"
+          : base & 1
+            ? "Pepper omelette"
+            : "Roasted pepper supper"
+        : base & 8
+          ? "Tomato tostadas"
+          : base & 2
+            ? "Tomato rice"
+            : "Slow-roasted tomato supper";
+  meals[mask] = {
+    name,
+    seconds: 180,
+    power: base & 1 ? "harvest" : base & 2 ? "garden" : "seed",
+    effect:
+      base & 1
+        ? "20% more money from trees"
+        : base & 2
+          ? "Plant, water and fertilize in one step"
+          : "50% chance to keep a seed when planting",
+  };
+}
 export function mealMask(s: State) {
   return ingredients.reduce(
     (n, k, i) => n + ((s.groceries?.[k] ?? 0) > 0 ? 1 << i : 0),

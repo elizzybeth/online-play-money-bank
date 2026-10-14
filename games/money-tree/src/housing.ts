@@ -57,7 +57,7 @@ export function buyMansion(s: State, style: MansionStyle, mortgage: boolean) {
   };
   s.dailyNet = (s.dailyNet ?? 0) - down;
   s.events.push(
-    `Bought a ${style === "hearst" ? "Hearst Castle" : "Mount Vernon"} mansion ${mortgage ? "with a $1,000 downpayment and a mortgage" : "outright for $1,000,000"}.`,
+    `Bought a ${style === "hearst" ? "Magnate Mansion" : "Presidential Palace"} mansion ${mortgage ? "with a $1,000 downpayment and a mortgage" : "outright for $1,000,000"}.`,
   );
   return true;
 }

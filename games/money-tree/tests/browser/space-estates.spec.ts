@@ -192,17 +192,26 @@ test("mascot offers a mortgage, moving truck brings Mom, and the church buys equ
   await approach(page, "fellowship-fire");
   await page.keyboard.press("e");
   await expect(page.locator(".speech-bubble")).toContainText(
-    "One million dollars",
+    "When are you going to build a mansion?",
   );
   await page
+    .getByRole("button", { name: "How much does it cost?", exact: true })
+    .click();
+  await page
     .getByRole("button", { name: "I don’t have a million", exact: true })
+    .click();
+  await page
+    .getByRole("button", {
+      name: "But that will take 100,000 days!",
+      exact: true,
+    })
     .click();
   await expect(page.locator(".speech-bubble")).toContainText("166,667 days");
   await page
     .getByRole("button", { name: "Take the mortgage", exact: true })
     .click();
   await page
-    .getByRole("button", { name: "Hearst Castle", exact: true })
+    .getByRole("button", { name: "Magnate Mansion", exact: true })
     .click();
   await frames(page, 20);
   expect(
@@ -293,7 +302,12 @@ test("Fancy Chicken takes a berry instead of a cuddle and only Chads offer tradi
   await expect(page.locator(".speech-bubble")).toContainText(
     "trading strategy",
   );
-  await page.getByRole("button", { name: "Yes, tell me", exact: true }).click();
+  await page
+    .getByRole("button", {
+      name: "Tell me about your trading strategy",
+      exact: true,
+    })
+    .click();
   const strategy = (
     await page.evaluate(() => (window as any).game.state())
   ).coin.traders.find((t: any) => t.id === "grindset").strategy;

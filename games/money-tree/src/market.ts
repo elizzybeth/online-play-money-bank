@@ -66,6 +66,10 @@ export function traderFlow(s: State) {
       case 6:
         side = c.price % 10000 > 9500 ? -1 : c.price % 10000 < 500 ? 1 : 0;
     }
+    // Strategies keep their personality but rebalance toward a 2% daily valuation.
+    const target = c.targetPrice ?? c.price;
+    if (c.price < target * 0.92) side = 1;
+    if (c.price > target * 1.08) side = -1;
     const budget = Math.min(t.cash, 1000 + t.strategy * 113),
       quantity = Math.max(
         0,
@@ -75,7 +79,7 @@ export function traderFlow(s: State) {
       t.cash -= Math.ceil((quantity * c.price) / 1e6);
       t.units += quantity;
       t.trades++;
-      flow += budget / 1000000;
+      flow += budget / 600000;
     }
     if (side < 0 && t.units) {
       const sold = Math.max(1, Math.floor(t.units * 0.18)),
@@ -83,16 +87,20 @@ export function traderFlow(s: State) {
       t.units -= sold;
       t.cash += value;
       t.trades++;
-      flow -= value / 1000000;
+      flow -= value / 600000;
     }
     t.lastProfit = Math.floor((t.units * c.price) / 1e6) + t.cash - t.initial;
   }
-  return Math.max(-0.018, Math.min(0.018, flow));
+  const targetPull = Math.max(
+    -0.02,
+    Math.min(0.02, Math.log((c.targetPrice ?? c.price) / c.price) * 0.01),
+  );
+  return Math.max(-0.03, Math.min(0.03, flow + targetPull));
 }
 export function traderDialogue(s: State, id: string) {
   const t = s.coin?.traders?.find((t) => t.id === id);
   if (!t) return null;
-  return `${strategies[t.strategy]} ${t.trades ? `After ${t.trades} trades, my portfolio is ${t.lastProfit >= 0 ? "up" : "down"} $${(Math.abs(t.lastProfit) / 100).toFixed(2)} against my starting cash.` : "I have just started; I have not made a trade yet."}`;
+  return `I aim for an average 2% per game day, with no promises about any one day. ${strategies[t.strategy]} ${t.trades ? `After ${t.trades} trades, my portfolio is ${t.lastProfit >= 0 ? "up" : "down"} $${(Math.abs(t.lastProfit) / 100).toFixed(2)} against my starting cash.` : "I have just started; I have not made a trade yet."}`;
 }
 export function roundResistance(
   before: number,

@@ -41,12 +41,12 @@ test("import retains a valid far-east Level 3 position and survives refresh", as
   await expect(page.getByRole("dialog")).toBeHidden();
   for (let i = 0; i < 5; i++) await page.clock.runFor(40);
   expect(
-    await page.evaluate(() => (window as any).game.state().position),
+    await page.evaluate(async () => (window as any).game.state().position),
   ).toEqual(next.position);
   await page.reload();
   await page.getByRole("button", { name: "Wake up" }).click();
   expect(
-    await page.evaluate(() => (window as any).game.state().position),
+    await page.evaluate(async () => (window as any).game.state().position),
   ).toEqual(next.position);
 });
 test("failed storage write does not replace the current game or reject an unhandled promise", async ({
@@ -55,16 +55,16 @@ test("failed storage write does not replace the current game or reject an unhand
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await start(page);
-  const before = await page.evaluate(() => ({
+  const before = await page.evaluate(async () => ({
     cash: (window as any).game.state().cash,
-    raw: localStorage.getItem("money-tree-v1"),
+    raw: await (window as any).game.savedRaw("money-tree-v1"),
   }));
-  await page.evaluate(() => {
-    const original = Storage.prototype.setItem;
-    Storage.prototype.setItem = function (k, v) {
+  await page.evaluate(async () => {
+    const original = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function (v, k) {
       if (k === "money-tree-v1")
         throw new DOMException("Storage is full", "QuotaExceededError");
-      return original.call(this, k, v);
+      return original.call(this, v, k);
     };
   });
   await importState(
@@ -74,19 +74,21 @@ test("failed storage write does not replace the current game or reject an unhand
   await expect(page.locator("#toast")).toContainText(
     "current garden is unchanged",
   );
-  expect(await page.evaluate(() => (window as any).game.state().cash)).toBe(
-    before.cash,
-  );
-  expect(await page.evaluate(() => localStorage.getItem("money-tree-v1"))).toBe(
-    before.raw,
-  );
+  expect(
+    await page.evaluate(async () => (window as any).game.state().cash),
+  ).toBe(before.cash);
+  expect(
+    await page.evaluate(
+      async () => await (window as any).game.savedRaw("money-tree-v1"),
+    ),
+  ).toBe(before.raw);
   expect(errors).toEqual([]);
 });
 test("import cancels a held chicken instead of carrying it into the loaded game", async ({
   page,
 }) => {
   await start(page);
-  await page.evaluate(() => {
+  await page.evaluate(async () => {
     const g = (window as any).game,
       t = g.targets.find((t: any) => t.id === "chicken-0");
     for (const [dx, dz] of [
@@ -106,16 +108,16 @@ test("import cancels a held chicken instead of carrying it into the loaded game"
   await page.keyboard.press("e");
   for (let i = 0; i < 16; i++) await page.clock.runFor(40);
   expect(
-    await page.evaluate(() => (window as any).game.townLife().cuddling),
+    await page.evaluate(async () => (window as any).game.townLife().cuddling),
   ).toBe(0);
   await importState(page, Object.assign(fresh(), { awake: true, cash: 9876 }));
   await expect(page.getByRole("dialog")).toBeHidden();
   expect(
-    await page.evaluate(() => (window as any).game.townLife().cuddling),
+    await page.evaluate(async () => (window as any).game.townLife().cuddling),
   ).toBeUndefined();
-  expect(await page.evaluate(() => (window as any).game.state().cash)).toBe(
-    9876,
-  );
+  expect(
+    await page.evaluate(async () => (window as any).game.state().cash),
+  ).toBe(9876);
 });
 
 test("import during cooking cancels the old meal scene and leaves the loaded game untouched", async ({
@@ -137,16 +139,16 @@ test("import during cooking cancels the old meal scene and leaves the loaded gam
   await page.keyboard.press("e");
   for (let i = 0; i < 5; i++) await page.clock.runFor(40);
   expect(
-    await page.evaluate(() => (window as any).game.homeLiving().cooking),
+    await page.evaluate(async () => (window as any).game.homeLiving().cooking),
   ).not.toBeNull();
   const next = Object.assign(fresh(), { awake: true, cash: 12345 });
   await importState(page, next);
   await expect(page.getByRole("dialog")).toBeHidden();
   expect(
-    await page.evaluate(() => (window as any).game.homeLiving().cooking),
+    await page.evaluate(async () => (window as any).game.homeLiving().cooking),
   ).toBeNull();
   for (let i = 0; i < 8; i++) await page.clock.runFor(40);
-  const after = await page.evaluate(() => (window as any).game.state());
+  const after = await page.evaluate(async () => (window as any).game.state());
   expect(after.cash).toBe(12345);
   expect(after.pendingMeal).toBeUndefined();
   expect(after.foodBuff).toBeUndefined();
@@ -156,13 +158,15 @@ test("debug tools do not report success or mutate progress when storage fails", 
   page,
 }) => {
   await start(page);
-  const cash = await page.evaluate(() => (window as any).game.state().cash);
-  await page.evaluate(() => {
-    const original = Storage.prototype.setItem;
-    Storage.prototype.setItem = function (k, v) {
+  const cash = await page.evaluate(
+    async () => (window as any).game.state().cash,
+  );
+  await page.evaluate(async () => {
+    const original = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function (v, k) {
       if (k === "money-tree-v1")
         throw new DOMException("Storage is full", "QuotaExceededError");
-      return original.call(this, k, v);
+      return original.call(this, v, k);
     };
   });
   await page.keyboard.press("Escape");
@@ -174,7 +178,7 @@ test("debug tools do not report success or mutate progress when storage fails", 
   await expect(page.getByRole("dialog").getByRole("status")).toContainText(
     "progress is unchanged",
   );
-  expect(await page.evaluate(() => (window as any).game.state().cash)).toBe(
-    cash,
-  );
+  expect(
+    await page.evaluate(async () => (window as any).game.state().cash),
+  ).toBe(cash);
 });

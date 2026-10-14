@@ -124,8 +124,9 @@ export const bikeFeatures: Record<
   },
   city: {
     name: "Party Horn",
-    description: "Play a cheerful horn chord with dancing musical notes.",
-    duration: 2,
+    description:
+      "Play a cheerful horn chord with a floating parade of musical notes.",
+    duration: 6,
     cooldown: 8,
   },
   mountain: {

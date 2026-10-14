@@ -237,6 +237,15 @@ export function makeDish(recipe: number) {
   }
   root.userData.recipe = recipe;
   root.userData.title = meals[recipe]?.name;
+  for (const [bit, index] of [
+    [16, 4],
+    [32, 5],
+  ])
+    if (recipe & bit) {
+      const vegetables = makeIngredient(index);
+      vegetables.position.y = 0.2;
+      root.add(vegetables);
+    }
   return root;
 }
 export function foodIllustration(recipe: number) {
@@ -253,13 +262,22 @@ export function makeIngredient(index: number) {
     "ingredient-rice",
     "ingredient-beans",
     "ingredient-tortillas",
+    "ingredient-pepper",
+    "ingredient-tomato",
   ][index];
-  const colors = ["#fff0cc", "#e9d49b", "#713e2b", "#d9ad69"];
+  const colors = [
+    "#fff0cc",
+    "#e9d49b",
+    "#713e2b",
+    "#d9ad69",
+    "#dba841",
+    "#d7553f",
+  ];
   const mat = new T.MeshStandardMaterial({
     color: colors[index],
     roughness: 0.7,
   });
-  const n = index === 3 ? 1 : index === 0 ? 2 : 14;
+  const n = index >= 4 ? 6 : index === 3 ? 1 : index === 0 ? 2 : 14;
   for (let i = 0; i < n; i++) {
     const m = new T.Mesh(
       index === 3
@@ -269,7 +287,7 @@ export function makeIngredient(index: number) {
     );
     if (index !== 3)
       m.scale.set(
-        index === 0 ? 0.07 : index === 1 ? 0.025 : 0.032,
+        index >= 4 ? 0.04 : index === 0 ? 0.07 : index === 1 ? 0.025 : 0.032,
         index === 0 ? 0.025 : 0.013,
         index === 0 ? 0.055 : 0.018,
       );

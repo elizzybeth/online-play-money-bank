@@ -2,7 +2,11 @@ import { terrainHeight } from "./millionaire-land";
 import { purchasePrice } from "./meals";
 import { type State, wearing } from "./game";
 export function compostSoil(s: State) {
-  if (!s.foundTVSeeds || (s.compostScraps ?? 0) < 25) return false;
+  if (
+    (!s.foundTVSeeds && !s.millionaire?.chats["visited-summit"]) ||
+    (s.compostScraps ?? 0) < 25
+  )
+    return false;
   s.compostScraps! -= 25;
   s.soilBags = (s.soilBags ?? 0) + 1;
   s.events.push(

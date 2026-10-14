@@ -35,6 +35,9 @@ export type Coin = {
   samples?: PriceSample[];
   traders?: Trader[];
   marketTick?: number;
+  recoverySeconds?: number;
+  targetDay?: number;
+  targetPrice?: number;
 };
 export type DrinkId = "sprint" | "dig" | "growth" | "yield" | "reach";
 export const drinks: {
@@ -280,10 +283,18 @@ export function tickSigma(s: State, dt: number, awakeTime = true) {
   // Bound catch-up work, preserving the remainder. Active play / sleep only.
   const steps = Math.min(720, Math.floor(c.elapsed / 15));
   c.elapsed -= steps * 15;
+  if (!steps) return;
+  const targetDay = c.targetDay ?? s.day;
+  c.targetPrice = Math.min(
+    100000,
+    (c.targetPrice ?? Math.max(100, c.price)) *
+      1.02 ** Math.max(0, s.day - targetDay),
+  );
+  c.targetDay = s.day;
   const q = marketSignals(s),
     drift =
       Math.min(
-        0.012,
+        0.003,
         q.earned / 1e8 +
           q.saved / 1e8 +
           q.neighbors * 0.0002 +
@@ -297,22 +308,48 @@ export function tickSigma(s: State, dt: number, awakeTime = true) {
           Math.min(10, q.spanakopita + q.spanakopitaShared) * 0.0001 +
           Math.min(20, q.chickenCuddles) * 0.00005,
       ) +
-      (q.health ? 0.001 : -0.001) +
-      (q.momRecent ? 0.0008 : -0.0004) -
-      q.cuddleNeglect * 0.014;
+      (q.health ? 0.0004 : -0.0004) +
+      (q.momRecent ? 0.0003 : -0.0002) -
+      q.cuddleNeglect * 0.00012;
+  const anchor = c.targetPrice;
   for (let i = 0; i < steps; i++) {
     c.rng = (c.rng * 16807) % 2147483647;
     const before = c.exactPrice ?? c.price,
-      flow = traderFlow(s);
+      protectedPrice = before < 100 || (c.recoverySeconds ?? 0) > 0,
+      positive = (factor: number) =>
+        protectedPrice ? Math.max(0, factor) : factor,
+      flow = traderFlow(s),
+      shock =
+        c.rng / 2147483647 < 0.003
+          ? -0.35
+          : c.rng / 2147483647 > 0.997
+            ? 0.35
+            : 0,
+      recovery = Math.max(
+        -0.06,
+        Math.min(0.06, Math.log(anchor / before) * 0.018),
+      );
     c.exactPrice = Math.max(
       1,
       Math.min(
         100000,
         (c.exactPrice ?? c.price) *
-          (1 + (c.rng / 2147483647 - 0.5) * 0.16 + drift + flow),
+          (1 +
+            positive((c.rng / 2147483647 - 0.5) * 0.12) +
+            (protectedPrice
+              ? drift +
+                (q.health ? 0 : 0.0004) +
+                (q.momRecent ? 0 : 0.0002) +
+                q.cuddleNeglect * 0.00012
+              : drift) +
+            positive(flow) +
+            positive(recovery) +
+            positive(shock)),
       ),
     );
     c.exactPrice = roundResistance(before, c.exactPrice, c.rng / 2147483647);
+    c.recoverySeconds = Math.max(0, (c.recoverySeconds ?? 0) - 15);
+    if (c.exactPrice <= before * 0.8) c.recoverySeconds = 180;
     c.price = Math.round(c.exactPrice);
     samplePrice(s);
     c.history.push(c.price);
@@ -495,7 +532,7 @@ roles.forEach((lines, i) => lines.push(...moreRoleLines[i]));
 export const chadLibrary = roles.map((lines) => [...lines]);
 export function chadLine(s: State, id: string) {
   const role =
-    id === "grindset"
+    id === "grindset" || id === "gigachad"
       ? 6
       : Math.min(5, Math.max(0, Number(id.split("-").at(-1))));
   const count = s.neighborChats[id] ?? 0;
@@ -508,6 +545,16 @@ export function validCoin(c: unknown): c is Coin {
   const x = c as Coin;
   return (
     validMarket(x) &&
+    (x.recoverySeconds === undefined ||
+      (Number.isFinite(x.recoverySeconds) &&
+        x.recoverySeconds >= 0 &&
+        x.recoverySeconds <= 180)) &&
+    (x.targetDay === undefined ||
+      (Number.isSafeInteger(x.targetDay) && x.targetDay >= 1)) &&
+    (x.targetPrice === undefined ||
+      (Number.isFinite(x.targetPrice) &&
+        x.targetPrice >= 1 &&
+        x.targetPrice <= 100000)) &&
     typeof x.name === "string" &&
     coinName(x.name) === x.name &&
     Number.isInteger(x.price) &&

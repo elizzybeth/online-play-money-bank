@@ -9,23 +9,23 @@ test("Shift runs faster than walking without crossing colliders", async ({
   await page.goto("./?test");
   await page.getByRole("button", { name: "Wake up" }).click();
   await page.keyboard.press("e");
-  await page.evaluate(() => (window as any).game.teleport(3, 25));
+  await page.evaluate(async () => (window as any).game.teleport(3, 25));
   for (let i = 0; i < 120; i++) await page.clock.fastForward(16);
   await page.keyboard.down("w");
   await page.clock.fastForward(1000);
   await page.keyboard.up("w");
-  const walk = await page.evaluate(() => {
+  const walk = await page.evaluate(async () => {
     const p = (window as any).game.state().position;
     return Math.hypot(p.x - 3, p.z - 25);
   });
-  await page.evaluate(() => (window as any).game.teleport(3, 25));
+  await page.evaluate(async () => (window as any).game.teleport(3, 25));
   await page.keyboard.down("Shift");
   for (let i = 0; i < 120; i++) await page.clock.fastForward(16);
   await page.keyboard.down("w");
   await page.clock.fastForward(1000);
   await page.keyboard.up("w");
   await page.keyboard.up("Shift");
-  const run = await page.evaluate(() => {
+  const run = await page.evaluate(async () => {
     const p = (window as any).game.state().position;
     return Math.hypot(p.x - 3, p.z - 25);
   });
@@ -43,34 +43,36 @@ test("click captures mouse; NPC replies and menus release it", async ({
   await page.goto("./?test");
   await page.getByRole("button", { name: "Wake up" }).click();
   await page.keyboard.press("e");
-  await page.evaluate(() => (window as any).game.teleport(3, 25));
+  await page.evaluate(async () => (window as any).game.teleport(3, 25));
   await page.locator("#world").click({ position: { x: 700, y: 430 } });
   await expect
-    .poll(() => page.evaluate(() => document.pointerLockElement?.id))
+    .poll(() => page.evaluate(async () => document.pointerLockElement?.id))
     .toBe("world");
   const before = await page.evaluate(
     () => (window as any).game.camera().position,
   );
   await page.mouse.move(780, 450);
   await expect
-    .poll(() => page.evaluate(() => (window as any).game.camera().position))
+    .poll(() =>
+      page.evaluate(async () => (window as any).game.camera().position),
+    )
     .not.toEqual(before);
   await page.keyboard.press("j");
   await expect(page.locator("#modal")).toBeVisible();
   await expect
-    .poll(() => page.evaluate(() => document.pointerLockElement))
+    .poll(() => page.evaluate(async () => document.pointerLockElement))
     .toBeNull();
   await page.getByRole("button", { name: "Close notebook" }).click();
   await page.locator("#world").click({ position: { x: 700, y: 430 } });
   await expect
-    .poll(() => page.evaluate(() => document.pointerLockElement?.id))
+    .poll(() => page.evaluate(async () => document.pointerLockElement?.id))
     .toBe("world");
-  await page.evaluate(() => (window as any).game.teleport(8, -31.7));
+  await page.evaluate(async () => (window as any).game.teleport(8, -31.7));
   await expect(page.locator("#prompt")).toContainText("Robertson");
   await page.keyboard.press("e");
   await expect(page.locator(".speech-bubble")).toBeVisible();
   await expect
-    .poll(() => page.evaluate(() => document.pointerLockElement))
+    .poll(() => page.evaluate(async () => document.pointerLockElement))
     .toBeNull();
 });
 
@@ -84,14 +86,14 @@ test("E activates safe modal defaults and never resets a garden", async ({
   await expect(page.locator("#modal")).toBeVisible();
   await page.keyboard.press("e");
   await expect(page.locator("#modal")).toBeHidden();
-  await page.evaluate(() => (window as any).game.teleport(-10.8, 1.4));
+  await page.evaluate(async () => (window as any).game.teleport(-10.8, 1.4));
   await expect(page.locator("#prompt")).toContainText("piggy bank");
   await page.keyboard.press("e");
   await expect(page.locator("#modal")).toBeVisible();
   await page.keyboard.press("e");
-  expect(await page.evaluate(() => (window as any).game.state().cash)).toBe(
-    433,
-  );
+  expect(
+    await page.evaluate(async () => (window as any).game.state().cash),
+  ).toBe(433);
   await page.keyboard.press("e");
   await expect(page.locator("#modal")).toBeHidden();
   await page.keyboard.press("j");
@@ -102,12 +104,12 @@ test("E activates safe modal defaults and never resets a garden", async ({
   await page.getByRole("button", { name: "Start fresh" }).focus();
   await page.keyboard.press("e");
   await expect(page.locator("#modal")).toContainText("Take a little breather");
-  expect(await page.evaluate(() => (window as any).game.state().cash)).toBe(
-    433,
-  );
-  expect(await page.evaluate(() => (window as any).game.state().awake)).toBe(
-    true,
-  );
+  expect(
+    await page.evaluate(async () => (window as any).game.state().cash),
+  ).toBe(433);
+  expect(
+    await page.evaluate(async () => (window as any).game.state().awake),
+  ).toBe(true);
 });
 
 test("piggy bank accepts partial amounts and prevents an overdraft", async ({
@@ -116,21 +118,21 @@ test("piggy bank accepts partial amounts and prevents an overdraft", async ({
   await page.goto("./?test");
   await page.getByRole("button", { name: "Wake up" }).click();
   await page.keyboard.press("e");
-  await page.evaluate(() => (window as any).game.teleport(-10.8, 1.4));
+  await page.evaluate(async () => (window as any).game.teleport(-10.8, 1.4));
   await expect(page.locator("#prompt")).toContainText("piggy bank");
   await page.keyboard.press("e");
   await page.getByLabel("Transfer amount").fill("2.00");
   await page
     .getByRole("button", { name: "Withdraw amount", exact: true })
     .click();
-  let state = await page.evaluate(() => (window as any).game.state());
+  let state = await page.evaluate(async () => (window as any).game.state());
   expect(state.cash).toBe(200);
   expect(state.bank).toBe(233);
   await page.getByLabel("Transfer amount").fill(".67");
   await page
     .getByRole("button", { name: "Deposit amount", exact: true })
     .click();
-  state = await page.evaluate(() => (window as any).game.state());
+  state = await page.evaluate(async () => (window as any).game.state());
   expect(state.cash).toBe(133);
   expect(state.bank).toBe(300);
   await page.getByLabel("Transfer amount").fill("3.01");
@@ -138,9 +140,9 @@ test("piggy bank accepts partial amounts and prevents an overdraft", async ({
     .getByRole("button", { name: "Withdraw amount", exact: true })
     .click();
   await expect(page.locator("#bank-error")).toContainText("$3.00");
-  expect(await page.evaluate(() => (window as any).game.state().bank)).toBe(
-    300,
-  );
+  expect(
+    await page.evaluate(async () => (window as any).game.state().bank),
+  ).toBe(300);
 });
 
 test("title-screen new game preserves saves until explicit confirmation", async ({
@@ -149,18 +151,18 @@ test("title-screen new game preserves saves until explicit confirmation", async 
   await page.goto("./?test");
   await page.getByRole("button", { name: "Wake up" }).click();
   await page.keyboard.press("e");
-  await page.evaluate(() => (window as any).game.teleport(-10.8, 1.4));
+  await page.evaluate(async () => (window as any).game.teleport(-10.8, 1.4));
   await expect(page.locator("#prompt")).toContainText("piggy bank");
   await page.keyboard.press("e");
   await page
     .getByRole("button", { name: "Withdraw amount", exact: true })
     .click();
   await page.getByRole("button", { name: "Close", exact: true }).click();
-  const beforeReload = await page.evaluate(() =>
-    JSON.parse(localStorage.getItem("money-tree-v1")!),
+  const beforeReload = await page.evaluate(
+    async () => await (window as any).game.savedState("money-tree-v1"),
   );
   await page.reload();
-  const saved = await page.evaluate(() => (window as any).game.state());
+  const saved = await page.evaluate(async () => (window as any).game.state());
   // Unload can persist one last active frame. Title-screen confirmations must
   // preserve that loaded snapshot, including its clock, exactly.
   expect(saved).toEqual({
@@ -196,13 +198,13 @@ test("title-screen new game preserves saves until explicit confirmation", async 
   ).toBeVisible();
   await page.keyboard.press("e");
   await expect(newGame).toBeVisible();
-  expect(await page.evaluate(() => (window as any).game.state())).toEqual(
+  expect(await page.evaluate(async () => (window as any).game.state())).toEqual(
     saved,
   );
   await newGame.click();
   await page.keyboard.press("Escape");
   await expect(newGame).toBeVisible();
-  expect(await page.evaluate(() => (window as any).game.state())).toEqual(
+  expect(await page.evaluate(async () => (window as any).game.state())).toEqual(
     saved,
   );
   await newGame.click();
@@ -212,14 +214,14 @@ test("title-screen new game preserves saves until explicit confirmation", async 
     .click();
   await expect(page.locator("#intro")).toBeHidden();
   await expect(page.locator("#prompt")).toContainText("Get out of bed");
-  const reset = await page.evaluate(() => (window as any).game.state());
+  const reset = await page.evaluate(async () => (window as any).game.state());
   expect(reset.awake).toBe(false);
   expect(reset.cash).toBe(0);
   expect(reset.bank).toBe(433);
   expect(reset.day).toBe(1);
   expect(reset.plots.every((p: any) => p.stage === "empty")).toBe(true);
   await page.reload();
-  expect(await page.evaluate(() => (window as any).game.state())).toEqual(
+  expect(await page.evaluate(async () => (window as any).game.state())).toEqual(
     reset,
   );
 });

@@ -1,5 +1,8 @@
 import { defineConfig } from "vite";
 export default defineConfig({
   base: "./",
-  build: { rollupOptions: { output: { manualChunks: { three: ["three"] } } } },
+  build: {
+    target: "es2022",
+    rollupOptions: { output: { manualChunks: { three: ["three"] } } },
+  },
 });

@@ -98,12 +98,12 @@ test("Q immediately downloads valid state, refresh preserves it, R tumbles forwa
   await page.reload();
   await page.getByRole("button", { name: "Wake up" }).click();
   expect(
-    await page.evaluate(() => (window as any).game.state().compostScraps),
+    await page.evaluate(async () => (window as any).game.state().compostScraps),
   ).toBe(17);
-  await page.evaluate(() => (window as any).game.setYaw(0));
+  await page.evaluate(async () => (window as any).game.setYaw(0));
   await page.keyboard.press("r");
   await frames(page, 5);
-  const roll = await page.evaluate(() => (window as any).game.rollPose());
+  const roll = await page.evaluate(async () => (window as any).game.rollPose());
   expect(roll.angle).toBeGreaterThan(0);
 });
 test("Gigachad sells real pastry and Mom shares it; speech keeps thoughts hidden", async ({
@@ -132,26 +132,27 @@ test("Gigachad sells real pastry and Mom shares it; speech keeps thoughts hidden
   );
   await page.getByRole("button", { name: "One spanakopita, please" }).click();
   expect(
-    await page.evaluate(() => (window as any).game.state().spanakopita),
+    await page.evaluate(async () => (window as any).game.state().spanakopita),
   ).toBe(1);
-  await page.evaluate(() => (window as any).game.teleport(-12.5, 10));
+  await page.evaluate(async () => (window as any).game.teleport(-12.5, 10));
   await frames(page);
   await page.keyboard.press("e");
   await expect(page.locator(".speech-bubble")).toBeVisible();
   await expect(page.locator("#thought")).toBeHidden();
   const previousCamera = (
-    await page.evaluate(() => (window as any).game.camera())
+    await page.evaluate(async () => (window as any).game.camera())
   ).position;
   await page
     .getByRole("button", { name: "Share spanakopita with Mom" })
     .click();
   expect(
-    await page.evaluate(() => (window as any).game.townLife().sharing),
+    await page.evaluate(async () => (window as any).game.townLife().sharing),
   ).toBe(true);
   await expect(page.locator(".speech-bubble")).toContainText("delicious");
   await frames(page, 30);
-  const mealCamera = (await page.evaluate(() => (window as any).game.camera()))
-    .position;
+  const mealCamera = (
+    await page.evaluate(async () => (window as any).game.camera())
+  ).position;
   expect(
     Math.hypot(
       ...mealCamera.map((v: number, i: number) => v - previousCamera[i]),
@@ -163,22 +164,27 @@ test("Gigachad sells real pastry and Mom shares it; speech keeps thoughts hidden
   // End the 3.2-second scene on a frame and inspect the immediate restored shot.
   for (let i = 0; i < 90; i++) {
     await frames(page, 1);
-    if (!(await page.evaluate(() => (window as any).game.townLife().sharing)))
+    if (
+      !(await page.evaluate(
+        async () => (window as any).game.townLife().sharing,
+      ))
+    )
       break;
   }
   await frames(page, 1);
-  const restored = (await page.evaluate(() => (window as any).game.camera()))
-    .position;
+  const restored = (
+    await page.evaluate(async () => (window as any).game.camera())
+  ).position;
   restored.forEach((v: number, i: number) =>
     expect(v).toBeCloseTo(previousCamera[i], 4),
   );
   await page.keyboard.press("e");
   await frames(page, 5);
   expect(
-    await page.evaluate(() => (window as any).game.townLife().sharing),
+    await page.evaluate(async () => (window as any).game.townLife().sharing),
   ).toBe(false);
   expect(
-    await page.evaluate(() => (window as any).game.state().spanakopita),
+    await page.evaluate(async () => (window as any).game.state().spanakopita),
   ).toBe(0);
 });
 test("composter exchanges scraps, Twin Planter waters and feeds both beds, and watering ends in 0.9 seconds", async ({
@@ -202,15 +208,15 @@ test("composter exchanges scraps, Twin Planter waters and feeds both beds, and w
   await page.keyboard.press("e");
   await expect(page.getByRole("dialog")).toContainText("27 scraps");
   await page.getByRole("button", { name: "Trade 25 scraps for soil" }).click();
-  expect(await page.evaluate(() => (window as any).game.state().soilBags)).toBe(
-    1,
-  );
+  expect(
+    await page.evaluate(async () => (window as any).game.state().soilBags),
+  ).toBe(1);
   await expect(page.locator("#compost-hud")).toContainText("2");
-  await page.evaluate(() => (window as any).game.teleport(-20, 21));
+  await page.evaluate(async () => (window as any).game.teleport(-20, 21));
   await frames(page);
   await page.keyboard.press("e");
   expect(
-    await page.evaluate(() =>
+    await page.evaluate(async () =>
       (window as any).game
         .state()
         .plots.slice(0, 2)
@@ -219,11 +225,13 @@ test("composter exchanges scraps, Twin Planter waters and feeds both beds, and w
   ).toBe(true);
   await frames(page, 29);
   expect(
-    await page.evaluate(() => (window as any).game.wateringAnimation().active),
+    await page.evaluate(
+      async () => (window as any).game.wateringAnimation().active,
+    ),
   ).toBe(false);
   await page.keyboard.press("e");
   expect(
-    await page.evaluate(() =>
+    await page.evaluate(async () =>
       (window as any).game
         .state()
         .plots.slice(0, 2)
@@ -231,7 +239,7 @@ test("composter exchanges scraps, Twin Planter waters and feeds both beds, and w
     ),
   ).toBe(true);
   expect(
-    await page.evaluate(() => (window as any).game.state().fertilizer),
+    await page.evaluate(async () => (window as any).game.state().fertilizer),
   ).toBe(0);
 });
 test("five hens and a rooster wander and Tuck jumps into your arms; Mom has a usable chair and cooks bacon", async ({
@@ -256,39 +264,57 @@ test("five hens and a rooster wander and Tuck jumps into your arms; Mom has a us
   await page.keyboard.press("e");
   await frames(page, 25);
   expect(
-    await page.evaluate(() => (window as any).game.townLife().cuddling),
+    await page.evaluate(async () => (window as any).game.townLife().cuddling),
   ).toBe(0);
   await frames(page, 90);
   await page.keyboard.press("e");
   await frames(page, 5);
   expect(
-    await page.evaluate(() => (window as any).game.townLife().cuddling),
+    await page.evaluate(async () => (window as any).game.townLife().cuddling),
   ).toBeUndefined();
-  await page.evaluate(() => (window as any).game.teleport(-6.6, 11.4));
+  await page.evaluate(async () => (window as any).game.teleport(-6.6, 11.4));
   await frames(page);
   await expect(page.locator("#prompt")).toHaveText("E Sit");
   await page.keyboard.press("e");
-  expect(await page.evaluate(() => (window as any).game.seated())).toBe(true);
+  expect(await page.evaluate(async () => (window as any).game.seated())).toBe(
+    true,
+  );
   await page.keyboard.press("e");
-  expect(await page.evaluate(() => (window as any).game.seated())).toBe(false);
+  expect(await page.evaluate(async () => (window as any).game.seated())).toBe(
+    false,
+  );
   const day = Array.from({ length: 200 }, (_, i) => i + 1).find(
     (day) => momStatus(day).activity === "bacon",
   )!;
-  await page.addInitScript((day) => {
-    const s = JSON.parse(localStorage.getItem("money-tree-v1")!);
+  await page.evaluate(async (day) => {
+    const s = await (window as any).game.savedState("money-tree-v1");
     s.day = day;
-    localStorage.setItem("money-tree-v1", JSON.stringify(s));
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const r = indexedDB.open("money-tree", 1);
+      r.onsuccess = () => resolve(r.result);
+      r.onerror = () => reject(r.error);
+    });
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction("saves", "readwrite");
+      tx.objectStore("saves").put(
+        { format: "text", text: JSON.stringify(s) },
+        "money-tree-v1",
+      );
+      tx.oncomplete = () => resolve();
+      tx.onabort = () => reject(tx.error);
+    });
+    db.close();
   }, day);
   await page.reload();
   await page.getByRole("button", { name: "Wake up" }).click();
   await frames(page);
-  expect(await page.evaluate(() => (window as any).game.townLife().bacon)).toBe(
-    true,
-  );
   expect(
-    await page.evaluate(() => (window as any).game.townLife().spatula),
+    await page.evaluate(async () => (window as any).game.townLife().bacon),
   ).toBe(true);
-  await page.evaluate(() => (window as any).game.teleport(-12.5, 10));
+  expect(
+    await page.evaluate(async () => (window as any).game.townLife().spatula),
+  ).toBe(true);
+  await page.evaluate(async () => (window as any).game.teleport(-12.5, 10));
   await frames(page);
   await page.keyboard.press("e");
   await expect(page.locator(".speech-bubble")).toContainText(
@@ -350,7 +376,9 @@ test("every third sleep offers an optional JSON backup", async ({ page }) => {
   await page.keyboard.press("e");
   await page.getByRole("button", { name: "Sleep until tomorrow" }).click();
   await expect(page.getByRole("dialog")).toContainText("JSON backup");
-  expect(await page.evaluate(() => (window as any).game.state().day)).toBe(4);
+  expect(
+    await page.evaluate(async () => (window as any).game.state().day),
+  ).toBe(4);
   const downloadEvent = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download game state" }).click();
   const download = await downloadEvent;

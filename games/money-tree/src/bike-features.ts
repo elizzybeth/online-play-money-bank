@@ -84,8 +84,13 @@ export function createBikeFeatures(scene: T.Scene) {
       const stem = new T.Mesh(new T.BoxGeometry(0.026, 0.2, 0.025), material);
       stem.position.set(0.065, 0.09, 0);
       object.add(stem);
-      life = 2;
-      velocity.y = 1;
+      life = 5;
+      const angle = random() * Math.PI * 2;
+      velocity.set(
+        Math.cos(angle) * (0.6 + random() * 1.3),
+        0.5 + random() * 1.3,
+        Math.sin(angle) * (0.6 + random() * 1.3),
+      );
     } else if (id === "mountain") {
       material.color.set("#edff8b");
       const light = new T.Mesh(sphere, material);
@@ -128,7 +133,7 @@ export function createBikeFeatures(scene: T.Scene) {
       if (id === "tassels")
         for (let i = 0; i < 50; i++) emit(id, position, yaw, height);
       if (id === "city")
-        for (let i = 0; i < 12; i++) emit(id, position, yaw, height);
+        for (let i = 0; i < 24; i++) emit(id, position, yaw, height);
       return true;
     },
     update(
@@ -148,8 +153,12 @@ export function createBikeFeatures(scene: T.Scene) {
         emission += dt;
         if (emission >= 0.1) {
           emission = 0;
-          if (["penny", "cruiser", "mountain", "road"].includes(active))
-            for (let i = 0; i < (active === "mountain" ? 4 : 2); i++)
+          if (["penny", "cruiser", "mountain", "road", "city"].includes(active))
+            for (
+              let i = 0;
+              i < (active === "mountain" || active === "city" ? 4 : 2);
+              i++
+            )
               emit(active, position, yaw, height);
         }
         if (remaining === 0) active = undefined;

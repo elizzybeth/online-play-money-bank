@@ -3,65 +3,72 @@ import { fresh } from "../../src/game";
 import { createCoin } from "../../src/sigma";
 import { applyDebugAction } from "../../src/debug-menu";
 
-test("stationary HUD keeps its contents and hidden bed labels stay untouched", async ({
-  page,
-}) => {
-  const state = Object.assign(fresh(), { awake: true, day: 2, metMom: true });
-  applyDebugAction(state, "level3");
-  state.millionaire!.member = "arms";
-  state.millionaire!.welcomeSeed = true;
-  state.communityPlanted = true;
-  createCoin(state, "Efficiency");
-  state.foodBuff = { recipe: 1, remaining: 30 };
-  await page.clock.install({ time: new Date("2026-01-01") });
-  await page.clock.pauseAt(new Date("2026-01-02"));
-  await page.addInitScript(
-    (s) => localStorage.setItem("money-tree-v1", JSON.stringify(s)),
-    state,
-  );
-  await page.goto("./?test");
-  await page.getByRole("button", { name: "Wake up" }).click();
-  await expect(page.getByRole("dialog")).toBeHidden();
-  for (let i = 0; i < 8; i++) await page.clock.runFor(40);
-  await expect(page.locator("#food-effect")).toBeVisible();
-  await expect(page.locator("#membership-hud")).toBeVisible();
-  await expect(page.locator("#coin-tracker")).toBeVisible();
-  await page.evaluate(() => {
-    const hud = document.querySelectorAll(
-      "#coin-tracker, #membership-hud, #food-effect, #resource-hud, #bank-hud-stack, #prompt",
+for (const readyForMom of [false, true])
+  test(`stationary HUD keeps its contents and hidden bed labels stay untouched${readyForMom ? " with a completed savings goal" : ""}`, async ({
+    page,
+  }) => {
+    const state = Object.assign(fresh(), { awake: true, day: 2, metMom: true });
+    applyDebugAction(state, "level3");
+    state.millionaire!.member = "arms";
+    state.millionaire!.welcomeSeed = true;
+    state.communityPlanted = true;
+    if (readyForMom) state.cash = 1_000_000;
+    createCoin(state, "Efficiency");
+    state.foodBuff = { recipe: 1, remaining: 30 };
+    await page.clock.install({ time: new Date("2026-01-01") });
+    await page.clock.pauseAt(new Date("2026-01-02"));
+    await page.addInitScript(
+      (s) => localStorage.setItem("money-tree-v1", JSON.stringify(s)),
+      state,
     );
-    const timers = document.querySelector("#timers")!;
-    const counts = { hud: 0, hiddenLabels: 0 };
-    const observer = new MutationObserver((records) => {
-      for (const record of records) {
-        if (timers.contains(record.target)) counts.hiddenLabels++;
-        else counts.hud++;
-      }
+    await page.goto("./?test");
+    await page.getByRole("button", { name: "Wake up" }).click();
+    await expect(page.getByRole("dialog")).toBeHidden();
+    for (let i = 0; i < 8; i++) await page.clock.runFor(40);
+    await expect(page.locator("#food-effect")).toBeVisible();
+    await expect(page.locator("#membership-hud")).toBeVisible();
+    await expect(page.locator("#coin-tracker")).toBeVisible();
+    await page.evaluate(() => {
+      const hud = document.querySelectorAll(
+        "#coin-tracker, #membership-hud, #food-effect, #resource-hud, #bank-hud-stack, #prompt, #stats, #location, #quest",
+      );
+      const timers = document.querySelector("#timers")!;
+      const counts = { hud: 0, hiddenLabels: 0 };
+      const observer = new MutationObserver((records) => {
+        for (const record of records) {
+          if (timers.contains(record.target)) counts.hiddenLabels++;
+          else counts.hud++;
+        }
+      });
+      for (const element of Array.from(hud))
+        observer.observe(element, {
+          childList: true,
+          subtree: true,
+          attributes: true,
+          characterData: true,
+        });
+      observer.observe(timers, {
+        attributes: true,
+        childList: true,
+        characterData: true,
+        subtree: true,
+      });
+      (window as any).efficiency = { counts, observer, tracked: hud.length };
     });
-    for (const element of Array.from(hud))
-      observer.observe(element, { childList: true, subtree: true });
-    observer.observe(timers, {
-      attributes: true,
-      childList: true,
-      characterData: true,
-      subtree: true,
+    for (let i = 0; i < 8; i++) await page.clock.runFor(40);
+    const result = await page.evaluate(() => {
+      const e = (window as any).efficiency;
+      e.observer.disconnect();
+      return { ...e.counts, tracked: e.tracked };
     });
-    (window as any).efficiency = { counts, observer, tracked: hud.length };
+    console.log("stationary DOM mutations", result);
+    expect(result.tracked).toBe(9);
+    expect(result.hud).toBe(0);
+    expect(result.hiddenLabels).toBe(0);
+    const before = await page.locator("#food-effect").textContent();
+    for (let i = 0; i < 8; i++) await page.clock.runFor(160);
+    expect(await page.locator("#food-effect").textContent()).not.toBe(before);
   });
-  for (let i = 0; i < 8; i++) await page.clock.runFor(40);
-  const result = await page.evaluate(() => {
-    const e = (window as any).efficiency;
-    e.observer.disconnect();
-    return { ...e.counts, tracked: e.tracked };
-  });
-  console.log("stationary DOM mutations", result);
-  expect(result.tracked).toBe(6);
-  expect(result.hud).toBe(0);
-  expect(result.hiddenLabels).toBe(0);
-  const before = await page.locator("#food-effect").textContent();
-  for (let i = 0; i < 8; i++) await page.clock.runFor(160);
-  expect(await page.locator("#food-effect").textContent()).not.toBe(before);
-});
 
 test("ready labels appear nearby and return after travelling out of range", async ({
   page,
