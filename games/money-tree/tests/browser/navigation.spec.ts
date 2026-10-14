@@ -62,6 +62,7 @@ test("whole town traversal through actual doors and fence gate", async ({
   await page.clock.install({ time: new Date("2026-01-01T00:00:00Z") });
   await page.clock.pauseAt(new Date("2026-01-02T00:00:00Z"));
   await page.goto("./?test");
+  await expect(page.locator("#begin")).toBeEnabled();
   await page.getByRole("button", { name: "Wake up" }).click();
   await page.keyboard.press("e");
   await axis(page, "x", -16);
@@ -130,6 +131,7 @@ test("all required interaction targets are reachable in scene collision geometry
     );
   });
   await page.goto("./?test");
+  await expect(page.locator("#begin")).toBeEnabled();
   const unreachable = await page.evaluate(() => {
     const { rects, targets } = (window as any).game;
     const blocked = (x: number, z: number) =>
@@ -170,7 +172,11 @@ test("all required interaction targets are reachable in scene collision geometry
       targets
         // This save has not unlocked Level 3; its separate playthrough checks
         // the grove, ramp, summit and mansion doors after opening the hedge.
-        .filter((t: any) => !/^(willow-|fellowship-|millionaire-)/.test(t.id))
+        .filter(
+          (t: any) =>
+            !/^(willow-|fellowship-|millionaire-|mountain-)/.test(t.id) &&
+            !(t.id.startsWith("hat-") && t.z < -300),
+        )
         .filter(
           (t: any) =>
             !q.some(([x, z]) => Math.hypot(x * 0.5 - t.x, z * 0.5 - t.z) < 1.4),
@@ -189,6 +195,7 @@ test("camera stays outside walls and furniture during doorway and corner sweeps"
   await page.clock.install({ time: new Date("2026-01-01T00:00:00Z") });
   await page.clock.pauseAt(new Date("2026-01-02T00:00:00Z"));
   await page.goto("./?test");
+  await expect(page.locator("#begin")).toBeEnabled();
   await page.getByRole("button", { name: "Wake up" }).click();
   await page.keyboard.press("e");
   for (const [x, z] of [
@@ -236,6 +243,7 @@ test("approaching a neighbor does not intersect their rendered head", async ({
   page,
 }) => {
   await page.goto("./?test");
+  await expect(page.locator("#begin")).toBeEnabled();
   await page.getByRole("button", { name: "Wake up" }).click();
   await page.keyboard.press("e");
   await page.evaluate(() => {
@@ -257,6 +265,7 @@ test("scenery clears paths and doors; visible hedges cover world boundaries", as
   page,
 }) => {
   await page.goto("./?test");
+  await expect(page.locator("#begin")).toBeEnabled();
   const result = await page.evaluate(() => {
     const g = (window as any).game;
     const obstructions = g.scenery.filter((o: any) =>
@@ -307,6 +316,7 @@ test("camera eases through the front doorway without jumps or wall penetration",
   await page.clock.install({ time: new Date("2026-01-01T00:00:00Z") });
   await page.clock.pauseAt(new Date("2026-01-02T00:00:00Z"));
   await page.goto("./?test");
+  await expect(page.locator("#begin")).toBeEnabled();
   await page.getByRole("button", { name: "Wake up" }).click();
   await page.keyboard.press("e");
   await page.evaluate(() => (window as any).game.teleport(-16, 12.5));
@@ -357,6 +367,7 @@ test("home has a pitched roof that cuts away indoors and returns outside", async
   page,
 }) => {
   await page.goto("./?test");
+  await expect(page.locator("#begin")).toBeEnabled();
   const roof = await page.evaluate(() => (window as any).game.homeRoof());
   expect(roof.bounds.max[0] - roof.bounds.min[0]).toBeGreaterThan(12);
   expect(roof.bounds.max[2] - roof.bounds.min[2]).toBeGreaterThan(16);

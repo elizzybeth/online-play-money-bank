@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { fresh } from "../../src/game";
-import { hats } from "../../src/hats";
+import { hats as allHats } from "../../src/hats";
+const hats = allHats.slice(0, 10); // Thread & Thimble keeps its original stock.
 async function setup(page: Page) {
   const s = fresh();
   s.awake = true;
@@ -68,9 +69,15 @@ test("walk into hat shop, inspect ten detailed hats, find seeds and buy/equip wi
   await page.screenshot({ path: "../../outputs/money-tree-hats.png" });
   await page.evaluate(() => (window as any).game.equipHat(null));
   await page.locator("[data-hat=inspector]").click();
+  expect(
+    await page.evaluate(() => (window as any).game.state().equippedHat),
+  ).toBe("inspector");
   await page.keyboard.press("e");
   await expect(page.locator("#modal")).toBeHidden();
   await expect(page.locator("#tree-report")).toHaveCount(0);
+  expect(
+    await page.evaluate(() => (window as any).game.state().equippedHat),
+  ).toBe("inspector");
   await page.reload();
   await page.getByRole("button", { name: "Wake up" }).click();
   expect(

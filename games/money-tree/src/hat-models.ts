@@ -56,7 +56,82 @@ export function makeHat(id: HatId) {
       t.rotation.y = a;
     }
   }
-  if (id === "cap" || id === "propeller") {
+  const advanced = [
+    "terrace",
+    "verdant",
+    "seedkeeper",
+    "harvest",
+    "compost",
+    "reach",
+    "trail",
+    "alchemist",
+    "dew",
+    "treasury",
+  ].indexOf(id);
+  if (advanced >= 0) {
+    brim(advanced === 2 ? 0.65 : 0.53);
+    cyl(
+      0.4,
+      0.25 + (advanced % 3) * 0.12,
+      color,
+      0.18 + (advanced % 3) * 0.06,
+      0.31,
+    );
+    band(0.405, 0.09, "#ead6a4");
+    stitches(0.43, 0.07);
+    if (id === "terrace")
+      for (let i = 0; i < 4; i++)
+        box(
+          -0.27 + i * 0.18,
+          0.42 + i * 0.06,
+          0.34,
+          0.14,
+          0.1,
+          0.11,
+          "#d6d9bc",
+        );
+    else if (["verdant", "seedkeeper", "trail"].includes(id)) {
+      for (let i = 0; i < 3; i++) {
+        const leaf = ell(
+          (i - 1) * 0.13,
+          0.48 + i * 0.035,
+          0.1,
+          0.08,
+          0.16,
+          0.035,
+          "#34784e",
+        );
+        leaf.rotation.z = (i - 1) * 0.6;
+      }
+    } else if (["harvest", "dew"].includes(id)) {
+      for (let i = 0; i < 7; i++) {
+        const a = (i * Math.PI * 2) / 7;
+        ell(
+          Math.sin(a) * 0.37,
+          0.54,
+          Math.cos(a) * 0.37,
+          0.05,
+          0.12,
+          0.05,
+          id === "dew" ? "#c4f0f2" : "#ffe292",
+        );
+      }
+    } else if (id === "reach") {
+      const lens = mesh(
+        new T.TorusGeometry(0.12, 0.025, 6, 16),
+        "#dcc68d",
+        0,
+        0.35,
+        0.4,
+      );
+      lens.rotation.y = 0.1;
+    } else if (id === "compost")
+      for (let i = 0; i < 3; i++)
+        ell((i - 1) * 0.12, 0.25, 0.4, 0.06, 0.06, 0.04, "#b8cf86");
+    else if (id === "alchemist")
+      mesh(new T.OctahedronGeometry(0.14), "#c8edd8", 0, 0.34, 0.39);
+    else box(0, 0.3, 0.4, 0.16, 0.18, 0.05, "#e8c26e");
+  } else if (id === "cap" || id === "propeller") {
     ell(0, 0.16, 0, 0.46, 0.28, 0.45, color);
     ell(0, 0.04, 0.4, 0.43, 0.04, 0.32, id === "cap" ? "#397766" : "#3f79a3");
     stitches(0.43, 0.13);

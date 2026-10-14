@@ -1,3 +1,5 @@
+import { makeCrop } from "./crop-model";
+import type { Crop } from "./garden-crops";
 import { makeRobertsonsDisplay } from "./robertsons-display";
 import { makeBikeRack } from "./bike-rack";
 import { makeBedsideTable } from "./bedside-model";
@@ -1541,7 +1543,7 @@ export function createWorld(scene: T.Scene) {
   const hatDisplays: T.Group[] = [];
   const capSeeds = new T.Group();
   scene.add(capSeeds);
-  hats.forEach((hat, i) => {
+  hats.slice(0, 10).forEach((hat, i) => {
     const x = i < 5 ? 19.5 : 28.5,
       z = -24.6 - (i % 5) * 1.85;
     box(x, 0.47, z, 0.9, 0.94, 0.9, "#b89874", true);
@@ -2515,7 +2517,12 @@ export function createWorld(scene: T.Scene) {
     }
   }
   sigma.setUnlocked(false);
-  function moneyTree(index: number, stage: string, fertilized: boolean) {
+  function moneyTree(
+    index: number,
+    stage: string,
+    fertilized: boolean,
+    crop?: Crop,
+  ) {
     const g = plots[index];
     if (treeRects[index]) {
       rects.splice(rects.indexOf(treeRects[index]!), 1);
@@ -2552,6 +2559,10 @@ export function createWorld(scene: T.Scene) {
       g.add(wetSoil);
     }
     if (stage === "empty") return;
+    if (crop) {
+      if (stage !== "harvested") g.add(makeCrop(crop, stage === "ready"));
+      return;
+    }
     if (stage === "planted" || stage === "growing") {
       cyl(0, 0.18, 0, 0.025, 0.3, "#444535", g);
       for (const side of [-1, 1]) {

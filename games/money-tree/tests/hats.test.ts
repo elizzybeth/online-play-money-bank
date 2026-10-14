@@ -15,11 +15,11 @@ import {
   fertilize,
 } from "../src/game";
 import { makeHat } from "../src/hat-models";
-test("ten distinct hats have detailed models, prices and powers", () => {
-  assert.equal(hats.length, 10);
-  assert.equal(new Set(hats.map((h) => h.id)).size, 10);
+test("twenty distinct hats have detailed models, prices and powers", () => {
+  assert.equal(hats.length, 20);
+  assert.equal(new Set(hats.map((h) => h.id)).size, 20);
   assert.equal(Math.min(...hats.map((h) => h.price)), 200);
-  assert.equal(Math.max(...hats.map((h) => h.price)), 10000);
+  assert.equal(Math.max(...hats.map((h) => h.price)), 45000);
   for (const hat of hats) {
     const model = makeHat(hat.id);
     assert(model.children.length >= 5);

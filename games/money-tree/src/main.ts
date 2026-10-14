@@ -1,4 +1,15 @@
 import {
+  crops,
+  seedOffers,
+  buyGardenSeeds,
+  plantCrop,
+  harvestCrop,
+  type Crop,
+} from "./garden-crops";
+import { createMountainShop, mountainShopOpen } from "./mountain-shop";
+import { mountainHat, mountainHats } from "./hats";
+import { makeEstate } from "./estate-models";
+import {
   shopRescueActive,
   shopProgress,
   canSaveShop,
@@ -10,7 +21,7 @@ import {
 import { playableBounds, withinPlayableBounds } from "./world-bounds";
 import { makeChickenFeather } from "./chicken-feather";
 import { debugActions, applyDebugAction, type DebugAction } from "./debug-menu";
-import { SaveStore } from "./save-store";
+import { IndexedSaveStore } from "./indexed-save-store";
 import { depthAudit } from "./depth-audit";
 import { makeGrocery } from "./grocery-models";
 import { productPortrait } from "./product-portrait";
@@ -231,7 +242,7 @@ drinkHud.id = "drink-hud";
 drinkHud.className = "money-counter";
 drinkHud.innerHTML =
   '<img src="./drink.svg" alt="Coffee"><span><small></small><strong></strong></span>';
-drinkHud.hidden = true;
+setHidden(drinkHud, true);
 const compostHud = document.createElement("div");
 compostHud.id = "compost-hud";
 compostHud.className = "money-counter";
@@ -239,11 +250,11 @@ compostHud.innerHTML = `<span aria-hidden="true" style="font-size:30px">♻</spa
 const mortgageHud = document.createElement("div");
 mortgageHud.className = "money-counter";
 mortgageHud.id = "mortgage-hud";
-mortgageHud.hidden = true;
+setHidden(mortgageHud, true);
 const membershipHud = document.createElement("button");
 membershipHud.id = "membership-hud";
 membershipHud.className = "money-counter";
-membershipHud.hidden = true;
+setHidden(membershipHud, true);
 membershipHud.onclick = phoneLibrary;
 const fertilizerHud = document.createElement("div");
 fertilizerHud.id = "fertilizer-hud";
@@ -264,24 +275,29 @@ $("#app").append(resourceHud);
 
 let s: State;
 addEventListener("pagehide", () => {
-  if (s) save();
+  if (s) void saveStore?.emergency(s);
 });
 addEventListener("beforeunload", () => {
-  if (s) save();
+  if (s) void saveStore?.emergency(s);
 });
 document.addEventListener("visibilitychange", () => {
-  if (document.hidden && s) save();
+  if (document.hidden && s) void saveStore?.emergency(s);
 });
-let saveStore: SaveStore | undefined;
+let saveStore: IndexedSaveStore | undefined;
 try {
-  saveStore = new SaveStore(localStorage);
-  s = saveStore.read();
+  saveStore = await IndexedSaveStore.open();
+  s = await saveStore.read();
 } catch {
+  saveStore = undefined;
   s = fresh();
+  const notice = document.createElement("p");
+  notice.textContent =
+    "Saved progress could not be opened. Existing data is preserved; this session cannot save. Reload to try again.";
+  document.querySelector(".intro-card")!.append(notice);
 }
 if (saveStore?.protected || saveStore?.recovered) {
   const notice = document.createElement("p");
-  notice.setAttribute("role", "status");
+  setAttr(notice, "role", "status");
   notice.textContent = saveStore.protected
     ? "Your saved data could not be read. It has been preserved and will not be overwritten."
     : "Recovered your last valid backup. The unreadable save has also been preserved.";
@@ -640,8 +656,8 @@ function visit(text: string) {
 }
 const inventoryToasts = document.createElement("aside");
 inventoryToasts.id = "inventory-toasts";
-inventoryToasts.setAttribute("aria-live", "polite");
-inventoryToasts.setAttribute("aria-label", "Inventory changes");
+setAttr(inventoryToasts, "aria-live", "polite");
+setAttr(inventoryToasts, "aria-label", "Inventory changes");
 document.body.append(inventoryToasts);
 const dailyNetLedger = new DailyNetLedger(s);
 let inventoryState = s;
@@ -666,7 +682,7 @@ function updateInventoryNotices(dt: number) {
   const content = inventoryNotices.map((n) => n.text).join("\n");
   if (inventoryToasts.textContent !== content)
     inventoryToasts.textContent = content;
-  inventoryToasts.hidden = !begun || !s.awake || !content;
+  setHidden(inventoryToasts, !begun || !s.awake || !content);
 }
 const cameraWalls = new CameraWalls();
 let followInitialized = false;
@@ -684,6 +700,7 @@ let begun = false,
     | {
         id: number;
         ids: number[];
+        crop?: Crop;
         elapsed: number;
         duration: number;
         origin: { x: number; z: number };
@@ -699,8 +716,8 @@ let wasHome = atHome(),
   visitedOutside = s.awake && !wasHome;
 const thought = document.createElement("div");
 thought.id = "thought";
-thought.setAttribute("role", "status");
-thought.hidden = true;
+setAttr(thought, "role", "status");
+setHidden(thought, true);
 document.body.append(thought);
 let thoughtTime = 0;
 let couchZoom: number | undefined;
@@ -841,7 +858,7 @@ function paintBirdhouses() {
           };
           close();
           keys.clear();
-          thought.hidden = true;
+          setHidden(thought, true);
           thoughtTime = 0;
           save();
         },
@@ -861,7 +878,7 @@ function paintBirdhouses() {
           .querySelectorAll<HTMLButtonElement>(
             `[data-house="${i}"][data-part="${part}"]`,
           )
-          .forEach((b) => b.setAttribute("aria-pressed", String(b === button)));
+          .forEach((b) => setAttr(b, "aria-pressed", String(b === button)));
       }),
   );
 }
@@ -992,7 +1009,7 @@ function askMom() {
   ]);
   thought.textContent = chooseMomThought(s);
   save();
-  thought.hidden = false;
+  setHidden(thought, false);
   thoughtTime = 9;
 }
 
@@ -1036,7 +1053,7 @@ function tellMom() {
   dismountBike();
   dismissSpeech();
   keys.clear();
-  thought.hidden = true;
+  setHidden(thought, true);
   thoughtTime = 0;
   const people = world.speakers
     .filter((n) =>
@@ -1246,7 +1263,7 @@ function momPhone() {
               run: () => {
                 close();
                 thought.textContent = "She is okay. She is really okay.";
-                thought.hidden = false;
+                setHidden(thought, false);
                 thoughtTime = 10;
               },
             },
@@ -1302,11 +1319,12 @@ function playMomPuzzle() {
       button.className = `color-puzzle-cell${board.clues[index] ? " fixed" : ""}${index === selected ? " selected" : ""}${conflicts.has(index) ? " conflict" : ""}`;
       button.style.borderRightWidth = col === 2 || col === 5 ? "3px" : "1px";
       button.style.borderBottomWidth = row === 2 || row === 5 ? "3px" : "1px";
-      button.setAttribute(
+      setAttr(
+        button,
         "aria-label",
         `Row ${row + 1}, column ${col + 1}: ${value ? puzzleColors[value - 1].name : "empty"}${board.clues[index] ? ", fixed" : ""}`,
       );
-      button.setAttribute("aria-pressed", String(index === selected));
+      setAttr(button, "aria-pressed", String(index === selected));
       button.disabled = !!board.clues[index];
       if (value)
         button.innerHTML = `<span style="background:${puzzleColors[value - 1].color}">${numbered ? value : ""}</span>`;
@@ -1320,7 +1338,7 @@ function playMomPuzzle() {
     palette.replaceChildren();
     puzzleColors.forEach((color, index) => {
       const button = document.createElement("button");
-      button.setAttribute("aria-label", `Place ${color.name}`);
+      setAttr(button, "aria-label", `Place ${color.name}`);
       button.innerHTML = `<span style="background:${color.color}">${numbered ? index + 1 : ""}</span>`;
       button.onclick = () => {
         if (selected < 0) return;
@@ -1406,7 +1424,7 @@ const nameLabels = world.speakers.map((speaker) => {
   const label = document.createElement("div");
   label.className = "npc-name";
   label.textContent = speaker.name;
-  label.hidden = true;
+  setHidden(label, true);
   speechLayer.append(label);
   return label;
 });
@@ -1466,19 +1484,20 @@ function speak(id: string, text: string, choices: Choice[] = []) {
   }
   if (choices.length) releaseMouse();
   toastTime = 0;
-  $("#toast").style.opacity = "0";
+  setCss($("#toast").style, "opacity", "0");
   dismissSpeech();
   const element = document.createElement("section");
   element.className = "speech-bubble";
   if (id === "stacy") element.classList.add("stacy-conversation");
-  element.setAttribute("role", "region");
-  element.setAttribute(
+  setAttr(element, "role", "region");
+  setAttr(
+    element,
     "aria-label",
     `${world.speakers.find((n) => n.id === id)?.name ?? id} says`,
   );
   const content = document.createElement("div");
   content.innerHTML = text.replaceAll("—", ". ");
-  content.setAttribute("aria-live", "polite");
+  setAttr(content, "aria-live", "polite");
   element.append(content);
   const row = document.createElement("div");
   row.className = "choices";
@@ -1499,7 +1518,7 @@ function speak(id: string, text: string, choices: Choice[] = []) {
       button.classList.add("default-action");
       const hint = document.createElement("kbd");
       hint.textContent = "E";
-      hint.setAttribute("aria-hidden", "true");
+      setAttr(hint, "aria-hidden", "true");
       button.append(hint);
     }
     row.append(button);
@@ -1507,7 +1526,7 @@ function speak(id: string, text: string, choices: Choice[] = []) {
   const end = document.createElement("button");
   end.className = "speech-close";
   end.textContent = "×";
-  end.setAttribute("aria-label", "End conversation");
+  setAttr(end, "aria-label", "End conversation");
   end.onclick = dismissSpeech;
   element.append(end);
   if (choices.length) element.append(row);
@@ -1517,8 +1536,8 @@ function speak(id: string, text: string, choices: Choice[] = []) {
     element,
     remaining: choices.length ? Infinity : Math.max(8, text.length / 15),
   };
-  thought.hidden = true;
-  thought.style.display = "none";
+  setHidden(thought, true);
+  setCss(thought.style, "display", "none");
   updateSpeech(0);
 }
 function effectivelyVisible(object: T.Object3D) {
@@ -1546,8 +1565,8 @@ function updateSpeech(dt: number) {
       !head ||
       !effectivelyVisible(speaker.object)
     ) {
-      nameLabels[i].hidden = true;
-      if (speaking?.id === speaker.id) speaking.element.hidden = true;
+      setHidden(nameLabels[i], true);
+      if (speaking?.id === speaker.id) setHidden(speaking.element, true);
       return;
     }
     const anchor = head
@@ -1580,11 +1599,11 @@ function updateSpeech(dt: number) {
       Math.abs(anchor.y) > 1 ||
       obscured;
     const label = nameLabels[i];
-    label.hidden = hidden;
+    setHidden(label, hidden);
     const x = (anchor.x * 0.5 + 0.5) * innerWidth,
       y = (-anchor.y * 0.5 + 0.5) * innerHeight;
-    label.style.left = `${x}px`;
-    label.style.top = `${y}px`;
+    setCss(label.style, "left", `${x}px`);
+    setCss(label.style, "top", `${y}px`);
     if (speaking?.id === speaker.id) {
       if (d > 9) {
         dismissSpeech();
@@ -1593,12 +1612,24 @@ function updateSpeech(dt: number) {
       const bubble = speaking.element;
       // Keep an established conversation usable even if a wall or the camera
       // obscures the speaker's nameplate. Interaction reach already gates it.
-      bubble.hidden = !begun || !s.awake || paused;
+      setHidden(bubble, !begun || !s.awake || paused);
       const half = bubble.offsetWidth / 2;
-      bubble.style.left = `${Math.max(half + 12, Math.min(innerWidth - half - 12, x))}px`;
+      setCss(
+        bubble.style,
+        "left",
+        `${Math.max(half + 12, Math.min(innerWidth - half - 12, x))}px`,
+      );
       const hudTop = resourceHud.getBoundingClientRect().top;
-      bubble.style.maxHeight = `${Math.max(100, Math.min(innerHeight * 0.65, hudTop - 24))}px`;
-      bubble.style.top = `${Math.max(bubble.offsetHeight + 12, Math.min(y - 16, hudTop - 12))}px`;
+      setCss(
+        bubble.style,
+        "maxHeight",
+        `${Math.max(100, Math.min(innerHeight * 0.65, hudTop - 24))}px`,
+      );
+      setCss(
+        bubble.style,
+        "top",
+        `${Math.max(bubble.offsetHeight + 12, Math.min(y - 16, hudTop - 12))}px`,
+      );
     }
   });
 }
@@ -1675,15 +1706,23 @@ function foodOfTheGods() {
             ],
           ),
       },
+      ...(s.coin
+        ? [
+            {
+              label: "Tell me about your trading strategy",
+              run: () => tradingConversation("gigachad"),
+            },
+          ]
+        : []),
       { label: "See you, bro", run: dismissSpeech },
     ],
   );
 }
-function save() {
+async function save() {
   updateInventoryNotices(0);
   world.updateNotebook(s.journal.at(-1)!, s.journal.length);
   try {
-    if (!saveStore || !saveStore.write(s)) {
+    if (!saveStore || !(await saveStore.write(s))) {
       if (!storageWarning) {
         storageWarning = true;
         toast(
@@ -1705,7 +1744,7 @@ const seedSearchClock = new SeedSearchClock();
 let millionairePathNoticed = !!s.millionaire?.unlocked;
 function toast(text: string) {
   $("#toast").textContent = text;
-  $("#toast").style.opacity = "1";
+  setCss($("#toast").style, "opacity", "1");
   toastTime = Math.max(4, Math.min(10, text.length / 18));
 }
 function close() {
@@ -1713,7 +1752,7 @@ function close() {
   phoneCleanup = undefined;
   last = performance.now();
   modalDefault = undefined;
-  $("#modal").hidden = true;
+  setHidden($("#modal"), true);
   paused = false;
   keys.clear();
   ($("#world") as HTMLCanvasElement).focus();
@@ -1725,7 +1764,7 @@ function panel(
   _subtitle = "MONEY TREE",
 ) {
   toastTime = 0;
-  $("#toast").style.opacity = "0";
+  setCss($("#toast").style, "opacity", "0");
   title = title.replaceAll("—", ". ");
   choices = choices.map((c) => ({
     ...c,
@@ -1736,13 +1775,13 @@ function panel(
   paused = true;
   keys.clear();
   const modal = $("#modal");
-  modal.hidden = false;
+  setHidden(modal, false);
   modal.innerHTML = "";
   const p = document.createElement("section");
   p.className = "panel";
-  p.setAttribute("role", "dialog");
-  p.setAttribute("aria-modal", "true");
-  p.setAttribute("aria-label", title);
+  setAttr(p, "role", "dialog");
+  setAttr(p, "aria-modal", "true");
+  setAttr(p, "aria-label", title);
   p.innerHTML = `<h2>${title}</h2>`;
   const content = document.createElement("div");
   content.innerHTML = text.replaceAll("—", ". ");
@@ -1758,13 +1797,13 @@ function panel(
   for (const [index, c] of choices.entries()) {
     const b = document.createElement("button");
     b.textContent = c.label;
-    b.setAttribute("aria-label", c.label);
+    setAttr(b, "aria-label", c.label);
     if (index === defaultIndex && !c.disabled && !c.destructive) {
       modalDefault = b;
       b.classList.add("default-action");
       const hint = document.createElement("kbd");
       hint.textContent = "E";
-      hint.setAttribute("aria-hidden", "true");
+      setAttr(hint, "aria-hidden", "true");
       b.append(hint);
     }
     b.disabled = !!c.disabled;
@@ -2071,7 +2110,7 @@ function bag() {
   ];
   panel(
     "Your bag",
-    `<div class="inventory-grid">${items.map((item) => `<${item.id === "bed" ? 'button type="button"' : "div"} class="inventory-card ${item.available ? "" : "empty"}" data-item="${item.id}" ${item.id === "bed" ? `aria-label="Place a garden bed from your bag" ${item.available ? "" : "disabled"}` : ""}>${inventoryIcon(item.id)}<span>${item.label}</span><b>${item.value}</b>${item.id === "bed" && item.available ? "<small>Click to place</small>" : ""}</${item.id === "bed" ? "button" : "div"}>`).join("")}</div><div class="hat-bag">${s.hats.map((id) => `<button type="button" data-hat="${id}"><img src="${hatPortrait(id)}" alt=""><span>${hatById(id)!.name}</span><small>${hatPower(id, s.foundCapSeeds)}</small><b>${wearing(s, id) ? "Wearing" : "Equip"}</b></button>`).join("")}</div>`,
+    `<div class="inventory-grid">${items.map((item) => `<${item.id === "bed" ? 'button type="button"' : "div"} class="inventory-card ${item.available ? "" : "empty"}" data-item="${item.id}" ${item.id === "bed" ? `aria-label="Place a garden bed from your bag" ${item.available ? "" : "disabled"}` : ""}>${inventoryIcon(item.id)}<span>${item.label}</span><b>${item.value}</b>${item.id === "bed" && item.available ? "<small>Click to place</small>" : ""}</${item.id === "bed" ? "button" : "div"}>`).join("")}</div><p class="fine">Garden seeds: ${crops.map((c) => `${c}: ${s.cropSeeds?.[c] ?? 0}`).join(" · ")}</p><div class="hat-bag">${s.hats.map((id) => `<button type="button" data-hat="${id}"><img src="${hatPortrait(id)}" alt=""><span>${hatById(id)!.name}</span><small>${hatPower(id, s.foundCapSeeds)}</small><b>${wearing(s, id) ? "Wearing" : "Equip"}</b></button>`).join("")}</div>`,
     [
       ...(s.equippedHat
         ? [
@@ -2249,7 +2288,7 @@ function shopPortrait(id: string, model: () => T.Object3D) {
 function homeShop(department: "groceries" | "furnishings" = "furnishings") {
   const groceries = department === "groceries";
   const stock = groceries
-    ? ingredients.map((id) => ({
+    ? ingredients.slice(0, 4).map((id) => ({
         id,
         name: id[0].toUpperCase() + id.slice(1),
         price: 100,
@@ -2798,7 +2837,7 @@ function updateDesertThought(dt: number) {
   desertClock = 0;
   thought.textContent = chooseDesertReflection(s);
   save();
-  thought.hidden = false;
+  setHidden(thought, false);
   thoughtTime = 6;
 }
 
@@ -2869,7 +2908,7 @@ function celebrateShop() {
   world.life.cancelInteractions();
   dismissSpeech();
   keys.clear();
-  thought.hidden = true;
+  setHidden(thought, true);
   thoughtTime = 0;
   const people = [...new Set(world.speakers.map((n) => n.object))].map(
     capturePartyActor,
@@ -3098,7 +3137,7 @@ const bedObstacles = () =>
     { x: -5, z: 10, w: 8, d: 8 },
   ]);
 function debugMenu(group?: string, message = "") {
-  const run = (id: DebugAction) => {
+  const run = async (id: DebugAction) => {
     const next = structuredClone(s);
     applyDebugAction(next, id);
     if (!decode(JSON.stringify(next))) {
@@ -3109,8 +3148,8 @@ function debugMenu(group?: string, message = "") {
       return;
     }
     try {
-      if (!localStorage.getItem(SAVE + "-debug-backup"))
-        localStorage.setItem(SAVE + "-debug-backup", JSON.stringify(s));
+      if (!saveStore) throw Error("Storage unavailable");
+      await saveStore.debugBackup(s);
     } catch {
       debugMenu(
         group,
@@ -3119,7 +3158,7 @@ function debugMenu(group?: string, message = "") {
       return;
     }
     try {
-      if (!saveStore?.write(next)) {
+      if (!(await saveStore?.write(next))) {
         debugMenu(
           group,
           "That change could not be stored. Your current progress is unchanged.",
@@ -3161,8 +3200,8 @@ function debugMenu(group?: string, message = "") {
       { label: "Export current save", run: exportSave },
       {
         label: "Export pre-debug backup",
-        run: () => {
-          const raw = localStorage.getItem(SAVE + "-debug-backup");
+        run: async () => {
+          const raw = await saveStore?.readDebugBackup();
           if (!raw) {
             debugMenu(group, "Use a testing tool first to create the backup.");
             return;
@@ -3262,13 +3301,14 @@ function pauseMenu() {
               {
                 label: "Start fresh",
                 destructive: true,
-                run: () => {
+                run: async () => {
                   action = undefined;
                   momSpoke = false;
                   world.player.userData.farewell = false;
 
-                  s = fresh();
-                  saveStore?.write(s, true);
+                  const next = fresh();
+                  if (!(await saveStore?.write(next, true))) return;
+                  s = next;
                   resetTransientMotion();
                   sitting = false;
                   world.setPlayerSeated(false);
@@ -3297,10 +3337,15 @@ const escapeHTML = (text: string) =>
   );
 function grindset() {
   visit("Stopped to talk with Chad in Sigma Town.");
-  const line = chadLine(s, "grindset");
-  visit(`Heard Chad: ${line}`);
   save();
-  const choices: Choice[] = [{ label: "See the drinks", run: coffeeMenu }];
+  const choices: Choice[] = [
+    { label: "See the drinks", default: true, run: coffeeMenu },
+  ];
+  if (s.coin)
+    choices.push({
+      label: "Tell me about your trading strategy",
+      run: () => tradingConversation("grindset"),
+    });
   if (s.communityPlanted)
     choices.push({
       label: s.coin ? "My coin" : "Your entrepreneurial spirit?",
@@ -3309,7 +3354,7 @@ function grindset() {
   choices.push({ label: "See you around", run: dismissSpeech });
   speak(
     "grindset",
-    `<p>${line}</p>${s.communityPlanted && !s.coin ? "<p>I noticed your entrepreneurial spirit in the community garden. Want to name my brand-new cryptocurrency and invest?</p>" : ""}`,
+    `<p>Welcome to Grindset. What can I get you to drink?</p>${s.communityPlanted && !s.coin ? "<p>I noticed your entrepreneurial spirit in the community garden. Want to name my brand-new cryptocurrency and invest?</p>" : ""}`,
     choices,
   );
 }
@@ -3502,9 +3547,15 @@ function religionConversation(
 function summitDialogue(step = 0) {
   const m = s.millionaire;
   if (!m?.member) return;
+  if (!m.chats["visited-summit"]) {
+    m.chats["visited-summit"] = 1;
+    save();
+    toast(
+      "Terrace Threads is now open at the mountain foot, with advanced hats, a seed ATM and a composter.",
+    );
+  }
   if (m.titheAccepted)
     return religionConversation(m.member, "millionaire-summit", "summit");
-  m.chats["visited-summit"] = 1;
   const chapters = summitConversation(m.member),
     chapter = chapters[step];
   speak("millionaire-summit", `<p>${escapeHTML(chapter[0])}</p>`, [
@@ -3657,7 +3708,7 @@ function coinMenu() {
     q = marketSignals(s);
   panel(
     `${escapeHTML(c.name)} coin`,
-    `<label>Price history <select id="coin-range"><option value="current" ${coinRange === "current" ? "selected" : ""}>Current view</option><option value="day" ${coinRange === "day" ? "selected" : ""}>Last day</option><option value="three" ${coinRange === "three" ? "selected" : ""}>Last three days</option></select></label>${coinChart(rangePrices(s, coinRange), c.price, coinRange === "current" ? undefined : `${coinRange === "day" ? "Last day" : "Last three days"} · recorded game prices`)}<div class="coin-balances"><p>Price <strong>${money(c.price)}</strong> per coin</p><p>You own ${(c.units / 1e6).toFixed(4)} coins, worth <strong>${money(coinValue(s))}</strong></p><p>Pocket <strong>${money(s.cash)}</strong> · Total invested ${money(c.invested)}</p></div><label>Buy amount $ <input id="coin-amount" inputmode="decimal" value="1.00"></label><label>Sell amount $ <input id="coin-sell-amount" inputmode="decimal" value="1.00"></label><p id="coin-error" role="status"></p><details><summary>What moves the price?</summary><p>Prices move every 15 seconds of game time. Random swings mix with earnings, savings, conversations, trees, Mom’s good days, active community beds, birdhouses, seed discoveries, bicycles owned and garden tools, and whether you have talked with Mom in the last two days, spanakopita and time since the last chicken cuddle. Going without cuddles pushes the coin down. Chad trades move prices, $100 boundaries resist crossings, and each meteor causes one major fall. Prices can fall.</p><p>${money(q.earned)} earned · ${money(q.saved)} saved · ${q.neighbors} neighbors met · ${q.trees} growing trees · Mom has a ${q.health ? "good" : "tired"} day · longest good streak ${q.longestGoodStreak}.</p><p>${q.communityBeds} active community beds · ${q.birdhouses} birdhouses · ${q.discoveries} seed discoveries · ${q.bicycles} bicycles owned · ${q.tools} garden tools · Talked to Mom recently: ${q.momRecent ? "yes" : "no"} · ${q.spanakopita} spanakopita in your bag · ${q.spanakopitaShared} shared with Mom · ${q.chickenCuddles} chicken cuddles.</p></details>`,
+    `<label>Price history <select id="coin-range"><option value="current" ${coinRange === "current" ? "selected" : ""}>Current view</option><option value="day" ${coinRange === "day" ? "selected" : ""}>Last day</option><option value="three" ${coinRange === "three" ? "selected" : ""}>Last three days</option></select></label>${coinChart(rangePrices(s, coinRange), c.price, coinRange === "current" ? undefined : `${coinRange === "day" ? "Last day" : "Last three days"} · recorded game prices`)}<div class="coin-balances"><p>Price <strong>${money(c.price)}</strong> per coin</p><p>You own ${(c.units / 1e6).toFixed(4)} coins, worth <strong>${money(coinValue(s))}</strong></p><p>Pocket <strong>${money(s.cash)}</strong> · Total invested ${money(c.invested)}</p></div><label>Buy amount $ <input id="coin-amount" inputmode="decimal" value="1.00"></label><label>Sell amount $ <input id="coin-sell-amount" inputmode="decimal" value="1.00"></label><p id="coin-error" role="status"></p><details><summary>What moves the price?</summary><p>Prices move every 15 seconds of game time. Random swings mix with earnings, savings, conversations, trees, Mom’s good days, active community beds, birdhouses, seed discoveries, bicycles owned and garden tools, and whether you have talked with Mom in the last two days, spanakopita and time since the last chicken cuddle. Chicken cuddles have a small influence. Chad trades move prices, sharp falls attract recovery toward a game-activity valuation, and meteors cause brief selloffs, with occasional bigger crashes. The Chads target average growth of 2% per game day. Negative factors are ignored below $1 and for three minutes of game time after a crash. Prices can spike or fall.</p><p>${money(q.earned)} earned · ${money(q.saved)} saved · ${q.neighbors} neighbors met · ${q.trees} growing trees · Mom has a ${q.health ? "good" : "tired"} day · longest good streak ${q.longestGoodStreak}.</p><p>${q.communityBeds} active community beds · ${q.birdhouses} birdhouses · ${q.discoveries} seed discoveries · ${q.bicycles} bicycles owned · ${q.tools} garden tools · Talked to Mom recently: ${q.momRecent ? "yes" : "no"} · ${q.spanakopita} spanakopita in your bag · ${q.spanakopitaShared} shared with Mom · ${q.chickenCuddles} chicken cuddles.</p></details>`,
     [
       {
         label: "Sell this amount",
@@ -3714,13 +3765,13 @@ function coinMenu() {
     if (button.textContent?.includes("Invest this amount")) {
       button.classList.add("coin-buy");
       button.textContent = "Buy";
-      button.setAttribute("aria-label", "Buy");
+      setAttr(button, "aria-label", "Buy");
       button.parentElement!.prepend(button);
     }
     if (button.textContent?.includes("Sell this amount")) {
       button.classList.add("coin-sell");
       button.textContent = "Sell";
-      button.setAttribute("aria-label", "Sell");
+      setAttr(button, "aria-label", "Sell");
     }
   }
   $("#coin-range").addEventListener("change", (e) => {
@@ -3730,7 +3781,7 @@ function coinMenu() {
 }
 const coinTracker = document.createElement("aside");
 coinTracker.id = "coin-tracker";
-coinTracker.hidden = true;
+setHidden(coinTracker, true);
 const topRightHud = document.createElement("div");
 topRightHud.id = "top-right-hud";
 const bankHudStack = document.createElement("div");
@@ -3738,6 +3789,26 @@ bankHudStack.id = "bank-hud-stack";
 bankHudStack.append(cashHud, bankHud);
 topRightHud.append($("header"), $("#quest"), coinTracker, bankHudStack);
 document.body.append(topRightHud);
+function setHidden(element: HTMLElement, hidden: boolean) {
+  if (element.hidden !== hidden) element.hidden = hidden;
+}
+function setAttr(element: Element, name: string, value: string) {
+  if (element.getAttribute(name) !== value) element.setAttribute(name, value);
+}
+function setCss(style: CSSStyleDeclaration, property: string, value: string) {
+  // CSSStyleDeclaration uses kebab-case names, including max-height.
+  if (/^-?\d+\.\d+(px|%)$/.test(value))
+    value = value.replace(/^-?\d+\.\d+/, (n) => Number(n).toFixed(2));
+  const name = property.replace(/[A-Z]/g, (c) => "-" + c.toLowerCase());
+  if (style.getPropertyValue(name) !== value) style.setProperty(name, value);
+}
+new ResizeObserver(() =>
+  setCss(
+    document.documentElement.style,
+    "--resource-height",
+    `${resourceHud.offsetHeight}px`,
+  ),
+).observe(resourceHud);
 const hudMarkup = new WeakMap<HTMLElement, string>();
 function setText(element: Node, text: string) {
   if (element.textContent !== text) element.textContent = text;
@@ -3749,7 +3820,7 @@ function setHudHTML(element: HTMLElement, html: string) {
 }
 
 function updateCoinTracker() {
-  coinTracker.hidden = !begun || !s.coin;
+  setHidden(coinTracker, !begun || !s.coin);
   if (!s.coin) return;
   const c = s.coin,
     old = c.history.at(-2) ?? c.price,
@@ -3758,8 +3829,11 @@ function updateCoinTracker() {
     coinTracker,
     `<strong>${escapeHTML(c.name)}</strong><br>${trend} ${money(c.price)} / coin<br>Holding ${money(coinValue(s))}`,
   );
-  coinTracker.title =
-    "An in-game coin. Use the ATM beside Grindset to buy or sell.";
+  setAttr(
+    coinTracker,
+    "title",
+    "An in-game coin. Use the ATM beside Grindset to buy or sell.",
+  );
 }
 
 function sitWithStacy() {
@@ -4013,28 +4087,15 @@ function interact(skipTrader = false): void {
   }
   if (!near) return;
   const id = near.id;
+  if (id === "mountain-seed-atm") return seedATM();
   if (s.coin && !skipTrader) {
     const ids = world.speakers
       .filter((n) => n.object.userData.chad)
       .map((n) => n.id);
     registerTraders(s, ids);
-    if (ids.includes(id)) {
+    if (ids.includes(id) && id !== "grindset" && id !== "gigachad") {
       save();
-      return speak(
-        id,
-        "<p>Would you like to hear about my coin trading strategy?</p>",
-        [
-          {
-            label: "Yes, tell me",
-            run: () =>
-              speak(id, `<p>${escapeHTML(traderDialogue(s, id)!)}</p>`, [
-                { label: "Thank you", run: dismissSpeech },
-                { label: "Something else", run: () => interact(true) },
-              ]),
-          },
-          { label: "Something else", run: () => interact(true) },
-        ],
-      );
+      return tradingConversation(id);
     }
   }
 
@@ -4043,7 +4104,9 @@ function interact(skipTrader = false): void {
     s.plots[+id.slice(4)]?.mountain &&
     !s.millionaire?.titheAccepted
   )
-    return toast("Talk to the guide in the pagoda before planting here.");
+    return toast(
+      "Talk to the Community Guardian in the pagoda before planting here.",
+    );
   if (id === "mansion-marvels") return mansionShop();
   if (id === "player-mansion") {
     if (s.housing?.status !== "owned")
@@ -4146,7 +4209,7 @@ function interact(skipTrader = false): void {
       momStatus(s.day, s.familyStory).activity === "reading"
     ) {
       thought.textContent = chooseMomThought(s, "sitting");
-      thought.hidden = false;
+      setHidden(thought, false);
       thoughtTime = 9;
     }
     toast("E to stand up. T to change the TV channel.");
@@ -4188,7 +4251,7 @@ function interact(skipTrader = false): void {
     );
     return;
   }
-  if (id === "composter")
+  if (id === "composter" || id === "mountain-composter")
     return panel(
       "Community compost",
       `<p>You have ${s.compostScraps ?? 0} scraps. Replanting dead money trees adds 1 to 3 scraps. Trade 25 scraps for one bag of soil.</p>`,
@@ -4430,7 +4493,39 @@ function interact(skipTrader = false): void {
       } else toast("This bed needs soil. Robertson sells a bag for $10.");
       return;
     }
+    if (p.crop && p.stage === "ready") {
+      if (harvestCrop(s, i)) {
+        save();
+        toast(
+          "Fresh vegetables in your bag. Cook with Mom to try a new recipe.",
+        );
+      } else
+        panel(
+          "Mom’s irises",
+          "<p>Mom’s favorite flowers. They can stay in bloom here, or you can clear this bed.</p>",
+          [
+            { label: "Keep the flowers", run: close },
+            {
+              label: "Clear the bed",
+              run: () => {
+                p.stage = "empty";
+                delete p.crop;
+                save();
+                close();
+              },
+            },
+          ],
+        );
+      return;
+    }
     if (["empty", "harvested"].includes(p.stage)) {
+      if (
+        !p.mountain &&
+        !p.community &&
+        !p.meteor &&
+        crops.some((c) => (s.cropSeeds?.[c] ?? 0) > 0)
+      )
+        return chooseGardenSeed(i);
       if (!s.seeds)
         return toast(
           s.boughtSeeds
@@ -4465,7 +4560,7 @@ function interact(skipTrader = false): void {
       chime();
       if (s.seeds > seedsBeforeHarvest) seedChime();
       toast(
-        `Harvested ${money(n + contribution)}! ${contribution ? `${money(contribution)} contributed to your community; ${money(n)} added to your pocket. ` : ""}The tree withers. Plant a fresh seed for another tree.`,
+        `Harvested ${money(n + contribution)}! ${contribution ? `${money(contribution)} contributed to your community; ${money(n)} added to your funds. ` : ""}The tree withers. Plant a fresh seed for another tree.`,
       );
     } else if (p.stage === "growing") {
       if (s.fertilizer && !p.fertilized) {
@@ -4565,7 +4660,7 @@ function importSave() {
         !withinPlayableBounds(next)
       )
         next.position = { x: -16, z: 4 };
-      if (!saveStore?.write(next, true)) {
+      if (!(await saveStore?.write(next, true))) {
         toast(
           "That save could not be stored. Your current garden is unchanged.",
         );
@@ -4595,11 +4690,11 @@ function importSave() {
 
 function cancelNewGame() {
   close();
-  $("#intro").hidden = false;
+  setHidden($("#intro"), false);
   $("#new-game").focus();
 }
 $("#new-game").onclick = () => {
-  $("#intro").hidden = true;
+  setHidden($("#intro"), true);
   panel(
     "Start a new game?",
     "<p>This replaces your saved garden, money, and notebook. You’ll begin in bed with $4.33 in your piggy bank.</p>",
@@ -4608,13 +4703,14 @@ $("#new-game").onclick = () => {
       {
         label: "Start new game",
         destructive: true,
-        run: () => {
+        run: async () => {
           action = undefined;
           momSpoke = false;
           world.player.userData.farewell = false;
 
-          s = fresh();
-          saveStore?.write(s, true);
+          const next = fresh();
+          if (!(await saveStore?.write(next, true))) return;
+          s = next;
           resetTransientMotion();
           sitting = false;
           world.setPlayerSeated(false);
@@ -4623,7 +4719,7 @@ $("#new-game").onclick = () => {
           yaw = 0;
           pitch = 0.42;
           thoughtTime = 0;
-          thought.hidden = true;
+          setHidden(thought, true);
           plotVersions.length = 0;
           save();
           close();
@@ -4635,7 +4731,7 @@ $("#new-game").onclick = () => {
 };
 $("#begin").onclick = () => {
   if (saveStore?.protected) {
-    $("#intro").hidden = true;
+    setHidden($("#intro"), true);
     panel(
       "Your saved game needs recovery",
       "<p>Your original saved data has been kept unchanged. Export it for recovery, or use Start new game only if you want to replace it.</p>",
@@ -4660,7 +4756,7 @@ $("#begin").onclick = () => {
           default: true,
           run: () => {
             close();
-            $("#intro").hidden = false;
+            setHidden($("#intro"), false);
             $("#begin").focus();
           },
         },
@@ -4671,7 +4767,7 @@ $("#begin").onclick = () => {
   begun = true;
 
   last = performance.now();
-  $("#intro").hidden = true;
+  setHidden($("#intro"), true);
   try {
     audio?.close();
     audio = new AudioContext();
@@ -4939,7 +5035,7 @@ function resetTransientMotion() {
   placingBed = false;
   bedGhost.visible = false;
   thoughtTime = 0;
-  thought.hidden = true;
+  setHidden(thought, true);
   returnBikeToRack();
   bikeSpecial.reset();
   action = undefined;
@@ -5098,6 +5194,9 @@ function selectTarget() {
           t.id !== "gigachad" &&
           t.id !== "composter" &&
           t.id !== "wolf")) &&
+      ((!t.id.startsWith("mountain-") &&
+        !(t.id.startsWith("hat-") && mountainHat(t.id.slice(4) as HatId))) ||
+        mountainShopOpen(s)) &&
       (t.id !== "coin-atm" || !!s.coin) &&
       (t.id !== "forest-seeds" || (!!s.foundCapSeeds && !s.foundForestSeeds)) &&
       (t.id !== "store-seeds" ||
@@ -5114,9 +5213,11 @@ function selectTarget() {
           : t.id === "mom" &&
               momStatus(s.day, s.familyStory).activity === "bedrest"
             ? 3.8
-            : wearing(s, "lantern") || buff(s, "reach")
-              ? 3
-              : 2.1)
+            : wearing(s, "reach")
+              ? 4.5
+              : wearing(s, "lantern") || buff(s, "reach")
+                ? 3
+                : 2.1)
     ) {
       const score =
         distance -
@@ -5155,7 +5256,7 @@ function hasSight(t: Target) {
     .some((h) => h.distance < d - 0.1);
 }
 function updateUI() {
-  mortgageHud.hidden = !s.housing?.mortgage || s.housing.status !== "owned";
+  setHidden(mortgageHud, !s.housing?.mortgage || s.housing.status !== "owned");
   if (!mortgageHud.hidden) {
     const h = s.housing!;
     setHudHTML(
@@ -5164,29 +5265,37 @@ function updateUI() {
     );
   }
 
-  fertilizerHud.hidden = !(
-    s.fertilizerPurchased ||
-    s.fertilizer > 0 ||
-    s.events.some((e) => e.includes("fertilizer")) ||
-    s.journalHistory?.some((d) =>
-      d.events.some((e) => e.includes("fertilizer")),
-    )
+  setHidden(
+    fertilizerHud,
+    !(
+      s.fertilizerPurchased ||
+      s.fertilizer > 0 ||
+      s.events.some((e) => e.includes("fertilizer")) ||
+      s.journalHistory?.some((d) =>
+        d.events.some((e) => e.includes("fertilizer")),
+      )
+    ),
   );
   setText(fertilizerHud.querySelector("strong")!, String(s.fertilizer));
-  membershipHud.hidden = !s.millionaire?.member;
+  setHidden(membershipHud, !s.millionaire?.member);
   if (s.millionaire?.member) {
     const f = fellowship(s.millionaire.member);
     setHudHTML(
       membershipHud,
       `<span class="membership-icon" aria-hidden="true">▣</span><span><small>Membership</small><strong>${f.id === "arms" ? "M.I.A." : f.id === "bridge" ? "Bridge" : "Breath of Fire"}</strong></span>`,
     );
-    membershipHud.title = `${f.name} membership card. Open your phone apps.`;
-    membershipHud.setAttribute(
+    setAttr(
+      membershipHud,
+      "title",
+      `${f.name} membership card. Open your phone apps.`,
+    );
+    setAttr(
+      membershipHud,
       "aria-label",
       `${f.name} membership card and phone apps`,
     );
   }
-  drinkHud.hidden = !s.drink;
+  setHidden(drinkHud, !s.drink);
   if (s.drink) {
     const drink = drinks.find((d) => d.id === s.drink!.id)!;
     setText(drinkHud.querySelector("small")!, drink.name);
@@ -5194,22 +5303,21 @@ function updateUI() {
       drinkHud.querySelector("strong")!,
       `${Math.ceil(s.drink.remaining)}s`,
     );
-    drinkHud.title = drink.effect;
-    drinkHud.setAttribute(
+    setAttr(drinkHud, "title", drink.effect);
+    setAttr(
+      drinkHud,
       "aria-label",
       `${drink.name}, ${Math.ceil(s.drink.remaining)} seconds remaining. ${drink.effect}`,
     );
   }
-  compostHud.hidden = !s.foundTVSeeds;
+  mountainShop.update(s);
+  setHidden(compostHud, !s.foundTVSeeds);
   setText(compostHud.querySelector("strong")!, String(s.compostScraps ?? 0));
-  compostHud.setAttribute(
-    "aria-label",
-    `${s.compostScraps ?? 0} compost scraps`,
-  );
+  setAttr(compostHud, "aria-label", `${s.compostScraps ?? 0} compost scraps`);
   const total = s.cash + s.bank;
   updateCoinTracker();
   setText(seedHud.querySelector("strong")!, String(s.seeds));
-  seedHud.setAttribute("aria-label", `${s.seeds} money tree seeds`);
+  setAttr(seedHud, "aria-label", `${s.seeds} money tree seeds`);
   dailyNetLedger.update(s);
   const net = s.dailyNet ?? 0;
   setText(netHud.querySelector(".daily-net-icon")!, net < 0 ? "↘" : "↗");
@@ -5218,22 +5326,16 @@ function updateUI() {
     netHud.querySelector("strong")!,
     `${net < 0 ? "−" : "+"}${money(Math.abs(net))}`,
   );
-  netHud.setAttribute(
+  setAttr(
+    netHud,
     "aria-label",
     `${net < 0 ? "−" : "+"}${money(Math.abs(net))} Daily Net`,
   );
   setText(cashHud.querySelector("strong")!, money(s.cash));
   setText(bankHud.querySelector("strong")!, money(s.bank));
-  cashHud.setAttribute("aria-label", `${money(s.cash)} pocket money`);
-  bankHud.setAttribute(
-    "aria-label",
-    `${money(s.bank)} saved in the piggy bank`,
-  );
+  setAttr(cashHud, "aria-label", `${money(s.cash)} pocket money`);
+  setAttr(bankHud, "aria-label", `${money(s.bank)} saved in the piggy bank`);
   setText($("#stats"), `Day ${s.day}`);
-  document.documentElement.style.setProperty(
-    "--resource-height",
-    `${resourceHud.offsetHeight}px`,
-  );
   let objective = "Visit Ol’ Man Robertson",
     hint =
       "Take your $4.33 from the piggy bank, then follow the lane north into town.";
@@ -5308,8 +5410,6 @@ function updateUI() {
     hint =
       "Investigate the meteor craters in the desert. A ready Money Tree grows at each new landing site.";
   }
-  setText($("#objective"), objective);
-  setText($("#hint"), hint);
   const phase = storyPhase(s);
   if (phase !== "saving") {
     const aims = {
@@ -5344,42 +5444,58 @@ function updateUI() {
         `${money(total)} saved · ${money(Math.max(0, 10_000_000 - total))} left toward $100,000.`,
       ],
     };
-    setText($("#objective"), aims[phase][0]);
-    setText($("#hint"), aims[phase][1]);
+    objective = aims[phase][0];
+    hint = aims[phase][1];
   } else if (canTellMom(s)) {
-    setText($("#objective"), "Tell Mom you’ve got $10k");
-    setText(
-      $("#hint"),
-      "You have enough in your pocket and savings to pay for her surgery. Go see Mom.",
-    );
+    objective = "Tell Mom you’ve got $10k";
+    hint =
+      "You have enough in your pocket and savings to pay for her surgery. Go see Mom.";
   }
   if (s.adventure?.meteors?.some((m) => m.landed && !m.harvested)) {
-    setText($("#objective"), "Something fell from the sky");
-    setText(
-      $("#hint"),
-      "Investigate the meteor craters in the desert. A ready Money Tree grows at each new landing site.",
-    );
+    objective = "Something fell from the sky";
+    hint =
+      "Investigate the meteor craters in the desert. A ready Money Tree grows at each new landing site.";
   }
   if (canSaveShop(s)) {
-    setText($("#objective"), "Go tell Ol’ Man Robertson");
-    setText(
-      $("#hint"),
-      "You have $100,000 to save his shop. Find him at Robertsons and give him the good news.",
-    );
+    objective = "Go tell Ol’ Man Robertson";
+    hint =
+      "You have $100,000 to save his shop. Find him at Robertsons and give him the good news.";
   } else if (s.familyStory?.shopSaved) {
-    setText($("#objective"), "Robertsons is here to stay");
-    setText(
-      $("#hint"),
-      "You saved the general store. Go see Ol’ Man Robertson anytime.",
-    );
+    objective = "Robertsons is here to stay";
+    hint = "You saved the general store. Go see Ol’ Man Robertson anytime.";
   }
+  if (s.millionaire?.unlocked && !s.housing && s.position.z < -90) {
+    const m = s.millionaire;
+    if (!m.result) {
+      objective = "Meet the Willow Guru";
+      hint =
+        "Take the assessment in Willow Grove to meet your community and reach Mt. Millionaire.";
+    } else if (!m.member) {
+      objective = "Meet your community";
+      hint =
+        "Talk to your assessment’s community mascot and ask them to lead you up the mountain.";
+    } else if (!m.titheAccepted) {
+      objective = "Meet the Community Guardian";
+      hint =
+        "Follow the central mountain path to the summit pagoda. The Guardian explains terrace planting.";
+    } else if (m.mountainEarned < 100000) {
+      objective = "Grow your terrace garden";
+      hint = `Plant terrace sites, sleep, then harvest. ${money(Math.max(0, 100000 - m.mountainEarned))} in mountain harvests until home-buying opens. Visit Terrace Threads at the foot for hats and seeds.`;
+    } else if (!m.chats["mansion-declined"]) {
+      objective = "Talk to the Community Guardian about a home";
+      hint =
+        "Your mountain harvests opened home-buying. Return to the summit Guardian to ask about mansions.";
+    }
+  }
+  setText($("#objective"), objective);
+  setText($("#hint"), hint);
   const { x, z } = s.position;
   setText(
     $("#location"),
     s.housing?.status === "owned" &&
       Math.abs(x - mansionLot.x) < 16 &&
       Math.abs(z - mansionLot.z) < 11
-      ? `${s.housing.style === "hearst" ? "Hearst Castle" : "Mount Vernon"} · Home`
+      ? `${s.housing.style === "hearst" ? "Magnate Mansion" : "Presidential Palace"} · Home`
       : s.housing?.storeOpened && x > -48 && x < -28 && z > -327 && z < -309
         ? "Mansion Marvels"
         : s.millionaire?.unlocked && z < -90
@@ -5429,14 +5545,27 @@ function updateUI() {
     if (near.id.startsWith("plot") && !unavailable) {
       const p = s.plots[+near.id.slice(4)];
       unavailable =
-        (["empty", "harvested"].includes(p.stage) && !s.seeds) ||
+        (["empty", "harvested"].includes(p.stage) &&
+          !s.seeds &&
+          (p.mountain ||
+            p.community ||
+            !!p.meteor ||
+            !crops.some((c) => (s.cropSeeds?.[c] ?? 0) > 0))) ||
         (p.stage === "planted" && !s.can);
       label = ["empty", "harvested"].includes(p.stage)
-        ? s.seeds
-          ? `${plantingBatch(s, +near.id.slice(4)).length === 2 ? "Plant two adjoining beds" : "Plant seeds"} · stand still (${Number(plantingSeconds(s).toFixed(1))}s)`
+        ? s.seeds ||
+          (!p.mountain &&
+            !p.community &&
+            !p.meteor &&
+            crops.some((c) => (s.cropSeeds?.[c] ?? 0) > 0))
+          ? `${plantingBatch(s, +near.id.slice(4)).length > 2 ? "Plant terrace" : plantingBatch(s, +near.id.slice(4)).length === 2 ? "Plant two adjoining beds" : "Plant seeds"} · stand still (${Number(plantingSeconds(s).toFixed(1))}s)`
           : "Plant seeds (need seeds)"
         : p.stage === "ready"
-          ? "Harvest money tree"
+          ? p.crop === "iris"
+            ? "Admire Mom’s irises"
+            : p.crop
+              ? `Pick ${p.crop}s for cooking`
+              : "Harvest money tree"
           : p.stage === "growing"
             ? s.fertilizer && !p.fertilized
               ? "Apply fertilizer"
@@ -5483,11 +5612,14 @@ function updateUI() {
   if (promptElement.innerHTML !== prompt) promptElement.innerHTML = prompt;
   $("#prompt").classList.toggle("unavailable", unavailable);
   $("#prompt").classList.toggle("seated", sitting);
-  $("#prompt").setAttribute("aria-disabled", String(unavailable));
-  $("#progress").hidden = !action;
+  setAttr($("#prompt"), "aria-disabled", String(unavailable));
+  setHidden($("#progress"), !action);
   if (action)
-    $("#progress span").style.width =
-      `${(action.elapsed / action.duration) * 100}%`;
+    setCss(
+      $("#progress span").style,
+      "width",
+      `${(action.elapsed / action.duration) * 100}%`,
+    );
 }
 const timerPosition = new T.Vector3();
 function frame(now: number) {
@@ -5718,7 +5850,7 @@ function frame(now: number) {
   fog.far +=
     ((balloonView ? 220 : s.position.z < -90 ? 500 : 90) - fog.far) *
     (1 - Math.exp(-dt * 3));
-  speechLayer.style.visibility = balloonView ? "hidden" : "";
+  setCss(speechLayer.style, "visibility", balloonView ? "hidden" : "");
   if (active) {
     if (s.awake) {
       if (tickSurgery(s, elapsed)) {
@@ -5731,7 +5863,7 @@ function frame(now: number) {
           storyThoughtClock = 0;
           thought.textContent =
             surgeryThoughts[storyThoughtIndex++ % surgeryThoughts.length];
-          thought.hidden = false;
+          setHidden(thought, false);
           thoughtTime = 11;
         }
       }
@@ -5943,7 +6075,8 @@ function frame(now: number) {
           action.elapsed += elapsed;
           if (action.elapsed >= action.duration) {
             const plantedId = action.id;
-            plantBatch(s, action.ids);
+            if (action.crop) plantCrop(s, action.id, action.crop);
+            else plantBatch(s, action.ids);
             action = undefined;
             save();
             toast(
@@ -6021,7 +6154,7 @@ function frame(now: number) {
       }
     }
     saveTime += elapsed;
-    if (saveTime > 3) {
+    if (saveTime > 10) {
       save();
       saveTime = 0;
     }
@@ -6051,11 +6184,13 @@ function frame(now: number) {
   world.player.visible = (s.awake || !begun) && !riding && followDistance > 0.9;
   bikeCockpit.object.visible = begun && riding;
   document.body.classList.toggle("riding", riding);
-  $("#bike-bell-help").hidden = !riding;
-  $("#bike-special-help").hidden = !riding;
+  setHidden($("#bike-bell-help"), !riding);
+  setHidden($("#bike-special-help"), !riding);
   if (riding && s.selectedBike)
-    $("#bike-special-name").textContent =
-      `${bikeFeatures[s.selectedBike].name}${bikeSpecial.cooldown(s.selectedBike) > 0 ? ` (${Math.ceil(bikeSpecial.cooldown(s.selectedBike))}s)` : ""}`;
+    setText(
+      $("#bike-special-name"),
+      `${bikeFeatures[s.selectedBike].name}${bikeSpecial.cooldown(s.selectedBike) > 0 ? ` (${Math.ceil(bikeSpecial.cooldown(s.selectedBike))}s)` : ""}`,
+    );
   if (riding) bikeCockpit.update(active ? actualRideSpeed : 0, s.selectedBike!);
   world.sleeping.visible = begun && !s.awake;
   world.setSigmaUnlocked(!!s.foundTVSeeds);
@@ -6113,9 +6248,9 @@ function frame(now: number) {
   let treesChanged = false;
   for (let i = 0; i < s.plots.length; i++) {
     const p = s.plots[i],
-      v = `${p.stage}:${p.fertilized}`;
+      v = `${p.stage}:${p.fertilized}:${p.crop ?? "money"}`;
     if (v !== plotVersions[i]) {
-      world.moneyTree(i, p.stage, p.fertilized);
+      world.moneyTree(i, p.stage, p.fertilized, p.crop);
       plotVersions[i] = v;
       treesChanged = true;
     }
@@ -6186,8 +6321,6 @@ function frame(now: number) {
     );
     cameraAim.copy(center);
     camera.lookAt(cameraAim);
-    toastTime = Math.max(toastTime, 0.25);
-    $("#toast").textContent = "E · Put the chicken down";
   } else if (world.life.sharing || featherHandoff) {
     const center = world.player.position
       .clone()
@@ -6379,6 +6512,7 @@ function frame(now: number) {
           ),
         firstPerson,
       );
+    aim.y += 0.38 * (1 - firstPerson);
     if (cameraJump) cameraAim.copy(aim);
     else cameraAim.lerp(aim, easing);
     camera.lookAt(cameraAim);
@@ -6481,29 +6615,33 @@ function frame(now: number) {
   for (let i = 0; i < s.plots.length; i++) {
     const el = timers[i];
     if (!begun || !s.awake || s.plots[i].stage !== "ready") {
-      if (!el.hidden) el.hidden = true;
+      if (!el.hidden) setHidden(el, true);
       continue;
     }
     timerPosition.copy(world.plots[i].position);
     timerPosition.y += 0.45;
     if (timerPosition.distanceToSquared(camera.position) > 17 * 17) {
-      if (!el.hidden) el.hidden = true;
+      if (!el.hidden) setHidden(el, true);
       continue;
     }
     timerPosition.project(camera);
     if (timerPosition.z > 1) {
-      if (!el.hidden) el.hidden = true;
+      if (!el.hidden) setHidden(el, true);
       continue;
     }
-    if (el.hidden) el.hidden = false;
-    el.style.left = `${(timerPosition.x * 0.5 + 0.5) * innerWidth}px`;
-    el.style.top = `${(-timerPosition.y * 0.5 + 0.5) * innerHeight}px`;
+    if (el.hidden) setHidden(el, false);
+    setCss(el.style, "left", `${(timerPosition.x * 0.5 + 0.5) * innerWidth}px`);
+    setCss(
+      el.style,
+      "top",
+      `${(-timerPosition.y * 0.5 + 0.5) * innerHeight}px`,
+    );
     if (el.textContent !== "$ Ready to harvest")
       el.textContent = "$ Ready to harvest";
   }
   if (thoughtTime > 0 && active && !speaking) {
     thoughtTime -= dt;
-    if (thoughtTime <= 0) thought.hidden = true;
+    if (thoughtTime <= 0) setHidden(thought, true);
   }
   if (thoughtTime > 0) {
     const anchor = world.player.position
@@ -6549,32 +6687,59 @@ function frame(now: number) {
     }
     const left = center - width / 2;
     const edge = Math.max(left + 20, Math.min(left + width - 20, anchorX));
-    thought.style.setProperty(
+    setCss(
+      thought.style,
       "--tail-large",
       `${edge + (anchorX - edge) * 0.4 - left}px`,
     );
-    thought.style.setProperty(
+    setCss(
+      thought.style,
       "--tail-small",
       `${edge + (anchorX - edge) * 0.8 - left}px`,
     );
-    if (s.position.z < -170 && s.position.z > -330) center = innerWidth / 2;
-    thought.style.left = `${center}px`;
-    thought.style.top = `${s.position.z < -170 && s.position.z > -330 ? innerHeight * 0.28 : Math.min(anchorY, resourceHud.getBoundingClientRect().top - 24)}px`;
-    const inDesert = s.position.z < -170 && s.position.z > -330;
+    if (riding || (s.position.z < -170 && s.position.z > -330))
+      center = innerWidth / 2;
+    setCss(thought.style, "left", `${center}px`);
+    setCss(
+      thought.style,
+      "top",
+      `${riding || (s.position.z < -170 && s.position.z > -330) ? innerHeight * 0.28 : Math.min(anchorY, resourceHud.getBoundingClientRect().top - 24)}px`,
+    );
+    const inDesert = riding || (s.position.z < -170 && s.position.z > -330);
     if (inDesert) {
-      thought.style.setProperty("--tail-large", `${width / 2}px`);
-      thought.style.setProperty("--tail-small", `${width / 2}px`);
+      setCss(thought.style, "--tail-large", `${width / 2}px`);
+      setCss(thought.style, "--tail-small", `${width / 2}px`);
     }
-    thought.style.display =
-      paused || !!speaking || (!inDesert && anchor.z > 1) ? "none" : "";
+    setCss(
+      thought.style,
+      "display",
+      paused || !!speaking || (!inDesert && anchor.z > 1) ? "none" : "",
+    );
   }
-  $("#quest").style.visibility = speaking || thoughtTime > 0 ? "hidden" : "";
+  setCss(
+    $("#quest").style,
+    "visibility",
+    speaking || thoughtTime > 0 ? "hidden" : "",
+  );
   neighborGardens.update(
     active ? dt : 0,
     speaking?.id,
     !!beaGuide || teaSeated || inBeaHouse(s.position),
   );
   featherModel.visible = !!s.adventure?.feather;
+  if (
+    active &&
+    s.awake &&
+    childrenHomesBuilt() &&
+    !s.housing &&
+    !s.millionaire!.chats["housing-ready"]
+  ) {
+    s.millionaire!.chats["housing-ready"] = 1;
+    save();
+    toast(
+      "You can now buy a home on Mt. Millionaire. Talk to the Community Guardian in the summit pagoda.",
+    );
+  }
   estateWorld.update(s);
   meteorWorld.update(s, active && s.awake ? dt : 0);
   world.syncBeds(s.plots);
@@ -6601,14 +6766,14 @@ function frame(now: number) {
   if (kitchenPrepared) {
     preparedPan.visible = true;
   } else preparedPan.visible = false;
-  foodHud.hidden = !s.foodBuff;
+  setHidden(foodHud, !s.foodBuff);
   if (s.foodBuff) {
     const f = meals[s.foodBuff.recipe];
     setHudHTML(
       foodHud,
       `${foodIllustration(s.foodBuff.recipe)}<span>${f.name}<br>${Math.ceil(s.foodBuff.remaining)}s</span>`,
     );
-    foodHud.title = f.effect;
+    setAttr(foodHud, "title", f.effect);
   }
   world.updateHouseBirds(now / 1000);
   world.sigma.fountain.update(now / 1000);
@@ -6618,7 +6783,7 @@ function frame(now: number) {
   updateInventoryNotices(dt);
   if (toastTime > 0) {
     toastTime -= dt;
-    if (toastTime <= 0) $("#toast").style.opacity = "0";
+    if (toastTime <= 0) setCss($("#toast").style, "opacity", "0");
   }
   if (birdhouseScene) {
     const film = birdhouseScene;
@@ -6670,14 +6835,16 @@ function frame(now: number) {
     );
     camera.position.lerp(shot, 1 - Math.exp(-dt * 5));
     camera.lookAt(center.x, 1.1, center.z);
-    $("#prompt").innerText =
+    setText(
+      $("#prompt"),
       segment.hang === undefined
         ? film.placed === 2
           ? "We walk home together."
           : "We carry the birdhouses outside together."
         : segment.hang === 0
           ? "A home for the birds. Mom holds it steady while I help."
-          : "One more. We picked these colors together.";
+          : "One more. We picked these colors together.",
+    );
     if (film.elapsed >= film.duration) {
       s.position = film.origin;
       film.carried.forEach((g) => scene.remove(g));
@@ -6783,6 +6950,10 @@ if (new URLSearchParams(location.search).has("test")) {
       renderer.render(scene, camera);
     },
     state: () => structuredClone(s),
+    storageFlush: () => saveStore?.flush(),
+    savedRaw: (key?: string) => saveStore?.readRaw(key),
+    savedState: async (key?: string) =>
+      JSON.parse((await saveStore?.readRaw(key)) ?? "null"),
     playerPosition: () => world.player.position.toArray(),
     seated: () => sitting,
     rollPose: () => ({ angle: rollPose?.rotation.x ?? 0, remaining: rollTime }),
@@ -6863,6 +7034,16 @@ if (new URLSearchParams(location.search).has("test")) {
     advance: (dt: number) => {
       tick(s, dt);
       tickSigma(s, dt);
+    },
+    mountainShopOverview: () => {
+      camera.position.set(-5, 11, -291);
+      camera.lookAt(-12, 1, -318);
+      renderer.render(scene, camera);
+    },
+    bridgeOverview: () => {
+      camera.position.set(60, 8, -58);
+      camera.lookAt(46, 0, -82);
+      renderer.render(scene, camera);
     },
     sigmaOverview: () => {
       camera.position.set(17, 30, -53);
@@ -7338,43 +7519,71 @@ function mansionOffer(speaker: string, back: () => void): void {
         { label: "Keep my home", run: back },
       ],
     );
-  speak(
-    speaker,
-    "<p>When are you going to build a mansion?</p><p>How much does it cost?</p><p>One million dollars.</p>",
-    [
-      {
-        label: "I have a million. Buy outright",
-        disabled: s.cash + s.bank < mansionPrice,
-        run: () => chooseMansion(false, speaker),
+  speak(speaker, "<p>When are you going to build a mansion?</p>", [
+    {
+      label: "How much does it cost?",
+      default: true,
+      run: () => mansionPriceDialogue(speaker, back),
+    },
+    {
+      label: "I don’t want a mansion",
+      run: () => {
+        if (s.millionaire) s.millionaire.chats["mansion-declined"] = 1;
+        save();
+        speak(speaker, "<p>Well, let me know if you change your mind.</p>", [
+          { label: "I will", run: back },
+        ]);
       },
-      {
-        label: "I don’t have a million",
-        run: () =>
-          speak(
-            speaker,
-            "<p>Well, we can loan you the money. A one thousand dollar downpayment and $10 a day, until you pay it off.</p><p>But that will take 100,000 days!</p><p>Actually, 166,667 days. Because 40% of each payment goes to interest.</p>",
-            [
-              {
-                label: "Take the mortgage",
-                disabled: s.cash + s.bank < 100000,
-                run: () => chooseMansion(true, speaker),
-              },
-              { label: "No mortgage", run: back },
-            ],
-          ),
-      },
-      { label: "Not today", run: back },
-    ],
-  );
+    },
+  ]);
 }
+function mansionPriceDialogue(speaker: string, back: () => void) {
+  speak(speaker, "<p>One million dollars.</p>", [
+    {
+      label: "I have a million. Buy outright",
+      disabled: s.cash + s.bank < mansionPrice,
+      run: () => chooseMansion(false, speaker),
+    },
+    {
+      label: "I don’t have a million",
+      run: () =>
+        speak(
+          speaker,
+          "<p>Well, we can loan you the money. A one thousand dollar downpayment and $10 a day, until you pay it off.</p>",
+          [
+            {
+              label: "But that will take 100,000 days!",
+              default: true,
+              run: () =>
+                speak(
+                  speaker,
+                  "<p>Actually, 166,667 days. Because 40% of each payment goes to interest.</p><p class='fine'>With your $1,000 downpayment deducted, the remaining $999,000 takes 166,500 daily payments. You can also sell the house back later.</p>",
+                  [
+                    {
+                      label: "Take the mortgage",
+                      disabled: s.cash + s.bank < 100000,
+                      run: () => chooseMansion(true, speaker),
+                    },
+                    { label: "No mortgage", run: back },
+                  ],
+                ),
+            },
+            { label: "No mortgage", run: back },
+          ],
+        ),
+    },
+    { label: "Not today", run: back },
+  ]);
+}
+
 function chooseMansion(mortgage: boolean, speaker: string) {
   speak(
     speaker,
-    "<p>Which house would you like?</p>",
+    `<p>Which house would you like?</p><div class="mansion-previews">${(["hearst", "vernon"] as const).map((style) => `<figure><img src="${shopPortrait(`estate-${style}`, () => makeEstate(style).root)}" alt="${style === "hearst" ? "Magnate Mansion" : "Presidential Palace"} model"><figcaption>${style === "hearst" ? "Magnate Mansion" : "Presidential Palace"}</figcaption></figure>`).join("")}</div>`,
     (
       [
-        ["hearst", "Hearst Castle"],
-        ["vernon", "Mount Vernon"],
+        ["hearst", "Magnate Mansion"],
+        ["vernon", "Presidential Palace"],
       ] as const
     ).map(([style, label]) => ({
       label,
@@ -7620,3 +7829,82 @@ function childrenHomesBuilt() {
     )
   );
 }
+
+const mountainShop = createMountainShop(
+  scene,
+  world.rects,
+  world.targets,
+  world.occluders,
+);
+function tradingConversation(id: string, more = false) {
+  registerTraders(
+    s,
+    world.speakers.filter((n) => n.object.userData.chad).map((n) => n.id),
+  );
+  const line = chadLine(s, id);
+  save();
+  speak(
+    id,
+    `<p>${escapeHTML(line)}</p>${more ? "" : `<p>${escapeHTML(traderDialogue(s, id) ?? "I’m still working out my strategy.")}</p>`}`,
+    [
+      { label: "Tell me more", run: () => tradingConversation(id, true) },
+      { label: "Something else", run: () => interact(true) },
+      { label: "See you around", run: dismissSpeech },
+    ],
+  );
+}
+
+function seedATM() {
+  panel(
+    "Mountain Seed ATM",
+    `<p>Always in stock. Money seeds: $200 for five. Irises are Mom’s favorite; peppers and tomatoes open up new dishes to cook together.</p><p>Pocket: ${money(s.cash)}</p>`,
+    [
+      ...seedOffers.map((o) => ({
+        label: `${o.name} · 5 for ${money(o.price)}`,
+        disabled: s.cash < o.price,
+        run: () => {
+          if (buyGardenSeeds(s, o.id)) {
+            save();
+            seedATM();
+          }
+        },
+      })),
+      { label: "Back", run: close },
+    ],
+  );
+}
+function chooseGardenSeed(i: number) {
+  panel(
+    "What shall we plant?",
+    "<p>Flowers stay in bloom. Vegetables become cooking ingredients after watering and a night’s sleep.</p>",
+    [
+      {
+        label: `Money seed · ${s.seeds} available`,
+        disabled: !s.seeds,
+        run: () => startGardenPlant(i),
+      },
+      ...crops.map((c) => ({
+        label: `${c === "iris" ? "Iris · Mom’s favorite" : c} · ${s.cropSeeds?.[c] ?? 0} seeds`,
+        disabled: !s.cropSeeds?.[c],
+        run: () => startGardenPlant(i, c),
+      })),
+      { label: "Back", run: close },
+    ],
+  );
+}
+function startGardenPlant(i: number, crop?: Crop) {
+  close();
+  action = {
+    id: i,
+    ids: crop ? [i] : plantingBatch(s, i),
+    crop,
+    elapsed: 0,
+    duration: plantingSeconds(s),
+    origin: { ...s.position },
+  };
+  toast(`Planting ${crop ?? "money"} seeds. Stand still.`);
+}
+
+// Save loading is asynchronous; expose start actions only after boot is complete.
+$("#begin").removeAttribute("disabled");
+$("#new-game").removeAttribute("disabled");

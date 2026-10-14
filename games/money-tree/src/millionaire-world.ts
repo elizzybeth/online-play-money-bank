@@ -72,8 +72,10 @@ export function createMillionaireWorld(
     { x: -94.8, z: -280, w: 0.8, d: 382 },
     { x: 160.8, z: -280, w: 0.8, d: 382 },
     { x: 33, z: -470.8, w: 256.4, d: 0.8 },
-    { x: -33.4, z: -89.6, w: 122, d: 0.8 },
-    { x: 106.6, z: -89.6, w: 108.4, d: 0.8 },
+    { x: -25.95, z: -89.6, w: 136.9, d: 0.8 },
+    { x: 105.35, z: -89.6, w: 111.7, d: 0.8 },
+    { x: 42.9, z: -75.3, w: 0.8, d: 28.6 },
+    { x: 49.1, z: -75.3, w: 0.8, d: 28.6 },
   ];
   const boundary = new T.Group();
   boundary.name = "level-three-boundary-wall";
@@ -356,7 +358,7 @@ export function createMillionaireWorld(
   group.add(summitHost);
   speakers.push({
     id: "millionaire-summit",
-    name: "Community Guide",
+    name: "Community Guardian",
     object: summitHost,
   });
   targets.push({

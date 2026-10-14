@@ -1,3 +1,4 @@
+import { validCrops, type Crop } from "./garden-crops";
 import { withinPlayableBounds } from "./world-bounds";
 import { dailyEconomy, validAdventure, type Adventure } from "./adventure";
 import { validHousing, type Housing } from "./housing";
@@ -55,8 +56,9 @@ import {
   type JournalMemory,
   type JournalContext,
 } from "./journal";
-import { hatById, type HatId } from "./hats";
+import { hatById, mountainHat, type HatId } from "./hats";
 export type Plot = {
+  crop?: Crop;
   meteor?: number;
   x?: number;
   z?: number;
@@ -70,6 +72,7 @@ export type Plot = {
   yield: number;
 };
 export type State = {
+  cropSeeds?: Partial<Record<Crop, number>>;
   version: 1;
   adventure?: Adventure;
   housing?: Housing;
@@ -245,7 +248,9 @@ export function plant(s: State, i: number) {
     );
   if (s.foundTVSeeds && s.plots[i].stage === "harvested") {
     s.rng = (s.rng * 16807) % 2147483647;
-    const scraps = 1 + Math.floor((s.rng / 2147483647) * 3);
+    const scraps =
+      (1 + Math.floor((s.rng / 2147483647) * 3)) *
+      (wearing(s, "compost") ? 2 : 1);
     s.compostScraps = (s.compostScraps ?? 0) + scraps;
     s.events.push(
       `Collected ${scraps} compost scraps while replacing a dead money tree.`,
@@ -255,6 +260,7 @@ export function plant(s: State, i: number) {
     s.rng = (s.rng * 16807) % 2147483647;
     if (s.rng / 2147483647 >= 0.5) s.seeds--;
   } else s.seeds--;
+  delete s.plots[i].crop;
   s.plots[i].stage = "planted";
   if (s.plots[i].mountain) {
     s.plots[i].fertilized = true;
@@ -273,8 +279,16 @@ export function plant(s: State, i: number) {
     s.communityPlanted = true;
     s.events.push("Planted in Sigma Town’s community garden.");
   }
-  if (!s.plots[i].mountain && wearing(s, "rain") && s.can) {
-    noteHatPower(s, "to water a new seed automatically", "rain");
+  if (
+    !s.plots[i].mountain &&
+    (wearing(s, "rain") || wearing(s, "dew")) &&
+    s.can
+  ) {
+    noteHatPower(
+      s,
+      "to water a new seed automatically",
+      wearing(s, "dew") ? "dew" : "rain",
+    );
     water(s, i);
   }
   return true;
@@ -299,13 +313,22 @@ export function fertilize(s: State, i: number) {
   )
     return false;
   let conserve = false;
-  if (wearing(s, "wizard")) {
+  if (wearing(s, "wizard") || wearing(s, "alchemist")) {
     s.rng = (s.rng * 16807) % 2147483647;
-    conserve = s.rng / 2147483647 < 0.5;
-    noteHatPower(s, "to make my fertilizer last longer", "wizard");
+    conserve = s.rng / 2147483647 < (wearing(s, "alchemist") ? 0.75 : 0.5);
+    noteHatPower(
+      s,
+      "to make my fertilizer last longer",
+      wearing(s, "alchemist") ? "alchemist" : "wizard",
+    );
   }
   if (!conserve) s.fertilizer--;
-  else s.events.push("Saved a fertilizer dose with my Moonrise Wizard.");
+  else
+    s.events.push(
+      wearing(s, "alchemist")
+        ? "Saved a fertilizer dose with my Soil Alchemist."
+        : "Saved a fertilizer dose with my Moonrise Wizard.",
+    );
   p.fertilized = true;
   p.fertilizedDay = s.day;
   if (p.stage === "growing") p.remaining *= 2 / 3;
@@ -321,6 +344,10 @@ export function growOvernight(s: State) {
     p.stage = "ready";
     s.rng = (s.rng * 16807) % 2147483647;
     const r = s.rng / 2147483647;
+    if (p.crop) {
+      p.yield = 0;
+      continue;
+    }
     p.yield =
       (p.fertilized ? 4 + Math.floor(r * 6) : 2 + Math.floor(r * r * 6)) * 100;
     if (wearing(s, "beekeeper") && p.fertilized)
@@ -333,6 +360,28 @@ export function plantingBatch(s: State, i: number): number[] {
     s.plots[j].soilFilled !== false &&
     ["empty", "harvested"].includes(s.plots[j].stage);
   if (!available(i) || s.seeds < 1) return [];
+  if (wearing(s, "terrace") && s.plots[i].mountain) {
+    const origin = s.plots[i],
+      tier = terrainHeight(origin.x!, origin.z!);
+    return [
+      i,
+      ...s.plots
+        .map((p, j) => ({ p, j }))
+        .filter(
+          ({ p, j }) =>
+            j !== i &&
+            p.mountain &&
+            available(j) &&
+            terrainHeight(p.x!, p.z!) === tier,
+        )
+        .sort(
+          (a, b) =>
+            Math.hypot(a.p.x! - origin.x!, a.p.z! - origin.z!) -
+            Math.hypot(b.p.x! - origin.x!, b.p.z! - origin.z!),
+        )
+        .map(({ j }) => j),
+    ].slice(0, s.seeds);
+  }
   if (!wearing(s, "inspector") || s.seeds < 2) return [i];
   if (s.plots[i].mountain) {
     const origin = s.plots[i];
@@ -376,7 +425,14 @@ export function plantingBatch(s: State, i: number): number[] {
 export function plantBatch(s: State, ids: number[]) {
   if (
     !ids.length ||
-    ids.length > 2 ||
+    (ids.length > 2 &&
+      (!wearing(s, "terrace") ||
+        ids.some(
+          (i) =>
+            !s.plots[i]?.mountain ||
+            terrainHeight(s.plots[i].x!, s.plots[i].z!) !==
+              terrainHeight(s.plots[ids[0]]?.x!, s.plots[ids[0]]?.z!),
+        ))) ||
     new Set(ids).size !== ids.length ||
     s.seeds < ids.length ||
     ids.some(
@@ -388,34 +444,66 @@ export function plantBatch(s: State, ids: number[]) {
   )
     return false;
   if (ids.length > 1)
-    noteHatPower(s, "to plant two adjoining beds together", "inspector");
+    noteHatPower(
+      s,
+      ids.length > 2
+        ? "to plant a terrace together"
+        : "to plant two adjoining beds together",
+      wearing(s, "terrace") && s.plots[ids[0]].mountain
+        ? "terrace"
+        : "inspector",
+    );
   for (const i of ids) plant(s, i);
   return true;
 }
 export function harvest(s: State, i: number) {
   const p = s.plots[i];
-  if (!p || p.stage !== "ready") return 0;
+  if (!p || p.crop || p.stage !== "ready") return 0;
   const n = Math.min(
     p.fertilized ? 900 : 700,
     p.yield + (wearing(s, "banker") ? 100 : 0) + (buff(s, "yield") ? 100 : 0),
   );
   if (wearing(s, "banker"))
     noteHatPower(s, "to get an extra dollar from a harvest", "banker");
-  const income = foodPower(s, "harvest") ? Math.round(n * 1.2) : n;
+  const income = Math.round(
+    n *
+      (foodPower(s, "harvest") ? 1.2 : 1) *
+      (p.mountain && wearing(s, "harvest") ? 1.2 : 1),
+  );
   const net = recordEarnings(s, income, !!p.mountain);
-  s.cash += net;
+  const saving = wearing(s, "treasury") ? Math.floor(net * 0.25) : 0;
+  s.bank += saving;
+  s.cash += net - saving;
   s.totalEarned = (s.totalEarned ?? 0) + income;
-  if (wearing(s, "cap") || buff(s, "growth")) {
+  if (
+    wearing(s, "cap") ||
+    wearing(s, "verdant") ||
+    (p.mountain && wearing(s, "seedkeeper")) ||
+    buff(s, "growth")
+  ) {
     s.rng = (s.rng * 16807) % 2147483647;
     if (
       s.rng / 2147483647 <
-      (wearing(s, "cap") && buff(s, "growth") ? 0.75 : 0.5)
+      1 -
+        (1 -
+          (p.mountain && wearing(s, "seedkeeper")
+            ? 0.8
+            : wearing(s, "verdant")
+              ? 0.6
+              : wearing(s, "cap")
+                ? 0.5
+                : 0)) *
+          (buff(s, "growth") ? 0.5 : 1)
     ) {
       s.seeds++;
       s.events.push(
         wearing(s, "cap")
           ? "Saved a fresh seed in my Sprout Cap."
-          : "Recovered a fresh seed after drinking Compound Cold Brew.",
+          : wearing(s, "verdant")
+            ? "Saved a fresh seed in my Verdant Sprout."
+            : p.mountain && wearing(s, "seedkeeper")
+              ? "Saved a fresh seed in my Seedkeeper’s Bonnet."
+              : "Recovered a fresh seed after drinking Compound Cold Brew.",
       );
     }
   }
@@ -737,6 +825,7 @@ export function decode(raw: string | null): State | null {
           p.yield >= 0 &&
           p.yield <= (p.fertilized ? 900 : 700),
       ) ||
+      !validCrops(s) ||
       !["events", "journal"].every(
         (k) =>
           Array.isArray(s[k]) &&
@@ -896,6 +985,7 @@ export function decode(raw: string | null): State | null {
             "haberdashery",
             "bicycle",
             "grindset",
+            "gigachad",
           ].includes(key) ||
             /^sigma-chad-[0-5]$/.test(key) ||
             /^mom-reply-(resting|bedrest|cooking|birdhouses|painting|reading|garden|mending|puzzles|music|letters|feeding|bacon)$/.test(
@@ -1226,6 +1316,7 @@ export function removeHat(s: State, id: HatId) {
   s.equippedHat = s.equippedHats.at(-1) ?? null;
 }
 export function buyHat(s: State, id: HatId) {
+  if (mountainHat(id) && !s.millionaire?.chats["visited-summit"]) return false;
   const hat = hatById(id);
   if (!hat || s.hats.includes(id) || s.cash < purchasePrice(s, hat.price))
     return false;
@@ -1248,11 +1339,21 @@ export function equipHat(s: State, id: HatId | null) {
 }
 export const plantingSeconds = (s: State) =>
   (s.shovel ? 2 : 8) *
-  (wearing(s, "hardhat") ? 0.5 : wearing(s, "cap") ? 0.85 : 1) *
+  (wearing(s, "hardhat")
+    ? 0.5
+    : wearing(s, "verdant")
+      ? 0.75
+      : wearing(s, "cap")
+        ? 0.85
+        : 1) *
   (buff(s, "dig") ? 0.5 : 1);
 export const movementSpeed = (s: State, running: boolean) =>
   (running ? 7 : 4) *
-  (wearing(s, "propeller") ? 1.25 : 1) *
+  (wearing(s, "trail") && s.position.z < -330
+    ? 1.35
+    : wearing(s, "propeller")
+      ? 1.25
+      : 1) *
   (buff(s, "sprint") ? 1.3 : 1) *
   (foodPower(s, "speed") ? 1.2 : 1);
 

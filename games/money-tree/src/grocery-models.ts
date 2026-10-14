@@ -34,6 +34,15 @@ export function makeGrocery(id: Ingredient) {
     add(new T.CylinderGeometry(0.083, 0.083, 0.25, 16), "#8a5037", 0, 0.125);
     add(new T.CylinderGeometry(0.088, 0.088, 0.028, 16), "#c1a96c", 0, 0.26);
     add(new T.BoxGeometry(0.008, 0.11, 0.11), "#f5e2b4", 0.085, 0.125);
+  } else if (id === "pepper" || id === "tomato") {
+    const fruit = add(
+      new T.SphereGeometry(0.13, 16, 10),
+      id === "tomato" ? "#ce503c" : "#d6a632",
+      0,
+      0.14,
+    );
+    if (id === "pepper") fruit.scale.set(0.8, 1.5, 0.8);
+    add(new T.CylinderGeometry(0.015, 0.02, 0.09, 6), "#407243", 0, 0.3);
   } else {
     for (let k = 0; k < 6; k++)
       add(
