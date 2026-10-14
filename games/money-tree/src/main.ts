@@ -1,3 +1,12 @@
+import {
+  shopRescueActive,
+  shopProgress,
+  canSaveShop,
+  nextRobertsonHistory,
+  chooseShopPlan,
+  reportShopProgress,
+  saveRobertsons,
+} from "./robertson-story";
 import { playableBounds, withinPlayableBounds } from "./world-bounds";
 import { makeChickenFeather } from "./chicken-feather";
 import { debugActions, applyDebugAction, type DebugAction } from "./debug-menu";
@@ -987,12 +996,35 @@ function askMom() {
   thoughtTime = 9;
 }
 
+function capturePartyActor(object: T.Object3D) {
+  return {
+    object,
+    parent: object.parent,
+    position: object.position.clone(),
+    worldPosition: object.getWorldPosition(new T.Vector3()),
+    rotation: object.rotation.clone(),
+    scale: object.scale.clone(),
+    visible: object.visible,
+  };
+}
+function restoreParty(party: NonNullable<typeof celebration>) {
+  for (const p of [...party.people, ...party.wildlife]) {
+    if (p.parent) p.parent.add(p.object);
+    else p.object.removeFromParent();
+    p.object.position.copy(p.position);
+    p.object.rotation.copy(p.rotation);
+    p.object.scale.copy(p.scale);
+    p.object.visible = p.visible;
+  }
+}
 let celebration:
   | {
+      kind: "mom" | "shop";
+      center: { x: number; z: number };
       elapsed: number;
       origin: { x: number; z: number };
-      people: { object: T.Object3D; position: T.Vector3; rotation: T.Euler }[];
-      wildlife: { object: T.Object3D; position: T.Vector3 }[];
+      people: ReturnType<typeof capturePartyActor>[];
+      wildlife: (ReturnType<typeof capturePartyActor> & { ground?: boolean })[];
     }
   | undefined;
 let storyThoughtClock = 0,
@@ -1018,15 +1050,19 @@ function tellMom() {
         "bicycle",
       ].includes(n.id),
     )
-    .map((n) => ({
-      object: n.object,
-      position: n.object.position.clone(),
-      rotation: n.object.rotation.clone(),
-    }));
+    .map((n) => capturePartyActor(n.object));
   const wildlife = [...world.wildlife.birds, ...world.wildlife.butterflies].map(
-    (b) => ({ object: b.object, position: b.object.position.clone() }),
+    (b) => capturePartyActor(b.object),
   );
-  celebration = { elapsed: 0, origin: { ...s.position }, people, wildlife };
+  celebration = {
+    kind: "mom",
+    center: { x: -16, z: 25 },
+    elapsed: 0,
+    origin: { ...s.position },
+    people,
+    wildlife,
+  };
+  for (const p of [...people, ...wildlife]) scene.attach(p.object);
   positionStoryMom(world.mom.position.x, world.mom.position.z);
   s.position = { x: -16, z: 25 };
   visit(
@@ -1035,6 +1071,84 @@ function tellMom() {
   save();
   chime();
   toast("Mom: We did it! Oh, sweetheart, thank you!");
+}
+function updateCelebration(dt: number) {
+  if (celebration) {
+    const { x: cx, z: cz } = celebration.center;
+    if (!paused && !document.hidden) celebration.elapsed += dt;
+    const t = celebration.elapsed,
+      rush = Math.min(1, t / 3);
+    world.player.visible = true;
+    world.player.position.set(
+      cx,
+      reducedMotion ? 0 : Math.abs(Math.sin(t * 5)) * 0.7,
+      cz,
+    );
+    celebration.people.forEach((p, i) => {
+      const a = (i * Math.PI * 2) / celebration!.people.length;
+      const destination = new T.Vector3(
+        cx +
+          Math.sin(a) *
+            (celebration!.kind === "shop" ? 2.4 + (i % 2) * 0.8 : 3),
+        reducedMotion ? 0 : Math.abs(Math.sin(t * 5 + i)) * 0.55,
+        cz +
+          Math.cos(a) *
+            (celebration!.kind === "shop" ? 2.4 + (i % 2) * 0.8 : 3),
+      );
+      p.object.visible = true;
+      p.object.position.copy(p.worldPosition).lerp(destination, rush);
+      p.object.rotation.y = a + Math.PI;
+    });
+    celebration.wildlife.forEach((b, i) => {
+      const a = t * 0.8 + i * 0.6,
+        r = celebration!.kind === "shop" ? 2.7 : i < 10 ? 4 : 2.5;
+      const destination = new T.Vector3(
+        cx + Math.sin(a) * r,
+        b.ground
+          ? reducedMotion
+            ? 0
+            : Math.abs(Math.sin(t * 6 + i)) * 0.25
+          : 2.1 + Math.sin(a * 2) * 0.4,
+        cz + Math.cos(a) * r,
+      );
+      b.object.visible = true;
+      b.object.position.copy(b.worldPosition).lerp(destination, rush);
+      if (b.ground) b.object.rotation.y = -a;
+    });
+    if (t >= 14) {
+      const ended = celebration;
+      celebration = undefined;
+      restoreParty(ended);
+      followInitialized = false;
+      s.position = clearPosition(
+        ended.origin,
+        world.rects,
+        s.millionaire?.unlocked ? -470 : s.foundTVSeeds ? -89 : -39,
+      );
+      world.setMomDay(s.day, atHome(), true, s.familyStory);
+      save();
+      if (ended.kind === "shop") {
+        speak(
+          "robertson",
+          "<p>I thought I was going to lose everything Dad built. Now there will be another morning, and another, with our door open. Thank you, kid. This town is something special.</p>",
+          [
+            {
+              label:
+                "Robertsons belongs in this town. I’m glad you’re staying.",
+              default: true,
+              run: dismissSpeech,
+            },
+          ],
+        );
+      } else {
+        speak(
+          "mom",
+          "<p>I called the hospital. They can do the surgery tomorrow! Oh, sweetheart, thank you. I am so excited. Auntie will go with me.</p>",
+          [{ label: "We did it, Mom. Love you!", run: dismissSpeech }],
+        );
+      }
+    }
+  }
 }
 function walkToBea() {
   if (!beginBeaWalk(s)) return;
@@ -1427,7 +1541,11 @@ function updateSpeech(dt: number) {
   }
   world.speakers.forEach((speaker, i) => {
     const head = speaker.object.getObjectByName("head")!;
-    if (!head || !effectivelyVisible(speaker.object)) {
+    if (
+      celebration?.kind === "shop" ||
+      !head ||
+      !effectivelyVisible(speaker.object)
+    ) {
       nameLabels[i].hidden = true;
       if (speaking?.id === speaker.id) speaking.element.hidden = true;
       return;
@@ -2736,9 +2854,161 @@ function momGreeting() {
       : "";
   return `“${line}${reminder}”`;
 }
+function shopConversationChoices() {
+  return [
+    { label: "Groceries", run: () => homeShop("groceries") },
+    { label: "Home Furnishings", run: () => homeShop("furnishings") },
+    { label: "Look around", run: dismissSpeech },
+  ];
+}
+function celebrateShop() {
+  if (!s.familyStory?.shopSaved || s.familyStory.shopCelebrated || celebration)
+    return;
+  s.familyStory.shopCelebrated = true;
+  dismountBike();
+  world.life.cancelInteractions();
+  dismissSpeech();
+  keys.clear();
+  thought.hidden = true;
+  thoughtTime = 0;
+  const people = [...new Set(world.speakers.map((n) => n.object))].map(
+    capturePartyActor,
+  );
+  const wildlife = [
+    ...[...world.wildlife.birds, ...world.wildlife.butterflies].map((b) =>
+      capturePartyActor(b.object),
+    ),
+    ...world.houseBirds.map(capturePartyActor),
+    ...world.life.chickens.map((c) => ({
+      ...capturePartyActor(c.object),
+      ground: true,
+    })),
+  ];
+  for (const p of [...people, ...wildlife]) scene.attach(p.object);
+  celebration = {
+    kind: "shop",
+    center: { x: 6, z: -28 },
+    elapsed: 0,
+    origin: { ...s.position },
+    people,
+    wildlife,
+  };
+  s.position = { ...celebration.center };
+  camera.position.set(12, 7, -22);
+  followInitialized = false;
+  visit(
+    "The whole town, birds, butterflies and chickens danced together inside Robertsons to celebrate saving the store.",
+  );
+  save();
+  chime();
+  toast("Robertson: The shop is staying! Everybody, come on in!");
+}
+function tellRobertsonSaved() {
+  const secret = s.familyStory?.shopPlan !== "told";
+  if (!saveRobertsons(s)) return robertsonRescue();
+  save();
+  speak(
+    "robertson",
+    `<p>${
+      secret
+        ? "You did what? A hundred thousand dollars? For Robertsons? You’ve been doing this all along, without a word? Oh, kid… I never imagined. You saved Dad’s shop!"
+        : "You did it? You really did it! A hundred thousand dollars… Oh, kid, you never gave up on us. Dad’s shop can stay!"
+    }</p><p>I could dance! I think I will. Come in, everybody! There’s room for all of us!</p>`,
+    [{ label: "Let’s celebrate!", default: true, run: celebrateShop }],
+  );
+}
+function robertsonRescue() {
+  const a = s.familyStory!;
+  if (a.shopSaved) {
+    speak(
+      "robertson",
+      "<p>Every time I open this door, I think of what you did for us. Robertsons is here to stay. Thank you, kid.</p>",
+      [
+        ...(!a.shopCelebrated
+          ? [{ label: "Let’s celebrate!", default: true, run: celebrateShop }]
+          : []),
+        ...shopConversationChoices(),
+      ],
+    );
+    return;
+  }
+  const history = nextRobertsonHistory(s)!;
+  save();
+  const ready = canSaveShop(s);
+  const choices = [
+    ...(ready
+      ? [
+          {
+            label: "I saved $100,000 for your store. It’s yours.",
+            default: true,
+            run: tellRobertsonSaved,
+          },
+        ]
+      : []),
+    ...(a.shopPlan === "told"
+      ? [
+          {
+            label: "Here’s exactly where I am",
+            default: !ready,
+            run: () => {
+              const progress = shopProgress(s);
+              reportShopProgress(s, true);
+              save();
+              speak(
+                "robertson",
+                `<p>${money(progress.saved)} saved, and ${money(progress.remaining)} still to go. Thank you for telling me. That’s real progress, kid. Whatever happens, I’m grateful you’re fighting for us.</p>`,
+                shopConversationChoices(),
+              );
+            },
+          },
+          {
+            label: "I’m still working on it",
+            run: () => {
+              reportShopProgress(s, false);
+              save();
+              speak(
+                "robertson",
+                "<p>No need to give me every number. Knowing you’re in our corner means more than I can say. Thank you, kid.</p>",
+                shopConversationChoices(),
+              );
+            },
+          },
+        ]
+      : [
+          {
+            label: "I’m fighting to save your store",
+            run: () => {
+              chooseShopPlan(s, true);
+              save();
+              speak(
+                "robertson",
+                "<p>You are? For this old store? Oh, kid, thank you. I don’t know what to say. I won’t take that kindness for granted.</p>",
+                shopConversationChoices(),
+              );
+            },
+          },
+          {
+            label: "Keep it a surprise",
+            default: !ready,
+            run: () => {
+              chooseShopPlan(s, false);
+              save();
+              dismissSpeech();
+            },
+          },
+        ]),
+    ...shopConversationChoices(),
+  ];
+  speak(
+    "robertson",
+    `<p>${history}</p>${a.shopPlan === "told" ? "<p>How’s it going, kid? How are you getting on with saving the store?</p>" : ""}`,
+    choices,
+  );
+}
 function robertson() {
   visit("Visited Ol’ Man Robertson at the store.");
   s.metRobertson = true;
+  if (s.familyStory?.shopGoal) return robertsonRescue();
   const greeting = neighborLine(s, "robertson");
   save();
   speak(
@@ -4656,10 +4926,7 @@ function resetTransientMotion() {
   birdhouseScene?.carried.forEach((g) => scene.remove(g));
   birdhouseScene = undefined;
   if (celebration) {
-    for (const p of celebration.people) {
-      p.object.position.copy(p.position);
-      p.object.rotation.copy(p.rotation);
-    }
+    restoreParty(celebration);
     celebration = undefined;
   }
   teaSeated = false;
@@ -5070,6 +5337,10 @@ function updateUI() {
             ? "Mom feels ready for an outing. Ask her about visiting Bea."
             : "Take things slowly together. Mom is feeling better each day.",
       ],
+      "shop-saved": [
+        "Robertsons is here to stay",
+        "You saved the general store. Go see Ol’ Man Robertson anytime.",
+      ],
       shop: [
         "Save Ol’ Man Robertson’s shop",
         `${money(total)} saved · ${money(Math.max(0, 10_000_000 - total))} left toward $100,000.`,
@@ -5089,6 +5360,19 @@ function updateUI() {
     setText(
       $("#hint"),
       "Investigate the meteor craters in the desert. A ready Money Tree grows at each new landing site.",
+    );
+  }
+  if (canSaveShop(s)) {
+    setText($("#objective"), "Go tell Ol’ Man Robertson");
+    setText(
+      $("#hint"),
+      "You have $100,000 to save his shop. Find him at Robertsons and give him the good news.",
+    );
+  } else if (s.familyStory?.shopSaved) {
+    setText($("#objective"), "Robertsons is here to stay");
+    setText(
+      $("#hint"),
+      "You saved the general store. Go see Ol’ Man Robertson anytime.",
     );
   }
   const { x, z } = s.position;
@@ -5357,6 +5641,16 @@ function frame(now: number) {
     beaRoof.visible = m.opacity > 0.02;
     m.depthWrite = m.opacity > 0.95;
     beaRoof.castShadow = m.opacity > 0.95;
+  }
+  if (
+    active &&
+    s.awake &&
+    canSaveShop(s) &&
+    !s.familyStory!.shopReadyNotified
+  ) {
+    s.familyStory!.shopReadyNotified = true;
+    save();
+    toast("You did it! Go tell Ol’ Man Robertson you can save his shop.");
   }
   if (s.familyStory?.escort && !teaSeated && !celebration) {
     if (!momTrail.length) momTrail.push({ ...s.position });
@@ -5853,8 +6147,16 @@ function frame(now: number) {
     cameraAim.set(-7, 1, 10);
     camera.lookAt(cameraAim);
   } else if (celebration) {
-    camera.position.lerp(new T.Vector3(-9, 8, 34), 1 - Math.exp(-dt * 4));
-    cameraAim.set(-16, 1, 25);
+    const center = celebration.center;
+    camera.position.lerp(
+      new T.Vector3(
+        center.x + (celebration.kind === "shop" ? 6 : 7),
+        celebration.kind === "shop" ? 7 : 8,
+        center.z + (celebration.kind === "shop" ? 6 : 9),
+      ),
+      1 - Math.exp(-dt * 4),
+    );
+    cameraAim.set(center.x, 1, center.z);
     camera.lookAt(cameraAim);
   } else if (s.pepeShowStarted && (!s.pepePopped || pepeViewHold > 0)) {
     const fraction = (s.pepeInflation ?? 0) / 12;
@@ -6130,57 +6432,6 @@ function frame(now: number) {
     report.report,
   );
   world.wildlife.update(reducedMotion ? 0 : now / 1000);
-  if (celebration) {
-    if (!paused && !document.hidden) celebration.elapsed += dt;
-    const t = celebration.elapsed,
-      rush = Math.min(1, t / 3);
-    world.player.visible = true;
-    world.player.position.set(
-      -16,
-      reducedMotion ? 0 : Math.abs(Math.sin(t * 5)) * 0.7,
-      25,
-    );
-    celebration.people.forEach((p, i) => {
-      const a = (i * Math.PI * 2) / celebration!.people.length;
-      const destination = new T.Vector3(
-        -16 + Math.sin(a) * 3,
-        reducedMotion ? 0 : Math.abs(Math.sin(t * 5 + i)) * 0.55,
-        25 + Math.cos(a) * 3,
-      );
-      p.object.position.copy(p.position).lerp(destination, rush);
-      p.object.rotation.y = a + Math.PI;
-    });
-    celebration.wildlife.forEach((b, i) => {
-      const a = t * 0.8 + i * 0.6,
-        r = i < 10 ? 4 : 2.5;
-      const destination = new T.Vector3(
-        -16 + Math.sin(a) * r,
-        2.4 + Math.sin(a * 2) * 0.5,
-        25 + Math.cos(a) * r,
-      );
-      b.object.position.copy(b.position).lerp(destination, rush);
-    });
-    if (t >= 14) {
-      const ended = celebration;
-      celebration = undefined;
-      ended.people.forEach((p) => {
-        p.object.position.copy(p.position);
-        p.object.rotation.copy(p.rotation);
-      });
-      s.position = clearPosition(
-        ended.origin,
-        world.rects,
-        s.millionaire?.unlocked ? -470 : s.foundTVSeeds ? -89 : -39,
-      );
-      world.setMomDay(s.day, atHome(), true, s.familyStory);
-      save();
-      speak(
-        "mom",
-        "<p>I called the hospital. They can do the surgery tomorrow! Oh, sweetheart, thank you. I am so excited. Auntie will go with me.</p>",
-        [{ label: "We did it, Mom. Love you!", run: dismissSpeech }],
-      );
-    }
-  }
   world.setDigging(!!action, !!s.shovel, action?.elapsed ?? 0);
   if (wateringAnimation && active) {
     wateringAnimation.elapsed += dt;
@@ -6369,6 +6620,7 @@ function frame(now: number) {
   }
   world.updateHouseBirds(now / 1000);
   world.sigma.fountain.update(now / 1000);
+  updateCelebration(dt);
   updateSpeech(active ? dt : 0);
   updateUI();
   updateInventoryNotices(dt);
@@ -6824,6 +7076,21 @@ if (new URLSearchParams(location.search).has("test")) {
     family: () => ({
       phase: storyPhase(s),
       celebrating: !!celebration,
+      party: celebration
+        ? {
+            kind: celebration.kind,
+            center: celebration.center,
+            people: celebration.people.length,
+            birds:
+              world.wildlife.birds.length +
+              (celebration.kind === "shop" ? world.houseBirds.length : 0),
+            butterflies: world.wildlife.butterflies.length,
+            chickens: celebration.wildlife.filter((p) => p.ground).length,
+            positions: [...celebration.people, ...celebration.wildlife].map(
+              (p) => p.object.getWorldPosition(new T.Vector3()).toArray(),
+            ),
+          }
+        : null,
       momVisible: world.mom.visible,
       momPosition: world.mom.position.toArray(),
       activity: momStatus(s.day, s.familyStory).activity,

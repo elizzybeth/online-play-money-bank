@@ -46,7 +46,11 @@ export function journalContext(s: State): JournalContext {
   const available = s.cash + s.bank;
   const remaining = Math.max(
     0,
-    (s.familyStory?.shopGoal ? shopCost : 1_000_000) - available,
+    (s.familyStory?.shopSaved
+      ? 0
+      : s.familyStory?.shopGoal
+        ? shopCost
+        : 1_000_000) - available,
   );
   return {
     day: s.day,
@@ -143,11 +147,16 @@ export function validJournalContext(c: unknown): c is JournalContext {
         "coming-home",
         "recovery",
         "shop",
+        "shop-saved",
       ].includes(x.familyPhase)) &&
     x.remaining ===
       Math.max(
         0,
-        (x.familyPhase === "shop" ? shopCost : 1_000_000) - x.available,
+        (x.familyPhase === "shop-saved"
+          ? 0
+          : x.familyPhase === "shop"
+            ? shopCost
+            : 1_000_000) - x.available,
       ) &&
     x.earned === earned &&
     x.daysNeeded === (earned ? Math.ceil(x.remaining / earned) : null) &&

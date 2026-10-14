@@ -296,6 +296,11 @@ export function constructJournal(
         "I asked Mom how she felt. Better, she said. I like that answer a lot.",
         "Mom still gets tired, but she is getting better. There is no rush. I want her here with me.",
       ],
+      "shop-saved": [
+        "Robertsons is here to stay. I brought him the money, and he was overjoyed. His dad’s old counter will keep welcoming people.",
+        "We saved the general store. Robertson’s face when I told him is something I will never forget.",
+        "Another morning with Robertsons open. His dad’s old counter will keep welcoming people. I’m so glad we could help.",
+      ],
       shop: [
         "Robertson needs help with his shop. He helped us first. I want to keep putting money aside for him.",
         "Now I am saving for Robertson’s shop. One hundred thousand dollars is a lot. I know what I can do with a seed, though.",
@@ -307,7 +312,17 @@ export function constructJournal(
         "Robertson kept his seeds for me when we needed help. I want to be there for him too.",
       ],
     };
-    if (has(c, /^Bea said Robertson needs/))
+    if (has(c, /The whole town, birds, butterflies and chickens danced/))
+      choose(
+        "shop-party",
+        [
+          "The whole town came into Robertsons to dance with us. Even the birds, butterflies and chickens joined in. We saved the shop!",
+        ],
+        true,
+      );
+    else if (has(c, /^(Brought Robertson|Surprised Robertson)/))
+      choose("shop-rescued", storyLines["shop-saved"], true);
+    else if (has(c, /^Bea said Robertson needs/))
       choose(
         "bea-tea",
         [

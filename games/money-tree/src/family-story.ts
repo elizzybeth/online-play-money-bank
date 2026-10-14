@@ -8,12 +8,18 @@ export type FamilyStory = {
   escort: boolean;
   teaStep: number;
   shopGoal: boolean;
+  shopPlan?: "secret" | "told";
+  shopStoryStep?: number;
+  shopReadyNotified?: boolean;
+  shopSaved?: boolean;
+  shopCelebrated?: boolean;
 };
 export const surgeryCost = 1_000_000;
 export const shopCost = 10_000_000;
 export function storyPhase(s: Pick<State, "day" | "familyStory">) {
   const a = s.familyStory;
   if (!a) return "saving" as const;
+  if (a.shopSaved) return "shop-saved" as const;
   if (a.shopGoal) return "shop" as const;
   if (s.day < a.surgeryDay) return "scheduled" as const;
   if (s.day === a.surgeryDay)
@@ -113,7 +119,26 @@ export function validFamilyStory(a: unknown, day: number): a is FamilyStory {
     (x.teaStep === 0 || day >= x.surgeryDay + 5) &&
     (!x.shopGoal ||
       (day >= x.surgeryDay + 5 && x.teaStep === 6 && !x.escort)) &&
-    (!x.escort || day >= x.surgeryDay + 5)
+    (!x.escort || day >= x.surgeryDay + 5) &&
+    (x.shopPlan === undefined ||
+      x.shopPlan === "secret" ||
+      x.shopPlan === "told") &&
+    (x.shopStoryStep === undefined ||
+      (Number.isSafeInteger(x.shopStoryStep) &&
+        x.shopStoryStep >= 0 &&
+        x.shopStoryStep < 8)) &&
+    [x.shopReadyNotified, x.shopSaved, x.shopCelebrated].every(
+      (v) => v === undefined || typeof v === "boolean",
+    ) &&
+    (![
+      x.shopPlan,
+      x.shopStoryStep,
+      x.shopReadyNotified,
+      x.shopSaved,
+      x.shopCelebrated,
+    ].some((v) => v !== undefined) ||
+      x.shopGoal) &&
+    (!x.shopCelebrated || !!x.shopSaved)
   );
 }
 export const surgeryThoughts = [
