@@ -7904,3 +7904,7 @@ function startGardenPlant(i: number, crop?: Crop) {
   };
   toast(`Planting ${crop ?? "money"} seeds. Stand still.`);
 }
+
+// Save loading is asynchronous; expose start actions only after boot is complete.
+$("#begin").removeAttribute("disabled");
+$("#new-game").removeAttribute("disabled");

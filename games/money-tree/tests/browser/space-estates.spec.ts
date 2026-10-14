@@ -149,13 +149,13 @@ for (const distant of [false, true])
     expect(state.plots[state.adventure.meteors[0].plot].meteor).toBe(
       state.adventure.meteors[0].id,
     );
-    expect(state.coin.price).toBe(4800);
+    expect(state.coin.price).toBe(8200);
     expect(state.plots[state.adventure.meteors[0].plot].stage).toBe("ready");
     await page.reload();
     await page.getByRole("button", { name: "Wake up" }).click();
     await frames(page);
     const reloaded = await page.evaluate(() => (window as any).game.state());
-    expect(reloaded.coin.price).toBe(4800);
+    expect(reloaded.coin.price).toBe(8200);
     expect(reloaded.adventure.meteors).toHaveLength(1);
     if (process.env.MONEY_TREE_CAPTURE) {
       await page.evaluate(() => (window as any).game.craterView());

@@ -41,13 +41,60 @@ async function go(page: Page, id: string) {
 }
 test("first Guardian conversation opens ten mountain hats and the seed ATM persists a purchase", async ({
   page,
-}) => {
+}, testInfo) => {
   const s = state();
   s.position = { x: 34, z: -448 };
   await start(page, s);
   await page.keyboard.press("e");
   await expect(page.locator("#toast")).toContainText("Terrace Threads");
   await page.getByRole("button", { name: "Thank you", exact: true }).click();
+  const unreachable = await page.evaluate(() => {
+    const g = (window as any).game;
+    const q = [[-24, -612]],
+      seen = new Set(["-24,-612"]);
+    for (let h = 0; h < q.length; h++) {
+      const [x, z] = q[h];
+      for (const [dx, dz] of [
+        [1, 0],
+        [-1, 0],
+        [0, 1],
+        [0, -1],
+      ]) {
+        const a = x + dx,
+          b = z + dz,
+          key = `${a},${b}`;
+        if (
+          a < -52 ||
+          a > 4 ||
+          b < -654 ||
+          b > -602 ||
+          seen.has(key) ||
+          g.rects.some(
+            (r: any) =>
+              a / 2 + 0.48 > r.x - r.w / 2 &&
+              a / 2 - 0.48 < r.x + r.w / 2 &&
+              b / 2 + 0.48 > r.z - r.d / 2 &&
+              b / 2 - 0.48 < r.z + r.d / 2,
+          )
+        )
+          continue;
+        seen.add(key);
+        q.push([a, b]);
+      }
+    }
+    return g.targets
+      .filter(
+        (t: any) =>
+          t.id.startsWith("mountain-") ||
+          (t.id.startsWith("hat-") && t.z < -300),
+      )
+      .filter(
+        (t: any) =>
+          !q.some(([x, z]) => Math.hypot(x / 2 - t.x, z / 2 - t.z) < 1.4),
+      )
+      .map((t: any) => t.id);
+  });
+  expect(unreachable).toEqual([]);
   await go(page, "mountain-seed-atm");
   await page
     .getByRole("button", { name: "Money seeds · 5 for $200.00", exact: true })
@@ -57,7 +104,7 @@ test("first Guardian conversation opens ten mountain hats and the seed ATM persi
   );
   await page.getByRole("button", { name: "Back", exact: true }).click();
   await page.evaluate(() => (window as any).game.mountainShopOverview());
-  await page.screenshot({ path: "/private/tmp/terrace-threads.png" });
+  await page.screenshot({ path: testInfo.outputPath("terrace-threads.png") });
   await go(page, "hat-verdant");
   await expect(page.locator("#modal")).toContainText("60%");
   await expect(page.locator("#modal img")).toBeVisible();
@@ -69,7 +116,7 @@ test("first Guardian conversation opens ten mountain hats and the seed ATM persi
 });
 test("Guardian mansion offer separates PC replies, supports declining, and previews renamed models", async ({
   page,
-}) => {
+}, testInfo) => {
   const s = state();
   s.millionaire!.mountainEarned = 100000;
   s.millionaire!.chats["visited-summit"] = 1;
@@ -119,11 +166,11 @@ test("Guardian mansion offer separates PC replies, supports declining, and previ
   const pictures = await page.locator(".mansion-previews img").all();
   const boxes = await Promise.all(pictures.map((p) => p.boundingBox()));
   expect(Math.abs(boxes[0]!.y - boxes[1]!.y)).toBeLessThan(2);
-  await page.screenshot({ path: "/private/tmp/mansion-selection.png" });
+  await page.screenshot({ path: testInfo.outputPath("mansion-selection.png") });
 });
 test("Grindset remains a shopkeeper first and Party Horn emits a longer note parade", async ({
   page,
-}) => {
+}, testInfo) => {
   const s = state();
   createCoin(s, "Strategy");
   s.bikes = ["city"];
@@ -179,7 +226,7 @@ test("Grindset remains a shopkeeper first and Party Horn emits a longer note par
 
 test("bridge walls join the boundary while bike thoughts stay centered through turns", async ({
   page,
-}) => {
+}, testInfo) => {
   const s = state();
   s.position = { x: 46, z: -80 };
   s.bikes = ["city"];
@@ -193,7 +240,7 @@ test("bridge walls join the boundary while bike thoughts stay centered through t
   });
   expect(walls).toBe(true);
   await page.evaluate(() => (window as any).game.bridgeOverview());
-  await page.screenshot({ path: "/private/tmp/bridge-walls.png" });
+  await page.screenshot({ path: testInfo.outputPath("bridge-walls.png") });
   await frames(page);
   await page.keyboard.press("h");
   await frames(page, 30);

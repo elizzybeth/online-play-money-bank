@@ -286,25 +286,24 @@ test("five hens and a rooster wander and Tuck jumps into your arms; Mom has a us
   const day = Array.from({ length: 200 }, (_, i) => i + 1).find(
     (day) => momStatus(day).activity === "bacon",
   )!;
-  await page.evaluate(async (day) => {
+  const baconSave = await page.evaluate(async (day) => {
     const s = await (window as any).game.savedState("money-tree-v1");
     s.day = day;
-    const db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const r = indexedDB.open("money-tree", 1);
-      r.onsuccess = () => resolve(r.result);
-      r.onerror = () => reject(r.error);
-    });
-    await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction("saves", "readwrite");
-      tx.objectStore("saves").put(
-        { format: "text", text: JSON.stringify(s) },
-        "money-tree-v1",
-      );
-      tx.oncomplete = () => resolve();
-      tx.onabort = () => reject(tx.error);
-    });
-    db.close();
+    return s;
   }, day);
+  // Install through the supported import flow so pagehide cannot overwrite an
+  // external database edit with the still-active garden's state.
+  await page.keyboard.press("Escape");
+  const chooser = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "Import save", exact: true }).click();
+  await (
+    await chooser
+  ).setFiles({
+    name: "bacon-day.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(baconSave)),
+  });
+  await expect(page.getByRole("dialog")).toBeHidden();
   await page.reload();
   await page.getByRole("button", { name: "Wake up" }).click();
   await frames(page);

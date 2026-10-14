@@ -162,6 +162,7 @@ test("title-screen new game preserves saves until explicit confirmation", async 
     async () => await (window as any).game.savedState("money-tree-v1"),
   );
   await page.reload();
+  await expect(page.locator("#begin")).toBeEnabled();
   const saved = await page.evaluate(async () => (window as any).game.state());
   // Unload can persist one last active frame. Title-screen confirmations must
   // preserve that loaded snapshot, including its clock, exactly.
@@ -221,6 +222,7 @@ test("title-screen new game preserves saves until explicit confirmation", async 
   expect(reset.day).toBe(1);
   expect(reset.plots.every((p: any) => p.stage === "empty")).toBe(true);
   await page.reload();
+  await expect(page.locator("#begin")).toBeEnabled();
   expect(await page.evaluate(async () => (window as any).game.state())).toEqual(
     reset,
   );
