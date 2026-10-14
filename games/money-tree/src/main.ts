@@ -1,3 +1,4 @@
+import { playableBounds, withinPlayableBounds } from "./world-bounds";
 import { makeChickenFeather } from "./chicken-feather";
 import { debugActions, applyDebugAction, type DebugAction } from "./debug-menu";
 import { SaveStore } from "./save-store";
@@ -345,12 +346,7 @@ world.millionaire.update(s, 0);
 world.syncBeds(s.plots);
 if (
   blocked(s.position.x, s.position.z, world.rects) ||
-  (s.millionaire?.unlocked && s.position.z < -90
-    ? s.position.x < -94 || s.position.x > 144
-    : s.position.x < -38 ||
-      s.position.x > (s.millionaire?.unlocked ? 50 : 38)) ||
-  s.position.z > 38 ||
-  s.position.z < (s.millionaire?.unlocked ? -470 : s.foundTVSeeds ? -89 : -39)
+  !withinPlayableBounds(s)
 )
   s.position = clearPosition(
     s.position,
@@ -945,10 +941,10 @@ function askMom() {
     );
     return;
   }
-  if (s.day % 4 === 2) requestFeather(s);
+  const featherRequest = s.day % 4 === 2 && requestFeather(s);
   const reply =
     momReply(s) +
-    (s.day % 4 === 2 ? " Cuddle a chicken for me when you go out, love." : "");
+    (featherRequest ? " Cuddle a chicken for me when you go out, love." : "");
   visit(
     status.energetic
       ? `Mom had energy for ${status.journal} today.`
@@ -972,7 +968,7 @@ function askMom() {
     ...(s.spanakopita
       ? [{ label: "Share spanakopita with Mom", run: shareWithMom }]
       : []),
-    ...(s.day % 4 === 2
+    ...(featherRequest
       ? [
           {
             label: "I’ll cuddle a chicken for you",
@@ -2491,7 +2487,7 @@ function beginCooking() {
   const recipe = s.pendingMeal ?? startMeal(s);
   if (!recipe) return;
   const bed = momStatus(s.day, s.familyStory).activity === "bedrest",
-    end = bed ? { x: -6.6, z: 11.45 } : { x: -17.5, z: 10.9 };
+    end = bed ? { x: -6.6, z: 11.45 } : { x: -17.2, z: 10.9 };
   const start = { x: -12.5, z: 11.2 };
   const route = sceneRoute(
     start,
@@ -2652,7 +2648,7 @@ function updateCooking(dt: number) {
   }
   if (t >= 20) {
     finishMeal(s);
-    c.root.removeFromParent();
+    disposeAnimation(c.root);
     cookingScene = undefined;
     world.setPlayerSeated(false);
     for (const side of [-1, 1])
@@ -2661,7 +2657,7 @@ function updateCooking(dt: number) {
         ?.position.set(side * 0.43, 0.79, 0);
     world.mom.position.copy(c.momOrigin);
     world.setMomDay(s.day, true, true, s.familyStory);
-    s.position = c.bed ? { x: -6.6, z: 11.45 } : { x: -17.5, z: 10.9 };
+    s.position = c.bed ? { x: -6.6, z: 11.45 } : { x: -17.2, z: 10.9 };
     world.player.position.set(s.position.x, 0, s.position.z);
     save();
     toast(
@@ -2849,6 +2845,21 @@ function debugMenu(group?: string, message = "") {
       debugMenu(
         group,
         "Could not preserve a pre-debug backup. Export your save before testing.",
+      );
+      return;
+    }
+    try {
+      if (!saveStore?.write(next)) {
+        debugMenu(
+          group,
+          "That change could not be stored. Your current progress is unchanged.",
+        );
+        return;
+      }
+    } catch {
+      debugMenu(
+        group,
+        "Browser storage could not save that change. Your current progress is unchanged.",
       );
       return;
     }
@@ -4260,9 +4271,28 @@ function importSave() {
   input.onchange = async () => {
     const file = input.files?.[0];
     if (!file) return;
-    const next = decode(await file.text());
-    if (!next) {
-      toast("That save could not be read. Your current garden is safe.");
+    let next: State | null;
+    try {
+      next = decode(await file.text());
+      if (!next) {
+        toast("That save could not be read. Your current garden is safe.");
+        return;
+      }
+      if (
+        blocked(next.position.x, next.position.z, world.rects) ||
+        !withinPlayableBounds(next)
+      )
+        next.position = { x: -16, z: 4 };
+      if (!saveStore?.write(next, true)) {
+        toast(
+          "That save could not be stored. Your current garden is unchanged.",
+        );
+        return;
+      }
+    } catch {
+      toast(
+        "Could not import that save. Check browser storage and keep your exported file. Your current garden is unchanged.",
+      );
       return;
     }
     action = undefined;
@@ -4270,18 +4300,9 @@ function importSave() {
     world.player.userData.farewell = false;
 
     s = next;
-    saveStore?.write(s, true);
     resetTransientMotion();
     wasHome = atHome();
     visitedOutside = s.awake && !wasHome;
-    if (
-      blocked(s.position.x, s.position.z, world.rects) ||
-      Math.abs(s.position.x) > 38 ||
-      s.position.z > 38 ||
-      s.position.z <
-        (s.millionaire?.unlocked ? -470 : s.foundTVSeeds ? -89 : -39)
-    )
-      s.position = { x: -16, z: 4 };
     plotVersions.length = 0;
     save();
     close();
@@ -4564,7 +4585,40 @@ function updateRollPose() {
     rollPose = undefined;
   }
 }
+function disposeAnimation(root: T.Object3D) {
+  root.removeFromParent();
+  root.traverse((o) => {
+    if (o instanceof T.Mesh) {
+      o.geometry.dispose();
+      for (const material of Array.isArray(o.material)
+        ? o.material
+        : [o.material])
+        material.dispose();
+    }
+  });
+}
+
 function resetTransientMotion() {
+  world.life.cancelInteractions();
+  if (cookingScene) disposeAnimation(cookingScene.root);
+  cookingScene = undefined;
+  kitchenPrepared = false;
+  if (estateFilm) {
+    disposeAnimation(estateFilm.truck);
+    if (estateFilm.actor) disposeAnimation(estateFilm.actor);
+  }
+  estateFilm = undefined;
+  featherHandoff = undefined;
+  spanakopitaShot = undefined;
+  world.player.add(featherModel);
+  featherModel.position.copy(featherHairPosition);
+  featherModel.rotation.set(0.2, 0.6, -0.35);
+  featherModel.visible = !!s.adventure?.feather;
+  for (const actor of [world.player, world.mom])
+    for (const side of [-1, 1])
+      actor.getObjectByName(`hand-${side}`)?.position.set(side * 0.43, 0.79, 0);
+  if (placingFurniture) disposeAnimation(placingFurniture.ghost);
+  placingFurniture = undefined;
   homeAudio.stop();
   keyboardAudio.stop();
   beaGuide = undefined;
@@ -5646,16 +5700,9 @@ function frame(now: number) {
       saveTime = 0;
     }
   }
-  s.position.x = T.MathUtils.clamp(
-    s.position.x,
-    s.millionaire?.unlocked && s.position.z < -90 ? -94 : -38,
-    s.millionaire?.unlocked ? (s.position.z < -90 ? 160 : 50) : 38,
-  );
-  s.position.z = T.MathUtils.clamp(
-    s.position.z,
-    s.millionaire?.unlocked ? -470 : s.foundTVSeeds ? -89 : -39,
-    38,
-  );
+  const bounds = playableBounds(s);
+  s.position.x = T.MathUtils.clamp(s.position.x, bounds.left, bounds.right);
+  s.position.z = T.MathUtils.clamp(s.position.z, bounds.top, bounds.bottom);
   world.bikeRack.sync(
     s.bikes ?? [],
     parkedBikeId && (riding || bikeMountTime > 0 || parkedBike?.visible)
@@ -7161,17 +7208,11 @@ function updateEstateFilm(dt: number) {
       "REPO MAN: You failed to make your mortgage payment. You’re losing the house. The doors are locked.",
     );
   if (film.t >= 8) {
-    scene.remove(film.truck);
-    film.truck.traverse((o) => {
-      if (o instanceof T.Mesh) {
-        o.geometry.dispose();
-        (o.material as T.Material).dispose();
-      }
-    });
+    disposeAnimation(film.truck);
     h.movingInSeen = true;
     if (!h.momBed) world.setMomDay(s.day, false, true, s.familyStory);
     if (film.kind === "repo") h.evictionSeen = true;
-    if (film.actor) scene.remove(film.actor);
+    if (film.actor) disposeAnimation(film.actor);
     estateFilm = undefined;
     followInitialized = false;
     camera.position.copy(film.camera);

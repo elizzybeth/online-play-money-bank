@@ -1,3 +1,4 @@
+import { withinPlayableBounds } from "./world-bounds";
 import { dailyEconomy, validAdventure, type Adventure } from "./adventure";
 import { validHousing, type Housing } from "./housing";
 import { normalizeChildReports } from "./child-reports";
@@ -818,14 +819,18 @@ export function decode(raw: string | null): State | null {
       )
     )
       return null;
-    // Early meteor visuals dropped the plot's ID. Restore only an unambiguous
-    // link already recorded by a landed meteor at this exact plot and position.
+    // Repair the two legacy meteor-link bugs only at an exact, unique site:
+    // a missing landed ID, or the previous six-site cycle ID during a repeat flight.
     for (const m of s.adventure?.meteors ?? []) {
       const p = s.plots[m.plot];
       if (
-        m.landed &&
         p &&
-        p.meteor === undefined &&
+        ((m.landed && p.meteor === undefined) ||
+          (!m.landed &&
+            !m.crashed &&
+            !m.harvested &&
+            m.id > 6 &&
+            p.meteor === m.id - 6)) &&
         !p.mountain &&
         !p.community &&
         p.x === m.x &&
@@ -863,6 +868,14 @@ export function decode(raw: string | null): State | null {
                     ? sigmaPlots.some((q) => q.x === p.x && q.z === p.z)
                     : withinProperty(p.x!, p.z!)))),
       )
+    )
+      return null;
+    if (
+      s.adventure?.meteors?.some((m: import("./adventure").Meteor) => {
+        if (m.plot === undefined) return false;
+        const p = s.plots[m.plot];
+        return !p || p.meteor !== m.id || p.x !== m.x || p.z !== m.z;
+      })
     )
       return null;
     s.neighborChats ??= {};
@@ -1100,7 +1113,11 @@ export function clearPosition(
   north = -39,
 ) {
   const clear = (x: number, z: number) =>
-    (north < -90 && z < -90 ? x >= -94 && x <= 160 : Math.abs(x) <= 38) &&
+    withinPlayableBounds({
+      position: { x, z },
+      millionaire: north < -90 ? { unlocked: true } : undefined,
+      foundTVSeeds: north < -39,
+    }) &&
     z >= north &&
     z <= 38 &&
     !blocked(x, z, rects);
