@@ -15,7 +15,7 @@ import { applyDebugAction } from "../src/debug-menu";
 import { newMillionaire } from "../src/millionaire";
 import { mountainHats } from "../src/hats";
 import { mountainPlots } from "../src/millionaire-land";
-import { createCoin, tickSigma } from "../src/sigma";
+import { createCoin, tickSigma, chadLine } from "../src/sigma";
 import { plantCrop, harvestCrop, buyGardenSeeds } from "../src/garden-crops";
 import { startMeal, finishMeal, meals } from "../src/meals";
 const opened = () => {
@@ -167,4 +167,13 @@ test("mountain harvest and seedkeeper bonuses, compost doubling, and automatic c
   assert.ok(before - s.fertilizer > 200 && before - s.fertilizer < 300);
   s.position = { x: 25, z: -340 };
   assert.equal(movementSpeed(s, false), 5.4);
+});
+
+test("Gigachad trading conversations remain valid saved progress", () => {
+  const s = opened();
+  s.communityPlanted = true;
+  createCoin(s, "Chatter");
+  chadLine(s, "gigachad");
+  assert.equal(s.neighborChats.gigachad, 1);
+  assert.ok(decode(JSON.stringify(s)));
 });

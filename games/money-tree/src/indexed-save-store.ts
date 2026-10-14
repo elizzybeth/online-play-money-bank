@@ -119,7 +119,9 @@ export class IndexedSaveStore {
     const packed = await Promise.all(
       values.map(async ([key, raw]) => [key, await pack(raw)] as const),
     );
-    const tx = this.db.transaction("saves", "readwrite"),
+    const tx = this.db.transaction("saves", "readwrite", {
+        durability: "strict",
+      }),
       done = committed(tx);
     try {
       for (const [key, value] of packed)
@@ -210,7 +212,9 @@ export class IndexedSaveStore {
         ]);
       }
       if (epoch !== this.epoch) return this.emergencyPending;
-      const tx = this.db.transaction("saves", "readwrite"),
+      const tx = this.db.transaction("saves", "readwrite", {
+          durability: "strict",
+        }),
         done = committed(tx);
       try {
         for (const [key, value] of values)
@@ -238,9 +242,20 @@ export class IndexedSaveStore {
       const raw = JSON.stringify(state);
       if (!decode(raw)) return Promise.resolve(false);
       ++this.epoch;
-      const tx = this.db.transaction("saves", "readwrite"),
+      const tx = this.db.transaction("saves", "readwrite", {
+          durability: "strict",
+        }),
         done = committed(tx);
-      tx.objectStore("saves").put({ format: "text", text: raw }, KEY);
+      try {
+        tx.objectStore("saves").put({ format: "text", text: raw }, KEY);
+        tx.commit();
+      } catch {
+        try {
+          tx.abort();
+        } catch {}
+        void done.catch(() => {});
+        return Promise.resolve(false);
+      }
       this.emergencyPending = done
         .then(() => {
           this.previous = raw;

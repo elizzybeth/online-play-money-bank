@@ -275,7 +275,7 @@ $("#app").append(resourceHud);
 
 let s: State;
 addEventListener("pagehide", () => {
-  if (s) save();
+  if (s) void saveStore?.emergency(s);
 });
 addEventListener("beforeunload", () => {
   if (s) void saveStore?.emergency(s);

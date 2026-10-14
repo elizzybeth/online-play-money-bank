@@ -148,6 +148,24 @@ test("Grindset remains a shopkeeper first and Party Horn emits a longer note par
   await page
     .getByRole("button", { name: "See you around", exact: true })
     .click();
+  await go(page, "gigachad");
+  await expect(
+    page.getByRole("button", { name: "Buy spanakopita for $3", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", {
+      name: "Tell me about your trading strategy",
+      exact: true,
+    })
+    .click();
+  await expect(page.locator(".speech-bubble")).toContainText("2%");
+  expect(
+    (await page.evaluate(() => (window as any).game.savedState())).neighborChats
+      .gigachad,
+  ).toBeGreaterThan(0);
+  await page
+    .getByRole("button", { name: "See you around", exact: true })
+    .click();
   await page.evaluate(() => (window as any).game.teleport(3, 30));
   await frames(page);
   await page.keyboard.press("h");
