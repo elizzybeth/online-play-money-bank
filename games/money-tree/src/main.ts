@@ -4509,7 +4509,6 @@ function interact(skipTrader = false): void {
 }
 let audio: AudioContext | undefined;
 let seedChimes = 0;
-const homeAudio = new HomeAudio();
 const keyboardAudio = new HomeAudio();
 function seedChime() {
   if (!audio || muted) return;
@@ -4902,7 +4901,6 @@ function resetTransientMotion() {
       actor.getObjectByName(`hand-${side}`)?.position.set(side * 0.43, 0.79, 0);
   if (placingFurniture) disposeAnimation(placingFurniture.ghost);
   placingFurniture = undefined;
-  homeAudio.stop();
   keyboardAudio.stop();
   beaGuide = undefined;
   if (hatHanging) {
@@ -6409,7 +6407,6 @@ function frame(now: number) {
     s.position.x - world.mom.position.x,
     s.position.z - world.mom.position.z,
   );
-  const tvDistance = Math.hypot(s.position.x + 10.1, s.position.z - 10);
   keyboardAudio.update(
     audio,
     soundsActive &&
@@ -6419,11 +6416,6 @@ function frame(now: number) {
       ? "keyboard"
       : "",
     Math.max(0, 1 - keyboardDistance / 10) * 0.04,
-  );
-  homeAudio.update(
-    audio,
-    soundsActive && tvDistance < 10 && s.tvChannel === "news" ? "news" : "",
-    Math.max(0, 1 - tvDistance / 10) * 0.022,
   );
   world.updateCartoon(
     reducedMotion ? 0 : now / 1000,
