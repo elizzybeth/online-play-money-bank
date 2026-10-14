@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { fresh } from "../../src/game";
-import { hats } from "../../src/hats";
+import { hats as allHats } from "../../src/hats";
+const hats = allHats.slice(0, 10); // Thread & Thimble keeps its original stock.
 async function setup(page: Page) {
   const s = fresh();
   s.awake = true;
