@@ -216,7 +216,9 @@ test("outside rack swaps owned bicycles and F activates only the riding bike", a
     "road",
   ]);
   await page.keyboard.press("e");
+  const quicksaveDownload = page.waitForEvent("download");
   await page.keyboard.press("q");
+  await (await quicksaveDownload).path();
   await page.reload();
   await page.getByRole("button", { name: "Wake up" }).click();
   expect(await page.evaluate(() => (window as any).game.state().bikes)).toEqual(

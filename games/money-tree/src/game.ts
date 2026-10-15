@@ -93,6 +93,7 @@ export type State = {
   bikes?: BikeId[];
   selectedBike?: BikeId | null;
   coin?: Coin;
+  soyEffects?: { burger?: number; milk?: number };
   drink?: { id: DrinkId; remaining: number };
   communityPlanted?: boolean;
   totalEarned?: number;
@@ -657,6 +658,7 @@ export function sleep(s: State) {
   s.dailyNet = 0;
   growOvernight(s);
   delete s.drink;
+  delete s.soyEffects;
   delete s.foodBuff;
   tickSigma(s, 180, false);
   return true;
@@ -1147,6 +1149,23 @@ export function decode(raw: string | null): State | null {
         s.drink.remaining > 180)
     )
       delete s.drink;
+    if (
+      s.soyEffects &&
+      (typeof s.soyEffects !== "object" || Array.isArray(s.soyEffects))
+    )
+      delete s.soyEffects;
+    if (s.soyEffects) {
+      for (const key of ["burger", "milk"] as const) {
+        const remaining = s.soyEffects[key];
+        if (!Number.isFinite(remaining) || remaining! <= 0 || remaining! > 120)
+          delete s.soyEffects[key];
+      }
+      s.soyEffects = Object.fromEntries(
+        Object.entries(s.soyEffects).filter(
+          ([key]) => key === "burger" || key === "milk",
+        ),
+      );
+    }
     s.communityPlanted = !!s.communityPlanted;
     s.totalEarned =
       Number.isSafeInteger(s.totalEarned) && s.totalEarned >= 0

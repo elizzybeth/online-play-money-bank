@@ -273,6 +273,14 @@ export function healthDay(day: number) {
 }
 export function tickSigma(s: State, dt: number, awakeTime = true) {
   if (!Number.isFinite(dt) || dt <= 0) return;
+  if (s.soyEffects && awakeTime) {
+    for (const key of ["burger", "milk"] as const) {
+      if (s.soyEffects[key]) {
+        s.soyEffects[key] = Math.max(0, s.soyEffects[key]! - dt);
+        if (!s.soyEffects[key]) delete s.soyEffects[key];
+      }
+    }
+  }
   if (s.drink && awakeTime) {
     s.drink.remaining = Math.max(0, s.drink.remaining - dt);
     if (!s.drink.remaining) delete s.drink;

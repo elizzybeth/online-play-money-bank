@@ -1,3 +1,4 @@
+import { buySoy, soyProducts } from "./soyjak";
 import {
   crops,
   seedOffers,
@@ -243,6 +244,12 @@ drinkHud.className = "money-counter";
 drinkHud.innerHTML =
   '<img src="./drink.svg" alt="Coffee"><span><small></small><strong></strong></span>';
 setHidden(drinkHud, true);
+const soyHud = document.createElement("div");
+soyHud.id = "soy-effects-hud";
+soyHud.className = "money-counter";
+soyHud.innerHTML = "<span><small>Soyjak Party</small><strong></strong></span>";
+setHidden(soyHud, true);
+
 const compostHud = document.createElement("div");
 compostHud.id = "compost-hud";
 compostHud.className = "money-counter";
@@ -268,6 +275,7 @@ resourceHud.append(
   fertilizerHud,
   compostHud,
   drinkHud,
+  soyHud,
   membershipHud,
   mortgageHud,
 );
@@ -4270,6 +4278,25 @@ function interact(skipTrader = false): void {
         { label: "Leave", run: close },
       ],
     );
+  if (id === "soyjak")
+    return speak(
+      "soyjak",
+      "<p>Welcome to Soyjak Party. Big feelings. Serious headwear.</p><p>Each effect lasts 120 seconds of active play. Buying again refreshes that effect; sleeping ends both.</p>",
+      [
+        ...soyProducts.map((product) => ({
+          label: `${product.name} · ${money(purchasePrice(s, product.cost))} · ${product.effect}`,
+          disabled: s.cash < purchasePrice(s, product.cost),
+          run: () => {
+            if (buySoy(s, product.id)) {
+              save();
+              dismissSpeech();
+              toast(product.effect);
+            }
+          },
+        })),
+        { label: "Maybe later", run: dismissSpeech },
+      ],
+    );
   if (id === "gigachad") return foodOfTheGods();
   if (id === "wolf") {
     if (s.cash < 100)
@@ -5310,6 +5337,19 @@ function updateUI() {
       `${drink.name}, ${Math.ceil(s.drink.remaining)} seconds remaining. ${drink.effect}`,
     );
   }
+  const burgerSeconds = Math.ceil(s.soyEffects?.burger ?? 0);
+  const milkSeconds = Math.ceil(s.soyEffects?.milk ?? 0);
+  setHidden(soyHud, !burgerSeconds && !milkSeconds);
+  if (burgerSeconds || milkSeconds)
+    setText(
+      soyHud.querySelector("strong")!,
+      [
+        burgerSeconds ? `2× size · ${burgerSeconds}s` : "",
+        milkSeconds ? `Serious Hat · ${milkSeconds}s` : "",
+      ]
+        .filter(Boolean)
+        .join(" / "),
+    );
   mountainShop.update(s);
   setHidden(compostHud, !s.foundTVSeeds);
   setText(compostHud.querySelector("strong")!, String(s.compostScraps ?? 0));
@@ -5624,7 +5664,8 @@ function updateUI() {
 const timerPosition = new T.Vector3();
 function frame(now: number) {
   frameNumber++;
-  world.setHat(wornHats(s));
+  world.setHat(wornHats(s), !!s.soyEffects?.milk);
+  world.player.scale.setScalar(s.soyEffects?.burger ? 2 : 1);
   world.setRackHats(
     s.hats.filter((id) => !wearing(s, id) && id !== hatHanging?.id),
   );
@@ -6390,7 +6431,7 @@ function frame(now: number) {
     const target = new T.Vector3(
         s.position.x,
         terrainHeight(s.position.x, s.position.z) +
-          1.4 +
+          (s.soyEffects?.burger ? 2.8 : 1.4) +
           firstPerson * 0.3 +
           jumpHeight +
           (sitting
@@ -7154,6 +7195,23 @@ if (new URLSearchParams(location.search).has("test")) {
         position: o.position.toArray(),
       })),
     jumpHeight: () => jumpHeight,
+    soyjakPlayerReview: () => {
+      camera.position.set(s.position.x + 5, 4, s.position.z + 8);
+      camera.lookAt(s.position.x, 3, s.position.z);
+      renderer.render(scene, camera);
+    },
+    soyjakReview: () => {
+      camera.position.set(25.7, 3, -73);
+      camera.lookAt(25.7, 1.9, -79.5);
+      const visible = world.player.visible;
+      world.player.visible = false;
+      renderer.render(scene, camera);
+      world.player.visible = visible;
+    },
+    soyEffectsView: () => ({
+      scale: world.player.scale.x,
+      serious: !!world.wornHat.getObjectByName("temporary-serious-hat"),
+    }),
     wornHatHeight: () => {
       const bounds = new T.Box3().setFromObject(world.wornHat);
       return bounds.max.y - world.player.position.y;
