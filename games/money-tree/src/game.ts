@@ -989,6 +989,7 @@ export function decode(raw: string | null): State | null {
             "bicycle",
             "grindset",
             "gigachad",
+            "soyjak",
           ].includes(key) ||
             /^sigma-chad-[0-5]$/.test(key) ||
             /^mom-reply-(resting|bedrest|cooking|birdhouses|painting|reading|garden|mending|puzzles|music|letters|feeding|bacon)$/.test(

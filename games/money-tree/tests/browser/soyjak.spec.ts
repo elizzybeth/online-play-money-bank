@@ -10,6 +10,7 @@ test("Soyjak sells independent, saved temporary size and paper hat effects", asy
   s.awake = true;
   s.foundTVSeeds = true;
   s.cash = 20000;
+  s.neighborChats.soyjak = 1;
   s.communityPlanted = true;
   createCoin(s, "Soy regression");
   s.hats = ["cap", "rabbit"];

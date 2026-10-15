@@ -199,3 +199,13 @@ test("planting access permanently keeps hats and seed ATM available without a Gu
   assert.ok(buyHat(restored, "harvest"));
   assert.ok(buyGardenSeeds(restored, "money"));
 });
+
+test("legacy Soyjak visit counters reload and cannot select a nonexistent dialogue role", () => {
+  const s = opened();
+  s.neighborChats.soyjak = 1;
+  assert.ok(decode(JSON.stringify(s)));
+  assert.equal(typeof chadLine(s, "soyjak"), "string");
+  const restored = decode(JSON.stringify(s));
+  assert.ok(restored);
+  assert.equal(restored.neighborChats.soyjak, 2);
+});
