@@ -38,6 +38,26 @@ test("pause debug unlock survives refresh and preserves a pre-debug backup", asy
 test("rejected Chrome save is preserved through begin and refresh instead of overwritten", async ({
   page,
 }) => {
+  // Slow storage exposes Firefox restoring an enabled button before startup
+  // installs its handler. Clicking after refresh must still open recovery.
+  await page.addInitScript(() => {
+    const open = indexedDB.open.bind(indexedDB);
+    indexedDB.open = (name: string, version?: number) => {
+      const r = version === undefined ? open(name) : open(name, version);
+      let success: ((this: IDBOpenDBRequest, event: Event) => unknown) | null =
+        null;
+      Object.defineProperty(r, "onsuccess", {
+        get: () => success,
+        set: (callback) => {
+          success = callback;
+        },
+      });
+      r.addEventListener("success", (event) =>
+        setTimeout(() => success?.call(r, event), 700),
+      );
+      return r;
+    };
+  });
   const bad = JSON.stringify({
     ...fresh(),
     day: 17,

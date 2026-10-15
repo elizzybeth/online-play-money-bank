@@ -7918,3 +7918,5 @@ function startGardenPlant(i: number, crop?: Crop) {
 // Save loading is asynchronous; expose start actions only after boot is complete.
 $("#begin").removeAttribute("disabled");
 $("#new-game").removeAttribute("disabled");
+
+$(".intro-actions").removeAttribute("inert");
