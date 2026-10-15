@@ -1,0 +1,38 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { fresh, decode, sleep } from "../src/game";
+import { buySoy } from "../src/soyjak";
+import { tickSigma } from "../src/sigma";
+test("Soyjak purchases require access and cash, coexist with coffee and refresh independently", () => {
+  const s = fresh();
+  s.cash = 2000;
+  assert.equal(buySoy(s, "burger"), false);
+  s.foundTVSeeds = true;
+  assert.equal(buySoy(s, "burger"), true);
+  assert.equal(s.cash, 1200);
+  s.drink = { id: "sprint", remaining: 180 };
+  tickSigma(s, 30);
+  assert.equal(buySoy(s, "milk"), true);
+  assert.deepEqual(s.soyEffects, { burger: 90, milk: 120 });
+  assert.equal(s.drink.remaining, 150);
+  assert.equal(buySoy(s, "burger"), true);
+  assert.equal(s.cash, 0);
+  assert.equal(buySoy(s, "milk"), false);
+  assert.deepEqual(s.soyEffects, { burger: 120, milk: 120 });
+  tickSigma(s, 119, false);
+  assert.equal(s.soyEffects.burger, 120);
+  tickSigma(s, 119);
+  assert.equal(s.soyEffects.burger, 1);
+  tickSigma(s, 1);
+  assert.deepEqual(s.soyEffects, {});
+});
+test("temporary effects round trip, reject invalid timers, and end on sleep", () => {
+  const s = fresh();
+  s.soyEffects = { burger: 85, milk: 54 };
+  assert.deepEqual(decode(JSON.stringify(s))?.soyEffects, s.soyEffects);
+  const bad = { ...s, soyEffects: { burger: -1, milk: 121 } };
+  assert.deepEqual(decode(JSON.stringify(bad))?.soyEffects, {});
+  assert.ok(decode(JSON.stringify({ ...s, soyEffects: "invalid" })));
+  sleep(s);
+  assert.equal(s.soyEffects, undefined);
+});

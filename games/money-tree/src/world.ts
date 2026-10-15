@@ -1,3 +1,4 @@
+import { makeSeriousHat } from "./soyjak-models";
 import { makeCrop } from "./crop-model";
 import type { Crop } from "./garden-crops";
 import { makeRobertsonsDisplay } from "./robertsons-display";
@@ -1587,15 +1588,17 @@ export function createWorld(scene: T.Scene) {
   wornHat.position.y = 1.93;
   player.add(wornHat);
   let wornKey = "";
-  function setHat(ids: HatId[] | HatId | null) {
+  function setHat(ids: HatId[] | HatId | null, serious = false) {
     const stack = Array.isArray(ids) ? ids : ids ? [ids] : [];
-    const key = stack.join(",");
+    const key = stack.join(",") + (serious ? ":serious" : "");
     if (key === wornKey) return;
     wornKey = key;
     wornHat.traverse((o) => {
       if (o instanceof T.Mesh) {
         o.geometry.dispose();
-        (o.material as T.Material).dispose();
+        const material = o.material as T.MeshStandardMaterial;
+        material.map?.dispose();
+        material.dispose();
       }
     });
     wornHat.clear();
@@ -1623,7 +1626,21 @@ export function createWorld(scene: T.Scene) {
       wornHat.add(model);
       y += size * 0.98;
     }
-    if (y > 0.95) wornHat.scale.y = 0.95 / y;
+    if (y > 0.95) {
+      const ratio = 0.95 / y;
+      for (const child of wornHat.children) {
+        child.position.y *= ratio;
+        child.scale.y *= ratio;
+      }
+      y = 0.95;
+    }
+    if (serious) {
+      const paper = makeSeriousHat();
+      paper.position.y = y;
+      wornHat.add(paper);
+      y += 0.43;
+    }
+    if (y > 1.38) wornHat.scale.y = 1.38 / y;
   }
   // Pegs and an upright post in the bedroom, clear of the door and desk.
   cyl(-20.2, 1.35, 4.8, 0.07, 2.7, "#a48162");

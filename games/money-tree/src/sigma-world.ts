@@ -1,3 +1,4 @@
+import { makeSoyjakHead, makeSoyjakStall } from "./soyjak-models";
 import {
   makeComposter,
   makeWolfFountain,
@@ -165,13 +166,15 @@ export function createSigmaWorld(
     g.userData.chad = id !== "stacy";
     const torso = ball(0, 0.85, 0, 0.45, "#9f9f9f", g);
     torso.scale.set(1.35, 1, 0.7);
-    const head = box(0, 1.55, 0, 0.73, 0.78, 0.64, "#b4b4b4", g);
+    const faceGroup = new T.Group();
+    g.add(faceGroup);
+    const head = box(0, 1.55, 0, 0.73, 0.78, 0.64, "#b4b4b4", faceGroup);
     head.name = "head";
-    const hair = ball(0, 1.93, -0.06, 0.4, "#282b2c", g);
+    const hair = ball(0, 1.93, -0.06, 0.4, "#282b2c", faceGroup);
     hair.scale.set(1, 0.42, 0.9);
     hair.material = surfaceMaterial("#282b2c", "hair", 2, 1);
-    box(0, 1.32, 0.29, 0.7, 0.29, 0.1, "#3d4143", g);
-    box(0, 1.44, 0.35, 0.35, 0.05, 0.05, "#222426", g);
+    box(0, 1.32, 0.29, 0.7, 0.29, 0.1, "#3d4143", faceGroup);
+    box(0, 1.44, 0.35, 0.35, 0.05, 0.05, "#222426", faceGroup);
     for (const side of [-1, 1]) {
       ball(side * 0.56, 0.96, 0, 0.23, "#999999", g).scale.set(0.9, 1.4, 0.9);
       ball(side * 0.25, 0.96, 0.24, 0.23, "#b7b7b7", g).scale.set(
@@ -179,11 +182,17 @@ export function createSigmaWorld(
         0.75,
         0.55,
       );
-      box(side * 0.16, 1.65, 0.34, 0.2, 0.04, 0.035, "#242629", g);
-      ball(side * 0.18, 1.59, 0.337, 0.035, "#212121", g);
+      box(side * 0.16, 1.65, 0.34, 0.2, 0.04, 0.035, "#242629", faceGroup);
+      ball(side * 0.18, 1.59, 0.337, 0.035, "#212121", faceGroup);
       const foot = ball(side * 0.19, 0.18, 0.04, 0.18, "#34383b", g);
       foot.name = `walking-foot-${side}`;
       foot.scale.set(1, 1, 1.4);
+    }
+    if (id === "soyjak") {
+      faceGroup.visible = false;
+      const custom = makeSoyjakHead();
+      custom.position.y = 1.62;
+      g.add(custom);
     }
     for (let y = 0.53; y < 0.81; y += 0.13)
       for (const x of [-0.1, 0.1])
@@ -887,6 +896,18 @@ export function createSigmaWorld(
     pastry.position.set(21 + dx, 1.16, -78.1);
     town.add(pastry);
   }
+  town.add(makeSoyjakStall());
+  chad("soyjak", 25.7, -79.4, true);
+  speakers.at(-1)!.name = "Soyjak";
+  Object.assign(targets.at(-1)!, {
+    x: 25.7,
+    z: -77.1,
+    label: "Talk to Soyjak",
+  });
+  rects.push(
+    { x: 25.7, z: -78.5, w: 4, d: 1, clearHeight: 1.25 },
+    { x: 25.7, z: -80.9, w: 4, d: 0.2 },
+  );
   const gardenSign = makeGardenSign();
   town.add(gardenSign);
   rects.push({ x: 10, z: -80.5, w: 12.6, d: 0.25, clearHeight: 4.5 });
