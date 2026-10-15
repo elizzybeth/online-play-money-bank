@@ -540,7 +540,7 @@ roles.forEach((lines, i) => lines.push(...moreRoleLines[i]));
 export const chadLibrary = roles.map((lines) => [...lines]);
 export function chadLine(s: State, id: string) {
   const role =
-    id === "grindset" || id === "gigachad"
+    id === "grindset" || id === "gigachad" || id === "soyjak"
       ? 6
       : Math.min(5, Math.max(0, Number(id.split("-").at(-1))));
   const count = s.neighborChats[id] ?? 0;

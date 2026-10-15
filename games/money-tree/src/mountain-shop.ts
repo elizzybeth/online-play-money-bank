@@ -7,8 +7,8 @@ import { flatPath } from "./flat-path";
 import { signCanvas } from "./signage";
 import { makeComposter } from "./town-life-world";
 import { terraceBoutique } from "./terrace-boutique";
-export const mountainShopOpen = (s: State) =>
-  !!s.millionaire?.chats["visited-summit"];
+export { mountainRetailOpen as mountainShopOpen } from "./millionaire";
+import { mountainRetailOpen as mountainShopOpen } from "./millionaire";
 export function createMountainShop(
   scene: T.Scene,
   rects: Rect[],

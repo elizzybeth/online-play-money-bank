@@ -1,3 +1,4 @@
+import { makeMarvelsShowroom } from "./marvels-showroom";
 import { fitWindow } from "./architecture";
 import * as T from "three";
 import type { State, Rect } from "./game";
@@ -5,7 +6,6 @@ import type { Target } from "./world";
 import type { WallSpace } from "./furnishings";
 import { mansionLot, marvelsLot } from "./housing";
 import { makeEstate } from "./estate-models";
-import { makeFurnishing } from "./furnishing-models";
 export function createEstateWorld(
   scene: T.Scene,
   rects: Rect[],
@@ -20,17 +20,21 @@ export function createEstateWorld(
     ownedTargets: Target[] = [],
     ownedWalls: T.Object3D[] = [];
   const walls: WallSpace[] = [];
+  let estateRoof: T.Object3D | undefined, shopRoof: T.Object3D | undefined;
   return {
     group,
     walls,
     update(s: State) {
       const key = `${s.housing?.style}:${s.housing?.status}:${s.housing?.storeOpened}`;
       if (key === version) {
-        const roof = group.getObjectByName("estate-roof");
-        if (roof)
-          roof.visible =
+        if (estateRoof)
+          estateRoof.visible =
             Math.abs(s.position.x - mansionLot.x) > 16 ||
             Math.abs(s.position.z - mansionLot.z) > 11;
+        if (shopRoof)
+          shopRoof.visible =
+            Math.abs(s.position.x - marvelsLot.x) > 10 ||
+            Math.abs(s.position.z - marvelsLot.z) > 9;
         return;
       }
       version = key;
@@ -50,10 +54,30 @@ export function createEstateWorld(
       ownedTargets = [];
       ownedWalls = [];
       walls.length = 0;
+      const geometries = new Set<T.BufferGeometry>(),
+        materials = new Set<T.Material>(),
+        textures = new Set<T.Texture>();
+      group.traverse((o) => {
+        if (o instanceof T.Mesh) {
+          geometries.add(o.geometry);
+          for (const m of Array.isArray(o.material)
+            ? o.material
+            : [o.material]) {
+            materials.add(m);
+            const map = (m as T.MeshStandardMaterial).map;
+            if (map) textures.add(map);
+          }
+        }
+      });
+      geometries.forEach((g) => g.dispose());
+      materials.forEach((m) => m.dispose());
+      textures.forEach((t) => t.dispose());
       group.clear();
+      estateRoof = shopRoof = undefined;
       const h = s.housing;
       if (!h) return;
       const model = makeEstate(h.style);
+      estateRoof = model.root.getObjectByName("estate-roof");
       model.root.position.set(mansionLot.x, 0, mansionLot.z);
       group.add(model.root);
       for (const wall of model.walls) {
@@ -145,52 +169,19 @@ export function createEstateWorld(
       targets.push(t);
       ownedTargets.push(t);
       if (h.storeOpened) {
-        const store = new T.Group();
-        store.name = "Mansion Marvels";
-        store.position.set(marvelsLot.x, 0, marvelsLot.z);
-        group.add(store);
-        const mat = new T.MeshStandardMaterial({ color: "#ede0bd" });
-        for (const [x, z, w, d] of [
-          [-10, 0, 0.3, 18],
-          [10, 0, 0.3, 18],
-          [0, -9, 20, 0.3],
-        ]) {
-          const mesh = new T.Mesh(new T.BoxGeometry(w, 4, d), mat);
-          mesh.position.set(x, 2, z);
-          store.add(mesh);
-          const r = { x: x + marvelsLot.x, z: z + marvelsLot.z, w, d };
-          ownedRects.push(r);
+        const showroom = makeMarvelsShowroom();
+        shopRoof = showroom.roof;
+        showroom.root.position.set(marvelsLot.x, 0, marvelsLot.z);
+        group.add(showroom.root);
+        for (const local of showroom.obstacles) {
+          const r = {
+            ...local,
+            x: local.x + marvelsLot.x,
+            z: local.z + marvelsLot.z,
+          };
           rects.push(r);
+          ownedRects.push(r);
         }
-        const display = [
-          "royal-bed",
-          "gilded-chair",
-          "marble-planter",
-          "palace-rug",
-        ] as const;
-        display.forEach((id, i) => {
-          const item = makeFurnishing(id);
-          item.position.set(-6 + i * 4, 0, -4);
-          store.add(item);
-        });
-        const canvas = document.createElement("canvas");
-        canvas.width = 1024;
-        canvas.height = 192;
-        const c = canvas.getContext("2d")!;
-        c.fillStyle = "#2c3442";
-        c.fillRect(0, 0, 1024, 192);
-        c.strokeStyle = c.fillStyle = "#eacb77";
-        c.lineWidth = 6;
-        c.strokeRect(10, 10, 1004, 172);
-        c.font = "70px Georgia";
-        c.textAlign = "center";
-        c.fillText("Mansion Marvels", 512, 118);
-        const sign = new T.Mesh(
-          new T.PlaneGeometry(17, 3.1),
-          new T.MeshBasicMaterial({ map: new T.CanvasTexture(canvas) }),
-        );
-        sign.position.set(0, 4.3, 8.8);
-        store.add(sign);
         const target = {
           id: "mansion-marvels",
           x: marvelsLot.x,

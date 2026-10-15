@@ -1,5 +1,7 @@
+import { modernFurniture, type ModernFurnitureId } from "./marvels-catalog";
 import type { State, Rect } from "./game";
 export type FurnishingId =
+  | ModernFurnitureId
   | "sunset"
   | "botanical"
   | "geometric"
@@ -153,6 +155,7 @@ furnishingCatalog.push(
     wall: true,
   },
 );
+furnishingCatalog.push(...modernFurniture.map((f) => ({ ...f, level: 4 })));
 export const homeLevel = (s: State) =>
   s.millionaire?.unlocked ? 3 : s.foundTVSeeds ? 2 : 1;
 export function furnitureById(id: FurnishingId) {
