@@ -41,7 +41,14 @@ test("permanent planting unlock keeps Terrace Threads, $50 seeds and new hat mod
     s.cash - 5000,
   );
   await page.getByRole("button", { name: "Back", exact: true }).click();
-  for (const id of ["dew", "harvest", "treasury"]) {
+  for (const id of [
+    "terrace",
+    "reach",
+    "alchemist",
+    "dew",
+    "harvest",
+    "treasury",
+  ]) {
     await page.evaluate((id) => {
       const g = (window as any).game,
         t = g.targets.find((t: any) => t.id === `hat-${id}`);
@@ -61,7 +68,14 @@ test("permanent planting unlock keeps Terrace Threads, $50 seeds and new hat mod
   await frames();
   const result = await page.evaluate(() => (window as any).game.state());
   expect(result.hats).toEqual(
-    expect.arrayContaining(["dew", "harvest", "treasury"]),
+    expect.arrayContaining([
+      "terrace",
+      "reach",
+      "alchemist",
+      "dew",
+      "harvest",
+      "treasury",
+    ]),
   );
   expect(result.millionaire.chats["visited-summit"]).toBeUndefined();
 });
@@ -103,12 +117,17 @@ test("every Mansion Marvels showroom item has a model purchase and survives plac
     for (let i = 0; i < 8; i++) await page.clock.fastForward(64);
   };
   await frames();
+  await page.evaluate(() => (window as any).game.marvelsSignReview());
+  await page.screenshot({ path: info.outputPath("marvels-sign.png") });
   await page.evaluate(() => (window as any).game.marvelsReview());
   await page.screenshot({ path: info.outputPath("marvels-showroom.png") });
   const stock = furnishingCatalog.filter((f) => f.level === 4);
   expect(
     (await page.evaluate(() => (window as any).game.marvelsStock())).sort(),
   ).toEqual(stock.map((f) => f.id).sort());
+  // Far from the entrance, approach the back-row Chesterfield display.
+  await page.evaluate(() => (window as any).game.teleport(-32.7, -325.3));
+  await frames();
   await page.keyboard.press("e");
   await expect(
     page.getByRole("heading", { name: "Mansion Marvels", exact: true }),
@@ -139,7 +158,12 @@ test("every Mansion Marvels showroom item has a model purchase and survives plac
     await frames();
   }
   const after = await page.evaluate(() => (window as any).game.marvelsStats());
-  expect(after).toEqual(before);
+  console.log("Resource comparison", { before, after });
+  // Newly visible objects cause first-time GPU uploads in WebKit. Compare actual
+  // retained scene geometry, textures and portraits rather than upload totals.
+  const { uploadedGeometries: _beforeUploads, ...beforeRetained } = before;
+  const { uploadedGeometries: _afterUploads, ...afterRetained } = after;
+  expect(afterRetained).toEqual(beforeRetained);
   expect(after.meshes).toBeLessThan(200);
   console.log("Mansion Marvels retained resources", after);
   await page.evaluate(() => (window as any).game.teleport(88, -335));

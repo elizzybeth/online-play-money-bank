@@ -3,7 +3,7 @@ import { fitWindow } from "./architecture";
 import * as T from "three";
 import type { State, Rect } from "./game";
 import type { Target } from "./world";
-import type { WallSpace } from "./furnishings";
+import { furnitureById, type WallSpace } from "./furnishings";
 import { mansionLot, marvelsLot } from "./housing";
 import { makeEstate } from "./estate-models";
 export function createEstateWorld(
@@ -190,6 +190,22 @@ export function createEstateWorld(
         };
         targets.push(target);
         ownedTargets.push(target);
+        for (const item of showroom.display) {
+          const product = furnitureById(item.id);
+          const displayTarget = {
+            id: "mansion-marvels",
+            footprint: {
+              w: product.w,
+              d: product.d,
+              rotation: item.rotation ?? 0,
+            },
+            x: marvelsLot.x + item.x,
+            z: marvelsLot.z + item.z,
+            label: "Shop Mansion Marvels furnishings",
+          };
+          targets.push(displayTarget);
+          ownedTargets.push(displayTarget);
+        }
       }
     },
   };
