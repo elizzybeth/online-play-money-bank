@@ -75,9 +75,18 @@ export function createMountainShop(
     box(x, 0.5, z, 1.1, 1, 1.1, "#eee8da", true);
     box(x, 1.015, z, 1.35, 0.07, 1.35, "#b39257");
     const h = makeHat(hat.id);
-    h.position.set(x, 1.05, z);
+    if (hat.id === "seedkeeper") {
+      const stand = new T.Mesh(
+        new T.CylinderGeometry(0.16, 0.12, 0.46, 16),
+        new T.MeshStandardMaterial({ color: "#eee8da", roughness: 0.8 }),
+      );
+      stand.position.set(x, 1.27, z);
+      stand.castShadow = stand.receiveShadow = true;
+      root.add(stand);
+    }
+    h.position.set(x, hat.id === "seedkeeper" ? 1.5 : 1.05, z);
     root.add(h);
-    label(hat.name, x, 0.7, z + 0.52, 2.6);
+    label(hat.name, x, 0.7, z + 0.62, 2.6);
     targets.push({
       id: `hat-${hat.id}`,
       x,
