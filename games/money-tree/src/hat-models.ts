@@ -133,6 +133,20 @@ export function makeHat(id: HatId) {
       new T.TubeGeometry(new T.CatmullRomCurve3(points), 32, 0.028, 6, false),
       "#59675d",
     );
+    for (const side of [-1, 1]) {
+      const seam = Array.from({ length: 21 }, (_, i) => {
+        const a = Math.PI * (0.08 + (i / 20) * 0.84);
+        return new T.Vector3(
+          side * 0.22,
+          0.12 + Math.cos(a) * 0.516,
+          0.28 - Math.sin(a) * 0.454,
+        );
+      });
+      mesh(
+        new T.TubeGeometry(new T.CatmullRomCurve3(seam), 20, 0.008, 4, false),
+        "#49554e",
+      );
+    }
     const tip = mesh(
       new T.ConeGeometry(0.27, 0.5, 16),
       "#303b38",
