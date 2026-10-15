@@ -6,6 +6,14 @@ import { createCoin } from "../../src/sigma";
 async function frames(page: Page, n = 12, ms = 64) {
   for (let i = 0; i < n; i++) await page.clock.fastForward(ms);
 }
+async function sceneShot(page: Page, path: string) {
+  const style = await page.addStyleTag({
+    content:
+      "body > :not(#app), #app > :not(canvas) { visibility: hidden !important; }",
+  });
+  await page.screenshot({ path });
+  await style.evaluate((el) => (el as Element).remove());
+}
 function state() {
   const s = fresh();
   applyDebugAction(s, "level3");
@@ -43,6 +51,7 @@ test("first Guardian conversation opens ten mountain hats and the seed ATM persi
   page,
 }, testInfo) => {
   const s = state();
+  s.compostScraps = 25;
   s.position = { x: 34, z: -448 };
   await start(page, s);
   await page.keyboard.press("e");
@@ -95,6 +104,16 @@ test("first Guardian conversation opens ten mountain hats and the seed ATM persi
       .map((t: any) => t.id);
   });
   expect(unreachable).toEqual([]);
+  await go(page, "mountain-composter");
+  await page
+    .getByRole("button", { name: "Trade 25 scraps for soil", exact: true })
+    .click();
+  expect(
+    (await page.evaluate(() => (window as any).game.state())).soilBags,
+  ).toBe(1);
+  expect(
+    (await page.evaluate(() => (window as any).game.state())).compostScraps,
+  ).toBe(0);
   await go(page, "mountain-seed-atm");
   await page
     .getByRole("button", { name: "Money seeds · 5 for $200.00", exact: true })
@@ -103,8 +122,10 @@ test("first Guardian conversation opens ten mountain hats and the seed ATM persi
     5,
   );
   await page.getByRole("button", { name: "Back", exact: true }).click();
+  await page.evaluate(() => (window as any).game.teleport(-12, -293));
+  await frames(page);
   await page.evaluate(() => (window as any).game.mountainShopOverview());
-  await page.screenshot({ path: testInfo.outputPath("terrace-threads.png") });
+  await sceneShot(page, testInfo.outputPath("terrace-threads.png"));
   await go(page, "hat-verdant");
   await expect(page.locator("#modal")).toContainText("60%");
   await expect(page.locator("#modal img")).toBeVisible();
@@ -113,6 +134,20 @@ test("first Guardian conversation opens ten mountain hats and the seed ATM persi
   expect(
     (await page.evaluate(() => (window as any).game.savedState())).hats,
   ).toContain("verdant");
+  await page.evaluate(() => (window as any).game.teleport(-12, -312.1));
+  await frames(page);
+  await page.evaluate(() => (window as any).game.mountainShopInterior());
+  await sceneShot(page, testInfo.outputPath("terrace-threads-interior.png"));
+  await go(page, "hat-seedkeeper");
+  await expect(page.locator("#modal .hat-portrait")).toBeVisible();
+  await page
+    .locator("#modal .hat-portrait")
+    .screenshot({ path: testInfo.outputPath("seedkeeper-bonnet.png") });
+  await page.keyboard.press("e");
+  await page.evaluate(() => (window as any).game.storageFlush());
+  expect(
+    (await page.evaluate(() => (window as any).game.savedState())).hats,
+  ).toContain("seedkeeper");
 });
 test("Guardian mansion offer separates PC replies, supports declining, and previews renamed models", async ({
   page,

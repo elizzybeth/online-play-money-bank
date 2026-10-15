@@ -7036,9 +7036,19 @@ if (new URLSearchParams(location.search).has("test")) {
       tickSigma(s, dt);
     },
     mountainShopOverview: () => {
-      camera.position.set(-5, 11, -291);
-      camera.lookAt(-12, 1, -318);
+      camera.position.set(-7, 7.5, -291);
+      camera.lookAt(-12, 3, -315);
       renderer.render(scene, camera);
+    },
+    mountainShopInterior: () => {
+      const fov = camera.fov;
+      camera.fov = 78;
+      camera.updateProjectionMatrix();
+      camera.position.set(-12, 4.1, -312.1);
+      camera.lookAt(-12, 2.9, -321);
+      renderer.render(scene, camera);
+      camera.fov = fov;
+      camera.updateProjectionMatrix();
     },
     bridgeOverview: () => {
       camera.position.set(60, 8, -58);
@@ -7908,3 +7918,5 @@ function startGardenPlant(i: number, crop?: Crop) {
 // Save loading is asynchronous; expose start actions only after boot is complete.
 $("#begin").removeAttribute("disabled");
 $("#new-game").removeAttribute("disabled");
+
+$(".intro-actions").removeAttribute("inert");
