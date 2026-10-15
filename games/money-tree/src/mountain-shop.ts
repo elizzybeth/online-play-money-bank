@@ -5,6 +5,8 @@ import { mountainHats } from "./hats";
 import { makeHat } from "./hat-models";
 import { flatPath } from "./flat-path";
 import { signCanvas } from "./signage";
+import { makeComposter } from "./town-life-world";
+import { terraceBoutique } from "./terrace-boutique";
 export const mountainShopOpen = (s: State) =>
   !!s.millionaire?.chats["visited-summit"];
 export function createMountainShop(
@@ -55,11 +57,7 @@ export function createMountainShop(
   approach.userData.depthAudit = true;
   approach.receiveShadow = true;
   root.add(approach);
-  box(-12, 0.02, -318, 24, 0.04, 14, "#d9c6a1");
-  box(-12, 2.2, -325, 24, 4.4, 0.35, "#819f9a", true);
-  for (const x of [-24, 0]) box(x, 2.2, -318, 0.35, 4.4, 14, "#819f9a", true);
-  for (const x of [-20, -4]) box(x, 2.2, -311, 8, 4.4, 0.35, "#819f9a", true);
-  const roof = box(-12, 4.65, -318, 25, 0.5, 15, "#43675f");
+  const { roof } = terraceBoutique(root, obstacles, walls);
   const label = (text: string, x: number, y: number, z: number, w: number) => {
     const texture = new T.CanvasTexture(signCanvas(text));
     texture.colorSpace = T.SRGBColorSpace;
@@ -69,12 +67,13 @@ export function createMountainShop(
     );
     m.position.set(x, y, z);
     root.add(m);
+    return m;
   };
-  label("Terrace Threads", -12, 4.1, -310.1, 11);
   mountainHats.forEach((hat, i) => {
     const x = -21 + (i % 5) * 4.5,
       z = i < 5 ? -321 : -315;
-    box(x, 0.5, z, 1, 1, 1, "#b99367", true);
+    box(x, 0.5, z, 1.1, 1, 1.1, "#eee8da", true);
+    box(x, 1.015, z, 1.35, 0.07, 1.35, "#b39257");
     const h = makeHat(hat.id);
     h.position.set(x, 1.05, z);
     root.add(h);
@@ -90,12 +89,15 @@ export function createMountainShop(
   box(-3, 1.5, -306.32, 1.3, 0.75, 0.05, "#bde1b1");
   box(-3, 0.45, -306.29, 1.1, 0.2, 0.1, "#263d38");
   label("Seed ATM", -3, 2.6, -306.25, 2.7);
-  box(-22, 0.6, -307, 2.6, 1.2, 2, "#876a48", true);
-  box(-22, 1.25, -307, 2.7, 0.16, 2.1, "#354d3a");
-  label("Compost", -22, 1.8, -305.9, 2.8);
+  const composter = makeComposter();
+  composter.position.set(-22, 0, -307);
+  root.add(composter);
+  obstacles.push({ x: -22, z: -307, w: 1.55, d: 1.55, clearHeight: 1.4 });
+  label("COMPOST", -22, 2.65, -306.9, 2.2).material.side = T.DoubleSide;
+  label("25 scraps → Soil", -22, 1.9, -306.9, 2.2).material.side = T.DoubleSide;
   targets.push(
     { id: "mountain-seed-atm", x: -3, z: -304.8, label: "Buy garden seeds" },
-    { id: "mountain-composter", x: -22, z: -304.8, label: "Use the composter" },
+    { id: "mountain-composter", x: -22, z: -305.6, label: "Use the composter" },
   );
   let visible = false;
   return {

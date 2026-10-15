@@ -68,7 +68,104 @@ export function makeHat(id: HatId) {
     "dew",
     "treasury",
   ].indexOf(id);
-  if (advanced >= 0) {
+  if (id === "seedkeeper") {
+    const crown = mesh(
+      new T.SphereGeometry(1, 28, 16, Math.PI, Math.PI),
+      color,
+      0,
+      0.16,
+      0.19,
+    );
+    crown.scale.set(0.45, 0.43, 0.52);
+    crown.material.side = T.DoubleSide;
+    crown.name = "bonnet-puffed-crown";
+    // An upright, flared hood around the face, rather than a flat sunhat brim.
+    const vertices: number[] = [],
+      indices: number[] = [];
+    for (let i = 0; i <= 40; i++) {
+      const a = -Math.PI * 0.12 + (i / 40) * Math.PI * 1.24;
+      const scallop = Math.cos(a * 24) * 0.018;
+      vertices.push(Math.cos(a) * 0.43, 0.08 + Math.sin(a) * 0.39, 0.19);
+      vertices.push(
+        Math.cos(a) * (0.64 + scallop),
+        0.08 + Math.sin(a) * (0.56 + scallop),
+        0.48 + scallop,
+      );
+      if (i < 40) {
+        const j = i * 2;
+        indices.push(j, j + 1, j + 2, j + 1, j + 3, j + 2);
+      }
+    }
+    const hood = new T.BufferGeometry();
+    hood.setAttribute("position", new T.Float32BufferAttribute(vertices, 3));
+    hood.setIndex(indices);
+    hood.computeVertexNormals();
+    const brim = mesh(hood, "#f1dfb9");
+    brim.name = "bonnet-face-framing-brim";
+    brim.material.side = T.DoubleSide;
+    const edge = Array.from({ length: 41 }, (_, i) => {
+      const a = -Math.PI * 0.12 + (i / 40) * Math.PI * 1.24;
+      return new T.Vector3(
+        Math.cos(a) * 0.645,
+        0.08 + Math.sin(a) * 0.565,
+        0.49,
+      );
+    });
+    mesh(
+      new T.TubeGeometry(new T.CatmullRomCurve3(edge), 40, 0.014, 5, false),
+      "#fff3d5",
+    );
+    // Side ties leave the player's eyes clear, including when hats are stacked.
+    for (const side of [-1, 1]) {
+      const x = side * 0.47;
+      for (const wing of [-1, 1]) {
+        const loop = ell(
+          x + wing * 0.095,
+          -0.055,
+          0.36,
+          0.12,
+          0.065,
+          0.035,
+          "#567f70",
+        );
+        loop.rotation.z = wing * 0.4;
+      }
+      ell(x, -0.055, 0.39, 0.045, 0.055, 0.04, "#8ba88b");
+      for (const tail of [-1, 1]) {
+        const ribbon = mesh(
+          new T.PlaneGeometry(0.075, 0.34, 1, 4),
+          "#567f70",
+          x + tail * 0.045,
+          -0.26,
+          0.37,
+        );
+        const p = ribbon.geometry.attributes.position;
+        for (let i = 0; i < p.count; i++)
+          p.setZ(i, Math.sin(p.getY(i) * 12) * 0.045);
+        ribbon.geometry.computeVertexNormals();
+        ribbon.rotation.z = tail * 0.22;
+        ribbon.material.side = T.DoubleSide;
+        ribbon.name = "bonnet-ribbon";
+      }
+    }
+    // Gathered fabric seams across the rounded back.
+    for (let i = -2; i <= 2; i++) {
+      const x = i * 0.12,
+        radius = Math.sqrt(1 - (x / 0.45) ** 2);
+      const points = Array.from({ length: 21 }, (_, j) => {
+        const a = Math.PI * (0.04 + (j / 20) * 0.92);
+        return new T.Vector3(
+          x,
+          0.16 + Math.cos(a) * 0.432 * radius,
+          0.19 - Math.sin(a) * 0.522 * radius,
+        );
+      });
+      mesh(
+        new T.TubeGeometry(new T.CatmullRomCurve3(points), 20, 0.006, 4, false),
+        "#e7cea1",
+      );
+    }
+  } else if (advanced >= 0) {
     brim(advanced === 2 ? 0.65 : 0.53);
     cyl(
       0.4,
@@ -90,7 +187,7 @@ export function makeHat(id: HatId) {
           0.11,
           "#d6d9bc",
         );
-    else if (["verdant", "seedkeeper", "trail"].includes(id)) {
+    else if (["verdant", "trail"].includes(id)) {
       for (let i = 0; i < 3; i++) {
         const leaf = ell(
           (i - 1) * 0.13,
