@@ -56,7 +56,9 @@ async function axis(p: Page, dimension: "x" | "z", destination: number) {
 test("whole town traversal through actual doors and fence gate", async ({
   page,
 }) => {
-  test.setTimeout(240000);
+  // This round trip renders hundreds of real movement frames. Shared CI's
+  // software Chromium can exceed four minutes without a navigation failure.
+  test.setTimeout(process.env.CI ? 480000 : 240000);
   // Pause on the blank page before expensive WebGL loading. A fixed future
   // target cannot race slow CI rendering or a Date.now() round trip.
   await page.clock.install({ time: new Date("2026-01-01T00:00:00Z") });
