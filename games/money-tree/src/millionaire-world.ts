@@ -74,8 +74,11 @@ export function createMillionaireWorld(
     { x: 33, z: -470.8, w: 256.4, d: 0.8 },
     { x: -25.95, z: -89.6, w: 136.9, d: 0.8 },
     { x: 105.35, z: -89.6, w: 111.7, d: 0.8 },
-    { x: 42.9, z: -75.3, w: 0.8, d: 28.6 },
-    { x: 49.1, z: -75.3, w: 0.8, d: 28.6 },
+    // Turn both rails into the east hedge opening; no exposed side routes.
+    { x: 42.9, z: -76.05, w: 0.8, d: 27.1 },
+    { x: 49.1, z: -73.55, w: 0.8, d: 32.1 },
+    { x: 41.2, z: -62.5, w: 4.2, d: 0.8 },
+    { x: 44.05, z: -57.5, w: 10.1, d: 0.8 },
   ];
   const boundary = new T.Group();
   boundary.name = "level-three-boundary-wall";
@@ -86,10 +89,27 @@ export function createMillionaireWorld(
     wallParts.push(
       new T.BoxGeometry(r.w, 1.15, r.d).translate(r.x, 0.575, r.z),
     );
-    caps.push(
-      new T.BoxGeometry(r.w + 0.12, 0.14, r.d + 0.12).translate(r.x, 1.22, r.z),
+    const cap = new T.BoxGeometry(r.w + 0.12, 0.14, r.d + 0.12).translate(
+      r.x,
+      1.22,
+      r.z,
     );
+    // Keep trim sides, then tessellate all cap tops as one rectangle union.
+    // Turning rails must not leave coplanar overlapping surfaces at the corners.
+    const indices = Array.from(cap.getIndex()!.array);
+    const normals = cap.getAttribute("normal");
+    cap.setIndex(
+      indices.filter((_, i) => normals.getY(indices[i - (i % 3)]) < 0.9),
+    );
+    caps.push(cap.toNonIndexed());
+    cap.dispose();
   }
+  caps.push(
+    flatPath(
+      boundaryRects.map((r) => ({ ...r, w: r.w + 0.12, d: r.d + 0.12 })),
+      1.29,
+    ),
+  );
   for (const [pieces, color] of [
     [wallParts, "#a19379"],
     [caps, "#d6c9ac"],

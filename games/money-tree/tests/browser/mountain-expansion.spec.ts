@@ -269,8 +269,32 @@ test("bridge walls join the boundary while bike thoughts stay centered through t
   await start(page, s);
   const walls = await page.evaluate(() => {
     const g = (window as any).game;
-    return [42.9, 49.1].every((x) =>
-      g.rects.some((r: any) => r.x === x && r.z === -75.3 && r.d === 28.6),
+    const blocked = (x: number, z: number) =>
+      g.rects.some(
+        (r: any) =>
+          Math.abs(x - r.x) < r.w / 2 + 0.35 &&
+          Math.abs(z - r.z) < r.d / 2 + 0.35,
+      );
+    // Both turns must meet the hedge, while the west-to-north route stays open.
+    return (
+      [
+        [40, -62.5],
+        [42, -62.5],
+        [40, -57.5],
+        [44, -57.5],
+        [48, -57.5],
+        [42.9, -75],
+        [49.1, -75],
+        [49.1, -60],
+      ].every(([x, z]) => blocked(x, z)) &&
+      [
+        [39, -60],
+        [41, -60],
+        [43, -60],
+        [46, -60],
+        [46, -64],
+        [46, -80],
+      ].every(([x, z]) => !blocked(x, z))
     );
   });
   expect(walls).toBe(true);
@@ -287,5 +311,58 @@ test("bridge walls join the boundary while bike thoughts stay centered through t
     await frames(page, 4);
     const b = await page.locator("#thought").boundingBox();
     expect(Math.abs(b!.x + b!.width / 2 - 640)).toBeLessThan(2);
+  }
+});
+
+test("mountain musings stay on the grove approach and clear on leaving it", async ({
+  page,
+}) => {
+  const s = state();
+  s.awake = true;
+  s.position = { x: 34, z: -210 };
+  await start(page, s);
+  await expect(page.locator("#thought")).toBeVisible();
+  for (const [x, z] of [
+    [-14, -310],
+    [88, -340],
+    [60, -312],
+    [34, -131],
+    [38, -210],
+    [34, -350],
+  ]) {
+    await page.evaluate(
+      ([x, z]) => {
+        const g = (window as any).game;
+        for (const dx of [0, 0.5, -0.5, 1, -1, 1.5, -1.5])
+          for (const dz of [0, 0.5, -0.5, 1, -1, 1.5, -1.5]) {
+            const px = x + dx,
+              pz = z + dz;
+            if (Math.abs(px - 34) <= 2 && pz < -144 && pz > -340) continue;
+            if (
+              g.rects.some(
+                (r: any) =>
+                  Math.abs(px - r.x) < r.w / 2 + 0.45 &&
+                  Math.abs(pz - r.z) < r.d / 2 + 0.45,
+              )
+            )
+              continue;
+            g.teleport(px, pz);
+            return;
+          }
+        throw new Error(`No walkable test spot near ${x},${z}`);
+      },
+      [x, z],
+    );
+    await frames(page);
+    await expect(page.locator("#thought")).toBeHidden();
+    // Re-enter before its six-second duration expires to test removal of an active bubble.
+    await page.evaluate(() => (window as any).game.teleport(34, -210));
+    await page.evaluate(() => {
+      const g = (window as any).game;
+      g.teleport(34, -211);
+      g.desertThoughtStep(13);
+    });
+    await frames(page);
+    await expect(page.locator("#thought")).toBeVisible();
   }
 });

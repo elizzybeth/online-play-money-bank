@@ -177,3 +177,10 @@ export function shuffledAnswers<T>(values: T[], random = Math.random) {
   }
   return result;
 }
+
+// The four-metre-wide onward lane, from the grove clearing to the mountain foot.
+export function onMillionaireApproach(position: { x: number; z: number }) {
+  return (
+    Math.abs(position.x - 34) <= 2 && position.z < -144 && position.z > -340
+  );
+}
