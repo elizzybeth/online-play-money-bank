@@ -415,7 +415,12 @@ export function terraceBoutique(
     if (meshes.length < 2) continue;
     const pieces = meshes.map((m) => {
       m.updateMatrix();
-      return m.geometry.clone().applyMatrix4(m.matrix);
+      // Polyhedra are non-indexed while boxes and rings are indexed. Merge
+      // compatible triangle lists so the brass finials batch with their trim.
+      const geometry = m.geometry.index
+        ? m.geometry.toNonIndexed()
+        : m.geometry.clone();
+      return geometry.applyMatrix4(m.matrix);
     });
     const geometry = mergeGeometries(pieces);
     pieces.forEach((g) => g.dispose());
