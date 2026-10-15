@@ -72,7 +72,77 @@ export function makeHat(id: HatId) {
     "dew",
     "treasury",
   ].indexOf(id);
-  if (id === "dew" || id === "harvest") {
+  if (id === "terrace") {
+    // Railway cap: a broad flat crown, dark visor, and gold-edged band.
+    const crown = cyl(0.46, 0.22, "#514c41", 0.32, 0.52);
+    crown.scale.z = 0.9;
+    const top = cyl(0.52, 0.045, "#b8a17e", 0.455);
+    top.scale.z = 0.9;
+    cyl(0.465, 0.17, "#202727", 0.13);
+    for (const y of [0.055, 0.215]) cyl(0.472, 0.024, "#dfb844", y);
+    ell(0, 0.02, 0.38, 0.49, 0.035, 0.4, "#171d20");
+    const badge = mesh(
+      new T.CylinderGeometry(0.075, 0.075, 0.025, 20),
+      "#dfb844",
+      0,
+      0.135,
+      0.474,
+    );
+    badge.rotation.x = Math.PI / 2;
+    for (const x of [-0.36, 0.36])
+      ell(x, 0.14, 0.31, 0.035, 0.035, 0.02, "#dfb844");
+  } else if (id === "reach") {
+    // Molded safety helmet with a forward peak and raised reinforcing ribs.
+    const shell = mesh(
+      new T.SphereGeometry(0.47, 28, 16, 0, Math.PI * 2, 0, Math.PI / 2),
+      "#f4bd3d",
+      0,
+      0.07,
+    );
+    shell.scale.y = 0.88;
+    cyl(0.49, 0.06, "#e6a82c", 0.06);
+    ell(0, 0.045, 0.32, 0.49, 0.035, 0.34, "#f4bd3d");
+    for (const x of [-0.16, 0, 0.16]) {
+      const points = Array.from({ length: 25 }, (_, i) => {
+        const a = Math.PI * (0.08 + (i / 24) * 0.84),
+          r = Math.sqrt(0.47 ** 2 - x ** 2);
+        return new T.Vector3(x, 0.07 + Math.sin(a) * r * 0.9, Math.cos(a) * r);
+      });
+      mesh(
+        new T.TubeGeometry(new T.CatmullRomCurve3(points), 24, 0.023, 6, false),
+        "#ffdc72",
+      );
+    }
+    box(0, 0.19, 0.45, 0.19, 0.11, 0.025, "#fff3d1");
+  } else if (id === "alchemist") {
+    // Open-faced cloth hood, with a soft pointed back and draped side panels.
+    const hood = mesh(
+      new T.SphereGeometry(1, 28, 18, Math.PI, Math.PI),
+      "#303b38",
+      0,
+      0.12,
+      0.28,
+    );
+    hood.scale.set(0.51, 0.57, 0.5);
+    hood.material.side = T.DoubleSide;
+    const points = Array.from({ length: 33 }, (_, i) => {
+      const a = (Math.PI * i) / 32;
+      return new T.Vector3(Math.cos(a) * 0.49, 0.1 + Math.sin(a) * 0.56, 0.28);
+    });
+    mesh(
+      new T.TubeGeometry(new T.CatmullRomCurve3(points), 32, 0.028, 6, false),
+      "#59675d",
+    );
+    const tip = mesh(
+      new T.ConeGeometry(0.27, 0.5, 16),
+      "#303b38",
+      0,
+      0.43,
+      -0.37,
+    );
+    tip.rotation.x = -0.95;
+    mesh(new T.OctahedronGeometry(0.06), "#a9c5a3", 0, -0.2, 0.38);
+  } else if (id === "dew" || id === "harvest") {
     const gold = id === "dew" ? "#c9dfe2" : "#dfb844";
     const radius = 0.43;
     const ring = mesh(
@@ -313,18 +383,7 @@ export function makeHat(id: HatId) {
     );
     band(0.405, 0.09, "#ead6a4");
     stitches(0.43, 0.07);
-    if (id === "terrace")
-      for (let i = 0; i < 4; i++)
-        box(
-          -0.27 + i * 0.18,
-          0.42 + i * 0.06,
-          0.34,
-          0.14,
-          0.1,
-          0.11,
-          "#d6d9bc",
-        );
-    else if (["verdant", "trail"].includes(id)) {
+    if (["verdant", "trail"].includes(id)) {
       for (let i = 0; i < 3; i++) {
         const leaf = ell(
           (i - 1) * 0.13,
@@ -337,20 +396,9 @@ export function makeHat(id: HatId) {
         );
         leaf.rotation.z = (i - 1) * 0.6;
       }
-    } else if (id === "reach") {
-      const lens = mesh(
-        new T.TorusGeometry(0.12, 0.025, 6, 16),
-        "#dcc68d",
-        0,
-        0.35,
-        0.4,
-      );
-      lens.rotation.y = 0.1;
     } else if (id === "compost")
       for (let i = 0; i < 3; i++)
         ell((i - 1) * 0.12, 0.25, 0.4, 0.06, 0.06, 0.04, "#b8cf86");
-    else if (id === "alchemist")
-      mesh(new T.OctahedronGeometry(0.14), "#c8edd8", 0, 0.34, 0.39);
     else box(0, 0.3, 0.4, 0.16, 0.18, 0.05, "#e8c26e");
   } else if (id === "cap" || id === "propeller") {
     ell(0, 0.16, 0, 0.46, 0.28, 0.45, color);

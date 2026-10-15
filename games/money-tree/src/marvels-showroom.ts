@@ -3,7 +3,6 @@ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { makeFurnishing } from "./furnishing-models";
 import { furnitureById, type FurnishingId } from "./furnishings";
 import type { Rect } from "./game";
-import { signCanvas } from "./signage";
 export function makeMarvelsShowroom() {
   const root = new T.Group();
   root.name = "Mansion Marvels";
@@ -130,13 +129,46 @@ export function makeMarvelsShowroom() {
     if (!item.wall && !f.id.includes("rug"))
       obstacles.push({ x: f.x, z: f.z, w: item.w, d: item.d });
   }
+  // Architectural charcoal fascia and warm illuminated serif lettering.
+  box(0, 4.65, 8.88, 13, 1.2, 0.22, "#292c2b");
+  for (const x of [-4.3, 4.3])
+    box(x, 4.65, 9.002, 0.018, 1.12, 0.012, "#161b1a");
+  const canvas = document.createElement("canvas");
+  canvas.width = 2048;
+  canvas.height = 192;
+  const ctx = canvas.getContext("2d")!;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = '100px Georgia, "Times New Roman", serif';
+  const title = "MANSION MARVELS",
+    spacing = 17;
+  const width =
+    [...title].reduce((n, c) => n + ctx.measureText(c).width, 0) +
+    (title.length - 1) * spacing;
+  let x = (canvas.width - width) / 2;
+  ctx.shadowColor = "#ffc68b";
+  ctx.shadowBlur = 9;
+  ctx.strokeStyle = "#ffe3be";
+  ctx.lineWidth = 2.4;
+  ctx.fillStyle = "#574c40";
+  for (const c of title) {
+    const w = ctx.measureText(c).width;
+    ctx.strokeText(c, x + w / 2, 96);
+    ctx.shadowBlur = 0;
+    ctx.fillText(c, x + w / 2, 96);
+    ctx.shadowBlur = 9;
+    x += w + spacing;
+  }
   const sign = new T.Mesh(
-    new T.PlaneGeometry(6.5, 0.8),
+    new T.PlaneGeometry(12.2, 1.05),
     new T.MeshBasicMaterial({
-      map: new T.CanvasTexture(signCanvas("Mansion Marvels", 1024, 128)),
+      map: new T.CanvasTexture(canvas),
+      transparent: true,
+      depthWrite: false,
     }),
   );
-  sign.position.set(0, 4.45, 8.9);
+  sign.name = "marvels-backlit-sign";
+  sign.position.set(0, 4.65, 9.02);
   root.add(sign);
   // Slats, window bars and room trim are batched once; no extra animated lights.
   fixtures.updateMatrixWorld(true);

@@ -30,7 +30,13 @@ import * as T from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { type Rect, type Plot, opening, momStatus } from "./game";
-export type Target = { id: string; x: number; z: number; label: string };
+export type Target = {
+  id: string;
+  x: number;
+  z: number;
+  label: string;
+  footprint?: { w: number; d: number; rotation: number };
+};
 export function createWorld(scene: T.Scene) {
   const rects: Rect[] = [],
     occluders: T.Object3D[] = [],

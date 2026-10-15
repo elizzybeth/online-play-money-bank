@@ -5180,6 +5180,16 @@ addEventListener("resize", () => {
   renderer.setSize(innerWidth, innerHeight);
 });
 function interactionPoint(t: Target) {
+  if (t.footprint) {
+    const { w, d, rotation } = t.footprint,
+      c = Math.cos(rotation),
+      sn = Math.sin(rotation);
+    const dx = s.position.x - t.x,
+      dz = s.position.z - t.z;
+    const x = T.MathUtils.clamp(c * dx - sn * dz, -w / 2, w / 2);
+    const z = T.MathUtils.clamp(sn * dx + c * dz, -d / 2, d / 2);
+    return { x: t.x + c * x + sn * z, z: t.z - sn * x + c * z };
+  }
   if (!t.id.startsWith("plot")) return t;
   const bed = world.plots[+t.id.slice(4)].position;
   return {
@@ -7209,6 +7219,11 @@ if (new URLSearchParams(location.search).has("test")) {
         position: o.position.toArray(),
       })),
     jumpHeight: () => jumpHeight,
+    marvelsSignReview: () => {
+      camera.position.set(-35, 5.3, -295);
+      camera.lookAt(-38, 4.3, -309);
+      renderer.render(scene, camera);
+    },
     marvelsReview: () => {
       const roof = scene.getObjectByName("marvels-roof");
       if (roof) roof.visible = false;
