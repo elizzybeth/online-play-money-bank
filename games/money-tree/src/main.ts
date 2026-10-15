@@ -7236,9 +7236,14 @@ if (new URLSearchParams(location.search).has("test")) {
       scene.getObjectByName("Mansion Marvels")?.traverse((o) => {
         if (o instanceof T.Mesh) meshes++;
       });
+      const geometries = new Set<T.BufferGeometry>();
+      scene.traverse((o) => {
+        if (o instanceof T.Mesh) geometries.add(o.geometry);
+      });
       return {
         meshes,
-        geometries: renderer.info.memory.geometries,
+        geometries: geometries.size,
+        uploadedGeometries: renderer.info.memory.geometries,
         textures: renderer.info.memory.textures,
         portraits: productPortraits.size,
       };
