@@ -38,7 +38,11 @@ import {
   type MansionStyle,
 } from "./housing";
 import { createMeteorWorld } from "./meteor-world";
-import { chooseDesertReflection, shuffledAnswers } from "./desert-reflections";
+import {
+  chooseDesertReflection,
+  shuffledAnswers,
+  onMillionaireApproach,
+} from "./desert-reflections";
 import { requestFeather, noteChickenCuddle, giveFeather } from "./adventure";
 import { registerTraders, traderDialogue, rangePrices } from "./market";
 import { makeCookingPan } from "./cooking-pan";
@@ -2832,10 +2836,19 @@ function updateCooking(dt: number) {
 }
 let desertClock = 12,
   desertLast = new T.Vector2();
+let desertThoughtText: string | undefined;
 function updateDesertThought(dt: number) {
   const m = s.millionaire;
-  if (!m?.member || s.position.z >= -170 || s.position.z <= -330 || speaking)
+  if (!m?.member || !onMillionaireApproach(s.position)) {
+    if (desertThoughtText && thought.textContent === desertThoughtText) {
+      setHidden(thought, true);
+      thoughtTime = 0;
+    }
+    desertThoughtText = undefined;
+    desertLast.set(s.position.x, s.position.z);
     return;
+  }
+  if (dt <= 0 || speaking) return;
   const moved = desertLast.distanceTo(
     new T.Vector2(s.position.x, s.position.z),
   );
@@ -2843,7 +2856,7 @@ function updateDesertThought(dt: number) {
   if (moved > 0.01) desertClock += dt;
   if (desertClock < 12 || thoughtTime > 0) return;
   desertClock = 0;
-  thought.textContent = chooseDesertReflection(s);
+  thought.textContent = desertThoughtText = chooseDesertReflection(s);
   save();
   setHidden(thought, false);
   thoughtTime = 6;
@@ -4101,7 +4114,7 @@ function interact(skipTrader = false): void {
       .filter((n) => n.object.userData.chad)
       .map((n) => n.id);
     registerTraders(s, ids);
-    if (ids.includes(id) && id !== "grindset" && id !== "gigachad") {
+    if (ids.includes(id) && !["grindset", "gigachad", "soyjak"].includes(id)) {
       save();
       return tradingConversation(id);
     }
@@ -5219,6 +5232,7 @@ function selectTarget() {
         (!t.id.startsWith("sigma-chad-") &&
           t.id !== "grindset" &&
           t.id !== "gigachad" &&
+          t.id !== "soyjak" &&
           t.id !== "composter" &&
           t.id !== "wolf")) &&
       ((!t.id.startsWith("mountain-") &&
@@ -6680,6 +6694,7 @@ function frame(now: number) {
     if (el.textContent !== "$ Ready to harvest")
       el.textContent = "$ Ready to harvest";
   }
+  updateDesertThought(active && s.awake ? dt : 0);
   if (thoughtTime > 0 && active && !speaking) {
     thoughtTime -= dt;
     if (thoughtTime <= 0) setHidden(thought, true);
@@ -6791,7 +6806,6 @@ function frame(now: number) {
   if (active) {
     updateFeatherHandoff(dt);
     updateCooking(dt);
-    updateDesertThought(dt);
     if (bikeMountTime > 0) {
       bikeMountTime = Math.max(0, bikeMountTime - dt);
       world.player.position.lerpVectors(
@@ -7208,6 +7222,7 @@ if (new URLSearchParams(location.search).has("test")) {
       renderer.render(scene, camera);
       world.player.visible = visible;
     },
+    desertThoughtStep: (dt: number) => updateDesertThought(dt),
     soyEffectsView: () => ({
       scale: world.player.scale.x,
       serious: !!world.wornHat.getObjectByName("temporary-serious-hat"),

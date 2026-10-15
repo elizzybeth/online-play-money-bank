@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { fresh } from "../../src/game";
+import { createCoin } from "../../src/sigma";
 test("Soyjak sells independent, saved temporary size and paper hat effects", async ({
   page,
 }, info) => {
@@ -9,6 +10,8 @@ test("Soyjak sells independent, saved temporary size and paper hat effects", asy
   s.awake = true;
   s.foundTVSeeds = true;
   s.cash = 20000;
+  s.communityPlanted = true;
+  createCoin(s, "Soy regression");
   s.hats = ["cap", "rabbit"];
   s.equippedHats = ["cap", "rabbit"];
   s.equippedHat = "rabbit";
@@ -28,7 +31,9 @@ test("Soyjak sells independent, saved temporary size and paper hat effects", asy
   await page.evaluate(() => (window as any).game.soyjakReview());
   await page.screenshot({ path: info.outputPath("soyjak-stall.png") });
   await page.keyboard.press("e");
-  await page.getByRole("button", { name: /Impossible Burger/ }).click();
+  await page
+    .getByRole("button", { name: /Impossible Burger/ })
+    .click({ timeout: 15000 });
   await frames();
   expect(
     await page.evaluate(() => (window as any).game.soyEffectsView()),

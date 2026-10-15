@@ -118,8 +118,14 @@ test("mountain planting grows overnight with fertilizer, saves reload and transf
   assert.equal(harvest(s, index), 810);
   assert.equal(s.millionaire!.mountainEarned, 900);
   const tithed = s.millionaire!.tithed;
+  const pocketBefore = s.cash,
+    bankBefore = s.bank;
   assert(deposit(s, 100));
+  assert.equal(s.bank, bankBefore + 100);
+  assert.equal(s.cash, pocketBefore - 100);
   assert(withdraw(s, 100));
+  assert.equal(s.cash, pocketBefore);
+  assert.equal(s.bank, bankBefore);
   assert.equal(s.millionaire!.tithed, tithed);
   const restored = decode(JSON.stringify(s));
   assert(restored);

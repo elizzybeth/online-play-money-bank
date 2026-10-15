@@ -28,6 +28,7 @@ import {
 import { createCoin } from "../src/sigma";
 import { newPhoneGame, phoneKey, claimPhoneReward } from "../src/phone-games";
 import {
+  onMillionaireApproach,
   desertReflections,
   chooseDesertReflection,
   shuffledAnswers,
@@ -302,4 +303,21 @@ test("mansion reflections recognize Mom already has a bed", () => {
       chooseDesertReflection(s, () => i / 100),
       "Mom needs a bed, not a grand entrance.",
     );
+});
+
+test("mountain reflections are restricted to the four-metre approach lane", () => {
+  for (const z of [-145, -210, -310, -339])
+    for (const x of [32, 34, 36])
+      assert.equal(onMillionaireApproach({ x, z }), true);
+  for (const [x, z] of [
+    [-14, -310],
+    [88, -340],
+    [60, -312],
+    [34, -131],
+    [38, -210],
+    [34, -350],
+    [34, -144],
+    [34, -340],
+  ])
+    assert.equal(onMillionaireApproach({ x, z }), false);
 });
