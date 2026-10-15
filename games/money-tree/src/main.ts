@@ -4294,7 +4294,7 @@ function interact(skipTrader = false): void {
   if (id === "soyjak")
     return speak(
       "soyjak",
-      "<p>Welcome to Soyjak Party. Big feelings. Serious headwear.</p><p>Each effect lasts 120 seconds of active play. Buying again refreshes that effect; sleeping ends both.</p>",
+      "<p>Hey, fellow soy boy!</p><p>Don’t believe the haters. Scientists say there’s no evidence for the claim that soy disrupts hormones.</p><p>You want some delicious soy food?</p><p>Each effect lasts 120 seconds of active play. Buying again refreshes that effect; sleeping ends both.</p>",
       [
         ...soyProducts.map((product) => ({
           label: `${product.name} · ${money(purchasePrice(s, product.cost))} · ${product.effect}`,
@@ -7209,6 +7209,32 @@ if (new URLSearchParams(location.search).has("test")) {
         position: o.position.toArray(),
       })),
     jumpHeight: () => jumpHeight,
+    marvelsReview: () => {
+      const roof = scene.getObjectByName("marvels-roof");
+      if (roof) roof.visible = false;
+      camera.position.set(-29.7, 5.8, -310.7);
+      camera.lookAt(-39.5, 1.4, -320);
+      renderer.render(scene, camera);
+    },
+    marvelsStats: () => {
+      let meshes = 0;
+      scene.getObjectByName("Mansion Marvels")?.traverse((o) => {
+        if (o instanceof T.Mesh) meshes++;
+      });
+      return {
+        meshes,
+        geometries: renderer.info.memory.geometries,
+        textures: renderer.info.memory.textures,
+        portraits: productPortraits.size,
+      };
+    },
+    marvelsStock: () => {
+      const ids: string[] = [];
+      scene.getObjectByName("Mansion Marvels")?.traverse((o) => {
+        if (o.userData.marvelsProduct) ids.push(o.userData.marvelsProduct);
+      });
+      return ids;
+    },
     soyjakPlayerReview: () => {
       camera.position.set(s.position.x + 5, 4, s.position.z + 8);
       camera.lookAt(s.position.x, 3, s.position.z);
@@ -7683,28 +7709,30 @@ function chooseMansion(mortgage: boolean, speaker: string) {
   );
 }
 function mansionShop() {
+  const stock = furnishingCatalog.filter((f) => f.level === 4);
   panel(
     "Mansion Marvels",
-    "<p>Ornate furnishings for an extraordinary home. Purchase into your Bag, then place them inside your mansion.</p>",
-    [
-      ...furnishingCatalog
-        .filter((f) => f.level === 4)
-        .map((f) => ({
-          label: `${f.name} · ${money(f.price)}`,
-          disabled: s.cash < f.price,
-          run: () => {
-            if (s.cash < f.price) return;
-            s.cash -= f.price;
-            (s.furnitureBag ??= []).push(f.id);
-            s.events.push(`Bought ${f.name} at Mansion Marvels.`);
-            save();
-            mansionShop();
-          },
-        })),
-      { label: "Back", run: close },
-    ],
+    `<p>Explore the showroom, then choose furniture for your mansion. Every displayed piece is available here.</p><p>Your pocket: <b>${money(s.cash)}</b></p><div class="inventory-grid shop-grid">${stock.map((f) => `<button type="button" class="inventory-card shop-card" data-marvels="${f.id}" aria-label="${f.name} · ${money(f.price)}" ${s.cash < f.price ? "disabled" : ""}><img src="${shopPortrait(f.id, () => makeFurnishing(f.id))}" alt="${f.name}"><span>${f.name}</span><small>In bag: ${(s.furnitureBag ?? []).filter((id) => id === f.id).length}</small><b>Buy · ${money(f.price)}</b></button>`).join("")}</div>`,
+    [{ label: "Back", run: close }],
+  );
+  $("#modal .panel").classList.add("inventory-panel", "shop-panel");
+  document.querySelectorAll<HTMLButtonElement>("[data-marvels]").forEach(
+    (button) =>
+      (button.onclick = () => {
+        const f = stock.find((f) => f.id === button.dataset.marvels);
+        if (!f || s.cash < f.price) return;
+        s.cash -= f.price;
+        (s.furnitureBag ??= []).push(f.id);
+        s.events.push(`Bought ${f.name} at Mansion Marvels.`);
+        save();
+        mansionShop();
+        document
+          .querySelector<HTMLButtonElement>(`[data-marvels="${f.id}"]`)
+          ?.focus();
+      }),
   );
 }
+
 function beginEstateFilm(kind: "move" | "repo") {
   if (estateFilm) return;
   dismountBike();
@@ -7940,7 +7968,7 @@ function tradingConversation(id: string, more = false) {
 function seedATM() {
   panel(
     "Mountain Seed ATM",
-    `<p>Always in stock. Money seeds: $200 for five. Irises are Mom’s favorite; peppers and tomatoes open up new dishes to cook together.</p><p>Pocket: ${money(s.cash)}</p>`,
+    `<p>Always in stock. Money seeds: $50 for five. Irises are Mom’s favorite; peppers and tomatoes open up new dishes to cook together.</p><p>Pocket: ${money(s.cash)}</p>`,
     [
       ...seedOffers.map((o) => ({
         label: `${o.name} · 5 for ${money(o.price)}`,

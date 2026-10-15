@@ -31,6 +31,9 @@ test("Soyjak sells independent, saved temporary size and paper hat effects", asy
   await page.evaluate(() => (window as any).game.soyjakReview());
   await page.screenshot({ path: info.outputPath("soyjak-stall.png") });
   await page.keyboard.press("e");
+  await expect(page.locator("#speech-layer")).toContainText(
+    "Hey, fellow soy boy!",
+  );
   await page
     .getByRole("button", { name: /Impossible Burger/ })
     .click({ timeout: 15000 });

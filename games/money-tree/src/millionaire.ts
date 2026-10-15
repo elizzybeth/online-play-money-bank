@@ -403,3 +403,6 @@ export function validMillionaire(m: unknown): m is Millionaire {
     Object.values(v.chats).every((a) => Number.isSafeInteger(a) && a >= 0)
   );
 }
+
+export const mountainRetailOpen = (s: State) =>
+  !!(s.millionaire?.titheAccepted || s.millionaire?.chats["visited-summit"]);

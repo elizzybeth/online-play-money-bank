@@ -1,6 +1,10 @@
+import { makeModernFurniture } from "./marvels-furniture";
+import { modernFurniture, type ModernFurnitureId } from "./marvels-catalog";
 import * as T from "three";
 import { furnitureById, type FurnishingId } from "./furnishings";
 export function makeFurnishing(id: FurnishingId, seed = 0) {
+  if (modernFurniture.some((f) => f.id === id))
+    return makeModernFurniture(id as ModernFurnitureId);
   const root = new T.Group();
   root.name = `furnishing-${id}`;
   const materials = new Map<string, T.MeshStandardMaterial>();

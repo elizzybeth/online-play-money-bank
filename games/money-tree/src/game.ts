@@ -20,6 +20,7 @@ import {
   migrateMillionaire,
   validMillionaire,
   recordEarnings,
+  mountainRetailOpen,
 } from "./millionaire";
 import { fertileMountainSoil, terrainHeight } from "./millionaire-land";
 import { validBirdhousePaint, type BirdhousePaint } from "./birdhouse-paint";
@@ -1335,7 +1336,7 @@ export function removeHat(s: State, id: HatId) {
   s.equippedHat = s.equippedHats.at(-1) ?? null;
 }
 export function buyHat(s: State, id: HatId) {
-  if (mountainHat(id) && !s.millionaire?.chats["visited-summit"]) return false;
+  if (mountainHat(id) && !mountainRetailOpen(s)) return false;
   const hat = hatById(id);
   if (!hat || s.hats.includes(id) || s.cash < purchasePrice(s, hat.price))
     return false;

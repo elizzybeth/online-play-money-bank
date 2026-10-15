@@ -6,7 +6,11 @@ export function makeHat(id: HatId) {
   g.name = `hat-${id}`;
   const color = hatById(id)!.color;
   const material = (c: string) =>
-    new T.MeshStandardMaterial({ color: c, roughness: 0.78 });
+    new T.MeshStandardMaterial({
+      color: c,
+      roughness: ["#dfb844", "#c9dfe2"].includes(c) ? 0.25 : 0.78,
+      metalness: ["#dfb844", "#c9dfe2"].includes(c) ? 0.65 : 0,
+    });
   function mesh(geo: T.BufferGeometry, c: string, x = 0, y = 0, z = 0) {
     const m = new T.Mesh(geo, material(c));
     m.position.set(x, y, z);
@@ -68,7 +72,140 @@ export function makeHat(id: HatId) {
     "dew",
     "treasury",
   ].indexOf(id);
-  if (id === "seedkeeper") {
+  if (id === "dew" || id === "harvest") {
+    const gold = id === "dew" ? "#c9dfe2" : "#dfb844";
+    const radius = 0.43;
+    const ring = mesh(
+      new T.TorusGeometry(radius, 0.028, 8, 48),
+      gold,
+      0,
+      0.07,
+      0,
+    );
+    ring.rotation.x = Math.PI / 2;
+    const tube = (points: T.Vector3[], r: number, col: string) =>
+      mesh(
+        new T.TubeGeometry(new T.CatmullRomCurve3(points), 24, r, 6, false),
+        col,
+      );
+    if (id === "dew") {
+      // An open, delicate silver tiara with ascending arches across the forehead.
+      for (let i = -2; i <= 2; i++) {
+        const x = i * 0.15,
+          h = 0.27 + (2 - Math.abs(i)) * 0.095;
+        tube(
+          [
+            new T.Vector3(x - 0.085, 0.08, 0.35),
+            new T.Vector3(x - 0.07, h * 0.75, 0.4),
+            new T.Vector3(x, h, 0.42),
+            new T.Vector3(x + 0.07, h * 0.75, 0.4),
+            new T.Vector3(x + 0.085, 0.08, 0.35),
+          ],
+          0.012,
+          gold,
+        );
+        const gem = mesh(
+          new T.OctahedronGeometry(0.055),
+          "#a3e5ed",
+          x,
+          h - 0.05,
+          0.435,
+        );
+        gem.scale.y = 1.5;
+      }
+    } else {
+      // A continuous gold circlet with pointed uprights, rather than a fabric hat.
+      const vertices: number[] = [],
+        indices: number[] = [];
+      for (let i = 0; i <= 48; i++) {
+        const a = (i / 48) * Math.PI * 2;
+        const top =
+          0.2 + (i % 6 === 3 ? 0.3 : i % 6 === 2 || i % 6 === 4 ? 0.15 : 0);
+        vertices.push(
+          Math.sin(a) * radius,
+          0.065,
+          Math.cos(a) * radius,
+          Math.sin(a) * radius,
+          top,
+          Math.cos(a) * radius,
+        );
+        if (i < 48) {
+          const j = i * 2;
+          indices.push(j, j + 1, j + 2, j + 1, j + 3, j + 2);
+        }
+      }
+      const geo = new T.BufferGeometry();
+      geo.setAttribute("position", new T.Float32BufferAttribute(vertices, 3));
+      geo.setIndex(indices);
+      geo.computeVertexNormals();
+      const crown = mesh(geo, gold);
+      crown.material.side = T.DoubleSide;
+      for (let i = 0; i < 8; i++) {
+        const a = (i * Math.PI) / 4;
+        mesh(
+          new T.OctahedronGeometry(0.047),
+          i % 2 ? "#df6861" : "#70b39a",
+          Math.sin(a) * 0.445,
+          0.17,
+          Math.cos(a) * 0.445,
+        );
+        ell(
+          Math.sin(a + Math.PI / 8) * radius,
+          0.51,
+          Math.cos(a + Math.PI / 8) * radius,
+          0.034,
+          0.034,
+          0.034,
+          gold,
+        );
+      }
+    }
+  } else if (id === "treasury") {
+    // An actual woven nest, with visible eggs and a small bluebird on its rim.
+    for (let i = 0; i < 9; i++) {
+      const twig = mesh(
+        new T.TorusGeometry(0.34 + (i % 3) * 0.025, 0.022, 5, 32),
+        i % 2 ? "#98714a" : "#715234",
+        0,
+        0.045 + i * 0.018,
+        0,
+      );
+      twig.rotation.set(Math.PI / 2 + (i % 2 ? 0.035 : -0.035), 0, i * 0.7);
+    }
+    for (let i = 0; i < 15; i++) {
+      const a = i * 2.399;
+      const twig = box(
+        Math.sin(a) * 0.3,
+        0.13 + (i % 3) * 0.025,
+        Math.cos(a) * 0.3,
+        0.32,
+        0.025,
+        0.025,
+        "#aa8054",
+      );
+      twig.rotation.y = a + 0.7;
+    }
+    for (const [x, z] of [
+      [-0.12, 0.05],
+      [0.1, 0.1],
+      [0, -0.1],
+    ])
+      ell(x, 0.17, z, 0.085, 0.12, 0.075, "#eee6c8");
+    ell(0.31, 0.3, -0.06, 0.14, 0.13, 0.19, "#4a9bd0");
+    ell(0.32, 0.46, 0.02, 0.105, 0.11, 0.1, "#62b1df");
+    ell(0.29, 0.31, 0.08, 0.09, 0.08, 0.12, "#b7e1e6");
+    ell(0.43, 0.31, -0.09, 0.035, 0.1, 0.13, "#337aab");
+    const beak = mesh(
+      new T.ConeGeometry(0.04, 0.1, 8),
+      "#e2b34d",
+      0.32,
+      0.44,
+      0.15,
+    );
+    beak.rotation.x = Math.PI / 2;
+    for (const x of [0.26, 0.38])
+      ell(x, 0.48, 0.095, 0.013, 0.015, 0.01, "#192a34");
+  } else if (id === "seedkeeper") {
     const crown = mesh(
       new T.SphereGeometry(1, 28, 16, Math.PI, Math.PI),
       color,
@@ -199,19 +336,6 @@ export function makeHat(id: HatId) {
           "#34784e",
         );
         leaf.rotation.z = (i - 1) * 0.6;
-      }
-    } else if (["harvest", "dew"].includes(id)) {
-      for (let i = 0; i < 7; i++) {
-        const a = (i * Math.PI * 2) / 7;
-        ell(
-          Math.sin(a) * 0.37,
-          0.54,
-          Math.cos(a) * 0.37,
-          0.05,
-          0.12,
-          0.05,
-          id === "dew" ? "#c4f0f2" : "#ffe292",
-        );
       }
     } else if (id === "reach") {
       const lens = mesh(

@@ -1,9 +1,10 @@
+import { mountainRetailOpen } from "./millionaire";
 import { terrainHeight } from "./millionaire-land";
 import { purchasePrice } from "./meals";
 import { type State, wearing } from "./game";
 export function compostSoil(s: State) {
   if (
-    (!s.foundTVSeeds && !s.millionaire?.chats["visited-summit"]) ||
+    (!s.foundTVSeeds && !mountainRetailOpen(s)) ||
     (s.compostScraps ?? 0) < 25
   )
     return false;

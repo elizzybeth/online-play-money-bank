@@ -116,7 +116,7 @@ test("first Guardian conversation opens ten mountain hats and the seed ATM persi
   ).toBe(0);
   await go(page, "mountain-seed-atm");
   await page
-    .getByRole("button", { name: "Money seeds · 5 for $200.00", exact: true })
+    .getByRole("button", { name: "Money seeds · 5 for $50.00", exact: true })
     .click();
   expect((await page.evaluate(() => (window as any).game.state())).seeds).toBe(
     5,

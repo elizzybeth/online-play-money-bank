@@ -1,0 +1,66 @@
+export const modernFurniture = [
+  {
+    id: "linen-sectional",
+    name: "Linen corner sectional",
+    price: 95000,
+    w: 3.6,
+    d: 2.7,
+  },
+  {
+    id: "chesterfield",
+    name: "Emerald Chesterfield sofa",
+    price: 125000,
+    w: 3.4,
+    d: 1.3,
+  },
+  {
+    id: "petal-chair",
+    name: "Terracotta petal lounge chair",
+    price: 65000,
+    w: 1.65,
+    d: 1.55,
+  },
+  {
+    id: "arc-lamp",
+    name: "Bentwood arc floor lamp",
+    price: 48000,
+    w: 2.25,
+    d: 0.9,
+  },
+  {
+    id: "oval-table",
+    name: "Walnut oval coffee table",
+    price: 38000,
+    w: 1.8,
+    d: 1.05,
+  },
+  {
+    id: "woven-ottoman",
+    name: "Woven natural ottoman",
+    price: 22000,
+    w: 1.05,
+    d: 1.05,
+  },
+  {
+    id: "linen-rug",
+    name: "Ivory woven area rug",
+    price: 28000,
+    w: 4.5,
+    d: 3.2,
+  },
+  {
+    id: "olive-planter",
+    name: "Olive tree in a stone planter",
+    price: 35000,
+    w: 1.2,
+    d: 1.2,
+  },
+  {
+    id: "wire-chair",
+    name: "Brass and boucle accent chair",
+    price: 42000,
+    w: 1.15,
+    d: 1.15,
+  },
+] as const;
+export type ModernFurnitureId = (typeof modernFurniture)[number]["id"];

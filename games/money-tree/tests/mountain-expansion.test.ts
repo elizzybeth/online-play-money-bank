@@ -28,6 +28,7 @@ const opened = () => {
 test("new hats are gated; terrace planting spends one seed per site without crossing levels", () => {
   const s = opened();
   s.millionaire!.chats = {};
+  s.millionaire!.titheAccepted = false;
   assert.equal(buyHat(s, "terrace"), false);
   s.millionaire!.chats["visited-summit"] = 1;
   assert.ok(buyHat(s, "terrace"));
@@ -78,7 +79,7 @@ test("Seed ATM restocks money seeds and vegetables grow into new cooking combina
   const s = opened();
   assert.ok(buyGardenSeeds(s, "money"));
   assert.equal(s.seeds, 5);
-  assert.equal(s.cash, 980000);
+  assert.equal(s.cash, 995000);
   assert.ok(buyGardenSeeds(s, "pepper"));
   s.can = true;
   assert.ok(plantCrop(s, 0, "pepper"));
@@ -176,4 +177,25 @@ test("Gigachad trading conversations remain valid saved progress", () => {
   chadLine(s, "gigachad");
   assert.equal(s.neighborChats.gigachad, 1);
   assert.ok(decode(JSON.stringify(s)));
+});
+
+test("planting access permanently keeps hats and seed ATM available without a Guardian greeting record", () => {
+  const s = opened();
+  Object.assign(s.millionaire!, {
+    member: "fire",
+    result: "fire",
+    answers: Array(12).fill(2),
+    welcomeSeed: true,
+    summitSeeds: true,
+    titheAccepted: true,
+  });
+  s.millionaire!.chats = {};
+  assert.ok(buyHat(s, "dew"));
+  const cash = s.cash;
+  assert.ok(buyGardenSeeds(s, "money"));
+  assert.equal(s.cash, cash - 5000);
+  const restored = decode(JSON.stringify(s));
+  assert.ok(restored);
+  assert.ok(buyHat(restored, "harvest"));
+  assert.ok(buyGardenSeeds(restored, "money"));
 });

@@ -1,16 +1,16 @@
+import { mountainRetailOpen } from "./millionaire";
 import type { State } from "./game";
 export const crops = ["iris", "pepper", "tomato"] as const;
 export type Crop = (typeof crops)[number];
 export const seedOffers = [
-  { id: "money", name: "Money seeds", count: 5, price: 20000 },
+  { id: "money", name: "Money seeds", count: 5, price: 5000 },
   { id: "iris", name: "Iris seeds · Mom’s favorite", count: 5, price: 1000 },
   { id: "pepper", name: "Pepper seeds", count: 5, price: 1500 },
   { id: "tomato", name: "Tomato seeds", count: 5, price: 1500 },
 ] as const;
 export function buyGardenSeeds(s: State, id: string) {
   const offer = seedOffers.find((o) => o.id === id);
-  if (!offer || !s.millionaire?.chats["visited-summit"] || s.cash < offer.price)
-    return false;
+  if (!offer || !mountainRetailOpen(s) || s.cash < offer.price) return false;
   s.cash -= offer.price;
   if (id === "money") s.seeds += offer.count;
   else {
