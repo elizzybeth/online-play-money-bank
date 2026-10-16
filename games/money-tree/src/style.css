@@ -2114,7 +2114,7 @@ body:has(#intro:not([hidden])) :is(#top-right-hud, #stats) {
 #furniture-editor [hidden] {
   display: none;
 }
-#furniture-editor header {
+#furniture-editor .editor-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2171,7 +2171,7 @@ body:has(#intro:not([hidden])) :is(#top-right-hud, #stats) {
 .editor-preview > button:disabled {
   opacity: 0.45;
 }
-#furniture-editor header {
+#furniture-editor .editor-heading {
   position: static;
   inset: auto;
   margin: 0 0 0.6rem;
@@ -2181,7 +2181,7 @@ body:has(#intro:not([hidden])) :is(#top-right-hud, #stats) {
   transform: none;
   background: none;
 }
-#furniture-editor header button {
+#furniture-editor .editor-heading button {
   padding: 0.2rem 0.5rem;
   font-size: 1rem;
   background: transparent;
