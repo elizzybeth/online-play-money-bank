@@ -148,6 +148,19 @@ for (const distant of [false, true])
     expect(state.adventure.meteors).toHaveLength(1);
     expect(state.adventure.meteors[0].landed).toBe(true);
     expect(state.adventure.meteors[0].seedPackets).toBe(1023);
+    const syncs = await page.evaluate(
+      () => (window as any).game.spaceEstate().meteorSyncs,
+    );
+    await page.evaluate(() => {
+      (window as any).game.meteorIdleUpdates(300);
+    });
+    expect(
+      await page.evaluate(() => (window as any).game.spaceEstate().meteorSyncs),
+    ).toEqual(syncs);
+    console.log("300 unchanged meteor updates", {
+      craterSyncs: 0,
+      packetSyncs: 0,
+    });
     const packet = await page.evaluate(() =>
       (window as any).game.targets.find((t: any) => t.id === "meteor-seed-1-0"),
     );
@@ -161,6 +174,12 @@ for (const distant of [false, true])
       (await page.evaluate(() => (window as any).game.state())).seeds,
     ).toBe(state.seeds + 5);
 
+    expect(
+      await page.evaluate(() => (window as any).game.spaceEstate().meteorSyncs),
+    ).toEqual({
+      craterSyncs: syncs.craterSyncs,
+      packetSyncs: syncs.packetSyncs + 1,
+    });
     expect(state.plots[state.adventure.meteors[0].plot].meteor).toBe(
       state.adventure.meteors[0].id,
     );

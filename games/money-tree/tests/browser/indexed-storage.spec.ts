@@ -55,6 +55,10 @@ test("legacy saves migrate to compressed IndexedDB without losing their journal,
       journal: saved.journal,
     };
   });
+  console.log("saved snapshot bytes", {
+    compressed: stats.bytes,
+    raw: stats.raw,
+  });
   expect(stats.format).toBe("gzip");
   expect(stats.bytes).toBeLessThan(stats.raw * 0.2);
   expect(stats.legacy).toBeNull();

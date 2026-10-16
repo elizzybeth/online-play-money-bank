@@ -2364,6 +2364,8 @@ let placingFurniture:
       locked?: boolean;
       distance: number;
       outline: T.BoxHelper;
+      previewUpdated?: boolean;
+      previewUpdates: number;
       obstacles: Rect[];
       walls: WallSpace[];
       placed: PlacedFurniture[];
@@ -2603,6 +2605,7 @@ function beginFurniture(item: FurnishingId, sourceIndex?: number) {
     outline,
     rotation: source?.rotation ?? 0,
     valid: false,
+    previewUpdates: 0,
     sourceIndex,
     sourceRect,
     distance: 2.2,
@@ -2620,10 +2623,11 @@ function beginFurniture(item: FurnishingId, sourceIndex?: number) {
 function updateFurniturePlacement() {
   const f = placingFurniture;
   if (!f) return;
+  const facing = viewForward();
   let point: PlacedFurniture = {
     item: f.item,
-    x: s.position.x + viewForward().x * f.distance,
-    z: s.position.z + viewForward().z * f.distance,
+    x: s.position.x + facing.x * f.distance,
+    z: s.position.z + facing.z * f.distance,
     y: 0,
     rotation: f.rotation,
     ...(f.locked && f.point ? f.point : {}),
@@ -2631,7 +2635,6 @@ function updateFurniturePlacement() {
   point.rotation = f.rotation;
   if (!f.locked && furnitureById(f.item).wall) {
     const walls = f.walls;
-    const facing = viewForward();
     const candidates = walls
       .map((w) => {
         const origin = w.axis === "x" ? s.position.x : s.position.z,
@@ -2652,6 +2655,18 @@ function updateFurniturePlacement() {
       };
     } else point.y = -10;
   }
+  if (
+    f.previewUpdated &&
+    f.ghost.position.x === point.x &&
+    f.ghost.position.y === point.y &&
+    f.ghost.position.z === point.z &&
+    f.ghost.rotation.y === point.rotation
+  ) {
+    furnitureEditor.status(f.valid, !!f.locked);
+    return;
+  }
+  f.previewUpdated = true;
+  f.previewUpdates++;
   f.point = point;
   f.valid = canPlaceFurniture(
     point,
@@ -4984,6 +4999,13 @@ $("#pause").onclick = () => {
   if (begun) pauseMenu();
 };
 addEventListener("keydown", (e) => {
+  // Reserve the game's shortcut even in text fields and during key repeat.
+  if (e.key.toLowerCase() === "f5") {
+    e.preventDefault();
+    if (!e.repeat)
+      furnitureEditorOpen ? closeFurnitureEditor() : openFurnitureEditor();
+    return;
+  }
   if (
     e.target instanceof HTMLElement &&
     (e.target.matches("input,textarea") || e.target.isContentEditable) &&
@@ -4994,11 +5016,6 @@ addEventListener("keydown", (e) => {
     e.preventDefault();
   if (e.repeat) return;
   const key = e.key.toLowerCase();
-  if (key === "f5") {
-    e.preventDefault();
-    furnitureEditorOpen ? closeFurnitureEditor() : openFurnitureEditor();
-    return;
-  }
   if (key === "escape") {
     if (placingFurniture) {
       cancelFurniture();
@@ -5347,16 +5364,16 @@ $("#world").addEventListener(
     const e = event as WheelEvent;
     if (!begun || paused || !s.awake || riding) return;
     e.preventDefault();
+    const units = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? innerHeight : 1;
     if (placingFurniture) {
       placingFurniture.locked = false;
       placingFurniture.distance = T.MathUtils.clamp(
-        placingFurniture.distance + e.deltaY * 0.005,
+        placingFurniture.distance + e.deltaY * units * 0.005,
         0.7,
         6,
       );
       return;
     }
-    const units = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? innerHeight : 1;
     zoomDistance = T.MathUtils.clamp(
       zoomDistance + e.deltaY * units * 0.006,
       0,
@@ -7174,7 +7191,11 @@ if (new URLSearchParams(location.search).has("test")) {
           }
         : null,
       placing: placingFurniture
-        ? { valid: placingFurniture.valid, point: placingFurniture.point }
+        ? {
+            valid: placingFurniture.valid,
+            point: placingFurniture.point,
+            updates: placingFurniture.previewUpdates,
+          }
         : null,
       models: furnishingRoot.children.length,
       mounting: bikeMountTime,
@@ -7186,6 +7207,7 @@ if (new URLSearchParams(location.search).has("test")) {
       housing: s.housing,
       film: estateFilm ? { kind: estateFilm.kind, t: estateFilm.t } : null,
       meteors: s.adventure?.meteors ?? [],
+      meteorSyncs: meteorWorld.stats(),
       feather: featherModel.visible,
       featherHandoff: featherHandoff?.t ?? null,
       featherParent: featherModel.parent?.name,
@@ -7194,6 +7216,10 @@ if (new URLSearchParams(location.search).has("test")) {
       featherPosition: featherModel.getWorldPosition(new T.Vector3()).toArray(),
       draws: renderer.info.render.calls,
     }),
+    meteorIdleUpdates: (count: number) => {
+      for (let i = 0; i < count; i++) meteorWorld.update(s, 0);
+      return meteorWorld.stats();
+    },
     advanceSpace: (dt: number) => {
       meteorWorld.update(s, dt);
       world.syncBeds(s.plots);
