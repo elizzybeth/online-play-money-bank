@@ -1,8 +1,14 @@
 import { makeMeteorCrater } from "./meteor-crater";
 import * as T from "three";
 import type { State } from "./game";
-import { advanceAdventure, landMeteor } from "./adventure";
-import { setCraterSites } from "./millionaire-land";
+import {
+  advanceAdventure,
+  landMeteor,
+  meteorPacketPosition,
+} from "./adventure";
+import { terrainHeight, setCraterSites } from "./millionaire-land";
+import { makeSeedPacket } from "./seed-packet";
+import type { Target } from "./world";
 export const meteorSites = [
   [-80, -180],
   [142, -220],
@@ -40,7 +46,11 @@ export function desertGround() {
   mesh.receiveShadow = true;
   return mesh;
 }
-export function createMeteorWorld(scene: T.Scene, onImpact: () => void) {
+export function createMeteorWorld(
+  scene: T.Scene,
+  onImpact: () => void,
+  targets: Target[] = [],
+) {
   const group = new T.Group();
   group.name = "meteor-craters";
   scene.add(group);
@@ -56,6 +66,12 @@ export function createMeteorWorld(scene: T.Scene, onImpact: () => void) {
     group.add(disk);
     return disk;
   });
+  const packets = new T.Group();
+  packets.name = "meteor-seed-packets";
+  group.add(packets);
+  const packetTemplate = makeSeedPacket();
+  let packetKey = "";
+  let packetTargets: Target[] = [];
   const craters = new Map<number, T.Group>();
   const flights = new Map<number, { t: number; mesh: T.Mesh }>();
   let previous = "";
@@ -86,6 +102,13 @@ export function createMeteorWorld(scene: T.Scene, onImpact: () => void) {
         flights.clear();
         craters.clear();
         previous = "";
+        packetKey = "reset";
+        packets.clear();
+        for (const target of packetTargets) {
+          const i = targets.indexOf(target);
+          if (i >= 0) targets.splice(i, 1);
+        }
+        packetTargets = [];
         currentState = s;
       }
       const born = dt > 0 ? advanceAdventure(s, dt) : null;
@@ -95,9 +118,7 @@ export function createMeteorWorld(scene: T.Scene, onImpact: () => void) {
         return;
       }
       if (born) {
-        const near =
-          Math.hypot(s.position.x - born.x, s.position.z - born.z) < 70;
-        if (near) {
+        {
           const mesh = new T.Mesh(
             new T.IcosahedronGeometry(0.9, 1),
             new T.MeshStandardMaterial({
@@ -108,7 +129,7 @@ export function createMeteorWorld(scene: T.Scene, onImpact: () => void) {
           );
           group.add(mesh);
           flights.set(born.id, { t: 0, mesh });
-        } else if (landMeteor(s, born.id)) onImpact();
+        }
       }
       for (const m of s.adventure?.meteors ?? []) {
         if (!m.landed && !flights.has(m.id)) {
@@ -159,6 +180,35 @@ export function createMeteorWorld(scene: T.Scene, onImpact: () => void) {
           if (m.landed && !craters.has(m.id))
             craters.set(m.id, crater(m.x, m.z));
       }
+      setCraterSites((s.adventure?.meteors ?? []).filter((m) => m.landed));
+      const nextPacketKey = (s.adventure?.meteors ?? [])
+        .map((m) => `${m.id}:${m.seedPackets ?? 0}`)
+        .join("|");
+      if (packetKey !== nextPacketKey) {
+        packetKey = nextPacketKey;
+        packets.clear();
+        for (const target of packetTargets) {
+          const i = targets.indexOf(target);
+          if (i >= 0) targets.splice(i, 1);
+        }
+        packetTargets = [];
+        for (const m of s.adventure?.meteors ?? [])
+          for (let i = 0; i < 10; i++) {
+            if (!m.landed || !((m.seedPackets ?? 0) & (1 << i))) continue;
+            const p = meteorPacketPosition(m, i);
+            const packet = packetTemplate.clone(true);
+            packet.position.set(p.x, terrainHeight(p.x, p.z) + 0.3, p.z);
+            packet.rotation.y = i * 2.4;
+            packets.add(packet);
+            const target = {
+              id: `meteor-seed-${m.id}-${i}`,
+              ...p,
+              label: "Pick up seed packet · 5 money seeds",
+            };
+            targets.push(target);
+            packetTargets.push(target);
+          }
+      }
       disks.forEach(
         (disk, i) =>
           (disk.visible = !s.adventure?.meteors?.some(
@@ -168,7 +218,7 @@ export function createMeteorWorld(scene: T.Scene, onImpact: () => void) {
               m.z === meteorSites[i][1],
           )),
       );
-      setCraterSites((s.adventure?.meteors ?? []).filter((m) => m.landed));
+
       return born;
     },
   };

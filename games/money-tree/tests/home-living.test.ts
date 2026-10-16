@@ -179,3 +179,11 @@ test("bedside lamp rests on a detailed nightstand and ambient birds perch above 
     );
   }
 });
+
+test("furniture editor can lay rugs under furniture and furniture on rugs", () => {
+  const chair = { item: "chair" as const, x: -15, y: 0, z: 3, rotation: 0 };
+  const rug = { ...chair, item: "linen-rug" as const };
+  assert(canPlaceFurniture(chair, [], [], [rug]));
+  assert(canPlaceFurniture(rug, [], [], [chair]));
+  assert(!canPlaceFurniture({ ...chair, x: -21 }, [], [], [rug]));
+});

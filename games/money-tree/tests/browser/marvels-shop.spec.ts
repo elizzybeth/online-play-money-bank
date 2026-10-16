@@ -78,6 +78,27 @@ test("permanent planting unlock keeps Terrace Threads, $50 seeds and new hat mod
     ]),
   );
   expect(result.millionaire.chats["visited-summit"]).toBeUndefined();
+  await page.evaluate(() => {
+    const g = (window as any).game,
+      t = g.targets.find((t: any) => t.id === "mountain-hat-rack");
+    g.teleport(t.x, t.z);
+  });
+  await frames();
+  await page.keyboard.press("e");
+  await expect(
+    page.getByRole("heading", { name: "Your hat rack", exact: true }),
+  ).toBeVisible();
+  await page.locator('[data-rack-hat="terrace"]').click();
+  await frames();
+  const hanging = await page.evaluate(() => (window as any).game.polish());
+  expect(hanging.hanging).toBe(true);
+  expect(hanging.hangingDestination[2]).toBeLessThan(-300);
+  for (let i = 0; i < 5; i++) await frames();
+  await page.keyboard.press("e");
+  await page.locator('[data-rack-hat="terrace"]').click();
+  expect(
+    (await page.evaluate(() => (window as any).game.state())).equippedHats,
+  ).toContain("terrace");
 });
 test("every Mansion Marvels showroom item has a model purchase and survives placement and reload", async ({
   page,
@@ -168,10 +189,10 @@ test("every Mansion Marvels showroom item has a model purchase and survives plac
   console.log("Mansion Marvels retained resources", after);
   await page.evaluate(() => (window as any).game.teleport(88, -335));
   await frames();
-  await page.keyboard.press("i");
+  await page.keyboard.press("F5");
   await page
     .getByRole("button", {
-      name: "Place Emerald Chesterfield sofa",
+      name: "Preview Emerald Chesterfield sofa",
       exact: true,
     })
     .click();

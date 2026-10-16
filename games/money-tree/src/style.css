@@ -2094,3 +2094,96 @@ body:has(#intro:not([hidden])) :is(#top-right-hud, #stats) {
   font-size: 14px;
   line-height: 1.25;
 }
+
+#furniture-editor {
+  position: fixed;
+  z-index: 45;
+  top: 1rem;
+  left: 1rem;
+  width: min(320px, 32vw);
+  max-height: 80vh;
+  overflow: auto;
+  padding: 1rem;
+  color: #304d3d;
+  background: #fbf5e4f2;
+  border: 2px solid #c8bc94;
+  border-radius: 20px;
+  box-shadow: 0 8px 28px #18352d44;
+}
+#furniture-editor[hidden],
+#furniture-editor [hidden] {
+  display: none;
+}
+#furniture-editor header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+#furniture-editor h2 {
+  font-size: 1.2rem;
+  margin: 0;
+}
+#furniture-editor p {
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+#furniture-editor button {
+  cursor: pointer;
+  margin: 0.2rem 0;
+}
+.editor-stock {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  max-height: 56vh;
+  overflow-y: auto;
+}
+.editor-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.5rem;
+  border-radius: 12px;
+  border: 1px solid #b6bd9d;
+  background: #fffaf0;
+  color: #304d3d;
+}
+.editor-card img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: contain;
+}
+.editor-card span {
+  font-size: 0.85rem;
+}
+.editor-card small {
+  font-size: 0.7rem;
+}
+.editor-preview > button {
+  display: block;
+  padding: 0.5rem 0.8rem;
+  border-radius: 10px;
+  background: #365c49;
+  color: #fff9df;
+  border: 0;
+}
+.editor-preview > button:disabled {
+  opacity: 0.45;
+}
+#furniture-editor header {
+  position: static;
+  inset: auto;
+  margin: 0 0 0.6rem;
+  padding: 0;
+  width: auto;
+  height: auto;
+  transform: none;
+  background: none;
+}
+#furniture-editor header button {
+  padding: 0.2rem 0.5rem;
+  font-size: 1rem;
+  background: transparent;
+  border: 0;
+}

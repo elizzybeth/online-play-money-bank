@@ -1,3 +1,4 @@
+import { mountainPlots } from "../../src/millionaire-land";
 import { test, expect } from "@playwright/test";
 import { newPhoneGame } from "../../src/phone-games";
 import { fresh } from "../../src/game";
@@ -89,7 +90,9 @@ test("post-Pepe earnings open a real hedge gap, the assessment awards membership
   const member = await page.evaluate(() => (window as any).game.state());
   expect(member.millionaire.member).toBe("arms");
   expect(member.seeds).toBe(6);
-  expect(member.plots.filter((p: any) => p.mountain)).toHaveLength(100);
+  expect(member.plots.filter((p: any) => p.mountain)).toHaveLength(
+    mountainPlots.length,
+  );
   await expect(page.locator("#membership-hud")).toBeVisible();
   await page.evaluate(() => (window as any).game.teleport(34, -340));
   await page.evaluate(() => (window as any).game.setYaw(0));

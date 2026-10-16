@@ -316,7 +316,7 @@ export function ensureMountainPlots(s: State) {
     .filter(
       (q) => !s.plots.some((p) => p.mountain && p.x === q.x && p.z === q.z),
     )
-    .slice(0, Math.max(0, 100 - s.plots.filter((p) => p.mountain).length));
+    .slice(0, Math.max(0, 180 - s.plots.filter((p) => p.mountain).length));
   if (!missing.length) return changed;
   s.plots.push(
     ...missing.map(({ x, z }) => ({
@@ -324,10 +324,14 @@ export function ensureMountainPlots(s: State) {
       z,
       mountain: true,
       soilFilled: true,
-      stage: "harvested" as const,
+      stage:
+        mountainPlots.findIndex((p) => p.x === x && p.z === z) >= 100
+          ? ("ready" as const)
+          : ("harvested" as const),
       remaining: 0,
       fertilized: false,
-      yield: 0,
+      yield:
+        mountainPlots.findIndex((p) => p.x === x && p.z === z) >= 100 ? 700 : 0,
     })),
   );
   return true;
@@ -335,7 +339,7 @@ export function ensureMountainPlots(s: State) {
 export function addMountainPlot(s: State, x: number, z: number) {
   if (
     !s.millionaire?.titheAccepted ||
-    s.plots.filter((p) => p.mountain).length >= 100 ||
+    s.plots.filter((p) => p.mountain).length >= 180 ||
     !Number.isFinite(x) ||
     !Number.isFinite(z) ||
     !fertileMountainSoil(x, z) ||

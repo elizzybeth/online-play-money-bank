@@ -3,11 +3,13 @@
 A single-player 3D browser game for Online Play Money Bank. TypeScript + Three.js. 3D models are procedural; the title logo is a bundled illustrated asset. Gameplay assets are bundled. No accounts or paid services are required; the branching notebook works offline without a model download.
 
 ## Play
+
 WASD walks relative to the camera. Click the game view to capture the mouse and look freely; Escape and interactive menus release it. Drag the view or use left/right arrows if pointer lock is unavailable. E interacts and activates the highlighted safe default action in a menu. Save replacement/reset actions require an explicit selection. Space jumps while wearing Spring Hare. J opens the notebook, I opens the bag, Escape pauses. Hold Shift to run. Your bag shows illustrated item cards with quantities and tool ownership. The pause menu includes sound, graphics, and reduced-motion controls. Start in bed, withdraw the $4.33 from the piggy bank on your desk, visit Robertson in the shop at the north end of the lane, withdraw a chosen dollar-and-cent amount or all your savings, buy five seeds ($2), a can ($1), and a shovel ($1), then return to the five garden plots behind your house.
 
 Planting takes 2 seconds with the shovel or 8 by hand; press E and stand still until it finishes. Moving cancels planting without spending a seed. Watered seeds stay small until you sleep, then become harvest-ready in the morning. There are no crop countdowns. Fertilizer costs $5 for a box of five doses. After watering, press E again when prompted to fertilize that tree, improving its overnight harvest. Trees yield $2–$7, or up to $9 when fertilized, then wither after harvesting. Plant a new seed in the withered plot. Robertson sells only the first bag; the next five seeds are tucked into the brim of a cap inside Thread & Thimble. The brim’s five seeds can be collected once without buying the cap. Sleep in bed to finish watered crops and write a personal reflection on a new notebook page. The notebook opens to the latest page; turn pages with the buttons or left/right arrows. First-night doubts and the first harvested night’s surprise reflect on Mom’s $10,000 surgery goal, including the days needed at that day’s harvest income. Return home to check in with Mom: tired days find her resting on the couch, and good days find her cooking, building birdhouses, painting, reading, or visiting the garden. Your private thoughts appear separately from her speech. NPC names and conversations appear over their heads; walking continues during conversations. Neighbors rotate through new lines and remember their dialogue progress in the save. Inventory, notebook, shopping and pause menus, plus hidden tabs, pause active gameplay. Existing activity-log journal entries are condensed into short reflections when loaded. Saves are local to this browser; use the pause menu to export/import them.
 
 ## Develop
+
 If you get stuck, press Escape and choose **I'm stuck — return home**. This cancels unfinished digging and returns you to clear ground in your bedroom without resetting your day, money, inventory, notebook, or garden. Newly growing trees also move an overlapping player onto nearby clear ground automatically.
 
 Use Node 22+ and pnpm 11.
@@ -28,30 +30,34 @@ Local browser tests use installed Google Chrome on macOS. Set MONEY_TREE_BROWSER
 Visual tests are opt-in: `pnpm test:visual` compares against reviewed macOS Chrome screenshots with reduced motion. Baselines are platform-specific; inspect diffs before updating them. The CI matrix runs gameplay, navigation, camera, and save tests in Chromium, Firefox, and WebKit without imposing one platform’s font rasterization on another.
 
 ## Hosting
+
 `pnpm build` produces `dist/` with relative asset URLs. Copy the contents to the existing site's `money-tree/` directory. Source and tests belong in `games/money-tree/` in the host repository. Keep the existing root `CNAME` and publishing method. The checked-in build avoids changing the site's publishing configuration.
 
 ## QA
+
 See QA.md for the release checklist, automated coverage, and remaining scope. This is an initial playable release. Mobile touch controls, full voiceover, real multiplayer, disease, pests, extra shop systems are future work.
 
 ## Thread & Thimble
+
 Walk through the shop’s doorway from Market Lane. Ten original procedural hats have distinct stitching, brims, bands, lenses, ears, stars, veil, feather and lamp details. Inspect a stand to read the price and ability; buy to wear it, or equip/take off owned hats from the illustrated bag. Ownership and up to three equipped hats persist in saves. Their powers work together. The bedroom hat rack lets you hang up individual hats and put others on. Taller hats sit higher, with rabbit ears and the whirligig prioritized at the top. Old saves retain their previously equipped hat.
 
-| Hat | Price | Power while worn |
-| --- | ---: | --- |
-| Sprout Cap | $2 | Plant 15% faster and have a 50% chance of recovering one seed per harvest; its brim hides the second seed batch |
-| Whirligig | $8 | Walk/run 25% faster |
-| Spring Hare | $12 | Jump with Space |
-| Twin Planter | $15 | Plant two adjoining beds in one action, spending two seeds |
-| Digging Helmet | $20 | Plant in half the usual time |
-| Moonrise Wizard | $30 | 50% chance to conserve a fertilizer dose |
-| Rainy Day Sou’wester | $40 | Auto-water newly planted seeds if a can is owned |
-| Lucky Tallboy | $60 | Add $1 to harvests, capped at $7 |
-| Honey Keeper | $80 | Fertilized trees maturing while worn yield at least $6 |
-| Night Gardener | $100 | Three-metre interaction reach and glowing lamp |
+| Hat                  | Price | Power while worn                                                                                                |
+| -------------------- | ----: | --------------------------------------------------------------------------------------------------------------- |
+| Sprout Cap           |    $2 | Plant 15% faster and have a 50% chance of recovering one seed per harvest; its brim hides the second seed batch |
+| Whirligig            |    $8 | Walk/run 25% faster                                                                                             |
+| Spring Hare          |   $12 | Jump with Space                                                                                                 |
+| Twin Planter         |   $15 | Plant two adjoining beds in one action, spending two seeds                                                      |
+| Digging Helmet       |   $20 | Plant in half the usual time                                                                                    |
+| Moonrise Wizard      |   $30 | 50% chance to conserve a fertilizer dose                                                                        |
+| Rainy Day Sou’wester |   $40 | Auto-water newly planted seeds if a can is owned                                                                |
+| Lucky Tallboy        |   $60 | Add $1 to harvests, capped at $7                                                                                |
+| Honey Keeper         |   $80 | Fertilized trees maturing while worn yield at least $6                                                          |
+| Night Gardener       |  $100 | Three-metre interaction reach and glowing lamp                                                                  |
 
 Powers apply only while equipped. Jumping keeps horizontal wall and world-boundary collisions intact. Gardening yield powers preserve the $7 maximum.
 
 ## Branching journal
+
 At bedtime, the game immediately writes a permanent page from observed events and a reviewed passage library. No LLM, API key, model weights or WebGPU is needed for the notebook. Existing pages remain readable; old pending model jobs are retired without rewriting their pages. The opening page is Day 1; subsequent pages count upward and open to the latest page.
 
 `journal.ts` captures immutable facts and exact money calculations. `branching-journal.ts` selects passages from `journal-passages.ts`, with explicit triggers for story milestones, Mom's observed activities, consecutive-day health changes, gardening, discoveries, neighbors and actual hat powers. Saved worry, hope, confidence, frustration, connection and fatigue influence reflections. Emotions ease towards a baseline and are modified by today rather than replaced. Observed Mom health and dates are remembered; missed visits never invent her condition. Older saves initialize conservatively from structured history.
@@ -65,6 +71,7 @@ Garden expansion: Robertson sells a portable wooden bed for $30 and a bag of soi
 After the cap seeds, a one-time five-seed packet appears at a saved random spot in the western trees. Collecting it unlocks another five-seed packet behind tins in Robertson's store. Up/down arrows tilt the camera; WASD walks. Mom's saved conversation counters provide changing replies, with coughing restricted to tired days.
 
 ## Family and town update
+
 Mom has ten good-day activities: cooking, birdhouses, painting, reading, gardening, mending, jigsaws, music, letters, and feeding birds. Some tired days she rests in her new bedroom. Completed birdhouses remain hanging in outdoor trees. E at the couch sits the player beside Mom or alone; E again stands. The wake-up scene shows the complete character lying down in third person.
 
 Mom has 200 additional authored activity-specific replies in `src/mom-dialogue.ts`. The 200 authored thoughts in `src/mom-thoughts.ts` use observed health/activity, gardening progress, money, and occasion; saved selection history prevents repeats until eligible lines are exhausted. Thoughts appear in a cloud with round trailing bubbles anchored above the player's head.
@@ -74,6 +81,7 @@ Hidden seed packets progress through the cap, the woods, Robertson's shelves, a 
 Journal selection rejects repeated three-word phrases within the same page, in addition to tracking recent passages across days. Additional journal families cover the new activities, bedroom rest, observed birdhouses, and the two new seed discoveries. Existing pages and balances remain intact when saves migrate.
 
 ## Sigma Town
+
 The fifth hidden packet (behind the home TV) opens the hedge at the end of the lane past Thread & Thimble. A new footpath leads to Sigma Town. Its seven male Chads have grayscale, broad-shouldered chibi models and independent dialogue counters: each pool has 144 distinct combinations of twelve role-specific jokes and twelve closing quips. The community-garden Chad criticizes sharing, while Grindset's barista calls the same work entrepreneurial.
 
 Ten public beds form a large Σ. They start with withered money trees and use the normal seed, watering, fertilizer and harvest rules. Existing saves get the beds once when unlocked; up to fifty home plots can coexist with ten community plots. The Doge, Pepe and Hawk Tuah houses are original modeled silhouettes with walk-in doorways and roof cutaways. The lone wolf statue takes exactly $1 without granting any luck or changing yields.
@@ -101,6 +109,7 @@ Drinks last up to three awake minutes and end when you sleep. The drink menu exp
 Interact with the living-room TV to switch between bunny cartoons and Town News. The animated anchor and captions recap the last three in-game days, including the Sigma passage, bike-shop opening, Pepe demonstration, and birdhouse hanging. Grindset has a wood counter, white brick backdrop, coffee machinery, shelf mugs and bags, hanging plants, pendant bulbs, and a readable drinks board. Wildflower clumps are modeled daisies, buttercups, and bluebells. Community-garden journal reflections become familiar after two planting days.
 
 ## Surgery, recovery and Bea’s tea
+
 At $10,000 in pocket money plus savings, tell Mom the good news. Surgery is paid once, the neighborhood celebrates, and Mom schedules the following day. She is absent on surgery day; after two minutes of active, awake play the phone rings. Answer before sleeping. Mom returns the following morning, gradually improves, and still has couch days but no bed days. Five days after surgery, walk with her to Bea’s house and sit at the tea table. The complete conversation reveals Robertson’s $100,000 shop-saving goal. Progress, payments and conversation stages persist in saves; journal passages follow the current story phase.
 
 Bicycle riders can talk, harvest and water. Planting, digging and fertilizer require dismounting with H. Vertical camera controls lock while mounted and restore on dismount. Owned hat models appear on the bedroom rack.
@@ -113,7 +122,7 @@ The Community Garden has modeled vegetable-shaped lettering built into an iron f
 
 Earn $100 in new income after Pepe pops to open the back hedge beside the coin ATM. Follow the lane into a dense willow grove, meet the orange-robed guru, and answer twelve money-and-values questions. The assessment introduces Massive Investment Arms (octopus with investment toys), Bridge to Total Freedom (alien with an E-meter), and Breath of Fire (double-headed lotus serpent). All three appear; the matched host welcomes you. Retaking can change membership without duplicating gifts.
 
-Joining gives a HUD membership card and one seed packet. Your host leads along a roughly thirty-second running route to the white terraced mountain; the central ascent takes about fifteen seconds at normal running speed. Meet six members on the terraces and the guide inside the summit pagoda. The guide explains the automatic fertilizer benefit and the ten-percent contribution, then gives twenty-five packets. Plant in the prepared terrace patches or press E over clear fertile terrace soil to create another planting patch. Trees still require water and mature overnight.
+Joining gives a HUD membership card and one seed packet. Your host leads along a roughly thirty-second running route to the white terraced mountain; the central ascent takes about fifteen seconds at normal running speed. Meet six members on the terraces and the guide inside the summit pagoda. The guide explains the automatic fertilizer benefit and the ten-percent contribution, then gives twenty-five packets. Plant in the prepared terrace patches or press E over clear fertile terrace soil to create another planting patch. Mountain trees grow in fertile terrace soil without watering or fertilizer.
 
 New earnings contribute 10% after accepting the summit agreement. Harvest income, phone-game rewards and realized coin profits qualify; withdrawals, deposits and recovered coin principal do not. Gross mountain harvest income funds the six residents' visible moves and rising mansions, with all six estates unlocked by $1,000. Cars and yachts follow as their wealth increases. Mansion owners come out to thank you, give rotating excuses for not inviting you in, and sell six distinct $5 smartphone games. Each game's ten-point win earns $1 before the contribution; an optional $1 purchase gives a real advantage. Purchased apps remain available from your membership card. All amounts are fictional game money.
 
@@ -121,7 +130,7 @@ The October 10 town polish adds persistent fertilizer granules and a dose HUD, p
 
 ### Mt. Millionaire gardening and homes
 
-Talk to the Community Guardian in the summit pagoda to open **Terrace Threads** at the mountain foot. Its ten hats are Terrace Conductor (plant a terrace), Verdant Sprout (faster planting and 60% seed recovery), Seedkeeper’s Bonnet (80% mountain seed recovery), Golden Harvest Crown (20% mountain harvest bonus), Compost Curator (double scraps), Terrace Surveyor (4.5-metre reach), Summit Strider (35% faster mountain travel), Soil Alchemist (75% fertilizer conservation), Dewdrop Tiara (automatic watering), and Nest Egg Topper (bank 25% of net harvests). The existing three-hat limit applies.
+Talk to the Community Guardian in the summit pagoda to open **Terrace Threads** at the mountain foot. Its ten hats are Terrace Conductor (plant or harvest a terrace), Verdant Sprout (faster planting and 60% seed recovery), Seedkeeper’s Bonnet (80% mountain seed recovery), Golden Harvest Crown (20% mountain harvest bonus), Compost Curator (double scraps), Terrace Surveyor (4.5-metre reach), Summit Strider (35% faster mountain travel), Soil Alchemist (75% fertilizer conservation), Dewdrop Tiara (automatic watering), and Nest Egg Topper (bank 25% of net harvests). The existing three-hat limit applies.
 
 The outside Seed ATM always stocks five money seeds for $50, five iris seeds for $10, and five pepper or tomato seeds for $15. Plant the new crops in soil-filled home beds. Water them and sleep; irises remain in bloom, while vegetables yield cooking ingredients. A neighboring composter exchanges 25 scraps for soil.
 
@@ -131,4 +140,12 @@ Chad traders rebalance around a valuation target that grows 2% per game day. Thi
 
 Soyjak Party sits between Food of the Gods and Grindset. An $8 Impossible Burger doubles the character’s model size for 120 seconds; $4 soy milk adds a folded Serious Hat above the equipped stack for 120 seconds. The effects coexist with each other and coffee, refresh independently on repeat purchase, persist through reload, and end on sleep. Movement clearance remains unchanged so growing cannot trap the player in a doorway.
 
-Terrace Threads stays available once terrace planting is unlocked, even in saves without the old Guardian greeting marker. Mansion Marvels now has fourteen purchasable display pieces with model previews, including an emerald Chesterfield, linen sectional, pleated petal chair and bentwood arc lamp. Furnishings enter the Bag for placement at home; existing item IDs and placed furniture remain compatible.
+Terrace Threads stays available once terrace planting is unlocked, even in saves without the old Guardian greeting marker. Mansion Marvels now has fourteen purchasable display pieces with model previews, including an emerald Chesterfield, linen sectional, pleated petal chair and bentwood arc lamp. Furnishings enter the Bag and can be arranged with the F5 furniture editor; existing item IDs and placed furniture remain compatible.
+
+### Furniture editor and desert seed falls
+
+Press **F5** (or choose Furniture editor in the Bag) to browse model thumbnails of bag and placed furniture. Select a model and walk around while previewing it. E confirms, R rotates (Shift+R for fine rotation), the mouse wheel changes distance, L locks the preview in world space, arrows nudge its position, and Page Up/Down adjusts height. Escape cancels a preview without altering the saved item; F5 exits. Placed models can be moved or returned to the bag. Placement still rejects walls, windows, obstructions and locations outside your home. Mom’s paintings can be moved but remain on display.
+
+Meteor strikes now recur every 240–360 seconds of active awake play, averaging five minutes, without requiring sleep. The timer persists across refresh and pauses while the game is paused or asleep. Each impact grows a ready money tree and scatters ten packets of five money seeds around it. Each packet is collectible once and remains collected after refresh; the six crater sites and their packet sets stay bounded when sites are struck again. Old saves migrate from the former one-to-three-sleep schedule without losing their craters.
+
+The mountain has 162 prepared tree sites, including 62 additional outer terrace trees. Existing coordinates and progress are retained. Terrace Threads also has a hat-management rack. Chad strategy dialogue describes each trader’s individual approach without announcing the market’s internal growth target. The Serious Hat has childlike lettering on both slopes and both end faces; Soyjak Party uses a sharper sign texture. Birdhouse hanging uses a single camera controller for the entire animation.

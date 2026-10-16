@@ -811,7 +811,7 @@ export function decode(raw: string | null): State | null {
       ) ||
       !Array.isArray(s.plots) ||
       s.plots.length < 5 ||
-      s.plots.length > 220 ||
+      s.plots.length > 320 ||
       !s.plots.every(
         (p: Plot) =>
           ["empty", "planted", "growing", "ready", "harvested"].includes(

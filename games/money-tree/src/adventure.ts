@@ -12,6 +12,7 @@ export type Meteor = {
   harvested: boolean;
   crashed: boolean;
   plot?: number;
+  seedPackets?: number;
 };
 export type Adventure = {
   lastSettledDay?: number;
@@ -23,6 +24,7 @@ export type Adventure = {
   awakeSeconds?: number;
   meteorNextDay?: number;
   meteorNextAt?: number;
+  meteorCadence?: number;
   meteorSeed?: number;
   nextMeteorId?: number;
   meteors?: Meteor[];
@@ -100,12 +102,12 @@ export function advanceAdventure(s: State, dt: number) {
   a.awakeSeconds = (a.awakeSeconds ?? 0) + dt;
   if (!s.millionaire?.unlocked) return null;
   a.meteorSeed ??= 53129;
-  if (a.meteorNextDay === undefined) {
-    a.meteorNextDay = s.day + 1;
-    a.meteorNextAt = 30;
+  if (a.meteorCadence !== 1) {
+    a.meteorCadence = 1;
+    a.meteorNextDay = s.day;
+    a.meteorNextAt = a.awakeSeconds + 300;
   }
-  if (s.day < a.meteorNextDay || (a.awakeSeconds ?? 0) < (a.meteorNextAt ?? 0))
-    return null;
+  if (a.awakeSeconds < (a.meteorNextAt ?? 0)) return null;
   a.meteorSeed = (a.meteorSeed * 16807) % 2147483647;
   const seed = a.meteorSeed;
   const sites = [
@@ -136,14 +138,15 @@ export function advanceAdventure(s: State, dt: number) {
   // Keep its plot link valid before any autosave or tab-close write.
   if (previous?.plot !== undefined && s.plots[previous.plot])
     s.plots[previous.plot].meteor = id;
-  a.meteorNextDay = s.day + 1 + (seed % 3);
-  a.meteorNextAt = (a.awakeSeconds ?? 0) + 30 + (seed % 61);
+  a.meteorNextDay = s.day;
+  a.meteorNextAt = (a.awakeSeconds ?? 0) + 240 + (seed % 121);
   return meteor;
 }
 export function landMeteor(s: State, id: number) {
   const m = adventure(s).meteors?.find((m) => m.id === id);
   if (!m || m.landed) return false;
   m.landed = true;
+  m.seedPackets = 1023;
   const tree = {
     x: m.x,
     z: m.z,
@@ -161,7 +164,11 @@ export function landMeteor(s: State, id: number) {
   if (!m.crashed) {
     m.crashed = true;
     let priceFell = false;
-    if (s.coin && (s.coin.exactPrice ?? s.coin.price) >= 100 && !(s.coin.recoverySeconds! > 0)) {
+    if (
+      s.coin &&
+      (s.coin.exactPrice ?? s.coin.price) >= 100 &&
+      !(s.coin.recoverySeconds! > 0)
+    ) {
       priceFell = true;
       s.coin.recoverySeconds = 180;
       s.coin.exactPrice = Math.max(
@@ -194,6 +201,7 @@ export function validAdventure(value: unknown, day: number) {
       "lastCuddleSeconds",
       "awakeSeconds",
       "meteorNextAt",
+      "meteorCadence",
     ].some(
       (k) =>
         (a as any)[k] !== undefined &&
@@ -237,12 +245,16 @@ export function validAdventure(value: unknown, day: number) {
       new Set(a.meteors.map((m) => m.id)).size !== a.meteors.length ||
       a.meteors.some(
         (m) =>
+          (m.seedPackets !== undefined &&
+            (!Number.isInteger(m.seedPackets) ||
+              m.seedPackets < 0 ||
+              m.seedPackets > 1023)) ||
           !Number.isInteger(m.id) ||
           m.id < 1 ||
           (m.landed && m.plot === undefined) ||
           m.landed !== m.crashed ||
           (m.plot !== undefined &&
-            (!Number.isInteger(m.plot) || m.plot < 5 || m.plot >= 220)) ||
+            (!Number.isInteger(m.plot) || m.plot < 5 || m.plot >= 320)) ||
           !Number.isInteger(m.day) ||
           m.day > day ||
           m.day < 1 ||
@@ -273,4 +285,27 @@ export function validAdventure(value: unknown, day: number) {
       a.reflections.length <= 100 &&
       a.reflections.every((n) => Number.isInteger(n) && n >= 0 && n < 100))
   );
+}
+
+export function meteorPacketPosition(m: Meteor, index: number) {
+  const angle = index * 2.399963 + m.id * 0.41,
+    radius = 2.7 + (index % 4) * 0.65;
+  return {
+    x: m.x + Math.sin(angle) * radius,
+    z: m.z + Math.cos(angle) * radius,
+  };
+}
+export function collectMeteorPacket(s: State, id: number, index: number) {
+  const m = s.adventure?.meteors?.find((m) => m.id === id);
+  if (
+    !m?.landed ||
+    !Number.isInteger(index) ||
+    index < 0 ||
+    index >= 10 ||
+    !((m.seedPackets ?? 0) & (1 << index))
+  )
+    return false;
+  m.seedPackets! &= ~(1 << index);
+  s.seeds += 5;
+  return true;
 }

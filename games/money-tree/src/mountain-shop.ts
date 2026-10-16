@@ -1,5 +1,5 @@
 import * as T from "three";
-import type { Rect, State } from "./game";
+import { wearing, type Rect, type State } from "./game";
 import type { Target } from "./world";
 import { mountainHats } from "./hats";
 import { makeHat } from "./hat-models";
@@ -108,12 +108,58 @@ export function createMountainShop(
     { id: "mountain-seed-atm", x: -3, z: -304.8, label: "Buy garden seeds" },
     { id: "mountain-composter", x: -22, z: -305.6, label: "Use the composter" },
   );
+
+  // A second dressing station, with the same hat-management menu as home.
+  box(-22.7, 1.3, -312.2, 0.12, 2.6, 0.12, "#ac8753", true);
+  box(-22.7, 0.08, -312.2, 1.2, 0.16, 0.8, "#ac8753");
+  for (const y of [0.8, 1.4, 2])
+    for (const side of [-1, 1])
+      box(-22.7 + side * 0.32, y, -312.2, 0.65, 0.06, 0.1, "#ac8753");
+  targets.push({
+    id: "mountain-hat-rack",
+    x: -21.5,
+    z: -312.2,
+    label: "Manage your hats",
+  });
+  const rackHats = new T.Group();
+  rackHats.name = "terrace-hat-rack";
+  root.add(rackHats);
+  let rackKey = "";
   let visible = false;
   return {
     root,
     update(s: State) {
       const open = mountainShopOpen(s) && !!s.millionaire?.unlocked;
       root.visible = open;
+      const unworn = s.hats.filter((id) => !wearing(s, id)).slice(0, 6);
+      const key = unworn.join(",");
+      if (key !== rackKey) {
+        rackKey = key;
+        for (const child of [...rackHats.children])
+          child.traverse((o) => {
+            if (o instanceof T.Mesh) {
+              o.geometry.dispose();
+              for (const m of Array.isArray(o.material)
+                ? o.material
+                : [o.material])
+                m.dispose();
+            }
+          });
+        rackHats.clear();
+        unworn.forEach((id, i) => {
+          const model = makeHat(id);
+          model.scale.setScalar(0.35);
+          model.position.set(
+            -22.7 + (i % 2 ? 0.36 : -0.36),
+            0.6 + Math.floor(i / 2) * 0.46,
+            -312.03,
+          );
+          model.traverse((o) => {
+            if (o instanceof T.Light) o.visible = false;
+          });
+          rackHats.add(model);
+        });
+      }
       roof.visible = !(
         s.position.x > -24 &&
         s.position.x < 0 &&

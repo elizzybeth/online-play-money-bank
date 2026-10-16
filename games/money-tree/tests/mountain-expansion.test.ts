@@ -1,3 +1,4 @@
+import { gardenBatch } from "../src/town-life";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -208,4 +209,29 @@ test("legacy Soyjak visit counters reload and cannot select a nonexistent dialog
   const restored = decode(JSON.stringify(s));
   assert.ok(restored);
   assert.equal(restored.neighborChats.soyjak, 2);
+});
+
+test("Terrace Conductor harvests all ready money trees on one tier only", () => {
+  const s = fresh();
+  s.hats = ["terrace"];
+  s.equippedHats = ["terrace"];
+  s.equippedHat = "terrace";
+  s.plots.push(
+    ...[
+      { x: 25, z: -340 },
+      { x: 43, z: -340 },
+      { x: 25, z: -355 },
+    ].map((p) => ({
+      ...p,
+      mountain: true,
+      stage: "ready" as const,
+      soilFilled: true,
+      remaining: 0,
+      fertilized: false,
+      yield: 700,
+    })),
+  );
+  assert.deepEqual(gardenBatch(s, 5, "harvest"), [5, 6]);
+  s.plots[6].stage = "harvested";
+  assert.deepEqual(gardenBatch(s, 5, "harvest"), [5]);
 });

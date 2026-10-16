@@ -10,6 +10,8 @@ import {
   cuddleNeglect,
   advanceAdventure,
   landMeteor,
+  collectMeteorPacket,
+  meteorPacketPosition,
 } from "../src/adventure";
 import {
   buyMansion,
@@ -127,23 +129,21 @@ test("housing market follows a lagged coin price; no-coin resale uses 1.1", () =
   );
   assert.equal(sellMansion(s), true);
 });
-test("meteors recur one to three days apart, remain bounded, and crash exactly once each", () => {
+test("meteors recur every four to six active minutes without sleeping, remain bounded, and crash exactly once each", () => {
   const s = coin();
   s.coin!.price = 10000;
   s.coin!.exactPrice = 10000;
   advanceAdventure(s, 1);
-  s.day++;
-  const m = advanceAdventure(s, 100)!;
+  const m = advanceAdventure(s, 300)!;
   assert.ok(m);
   assert.equal(landMeteor(s, m.id), true);
   assert.equal(s.coin!.price, 8200);
   assert.equal(landMeteor(s, m.id), false);
   assert.equal(s.coin!.price, 8200);
   for (let i = 0; i < 50; i++) {
-    const before = s.day;
-    s.day = s.adventure!.meteorNextDay!;
-    assert.ok(s.day - before >= 1 && s.day - before <= 3);
-    const next = advanceAdventure(s, 100)!;
+    const delay = s.adventure!.meteorNextAt! - s.adventure!.awakeSeconds!;
+    assert.ok(delay >= 240 && delay <= 360);
+    const next = advanceAdventure(s, delay)!;
     assert.ok(next);
     landMeteor(s, next.id);
   }
@@ -211,7 +211,7 @@ test("one hundred reflections are unique and locked topics cannot leak; shufflin
 test("a meteor without a launched coin records the discovery without inventing a price crash", () => {
   const s = estate();
   s.day = 2;
-  s.adventure = { meteorNextDay: 2, meteorNextAt: 0 };
+  s.adventure = { meteorCadence: 1, meteorNextDay: 2, meteorNextAt: 0 };
   const m = advanceAdventure(s, 1)!;
   landMeteor(s, m.id);
   assert.match(s.events.at(-1)!, /money tree/);
@@ -260,6 +260,7 @@ test("repeat meteor impact remains a valid save while flying and after landing",
     s.day = s.adventure?.meteorNextDay ?? 2;
     s.adventure ??= {};
     s.adventure.meteorNextDay = s.day;
+    s.adventure.meteorCadence = 1;
     s.adventure.meteorNextAt = 0;
     const m = advanceAdventure(s, 10)!;
     assert.ok(m);
@@ -320,4 +321,35 @@ test("mountain reflections are restricted to the four-metre approach lane", () =
     [34, -340],
   ])
     assert.equal(onMillionaireApproach({ x, z }), false);
+});
+
+test("meteor packets scatter ten unique pickups and collection survives reload exactly once", () => {
+  const s = coin();
+  s.adventure = { meteorCadence: 1, meteorNextAt: 0 };
+  const m = advanceAdventure(s, 1)!;
+  landMeteor(s, m.id);
+  assert.equal(m.seedPackets, 1023);
+  const sites = Array.from({ length: 10 }, (_, i) =>
+    meteorPacketPosition(m, i),
+  );
+  assert.equal(new Set(sites.map((p) => `${p.x},${p.z}`)).size, 10);
+  assert(sites.every((p) => Math.hypot(p.x - m.x, p.z - m.z) < 5));
+  const before = s.seeds;
+  assert(collectMeteorPacket(s, m.id, 2));
+  assert.equal(s.seeds, before + 5);
+  assert(!collectMeteorPacket(s, m.id, 2));
+  assert(!collectMeteorPacket(s, m.id, 10));
+  const restored = decode(JSON.stringify(s))!;
+  assert(restored);
+  assert(!collectMeteorPacket(restored, m.id, 2));
+  assert(collectMeteorPacket(restored, m.id, 3));
+});
+test("old meteor day schedules migrate to a five-minute active timer and preserve it on reload", () => {
+  const s = coin();
+  s.adventure = { meteorNextDay: 90, meteorNextAt: 0, awakeSeconds: 100 };
+  assert.equal(advanceAdventure(s, 1), null);
+  const restored = decode(JSON.stringify(s))!;
+  assert(restored);
+  assert.equal(advanceAdventure(restored, 299), null);
+  assert(advanceAdventure(restored, 1));
 });
