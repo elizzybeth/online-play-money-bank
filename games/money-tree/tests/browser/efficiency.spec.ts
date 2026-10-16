@@ -55,7 +55,14 @@ for (const readyForMom of [false, true])
       });
       (window as any).efficiency = { counts, observer, tracked: hud.length };
     });
+    const workBefore = await page.evaluate(() =>
+      (window as any).game.updateWork(),
+    );
     for (let i = 0; i < 8; i++) await page.clock.runFor(40);
+    expect(
+      await page.evaluate(() => (window as any).game.updateWork()),
+    ).toEqual(workBefore);
+    console.log("unchanged frame rebuilds", { news: 0, momSetup: 0 });
     const result = await page.evaluate(() => {
       const e = (window as any).efficiency;
       e.observer.disconnect();
@@ -103,4 +110,27 @@ test("ready labels appear nearby and return after travelling out of range", asyn
   for (let i = 0; i < 8; i++) await page.clock.runFor(40);
   await expect(label).toBeVisible();
   await expect(page.locator("#prompt")).toContainText("Harvest");
+});
+
+test("Mom’s cached setup restores her home pose after an escort without repeating idle setup", async ({
+  page,
+}) => {
+  const s = Object.assign(fresh(), { awake: true, metMom: true, day: 4 });
+  await page.clock.install({ time: new Date("2026-01-01") });
+  await page.clock.pauseAt(new Date("2026-01-02"));
+  await page.addInitScript(
+    (s) => localStorage.setItem("money-tree-v1", JSON.stringify(s)),
+    s,
+  );
+  await page.goto("./?test");
+  await page.getByRole("button", { name: "Wake up" }).click();
+  const result = await page.evaluate(() =>
+    (window as any).game.momEscortReturnCheck(),
+  );
+  expect(result.idleUpdates).toBe(0);
+  expect(result.restored).toBe(true);
+  expect(result.returned).toEqual(result.home);
+  console.log("300 unchanged Mom setup calls", {
+    rebuilds: result.idleUpdates,
+  });
 });

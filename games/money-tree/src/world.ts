@@ -883,6 +883,7 @@ export function createWorld(scene: T.Scene) {
     }
   }
   let momKey = "";
+  let momUpdates = 0;
   function setMomDay(
     day: number,
     playerHome = true,
@@ -890,6 +891,10 @@ export function createWorld(scene: T.Scene) {
     story?: FamilyStory,
     gardenVisit = false,
   ) {
+    const key = `${day}:${story?.surgeryDay ?? 0}:${+gardenVisit}:${+!!story?.escort}`;
+    if (key === momKey && !force) return false;
+    momKey = key;
+    momUpdates++;
     paintForDay(day);
     const absent = !!story && day === story.surgeryDay;
     mom.visible = !absent;
@@ -904,7 +909,6 @@ export function createWorld(scene: T.Scene) {
         book.visible =
           false;
       activityProps.forEach((g) => (g.visible = false));
-      momKey = `${day}-hospital`;
       return false;
     }
     if (!rects.includes(momCollider)) rects.push(momCollider);
@@ -922,9 +926,6 @@ export function createWorld(scene: T.Scene) {
         ? { ...momStatus(day, story), activity: "garden" as const }
         : momStatus(day, story),
       garden = status.activity === "garden";
-    const key = `${day}-${garden}`;
-    if (key === momKey && !force) return false;
-    momKey = key;
     const seated =
       status.activity === "resting" || status.activity === "reading";
     const inBed = status.activity === "bedrest";
@@ -2754,6 +2755,9 @@ export function createWorld(scene: T.Scene) {
     sleeping,
     mom,
     setMomDay,
+    get momUpdates() {
+      return momUpdates;
+    },
     momCollider,
     bea,
     beaCollider,

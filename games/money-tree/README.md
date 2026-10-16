@@ -154,3 +154,9 @@ The mountain has 162 prepared tree sites, including 62 additional outer terrace 
 Mom remains at the little house after a mansion purchase, including in legacy saves that placed a bed for her. There is no moving-truck scene or bed requirement. At home, choose “Mom, I bought a mansion.” Her conversation has several reasons and invitations to choose from; she is happy with the little house, chickens and birdhouses, and does not want to move. The exchange can resume after closing or reloading.
 
 Replanting a home money-tree bed with irises, peppers or tomatoes brings Mom outside to admire the garden. She asks whether you can afford to give up the money trees; the player can tell her she is worth it. This one-time conversation saves its progress, waits while Mom is away at the hospital or on an outing, and leaves her enjoying the garden that day before her normal home activities resume.
+
+### Efficiency review, October 16
+
+TV news now rebuilds when its day, event log or archived history changes, rather than scanning the journal every frame. Mom’s setup changes only when her day, recovery schedule, escort or garden mode changes. Stationary browser checks record zero repeated news/Mom setup rebuilds and zero mutations across nine HUD regions and hidden bed labels.
+
+Scene routes use exact segment clearance against expanded collision rectangles, so smoothing cannot clip narrow obstacle corners. Clear paths skip the grid search. A measured open-route case dropped from 9,540 collision reads to one; 300 route-length queries dropped from 300 temporary array copies to none. These are reduced-work counts, not FPS claims. An unfinished garden visit now yields to the following day’s schedule, and ending an escort restores Mom’s home pose without requiring a forced refresh. Save format, compressed storage and backup bounds are unchanged.

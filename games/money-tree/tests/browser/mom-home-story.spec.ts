@@ -224,3 +224,35 @@ test("the garden invitation waits while Mom is at the hospital", async ({
   ).toBeUndefined();
   await expect(page.locator(".speech-bubble")).toHaveCount(0);
 });
+
+test("sleeping during the unfinished garden visit restores Mom’s next-day home activity", async ({
+  page,
+}) => {
+  const s = Object.assign(fresh(), {
+    awake: true,
+    metMom: true,
+    day: 2,
+    position: { x: -10.2, z: 20 },
+  });
+  s.plots[4].crop = "iris";
+  s.plots[4].stage = "planted";
+  await start(page, s);
+  await frames(page, 48, 250);
+  expect(
+    (await page.evaluate(() => (window as any).game.spaceEstate())).gardenVisit
+      .arrived,
+  ).toBe(true);
+  await page
+    .getByRole("button", { name: "End conversation", exact: true })
+    .click();
+  await page.evaluate(() => (window as any).game.sleep());
+  await frames(page);
+  const result = await page.evaluate(() => (window as any).game.spaceEstate());
+  expect(result.gardenVisit).toBeNull();
+  expect(result.mom[2]).toBeLessThan(14);
+  expect(result.momActivity).not.toBe("garden");
+  expect(
+    (await page.evaluate(() => (window as any).game.state())).momHomeStory
+      .gardenStage,
+  ).toBe(1);
+});
