@@ -3,8 +3,8 @@ import { test, expect } from "@playwright/test";
 import { newPhoneGame } from "../../src/phone-games";
 import { fresh } from "../../src/game";
 import { newMillionaire, assessment } from "../../src/millionaire";
-async function frames(page: any, n = 20) {
-  for (let i = 0; i < n; i++) await page.clock.fastForward(32);
+async function frames(page: any, n = 20, step = 32) {
+  for (let i = 0; i < n; i++) await page.clock.fastForward(step);
 }
 async function setup(page: any, s: any) {
   await page.clock.install({ time: new Date("2026-01-01T00:00:00Z") });
@@ -37,6 +37,9 @@ const base = () =>
 test("post-Pepe earnings open a real hedge gap, the assessment awards membership once, and the mountain has a smooth climb", async ({
   page,
 }) => {
+  // This scenario walks the route, joins, climbs, plants, sleeps and harvests.
+  // Expanded terraces need longer on CI's software WebGL renderer.
+  test.setTimeout(process.env.CI ? 480000 : 240000);
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   const s = base();
@@ -139,7 +142,7 @@ test("post-Pepe earnings open a real hedge gap, the assessment awards membership
   await page.evaluate(() => (window as any).game.teleport(43, -353));
   await frames(page);
   await page.keyboard.press("e");
-  await frames(page, 250);
+  await frames(page, 90, 100);
   let planted = await page.evaluate(() => (window as any).game.state());
   const plot = planted.plots.findIndex(
     (p: any) => p.mountain && p.x === 43 && p.z === -355,
