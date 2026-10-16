@@ -45,3 +45,33 @@ test("community garden familiarity lasts beyond the three-day journal context", 
     );
   }
 });
+
+test("news feed reuses unchanged reports and refreshes on events, rollover and save replacement", async () => {
+  const { createNewsFeed } = await import("../src/tv-news");
+  const s = fresh();
+  s.day = 8;
+  const feed = createNewsFeed();
+  const original = feed.read(s);
+  for (let i = 0; i < 300; i++) assert.equal(feed.read(s), original);
+  assert.equal(feed.builds, 1);
+  s.events.push("Found five money seeds behind the TV at home.");
+  assert.equal(feed.read(s)[0].headline, "A path to Sigma Town");
+  assert.equal(feed.builds, 2);
+  s.events = ["The giant Pepe balloon popped."];
+  assert.equal(feed.read(s)[0].headline, "Green scraps across Sigma");
+  s.journalHistory = [
+    {
+      day: 8,
+      events: ["Picked paint colors for two birdhouses."],
+      earned: 0,
+      available: 0,
+    },
+  ];
+  s.events = [];
+  assert.equal(feed.read(s)[0].headline, "New homes for local birds");
+  s.day = 11;
+  assert.equal(feed.read(s)[0].headline, "A quiet day in town");
+  const restored = structuredClone(s);
+  restored.events = ["Found five money seeds behind the TV at home."];
+  assert.equal(feed.read(restored)[0].headline, "A path to Sigma Town");
+});

@@ -68,3 +68,41 @@ export function newsReports(s: State): NewsReport[] {
         },
       ];
 }
+
+/** Current-day events are append-only; archived days are immutable. State/array
+ * replacement and day rollover also invalidate the feed (including save import). */
+export function createNewsFeed() {
+  let state: State | undefined;
+  let day = -1,
+    eventCount = -1,
+    historyCount = -1,
+    builds = 0;
+  let events: State["events"] | undefined;
+  let history: State["journalHistory"];
+  let reports: NewsReport[] = [];
+  return {
+    get builds() {
+      return builds;
+    },
+    read(s: State) {
+      if (
+        state !== s ||
+        day !== s.day ||
+        events !== s.events ||
+        eventCount !== s.events.length ||
+        history !== s.journalHistory ||
+        historyCount !== (s.journalHistory?.length ?? 0)
+      ) {
+        reports = newsReports(s);
+        state = s;
+        day = s.day;
+        events = s.events;
+        eventCount = s.events.length;
+        history = s.journalHistory;
+        historyCount = history?.length ?? 0;
+        builds++;
+      }
+      return reports;
+    },
+  };
+}

@@ -1,12 +1,13 @@
 import { blocked, type Rect } from "./game";
 export type Point = { x: number; z: number };
 export function routeLength(route: Point[]) {
-  return route
-    .slice(1)
-    .reduce(
-      (sum, p, i) => sum + Math.hypot(p.x - route[i].x, p.z - route[i].z),
-      0,
+  let length = 0;
+  for (let i = 1; i < route.length; i++)
+    length += Math.hypot(
+      route[i].x - route[i - 1].x,
+      route[i].z - route[i - 1].z,
     );
+  return length;
 }
 export function alongRoute(route: Point[], fraction: number): Point {
   let remaining = Math.max(0, Math.min(1, fraction)) * routeLength(route);
@@ -33,22 +34,41 @@ export function sceneRoute(start: Point, end: Point, rects: Rect[]): Point[] {
   };
   const goal = { x: Math.round(end.x / step), z: Math.round(end.z / step) };
   const clearLine = (a: Point, b: Point) => {
-    const count = Math.max(
-      1,
-      Math.ceil(Math.hypot(a.x - b.x, a.z - b.z) / 0.1),
-    );
-    for (let i = 0; i <= count; i++)
-      if (
-        blocked(
-          a.x + ((b.x - a.x) * i) / count,
-          a.z + ((b.z - a.z) * i) / count,
-          rects,
-          0.48,
-        )
-      )
-        return false;
+    // Test the complete segment against each rectangle expanded by actor radius.
+    // Sampling can miss a narrow corner crossing between two sample points.
+    const dx = b.x - a.x,
+      dz = b.z - a.z;
+    for (const r of rects) {
+      const rx = r.x,
+        rz = r.z;
+      let from = 0,
+        to = 1;
+      for (let axis = 0; axis < 2; axis++) {
+        const origin = axis ? a.z : a.x,
+          delta = axis ? dz : dx;
+        const center = axis ? rz : rx,
+          half = (axis ? r.d : r.w) / 2 + 0.48;
+        const min = center - half,
+          max = center + half;
+        if (delta === 0) {
+          if (origin <= min || origin >= max) {
+            from = Infinity;
+            break;
+          }
+        } else {
+          const enter = (min - origin) / delta,
+            leave = (max - origin) / delta;
+          from = Math.max(from, Math.min(enter, leave));
+          to = Math.min(to, Math.max(enter, leave));
+        }
+        if (from >= to) break;
+      }
+      if (from < to) return false;
+    }
     return true;
   };
+  // An unobstructed segment needs no grid search or smoothing pass.
+  if (clearLine(start, end)) return [{ ...start }, { ...end }];
   const first = { x: source.x * step, z: source.z * step },
     last = { x: goal.x * step, z: goal.z * step };
   if (!clearLine(start, first) || !clearLine(last, end)) return [];

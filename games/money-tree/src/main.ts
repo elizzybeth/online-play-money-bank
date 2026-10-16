@@ -109,7 +109,7 @@ import {
 } from "./millionaire-dialogue";
 import { terrainHeight, fertileMountainSoil } from "./millionaire-land";
 import { mountPhoneGame } from "./phone-modal";
-import { newsReports } from "./tv-news";
+import { createNewsFeed } from "./tv-news";
 import { inBeaHouse } from "./bea-room";
 import {
   storyPhase,
@@ -230,6 +230,7 @@ import {
   type Rect,
 } from "./game";
 import { createWorld, type Target } from "./world";
+const newsFeed = createNewsFeed();
 const $ = (s: string) => document.querySelector<HTMLElement>(s)!;
 const SAVE = "money-tree-v1";
 const seedHud = document.createElement("div");
@@ -742,9 +743,11 @@ let momGardenVisit:
       length: number;
       arrived: boolean;
       offered: boolean;
+      day: number;
     }
   | undefined;
 let gardenRetryAt = 0;
+let gardenAwaitDeparture = false;
 let wasHome = atHome(),
   visitedOutside = s.awake && !wasHome;
 const thought = document.createElement("div");
@@ -986,12 +989,28 @@ function showMomGardenConversation() {
   );
 }
 function updateMomGardenVisit(dt: number) {
+  // Sleeping can advance the day while animation time is paused.
+  if (
+    momGardenVisit &&
+    (momGardenVisit.day !== s.day || momAway(s) || s.familyStory?.escort)
+  ) {
+    momGardenVisit = undefined;
+    gardenAwaitDeparture = true;
+    world.setMomDay(
+      s.day,
+      atHome(),
+      true,
+      s.familyStory,
+      s.momHomeStory?.gardenDay === s.day,
+    );
+    return;
+  }
   if (dt <= 0) return;
+  if (gardenAwaitDeparture) {
+    if (Math.hypot(s.position.x + 15, s.position.z - 20) <= 9) return;
+    gardenAwaitDeparture = false;
+  }
   if (momGardenVisit) {
-    if (momAway(s) || s.familyStory?.escort) {
-      momGardenVisit = undefined;
-      return;
-    }
     const visit = momGardenVisit;
     if (visit.arrived) {
       if (
@@ -1066,6 +1085,7 @@ function updateMomGardenVisit(dt: number) {
     length: routeLength(route),
     arrived: false,
     offered: false,
+    day: s.day,
   };
   save();
 }
@@ -4362,7 +4382,7 @@ function finishMeditation() {
   );
 }
 function tvMenu() {
-  const news = newsReports(s);
+  const news = newsFeed.read(s);
   panel(
     "What’s on TV?",
     `<p>Current channel: ${s.tvChannel === "news" ? "Town News" : "Bunny cartoons"}.</p><p>Town News reports on the last three days.</p>${s.tvChannel === "news" ? news.map((n) => `<p><strong>Day ${n.day}: ${n.headline}</strong><br>${n.report}</p>`).join("") : ""}`,
@@ -5407,6 +5427,7 @@ function resetTransientMotion() {
   keyboardAudio.stop();
   beaGuide = undefined;
   momGardenVisit = undefined;
+  gardenAwaitDeparture = false;
   momHomeDialogue = false;
   if (hatHanging) {
     scene.remove(hatHanging.model);
@@ -6995,7 +7016,7 @@ function frame(now: number) {
   roof.visible = roofMat.opacity > 0.02;
   roofMat.depthWrite = roofMat.opacity > 0.95;
   roof.castShadow = roofMat.opacity > 0.95;
-  const news = newsReports(s);
+  const news = newsFeed.read(s);
   const report = news[Math.floor(now / 18000) % news.length];
   const soundsActive =
     begun && s.awake && !paused && !document.hidden && !muted && atHome();
@@ -7785,6 +7806,40 @@ if (new URLSearchParams(location.search).has("test")) {
         });
       });
       return { signs, walls };
+    },
+    updateWork: () => ({
+      newsBuilds: newsFeed.builds,
+      momUpdates: world.momUpdates,
+    }),
+    momEscortReturnCheck: () => {
+      const story = {
+        scheduledDay: 1,
+        surgeryDay: 2,
+        awakeSeconds: 0,
+        called: true,
+        escort: false,
+        teaStep: 0,
+        shopGoal: false,
+      };
+      world.setMomDay(4, true, true, story);
+      const home = world.mom.position.toArray();
+      const before = world.momUpdates;
+      for (let i = 0; i < 300; i++) world.setMomDay(4, true, false, story);
+      const idleUpdates = world.momUpdates - before;
+      story.escort = true;
+      world.setMomDay(4, true, false, story);
+      world.mom.position.set(12, 0, 16.9);
+      story.escort = false;
+      const restored = world.setMomDay(4, true, false, story);
+      const returned = world.mom.position.toArray();
+      world.setMomDay(
+        s.day,
+        atHome(),
+        true,
+        s.familyStory,
+        s.momHomeStory?.gardenDay === s.day,
+      );
+      return { home, returned, restored, idleUpdates };
     },
     family: () => ({
       phase: storyPhase(s),
