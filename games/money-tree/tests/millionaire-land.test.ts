@@ -6,6 +6,8 @@ import {
   mountainSummit,
   mountainPlots,
   terrainHeight,
+  setCraterSites,
+  craterHeight,
   fertileMountainSoil,
 } from "../src/millionaire-land";
 test("the normal running route takes thirty seconds to the mountain and fifteen to climb", () => {
@@ -43,4 +45,25 @@ test("terrace plots are unique, fertile and level with the terrain", () => {
   }
   assert(!fertileMountainSoil(34, -380));
   assert(!fertileMountainSoil(0, 0));
+});
+
+test("crater terrain matches the bowl and leaves the outer edge on desert ground", () => {
+  setCraterSites([{ x: -80, z: -180 }]);
+  try {
+    for (const [dx, dz] of [
+      [0, 0],
+      [3, 4],
+      [0, 7],
+      [0, 8],
+      [6, 7],
+    ])
+      assert.equal(
+        terrainHeight(-80 + dx, -180 + dz),
+        craterHeight(Math.sqrt(dx * dx + dz * dz)),
+      );
+    assert.equal(terrainHeight(-70, -180), 0);
+    assert.equal(terrainHeight(150, -220), 0);
+  } finally {
+    setCraterSites([]);
+  }
 });

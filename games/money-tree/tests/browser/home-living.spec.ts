@@ -252,7 +252,16 @@ test("F5 editor previews models while walking, locks, moves, cancels and retriev
     });
     (window as any).editorObserver = observer;
   });
+  const updates = await page.evaluate(
+    () => (window as any).game.homeLiving().placing.updates,
+  );
   await frames(page, 10);
+  expect(
+    await page.evaluate(
+      () => (window as any).game.homeLiving().placing.updates,
+    ),
+  ).toBe(updates);
+  console.log("stationary furniture preview rebuilds", 0);
   expect(
     await page.evaluate(() => {
       (window as any).editorObserver.disconnect();
@@ -320,4 +329,64 @@ test("F5 editor previews models while walking, locks, moves, cancels and retriev
     (await page.evaluate(() => (window as any).game.state())).furnitureBag,
   ).toHaveLength(3);
   expect(errors).toEqual([]);
+});
+
+test("furniture wheel distance is consistent for pixel and line scrolling", async ({
+  page,
+}) => {
+  await start(page, { position: { x: -15, z: 1 }, furnitureBag: ["chair"] });
+  await page.evaluate(() => {
+    const input = document.createElement("input");
+    input.id = "shortcut-focus-test";
+    document.body.append(input);
+    input.focus();
+  });
+  await page.keyboard.press("F5");
+  await expect(
+    page.getByRole("dialog", { name: "Choose furniture" }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(() => {
+      const event = new KeyboardEvent("keydown", {
+        key: "F5",
+        repeat: true,
+        cancelable: true,
+        bubbles: true,
+      });
+      document.dispatchEvent(event);
+      document.querySelector("#shortcut-focus-test")!.remove();
+      return event.defaultPrevented;
+    }),
+  ).toBe(true);
+  await expect(
+    page.getByRole("dialog", { name: "Choose furniture" }),
+  ).toBeVisible();
+  const positions = [];
+  for (const deltaMode of [0, 1]) {
+    await page
+      .getByRole("button", {
+        name: "Preview Velvet reading chair",
+        exact: true,
+      })
+      .click();
+    await page.evaluate((deltaMode) => {
+      document.querySelector("#world")!.dispatchEvent(
+        new WheelEvent("wheel", {
+          deltaMode,
+          deltaY: deltaMode === 0 ? 16 : 1,
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    }, deltaMode);
+    await frames(page);
+    positions.push(
+      await page.evaluate(
+        () => (window as any).game.homeLiving().placing.point,
+      ),
+    );
+    await page.keyboard.press("Escape");
+  }
+  expect(positions[0]).toEqual(positions[1]);
+  await page.keyboard.press("F5");
 });

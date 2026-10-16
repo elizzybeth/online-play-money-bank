@@ -20,8 +20,12 @@ export const mountainTerraces = Array.from({ length: 8 }, (_, tier) => ({
   rz: 15,
 }));
 export function terrainHeight(x: number, z: number) {
-  const crater = craters.find((c) => Math.hypot(x - c.x, z - c.z) < 10);
-  if (crater) return craterHeight(Math.hypot(x - crater.x, z - crater.z));
+  for (const crater of craters) {
+    const dx = x - crater.x,
+      dz = z - crater.z;
+    const distanceSquared = dx * dx + dz * dz;
+    if (distanceSquared < 100) return craterHeight(Math.sqrt(distanceSquared));
+  }
   if (Math.abs(x - 34) <= 3 && z <= -340 && z >= -445)
     return (-z - 340) * (14 / 105);
   for (let i = mountainTerraces.length - 1; i >= 0; i--) {

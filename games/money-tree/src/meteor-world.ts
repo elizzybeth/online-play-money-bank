@@ -1,6 +1,7 @@
 import { makeMeteorCrater } from "./meteor-crater";
 import * as T from "three";
 import type { State } from "./game";
+import type { Meteor } from "./adventure";
 import {
   advanceAdventure,
   landMeteor,
@@ -70,11 +71,41 @@ export function createMeteorWorld(
   packets.name = "meteor-seed-packets";
   group.add(packets);
   const packetTemplate = makeSeedPacket();
-  let packetKey = "";
+  let packetSnapshot: number[] = [];
+  let craterSnapshot: number[] = [];
+  let craterSyncs = 0;
+  let packetSyncs = 0;
+  // Compare primitive fields without building JSON, arrays or strings each frame.
+  function changed(snapshot: number[], meteors: Meteor[], packets: boolean) {
+    if (snapshot.length !== meteors.length * 5) return true;
+    for (let i = 0; i < meteors.length; i++) {
+      const m = meteors[i],
+        at = i * 5;
+      if (
+        snapshot[at] !== m.id ||
+        snapshot[at + 1] !== +m.landed ||
+        snapshot[at + 2] !== m.x ||
+        snapshot[at + 3] !== m.z ||
+        snapshot[at + 4] !== (packets ? (m.seedPackets ?? 0) : 0)
+      )
+        return true;
+    }
+    return false;
+  }
+  function capture(meteors: Meteor[], packets: boolean) {
+    return meteors.flatMap((m) => [
+      m.id,
+      +m.landed,
+      m.x,
+      m.z,
+      packets ? (m.seedPackets ?? 0) : 0,
+    ]);
+  }
   let packetTargets: Target[] = [];
+  let terrainActive = false;
   const craters = new Map<number, T.Group>();
   const flights = new Map<number, { t: number; mesh: T.Mesh }>();
-  let previous = "";
+
   function crater(x: number, z: number) {
     const root = makeMeteorCrater(x, z);
     group.add(root);
@@ -95,14 +126,15 @@ export function createMeteorWorld(
   };
   return {
     group,
+    stats: () => ({ craterSyncs, packetSyncs }),
     update(s: State, dt: number) {
       if (currentState !== s) {
         flights.forEach((flight) => dispose(flight.mesh));
         craters.forEach(dispose);
         flights.clear();
         craters.clear();
-        previous = "";
-        packetKey = "reset";
+        craterSnapshot = [-1];
+        packetSnapshot = [-1];
         packets.clear();
         for (const target of packetTargets) {
           const i = targets.indexOf(target);
@@ -110,11 +142,14 @@ export function createMeteorWorld(
         }
         packetTargets = [];
         currentState = s;
+        terrainActive = false;
+        setCraterSites([]);
       }
       const born = dt > 0 ? advanceAdventure(s, dt) : null;
       group.visible = !!s.millionaire?.unlocked;
       if (!group.visible) {
-        setCraterSites([]);
+        if (terrainActive) setCraterSites([]);
+        terrainActive = false;
         return;
       }
       if (born) {
@@ -157,11 +192,12 @@ export function createMeteorWorld(
           m.harvested = s.plots[m.plot]?.stage === "harvested";
         }
       }
-      const current = JSON.stringify(
-        (s.adventure?.meteors ?? []).filter((m) => m.landed).map((m) => m.id),
-      );
-      if (current !== previous) {
-        previous = current;
+      const meteors = s.adventure?.meteors ?? [];
+      if (!terrainActive || changed(craterSnapshot, meteors, false)) {
+        terrainActive = true;
+        craterSnapshot = capture(meteors, false);
+        craterSyncs++;
+        setCraterSites(meteors.filter((m) => m.landed));
         for (const [id, mesh] of craters)
           if (!s.adventure?.meteors?.some((m) => m.id === id)) {
             group.remove(mesh);
@@ -179,13 +215,19 @@ export function createMeteorWorld(
         for (const m of s.adventure?.meteors ?? [])
           if (m.landed && !craters.has(m.id))
             craters.set(m.id, crater(m.x, m.z));
+        disks.forEach(
+          (disk, i) =>
+            (disk.visible = !s.adventure?.meteors?.some(
+              (m) =>
+                m.landed &&
+                m.x === meteorSites[i][0] &&
+                m.z === meteorSites[i][1],
+            )),
+        );
       }
-      setCraterSites((s.adventure?.meteors ?? []).filter((m) => m.landed));
-      const nextPacketKey = (s.adventure?.meteors ?? [])
-        .map((m) => `${m.id}:${m.seedPackets ?? 0}`)
-        .join("|");
-      if (packetKey !== nextPacketKey) {
-        packetKey = nextPacketKey;
+      if (changed(packetSnapshot, meteors, true)) {
+        packetSnapshot = capture(meteors, true);
+        packetSyncs++;
         packets.clear();
         for (const target of packetTargets) {
           const i = targets.indexOf(target);
@@ -209,15 +251,6 @@ export function createMeteorWorld(
             packetTargets.push(target);
           }
       }
-      disks.forEach(
-        (disk, i) =>
-          (disk.visible = !s.adventure?.meteors?.some(
-            (m) =>
-              m.landed &&
-              m.x === meteorSites[i][0] &&
-              m.z === meteorSites[i][1],
-          )),
-      );
 
       return born;
     },
