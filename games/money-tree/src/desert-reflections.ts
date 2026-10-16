@@ -108,13 +108,13 @@ export const desertReflections = [
       "I have a mansion now. I still feel like me.",
       "The mortgage turns tomorrow into a very long list of payments.",
       "I bought space, but I still have to decide how to live in it.",
-      "Mom needs a bed, not a grand entrance.",
+      "Mom is happy in our little house. I can still come home.",
       "I hope this house becomes a home before it becomes a burden.",
       "A front door this impressive deserves someone kind behind it.",
       "The neighbors look no less strange from my own doorstep.",
       "I can afford the first day. That is not the same as all the days.",
       "Those windows will look warmer with something inside.",
-      "I should leave room for Mom to feel comfortable.",
+      "Mom’s chickens and birdhouses are waiting back home.",
       "I wonder what our old street would think of this.",
       "Owning a tower has not made me any taller.",
       "There is room here for more than furniture. I hope there is room for doubt.",
@@ -151,8 +151,7 @@ export function chooseDesertReflection(s: State, random = Math.random) {
             (s.housing?.status !== "owned" && s.cash + s.bank < 100000000))) ||
         (r.kind === "home" &&
           s.housing?.status === "owned" &&
-          (r.id !== 81 || s.housing.mortgage) &&
-          (r.id !== 83 || !s.housing.momBed)),
+          (r.id !== 81 || s.housing.mortgage)),
     );
   let choices = eligible.filter((r) => !a.reflections?.includes(r.id));
   if (!choices.length) {

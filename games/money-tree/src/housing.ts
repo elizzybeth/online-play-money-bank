@@ -8,6 +8,7 @@ export type Housing = {
   principalPaid: number;
   balance: number;
   lastPaymentDay: number;
+  /** Legacy save fields; Mom always remains at the little house. */
   movingInSeen: boolean;
   evictionSeen: boolean;
   momBed: boolean;
@@ -47,7 +48,7 @@ export function buyMansion(s: State, style: MansionStyle, mortgage: boolean) {
     principalPaid: 0,
     balance: mortgage ? mansionPrice - down : 0,
     lastPaymentDay: s.day - 1,
-    movingInSeen: false,
+    movingInSeen: true,
     evictionSeen: true,
     momBed: false,
     storeOpened: true,
