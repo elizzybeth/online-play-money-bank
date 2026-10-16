@@ -113,7 +113,10 @@ for (const style of ["hearst", "vernon"] as const)
     await frames(page);
     const state = await page.evaluate(() => (window as any).game.state());
     expect(state.furniture).toHaveLength(1);
-    expect(state.housing.momBed).toBe(true);
+    expect(state.housing.momBed).toBe(false);
+    expect(
+      (await page.evaluate(() => (window as any).game.spaceEstate())).mom[2],
+    ).toBeGreaterThan(-5);
     await page.keyboard.press("F5");
     await page.evaluate(() => (window as any).game.teleport(-38, -311));
     await frames(page);
@@ -219,7 +222,7 @@ async function approach(page: Page, id: string) {
   }, id);
   await frames(page);
 }
-test("mascot offers a mortgage, moving truck brings Mom, and the church buys equity back", async ({
+test("mascot offers a mortgage without moving Mom or the player, and the church buys equity back", async ({
   page,
 }) => {
   const s = base();
@@ -250,9 +253,11 @@ test("mascot offers a mortgage, moving truck brings Mom, and the church buys equ
     .click();
   await frames(page, 20);
   expect(
-    (await page.evaluate(() => (window as any).game.spaceEstate())).film.kind,
-  ).toBe("move");
-  await frames(page, 210);
+    (await page.evaluate(() => (window as any).game.spaceEstate())).film,
+  ).toBeNull();
+  expect(
+    (await page.evaluate(() => (window as any).game.spaceEstate())).mom[2],
+  ).toBeGreaterThan(-5);
   const housed = await page.evaluate(() => (window as any).game.state());
   expect(housed.housing.movingInSeen).toBe(true);
   expect(housed.housing.momBed).toBe(false);

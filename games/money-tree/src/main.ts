@@ -1,3 +1,11 @@
+import {
+  canTellMomAboutMansion,
+  beginMansionConversation,
+  mansionConversation,
+  gardenConversation,
+  replyToMom,
+  homeGardenReplanted,
+} from "./mom-home-story";
 import { createFurnitureEditor } from "./furniture-editor";
 import { collectMeteorPacket } from "./adventure";
 import { buySoy, soyProducts } from "./soyjak";
@@ -726,6 +734,17 @@ let begun = false,
   momSpoke = false,
   walk = 0;
 const atHome = () => homeContains(s.position);
+let momHomeDialogue = false;
+let momGardenVisit:
+  | {
+      route: Point[];
+      distance: number;
+      length: number;
+      arrived: boolean;
+      offered: boolean;
+    }
+  | undefined;
+let gardenRetryAt = 0;
 let wasHome = atHome(),
   visitedOutside = s.awake && !wasHome;
 const thought = document.createElement("div");
@@ -918,8 +937,149 @@ function letterToAuntie() {
   );
   document.getElementById("auntie-letter")!.focus();
 }
+function momStorySpeech(text: string, choices: Choice[]) {
+  momHomeDialogue = true;
+  speak("mom", `<p>${text}</p>`, choices);
+  momHomeDialogue = false;
+}
+function showMomMansionConversation() {
+  const stage = s.momHomeStory?.mansionStage ?? 0;
+  const chapter = mansionConversation[stage - 1];
+  if (!chapter) return;
+  momStorySpeech(
+    chapter.text,
+    chapter.replies.map((label, choice) => ({
+      label,
+      run: () => {
+        if (!replyToMom(s, "mansion", choice)) return;
+        save();
+        if (s.momHomeStory!.mansionStage === 4) dismissSpeech();
+        else showMomMansionConversation();
+      },
+    })),
+  );
+}
+function showMomGardenConversation() {
+  world.mom.rotation.y = Math.atan2(
+    s.position.x - world.mom.position.x,
+    s.position.z - world.mom.position.z,
+  );
+  const stage = s.momHomeStory?.gardenStage ?? 1;
+  const chapter = gardenConversation[stage - 1];
+  if (!chapter) return;
+  momStorySpeech(
+    chapter.text,
+    chapter.replies.map((label, choice) => ({
+      label,
+      run: () => {
+        if (!replyToMom(s, "garden", choice)) return;
+        save();
+        if (s.momHomeStory!.gardenStage === 3) {
+          momGardenVisit = undefined;
+          momStorySpeech(
+            "Thank you, sweetheart. I love our little garden. Come sit with me for a bit.",
+            [{ label: "I love you, Mom.", run: dismissSpeech }],
+          );
+        } else showMomGardenConversation();
+      },
+    })),
+  );
+}
+function updateMomGardenVisit(dt: number) {
+  if (dt <= 0) return;
+  if (momGardenVisit) {
+    if (momAway(s) || s.familyStory?.escort) {
+      momGardenVisit = undefined;
+      return;
+    }
+    const visit = momGardenVisit;
+    if (visit.arrived) {
+      if (
+        !visit.offered &&
+        !speaking &&
+        Math.hypot(
+          s.position.x - world.mom.position.x,
+          s.position.z - world.mom.position.z,
+        ) < 6
+      ) {
+        visit.offered = true;
+        showMomGardenConversation();
+      }
+      return;
+    }
+    if (speaking || cookingScene || world.life.busy) return;
+    visit.distance = Math.min(visit.length, visit.distance + dt * 2);
+    const point = alongRoute(
+      visit.route,
+      visit.length ? visit.distance / visit.length : 1,
+    );
+    const dx = point.x - world.mom.position.x,
+      dz = point.z - world.mom.position.z;
+    positionStoryMom(point.x, point.z);
+    if (Math.hypot(dx, dz) > 0.001) world.mom.rotation.y = Math.atan2(dx, dz);
+    if (visit.distance >= visit.length) {
+      visit.arrived = true;
+      if (Math.hypot(s.position.x - point.x, s.position.z - point.z) < 6) {
+        visit.offered = true;
+        showMomGardenConversation();
+      }
+    }
+    return;
+  }
+  if (
+    (s.momHomeStory?.gardenStage ?? 0) >= 3 ||
+    speaking ||
+    momAway(s) ||
+    s.familyStory?.escort ||
+    teaSeated ||
+    sitting ||
+    cookingScene ||
+    kitchenPrepared ||
+    world.life.busy ||
+    featherHandoff ||
+    furnitureEditorOpen ||
+    action ||
+    riding ||
+    Math.hypot(s.position.x + 15, s.position.z - 20) > 9 ||
+    performance.now() < gardenRetryAt
+  )
+    return;
+  gardenRetryAt = performance.now() + 3000;
+  if (!homeGardenReplanted(s)) return;
+  const origin =
+    world.mom.userData.activity === "bedrest"
+      ? { x: -2.5, z: 10 }
+      : { x: world.mom.position.x, z: world.mom.position.z };
+  const destination = { x: -10.2, z: 18 };
+  const route = sceneRoute(
+    origin,
+    destination,
+    world.rects.filter((r) => r !== world.momCollider),
+  );
+  if (!route.length) return;
+  (s.momHomeStory ??= {}).gardenStage ||= 1;
+  world.setMomDay(s.day, true, true, s.familyStory, true);
+  positionStoryMom(origin.x, origin.z);
+  momGardenVisit = {
+    route,
+    distance: 0,
+    length: routeLength(route),
+    arrived: false,
+    offered: false,
+  };
+  save();
+}
+
 function askMom() {
   if (momAway(s)) return;
+  if (momGardenVisit?.arrived && (s.momHomeStory?.gardenStage ?? 0) < 3)
+    return showMomGardenConversation();
+  if (
+    (s.momHomeStory?.mansionStage ?? 0) > 0 &&
+    canTellMomAboutMansion(s) &&
+    atHome()
+  )
+    return showMomMansionConversation();
   if (s.adventure?.feather) {
     const name = s.adventure.feather.chicken;
     return speak("mom", "<p>What have you brought me, sweetheart?</p>", [
@@ -1381,7 +1541,11 @@ function playMomPuzzle() {
 }
 function returnToMom() {
   if (momAway(s)) return;
-  if (s.adventure?.feather) return askMom();
+  if (
+    s.adventure?.feather ||
+    (canTellMomAboutMansion(s) && (s.momHomeStory?.mansionStage ?? 0) > 0)
+  )
+    return askMom();
   if (offerCooking()) return;
   if (s.familyStory) return askMom();
   s.metMom = true;
@@ -1453,6 +1617,21 @@ function speak(id: string, text: string, choices: Choice[] = []) {
     ...c,
     label: c.label.replaceAll("—", ". "),
   }));
+  if (
+    id === "mom" &&
+    !momHomeDialogue &&
+    !momAway(s) &&
+    atHome() &&
+    canTellMomAboutMansion(s)
+  )
+    choices.push({
+      label: "Mom, I bought a mansion.",
+      run: () => {
+        beginMansionConversation(s);
+        save();
+        showMomMansionConversation();
+      },
+    });
   if (
     id === "mom" &&
     s.spanakopita &&
@@ -2463,10 +2642,6 @@ function syncFurnishings() {
   const version = JSON.stringify(s.furniture ?? []);
   if (version === furnishingVersion) return;
   furnishingVersion = version;
-  if (s.housing?.status === "owned")
-    s.housing.momBed = (s.furniture ?? []).some(
-      (p) => p.item === "royal-bed" && p.z < -300 && p.y < 0.2,
-    );
   for (const r of furnishingRects) {
     const i = world.rects.indexOf(r);
     if (i >= 0) world.rects.splice(i, 1);
@@ -2698,14 +2873,6 @@ function commitFurniture() {
     if (at < 0) return;
     s.furnitureBag!.splice(at, 1);
     (s.furniture ??= []).push({ ...f.point });
-  }
-  if (
-    s.housing?.status === "owned" &&
-    f.item === "royal-bed" &&
-    f.point.z < -300
-  ) {
-    s.housing.momBed = true;
-    toast("Mom has a bed here now. She can stay with you.");
   }
   s.events.push(`Hung or placed ${furnitureById(f.item).name} at home.`);
   cancelFurniture();
@@ -4305,7 +4472,7 @@ function interact(skipTrader = false): void {
       return toast("The house is locked. Nobody lives there now.");
     return panel(
       "My mansion",
-      "<p>Press F5 to open the furniture editor and arrange your furnishings. Mom needs a canopy bed before she will stay here.</p>",
+      "<p>Press F5 to open the furniture editor and arrange your furnishings. Your little house is still home to Mom, the chickens, and the birdhouses.</p>",
       [
         { label: "Open my Bag", run: bag },
         { label: "Back", run: close },
@@ -5239,6 +5406,8 @@ function resetTransientMotion() {
   closeFurnitureEditor();
   keyboardAudio.stop();
   beaGuide = undefined;
+  momGardenVisit = undefined;
+  momHomeDialogue = false;
   if (hatHanging) {
     scene.remove(hatHanging.model);
     hatHanging.model.traverse((o) => {
@@ -5963,7 +6132,13 @@ function frame(now: number) {
     !teaSeated &&
     !cookingScene &&
     !kitchenPrepared &&
-    world.setMomDay(s.day, atHome(), false, s.familyStory) &&
+    world.setMomDay(
+      s.day,
+      atHome(),
+      false,
+      s.familyStory,
+      !!momGardenVisit || s.momHomeStory?.gardenDay === s.day,
+    ) &&
     s.awake &&
     !sitting &&
     blocked(s.position.x, s.position.z, world.rects)
@@ -6011,6 +6186,7 @@ function frame(now: number) {
     !celebration &&
     !hatHanging &&
     !estateFilm;
+  updateMomGardenVisit(active && s.awake ? dt : 0);
   if (beaGuide) {
     if (
       active &&
@@ -6376,7 +6552,8 @@ function frame(now: number) {
       if (!cookingScene) tickFood(s, elapsed);
       const homeNow = atHome();
       const momInside =
-        !(s.housing?.status === "owned" && s.housing.momBed) &&
+        !momGardenVisit &&
+        s.momHomeStory?.gardenDay !== s.day &&
         !momAway(s) &&
         !s.familyStory?.escort &&
         !teaSeated &&
@@ -6400,7 +6577,12 @@ function frame(now: number) {
         visit("Talked with Mom before heading out.");
         const greeting = momGreeting();
         visit(`Heard Mom: ${greeting}`);
-        if (s.familyStory || s.adventure?.feather) askMom();
+        if (
+          s.familyStory ||
+          s.adventure?.feather ||
+          (canTellMomAboutMansion(s) && (s.momHomeStory?.mansionStage ?? 0) > 0)
+        )
+          askMom();
         else
           speak("mom", `<p>${greeting}</p>`, [
             ...(canTellMom(s)
@@ -6825,7 +7007,7 @@ function frame(now: number) {
     audio,
     soundsActive &&
       !momAway(s) &&
-      momStatus(s.day, s.familyStory).activity === "music" &&
+      world.mom.userData.activity === "music" &&
       keyboardDistance < 10
       ? "keyboard"
       : "",
@@ -7208,6 +7390,11 @@ if (new URLSearchParams(location.search).has("test")) {
       film: estateFilm ? { kind: estateFilm.kind, t: estateFilm.t } : null,
       meteors: s.adventure?.meteors ?? [],
       meteorSyncs: meteorWorld.stats(),
+      mom: world.mom.position.toArray(),
+      momActivity: world.mom.userData.activity,
+      gardenVisit: momGardenVisit
+        ? { arrived: momGardenVisit.arrived, distance: momGardenVisit.distance }
+        : null,
       feather: featherModel.visible,
       featherHandoff: featherHandoff?.t ?? null,
       featherParent: featherModel.parent?.name,
@@ -7840,7 +8027,7 @@ const estateWorld = createEstateWorld(
 );
 let estateFilm:
   | {
-      kind: "move" | "repo";
+      kind: "repo";
       t: number;
       truck: T.Group;
       actor?: T.Group;
@@ -7952,7 +8139,9 @@ function chooseMansion(mortgage: boolean, speaker: string) {
         estateWorld.update(s);
         save();
         dismissSpeech();
-        beginEstateFilm("move");
+        toast(
+          "The mansion is yours. You can tell Mom about it next time you go home.",
+        );
       },
     })),
   );
@@ -7982,7 +8171,7 @@ function mansionShop() {
   );
 }
 
-function beginEstateFilm(kind: "move" | "repo") {
+function beginEstateFilm(kind: "repo") {
   if (estateFilm) return;
   dismountBike();
   keys.clear();
@@ -8005,37 +8194,13 @@ function updateEstateFilm(dt: number) {
   const h = s.housing;
   if (!h) return;
   if (!estateFilm && begun && s.awake && !paused && !speaking) {
-    if (h.status === "owned" && !h.movingInSeen) beginEstateFilm("move");
-    else if (h.status === "evicted" && !h.evictionSeen) {
+    if (h.status === "evicted" && !h.evictionSeen) {
       s.furniture = s.furniture?.filter((p) => p.z > -300);
       syncFurnishings();
       beginEstateFilm("repo");
     }
   }
-  if (!estateFilm) {
-    if (h.status === "owned" && h.momBed && !momAway(s)) {
-      const bed = s.furniture?.find(
-        (p) => p.item === "royal-bed" && p.z < -300,
-      );
-      if (bed) {
-        world.mom.position.set(
-          T.MathUtils.clamp(
-            bed.x + (bed.x > mansionLot.x ? -1.8 : 1.8),
-            73,
-            103,
-          ),
-          0,
-          bed.z,
-        );
-        const target = world.targets.find((t) => t.id === "mom");
-        if (target) {
-          target.x = world.mom.position.x;
-          target.z = world.mom.position.z;
-        }
-      }
-    }
-    return;
-  }
+  if (!estateFilm) return;
   const film = estateFilm;
   film.t += dt;
   film.truck.position.set(
@@ -8056,30 +8221,12 @@ function updateEstateFilm(dt: number) {
     );
     film.actor.rotation.y = Math.PI / 2;
   }
-  if (film.kind === "move") {
-    world.mom.position.set(
-      film.t < 3 ? film.truck.position.x + 0.5 : mansionLot.x + 1.3,
-      film.t < 3 ? 1 : 0,
-      film.t < 3 ? film.truck.position.z + 1 : mansionLot.z + 14,
-    );
-    world.player.position.set(
-      film.t < 3 ? film.truck.position.x - 0.5 : mansionLot.x,
-      film.t < 3 ? 1 : 0,
-      film.t < 3 ? film.truck.position.z + 1 : mansionLot.z + 14,
-    );
-    if (film.t > 3 && film.t < 3 + dt) {
-      toast(
-        "Mom: It’s beautiful, love! But this neighborhood is strange. I’ll stay once you put down a bed for me.",
-      );
-    }
-  } else if (film.t > 3 && film.t < 3 + dt)
+  if (film.t > 3 && film.t < 3 + dt)
     toast(
       "REPO MAN: You failed to make your mortgage payment. You’re losing the house. The doors are locked.",
     );
   if (film.t >= 8) {
     disposeAnimation(film.truck);
-    h.movingInSeen = true;
-    if (!h.momBed) world.setMomDay(s.day, false, true, s.familyStory);
     if (film.kind === "repo") h.evictionSeen = true;
     if (film.actor) disposeAnimation(film.actor);
     estateFilm = undefined;

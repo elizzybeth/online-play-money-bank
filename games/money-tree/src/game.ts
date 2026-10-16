@@ -1,3 +1,4 @@
+import { validMomHomeStory, type MomHomeStory } from "./mom-home-story";
 import { validCrops, type Crop } from "./garden-crops";
 import { withinPlayableBounds } from "./world-bounds";
 import { dailyEconomy, validAdventure, type Adventure } from "./adventure";
@@ -77,6 +78,7 @@ export type State = {
   version: 1;
   adventure?: Adventure;
   housing?: Housing;
+  momHomeStory?: MomHomeStory;
   groceries?: Partial<Record<Ingredient, number>>;
   foodBuff?: FoodBuff;
   pendingMeal?: number;
@@ -782,6 +784,7 @@ export function decode(raw: string | null): State | null {
       s.version !== 1 ||
       !validAdventure(s.adventure, s.day) ||
       !validHousing(s.housing, s.day) ||
+      !validMomHomeStory(s.momHomeStory, s.day) ||
       !validFood(s) ||
       !validFurnishings(s) ||
       [

@@ -295,14 +295,14 @@ test("Mom does not request a completed feather gift again that day", () => {
   assert.ok(requestFeather(s));
 });
 
-test("mansion reflections recognize Mom already has a bed", () => {
+test("mansion reflections never ask for a bed or moving Mom", () => {
   const s = estate();
   buyMansion(s, "hearst", true);
   s.housing!.momBed = true;
   for (let i = 0; i < 100; i++)
-    assert.notEqual(
-      chooseDesertReflection(s, () => i / 100),
-      "Mom needs a bed, not a grand entrance.",
+    assert.doesNotMatch(
+      chooseDesertReflection(s, () => i / 100) ?? "",
+      /Mom needs a bed|room for Mom/,
     );
 });
 

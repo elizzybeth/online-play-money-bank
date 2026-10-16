@@ -888,6 +888,7 @@ export function createWorld(scene: T.Scene) {
     playerHome = true,
     force = false,
     story?: FamilyStory,
+    gardenVisit = false,
   ) {
     paintForDay(day);
     const absent = !!story && day === story.surgeryDay;
@@ -917,7 +918,9 @@ export function createWorld(scene: T.Scene) {
       activityProps.forEach((g) => (g.visible = false));
       return false;
     }
-    const status = momStatus(day, story),
+    const status = gardenVisit
+        ? { ...momStatus(day, story), activity: "garden" as const }
+        : momStatus(day, story),
       garden = status.activity === "garden";
     const key = `${day}-${garden}`;
     if (key === momKey && !force) return false;
