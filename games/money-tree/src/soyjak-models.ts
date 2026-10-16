@@ -26,14 +26,17 @@ function face(
   x: number,
   y: number,
   z: number,
+  resolution = 512,
 ) {
   const canvas = document.createElement("canvas");
-  canvas.width = 512;
-  canvas.height = 512;
+  canvas.width = resolution;
+  canvas.height = resolution;
   const c = canvas.getContext("2d")!;
+  c.scale(resolution / 512, resolution / 512);
   draw(c);
   const texture = new T.CanvasTexture(canvas);
   texture.colorSpace = T.SRGBColorSpace;
+  texture.anisotropy = 8;
   const m = new T.Mesh(
     new T.PlaneGeometry(w, h),
     new T.MeshStandardMaterial({
@@ -71,13 +74,20 @@ export function makeSeriousHat() {
     (c) => {
       c.fillStyle = "#e6ddcb";
       c.fillRect(0, 0, 512, 512);
-      c.strokeStyle = "#28251e";
-      c.lineWidth = 9;
-      c.strokeRect(5, 5, 502, 502);
       c.fillStyle = "#171714";
-      c.font = "64px cursive";
+      c.font = "96px Gaegu, cursive";
       c.textAlign = "center";
-      c.fillText("Serious hat", 256, 300);
+      const text = "Serious Hat";
+      const widths = [...text].map((letter) => c.measureText(letter).width);
+      let x = (512 - widths.reduce((sum, n) => sum + n, 0)) / 2;
+      [...text].forEach((letter, i) => {
+        c.save();
+        c.translate(x + widths[i] / 2, 290 + Math.sin(i * 2) * 10);
+        c.rotate(Math.sin(i * 3) * 0.045);
+        c.fillText(letter, 0, 0);
+        c.restore();
+        x += widths[i];
+      });
     },
     0.94,
     0.44,
@@ -86,6 +96,45 @@ export function makeSeriousHat() {
     0.128,
   );
   lettering.rotation.x = -Math.atan(0.25 / 0.45);
+  const back = lettering.clone();
+  back.position.z *= -1;
+  back.rotation.set(Math.atan(0.25 / 0.45), Math.PI, 0);
+  g.add(back);
+  const ends = document.createElement("canvas");
+  ends.width = ends.height = 512;
+  const ink = ends.getContext("2d")!;
+  ink.fillStyle = "#e6ddcb";
+  ink.fillRect(0, 0, 512, 512);
+  ink.fillStyle = "#171714";
+  ink.textAlign = "center";
+  ink.font = "96px Gaegu, cursive";
+  ink.fillText("Serious", 256, 365);
+  ink.font = "120px Gaegu, cursive";
+  ink.fillText("Hat", 256, 475);
+  const endTexture = new T.CanvasTexture(ends);
+  endTexture.colorSpace = T.SRGBColorSpace;
+  const endMaterial = new T.MeshStandardMaterial({
+    map: endTexture,
+    roughness: 1,
+  });
+  const endGeometry = new T.ShapeGeometry(shape);
+  const positions = endGeometry.attributes.position;
+  endGeometry.setAttribute(
+    "uv",
+    new T.Float32BufferAttribute(
+      Array.from({ length: positions.count }, (_, i) => [
+        positions.getX(i) / 0.5 + 0.5,
+        positions.getY(i) / 0.45,
+      ]).flat(),
+      2,
+    ),
+  );
+  for (const side of [-1, 1]) {
+    const end = new T.Mesh(endGeometry, endMaterial);
+    end.position.x = side * 0.535;
+    end.rotation.y = (side * Math.PI) / 2;
+    g.add(end);
+  }
   return g;
 }
 export function makeSoyjakHead() {
@@ -213,6 +262,7 @@ export function makeSoyjakStall() {
     0,
     2.9,
     -1.61,
+    2048,
   );
   for (const x of [-1.3, 1.3]) {
     block(g, x, 3.45, -0.4, 0.04, 0.6, 0.04, "#292f30");

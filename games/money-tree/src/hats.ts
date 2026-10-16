@@ -79,7 +79,7 @@ export const hats = [
     price: 25000,
     color: "#476c94",
     power:
-      "Plant every available site on the same terrace in one action. Uses one seed per site; plants as many as your seeds cover.",
+      "Plant or harvest an entire terrace in one action. Uses one seed per site; plants as many as your seeds cover.",
   },
   {
     id: "verdant",

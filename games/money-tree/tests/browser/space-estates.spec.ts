@@ -104,9 +104,9 @@ for (const style of ["hearst", "vernon"] as const)
     expect(
       (await page.evaluate(() => (window as any).game.state())).furniture ?? [],
     ).toHaveLength(0);
-    await page.keyboard.press("i");
+    await page.keyboard.press("F5");
     await page
-      .getByRole("button", { name: "Place Carved canopy bed", exact: true })
+      .getByRole("button", { name: "Preview Carved canopy bed", exact: true })
       .click();
     await frames(page);
     await page.keyboard.press("e");
@@ -114,6 +114,7 @@ for (const style of ["hearst", "vernon"] as const)
     const state = await page.evaluate(() => (window as any).game.state());
     expect(state.furniture).toHaveLength(1);
     expect(state.housing.momBed).toBe(true);
+    await page.keyboard.press("F5");
     await page.evaluate(() => (window as any).game.teleport(-38, -311));
     await frames(page);
     await page.keyboard.press("e");
@@ -139,13 +140,27 @@ for (const distant of [false, true])
     createCoin(s, "SpaceTree");
     s.coin!.price = 10000;
     s.coin!.exactPrice = 10000;
-    s.adventure = { meteorNextDay: 2, meteorNextAt: 0 };
+    s.adventure = { meteorCadence: 1, meteorNextDay: 2, meteorNextAt: 0 };
     await start(page, s);
     await page.evaluate(() => (window as any).game.advanceSpace(3));
     await frames(page, 90);
     const state = await page.evaluate(() => (window as any).game.state());
     expect(state.adventure.meteors).toHaveLength(1);
     expect(state.adventure.meteors[0].landed).toBe(true);
+    expect(state.adventure.meteors[0].seedPackets).toBe(1023);
+    const packet = await page.evaluate(() =>
+      (window as any).game.targets.find((t: any) => t.id === "meteor-seed-1-0"),
+    );
+    expect(packet).toBeTruthy();
+    await page.evaluate((p) => (window as any).game.teleport(p.x, p.z), packet);
+    await frames(page);
+    await expect(page.locator("#prompt")).toContainText("Pick up seed packet");
+    await page.keyboard.press("e");
+    await frames(page);
+    expect(
+      (await page.evaluate(() => (window as any).game.state())).seeds,
+    ).toBe(state.seeds + 5);
+
     expect(state.plots[state.adventure.meteors[0].plot].meteor).toBe(
       state.adventure.meteors[0].id,
     );
@@ -157,6 +172,7 @@ for (const distant of [false, true])
     const reloaded = await page.evaluate(() => (window as any).game.state());
     expect(reloaded.coin.price).toBe(8200);
     expect(reloaded.adventure.meteors).toHaveLength(1);
+    expect(reloaded.adventure.meteors[0].seedPackets).toBe(1022);
     if (process.env.MONEY_TREE_CAPTURE) {
       await page.evaluate(() => (window as any).game.craterView());
       await page.screenshot({

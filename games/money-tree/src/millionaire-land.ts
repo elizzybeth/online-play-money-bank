@@ -24,11 +24,11 @@ export function terrainHeight(x: number, z: number) {
   if (crater) return craterHeight(Math.hypot(x - crater.x, z - crater.z));
   if (Math.abs(x - 34) <= 3 && z <= -340 && z >= -445)
     return (-z - 340) * (14 / 105);
-  const terrace = mountainTerraces
-    .slice()
-    .reverse()
-    .find((t) => ((x - t.x) / t.rx) ** 2 + ((z - t.z) / t.rz) ** 2 <= 1);
-  return terrace?.y ?? 0;
+  for (let i = mountainTerraces.length - 1; i >= 0; i--) {
+    const t = mountainTerraces[i];
+    if (((x - t.x) / t.rx) ** 2 + ((z - t.z) / t.rz) ** 2 <= 1) return t.y;
+  }
+  return 0;
 }
 export function fertileMountainSoil(x: number, z: number) {
   return (
@@ -51,6 +51,21 @@ export const mountainPlots = mountainTerraces
     ]),
   )
   .map((p) => ({ ...p, y: terrainHeight(p.x, p.z) }));
+// Extend existing gardens outward without changing any saved plot coordinates.
+for (const t of mountainTerraces) {
+  for (const side of [-1, 1])
+    for (let offset = 16; offset <= t.rx - 2; offset += 4)
+      for (const dz of [-7, 0, 7]) {
+        const x = t.x + side * offset,
+          z = t.z + dz;
+        if (
+          fertileMountainSoil(x, z) &&
+          terrainHeight(x, z) === t.y &&
+          mountainPlots.every((p) => Math.hypot(p.x - x, p.z - z) >= 2.5)
+        )
+          mountainPlots.push({ x, z, y: t.y });
+      }
+}
 export const mansionSites = Array.from({ length: 6 }, (_, i) => ({
   x: i % 2 ? -70 : 138,
   z: -315 - Math.floor(i / 2) * 52,

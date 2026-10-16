@@ -46,6 +46,14 @@ export function gardenBatch(s: State, i: number, job: GardenJob) {
           ["planted", "growing"].includes(p.stage);
   };
   if (!eligible(i)) return [];
+  if (job === "harvest" && wearing(s, "terrace") && s.plots[i].mountain) {
+    const tier = terrainHeight(s.plots[i].x!, s.plots[i].z!);
+    return s.plots.flatMap((p, j) =>
+      p.mountain && eligible(j) && terrainHeight(p.x!, p.z!) === tier
+        ? [j]
+        : [],
+    );
+  }
   if (!wearing(s, "inspector") || (job === "fertilize" && s.fertilizer < 2))
     return [i];
   if (s.plots[i].mountain) {

@@ -225,7 +225,8 @@ test("Grindset remains a shopkeeper first and Party Horn emits a longer note par
       exact: true,
     })
     .click();
-  await expect(page.locator(".speech-bubble")).toContainText("2%");
+  await expect(page.locator(".speech-bubble")).not.toContainText("2%");
+  await expect(page.locator(".speech-bubble")).toContainText("I ");
   await page.getByRole("button", { name: "Tell me more", exact: true }).click();
   await page
     .getByRole("button", { name: "See you around", exact: true })
@@ -240,7 +241,8 @@ test("Grindset remains a shopkeeper first and Party Horn emits a longer note par
       exact: true,
     })
     .click();
-  await expect(page.locator(".speech-bubble")).toContainText("2%");
+  await expect(page.locator(".speech-bubble")).not.toContainText("2%");
+  await expect(page.locator(".speech-bubble")).toContainText("I ");
   expect(
     (await page.evaluate(() => (window as any).game.savedState())).neighborChats
       .gigachad,

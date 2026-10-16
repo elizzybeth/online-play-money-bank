@@ -72,9 +72,9 @@ test("floor furnishings use red/green placement, save and rebuild after refresh"
     position: { x: -15, z: 1 },
     furnitureBag: ["chair"],
   });
-  await page.keyboard.press("i");
+  await page.keyboard.press("F5");
   await page
-    .getByRole("button", { name: "Place Velvet reading chair" })
+    .getByRole("button", { name: "Preview Velvet reading chair" })
     .click();
   await page.evaluate(() => (window as any).game.setYaw(Math.PI));
   await frames(page);
@@ -141,8 +141,8 @@ test("painting placement rejects the bedroom window and uses a clear wall", asyn
   page,
 }) => {
   await start(page, { position: { x: -15, z: 1 }, furnitureBag: ["sunset"] });
-  await page.keyboard.press("i");
-  await page.getByRole("button", { name: "Place Sunset painting" }).click();
+  await page.keyboard.press("F5");
+  await page.getByRole("button", { name: "Preview Sunset painting" }).click();
   await page.evaluate(() => (window as any).game.setYaw(0));
   await frames(page);
   expect(
@@ -215,3 +215,109 @@ for (const day of [1, 3]) {
     await expect(page.locator("#stats")).toHaveText(`Day ${day}`);
   });
 }
+
+test("F5 editor previews models while walking, locks, moves, cancels and retrieves without losing furniture", async ({
+  page,
+}, info) => {
+  const errors = await start(page, {
+    position: { x: -15, z: 1 },
+    furnitureBag: ["chair", "chair", "pouf"],
+  });
+  await page.keyboard.press("F5");
+  await expect(
+    page.getByRole("dialog", { name: "Choose furniture" }),
+  ).toBeVisible();
+  await expect(page.locator(".editor-card img")).toHaveCount(2);
+  await page.screenshot({ path: info.outputPath("furniture-browser.png") });
+  await page
+    .getByRole("button", { name: "Preview Velvet reading chair", exact: true })
+    .click();
+  await page.evaluate(() => (window as any).game.setYaw(Math.PI));
+  await frames(page);
+  const point = (await page.evaluate(() => (window as any).game.homeLiving()))
+    .placing.point;
+  await page.keyboard.press("l");
+  await frames(page);
+  await page.evaluate(() => {
+    const root = document.querySelector("#furniture-editor")!;
+    (window as any).editorMutations = 0;
+    const observer = new MutationObserver(
+      (records) => ((window as any).editorMutations += records.length),
+    );
+    observer.observe(root, {
+      subtree: true,
+      attributes: true,
+      childList: true,
+      characterData: true,
+    });
+    (window as any).editorObserver = observer;
+  });
+  await frames(page, 10);
+  expect(
+    await page.evaluate(() => {
+      (window as any).editorObserver.disconnect();
+      return (window as any).editorMutations;
+    }),
+  ).toBe(0);
+  const origin = await page.evaluate(
+    () => (window as any).game.state().position,
+  );
+  await page.keyboard.down("d");
+  await frames(page, 10);
+  await page.keyboard.up("d");
+  expect(
+    (await page.evaluate(() => (window as any).game.state())).position.x,
+  ).not.toBe(origin.x);
+  expect(
+    (await page.evaluate(() => (window as any).game.homeLiving())).placing
+      .point,
+  ).toEqual(point);
+  await page.screenshot({ path: info.outputPath("furniture-preview.png") });
+  await page.keyboard.press("e");
+  await frames(page);
+  let state = await page.evaluate(() => (window as any).game.state());
+  expect(state.furniture).toHaveLength(1);
+  expect(
+    state.furnitureBag.filter((id: string) => id === "chair"),
+  ).toHaveLength(1);
+  await page
+    .getByRole("button", { name: "Move Velvet reading chair", exact: true })
+    .click();
+  await page.keyboard.press("ArrowRight");
+  await frames(page);
+  await page.keyboard.press("Escape");
+  expect(
+    (await page.evaluate(() => (window as any).game.state())).furniture[0],
+  ).toEqual(point);
+  await page
+    .getByRole("button", { name: "Move Velvet reading chair", exact: true })
+    .click();
+  await page.keyboard.press("ArrowRight");
+  await frames(page);
+  await page.keyboard.press("e");
+  await frames(page);
+  state = await page.evaluate(() => (window as any).game.state());
+  expect(state.furniture).toHaveLength(1);
+  expect(state.furniture[0].x).toBeCloseTo(point.x + 0.1);
+  await page
+    .getByRole("button", { name: "Move Velvet reading chair", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Put back in bag", exact: true })
+    .click();
+  state = await page.evaluate(() => (window as any).game.state());
+  expect(state.furniture).toHaveLength(0);
+  expect(
+    state.furnitureBag.filter((id: string) => id === "chair"),
+  ).toHaveLength(2);
+  await page.keyboard.press("F5");
+  await expect(page.locator("#furniture-editor")).toBeHidden();
+  await page.evaluate(() => (window as any).game.storageFlush());
+  await page.reload();
+  await page.getByRole("button", { name: "Wake up" }).click();
+  await frames(page);
+  expect(
+    (await page.evaluate(() => (window as any).game.state())).furnitureBag,
+  ).toHaveLength(3);
+  expect(errors).toEqual([]);
+});

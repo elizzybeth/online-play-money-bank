@@ -236,7 +236,8 @@ export function canPlaceFurniture(
     ) &&
     !placed.some((o) => {
       const t = furnitureById(o.item);
-      if (t.wall) return false;
+      if (t.wall || t.id.includes("rug") || item.id.includes("rug"))
+        return false;
       const ow =
           Math.abs(Math.cos(o.rotation)) * t.w +
           Math.abs(Math.sin(o.rotation)) * t.d,

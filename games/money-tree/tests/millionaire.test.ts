@@ -1,4 +1,4 @@
-import { fertileMountainSoil } from "../src/millionaire-land";
+import { mountainPlots, fertileMountainSoil } from "../src/millionaire-land";
 import { createCoin, investCoin, sellCoin, coinValue } from "../src/sigma";
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -130,7 +130,10 @@ test("mountain planting grows overnight with fertilizer, saves reload and transf
   const restored = decode(JSON.stringify(s));
   assert(restored);
   assert.deepEqual(restored.millionaire, s.millionaire);
-  assert.equal(restored.plots.filter((p) => p.mountain).length, 100);
+  assert.equal(
+    restored.plots.filter((p) => p.mountain).length,
+    mountainPlots.length,
+  );
 });
 
 test("coin sales are exempt from tithing and retain partial-sale basis tracking", () => {
@@ -215,13 +218,13 @@ test("old mountain gardens migrate to one hundred sites without losing a planted
   first.stage = "planted";
   s.plots = s.plots.filter((p) => !p.mountain || p === first);
   ensureMountainPlots(s);
-  assert.equal(s.plots.filter((p) => p.mountain).length, 100);
+  assert.equal(s.plots.filter((p) => p.mountain).length, mountainPlots.length);
   assert.equal(first.stage, "growing");
   assert.equal(first.fertilized, true);
   assert(fertileMountainSoil(first.x!, first.z!));
   const coordinates = s.plots
     .filter((p) => p.mountain)
     .map((p) => `${p.x},${p.z}`);
-  assert.equal(new Set(coordinates).size, 100);
+  assert.equal(new Set(coordinates).size, mountainPlots.length);
   assert.equal(ensureMountainPlots(s), false);
 });

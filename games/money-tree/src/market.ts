@@ -100,7 +100,7 @@ export function traderFlow(s: State) {
 export function traderDialogue(s: State, id: string) {
   const t = s.coin?.traders?.find((t) => t.id === id);
   if (!t) return null;
-  return `I aim for an average 2% per game day, with no promises about any one day. ${strategies[t.strategy]} ${t.trades ? `After ${t.trades} trades, my portfolio is ${t.lastProfit >= 0 ? "up" : "down"} $${(Math.abs(t.lastProfit) / 100).toFixed(2)} against my starting cash.` : "I have just started; I have not made a trade yet."}`;
+  return `${strategies[t.strategy]} ${t.trades ? `After ${t.trades} trades, my portfolio is ${t.lastProfit >= 0 ? "up" : "down"} $${(Math.abs(t.lastProfit) / 100).toFixed(2)} against my starting cash.` : "I have just started; I have not made a trade yet."}`;
 }
 export function roundResistance(
   before: number,

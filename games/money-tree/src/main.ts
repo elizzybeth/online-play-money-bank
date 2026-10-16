@@ -1,3 +1,5 @@
+import { createFurnitureEditor } from "./furniture-editor";
+import { collectMeteorPacket } from "./adventure";
 import { buySoy, soyProducts } from "./soyjak";
 import {
   crops,
@@ -1495,6 +1497,7 @@ function speak(id: string, text: string, choices: Choice[] = []) {
     ];
   }
   if (choices.length) releaseMouse();
+  if (furnitureEditorOpen) closeFurnitureEditor();
   toastTime = 0;
   setCss($("#toast").style, "opacity", "0");
   dismissSpeech();
@@ -1695,7 +1698,7 @@ function foodOfTheGods() {
         run: () =>
           speak(
             "gigachad",
-            "<p>Does? It’s spanakopita, bro. Spinach, phyllo, feta. What more could you want?</p>",
+            "<p>Do? It’s spanakopita, bro. Spinach, phyllo, feta. What more could you want?</p>",
             [
               {
                 label: "I dunno, dill?",
@@ -1775,6 +1778,7 @@ function panel(
   choices: Choice[],
   _subtitle = "MONEY TREE",
 ) {
+  if (furnitureEditorOpen) closeFurnitureEditor();
   toastTime = 0;
   setCss($("#toast").style, "opacity", "0");
   title = title.replaceAll("—", ". ");
@@ -2147,10 +2151,7 @@ function bag() {
       ...ingredients
         .filter((k) => !!s.groceries?.[k])
         .map((k) => ({ label: `${k}: ${s.groceries![k]} in bag`, run: bag })),
-      ...(s.furnitureBag ?? []).map((item) => ({
-        label: `Place ${furnitureById(item).name}`,
-        run: () => beginFurniture(item),
-      })),
+      { label: "Furniture editor · F5", run: openFurnitureEditor },
       { label: "Back to the day", default: true, run: close },
     ],
     "YOUR LITTLE COLLECTION",
@@ -2202,10 +2203,11 @@ function hangHat(id: HatId) {
   const from = world.wornHat.getWorldPosition(new T.Vector3());
   removeHat(s, id);
   const index = s.hats.filter((h) => !wearing(s, h)).indexOf(id);
+  const mountainRack = s.position.z < -300;
   const to = new T.Vector3(
-    -20.2 + (index % 2 ? 0.36 : -0.36),
-    0.6 + Math.floor(index / 2) * 0.46,
-    4.97,
+    (mountainRack ? -22.7 : -20.2) + (index % 2 ? 0.36 : -0.36),
+    0.6 + Math.floor((mountainRack ? index % 6 : index) / 2) * 0.46,
+    mountainRack ? -312.03 : 4.97,
   );
   model.position.copy(from);
   scene.add(model);
@@ -2357,8 +2359,100 @@ let placingFurniture:
       rotation: number;
       point?: PlacedFurniture;
       valid: boolean;
+      sourceIndex?: number;
+      sourceRect?: Rect;
+      locked?: boolean;
+      distance: number;
+      outline: T.BoxHelper;
+      obstacles: Rect[];
+      walls: WallSpace[];
+      placed: PlacedFurniture[];
     }
   | undefined;
+let furnitureEditorOpen = false;
+const furnitureEditor = createFurnitureEditor({
+  entries: () => [
+    ...[...new Set(s.furnitureBag ?? [])].map((item) => ({
+      item,
+      quantity: s.furnitureBag!.filter((id) => id === item).length,
+    })),
+    ...(s.furniture ?? []).map((p, index) => ({ item: p.item, index })),
+  ],
+  portrait: (id) => shopPortrait(id, () => makeFurnishing(id)),
+  select: (entry) => beginFurniture(entry.item, entry.index),
+  browse: browseFurniture,
+  confirm: commitFurniture,
+  cancel: () => {
+    cancelFurniture();
+    furnitureEditor.browse();
+  },
+  retrieve: retrieveFurniture,
+  exit: closeFurnitureEditor,
+});
+function cancelFurniture() {
+  const f = placingFurniture;
+  if (!f) return;
+  if (f.sourceIndex !== undefined && furnishingRoot.children[f.sourceIndex])
+    furnishingRoot.children[f.sourceIndex].visible = true;
+  if (f.sourceRect && !world.rects.includes(f.sourceRect))
+    world.rects.push(f.sourceRect);
+  disposeAnimation(f.ghost);
+  f.outline.removeFromParent();
+  f.outline.geometry.dispose();
+  (f.outline.material as T.Material).dispose();
+  placingFurniture = undefined;
+}
+function browseFurniture() {
+  cancelFurniture();
+  furnitureEditor.browse();
+}
+function closeFurnitureEditor() {
+  cancelFurniture();
+  furnitureEditorOpen = false;
+  furnitureEditor.close();
+  keys.clear();
+}
+function openFurnitureEditor() {
+  if (
+    !begun ||
+    !s.awake ||
+    birdhouseScene ||
+    world.life.busy ||
+    cookingScene ||
+    featherHandoff ||
+    hatHanging ||
+    estateFilm ||
+    celebration
+  )
+    return;
+  if (sitting) return toast("Stand up before arranging furniture.");
+  releaseMouse();
+  dismissSpeech();
+  close();
+  if (riding) mountBike();
+  furnitureEditorOpen = true;
+  placingBed = false;
+  browseFurniture();
+}
+function retrieveFurniture() {
+  const f = placingFurniture;
+  if (f?.sourceIndex === undefined) return;
+  const source = s.furniture?.[f.sourceIndex];
+  if (!source) return;
+  if ((s.furnitureBag?.length ?? 0) >= 200)
+    return toast(
+      "Your furniture bag is full. Place an item before putting another away.",
+    );
+  if (source.seed !== undefined)
+    return toast("Mom’s paintings can be moved, but stay on display.");
+  const index = f.sourceIndex;
+  cancelFurniture();
+  (s.furnitureBag ??= []).push(source.item);
+  s.furniture!.splice(index, 1);
+  syncFurnishings();
+  save();
+  furnitureEditor.browse();
+}
 const furnishingRoot = new T.Group();
 scene.add(furnishingRoot);
 let furnishingVersion = "";
@@ -2367,19 +2461,23 @@ function syncFurnishings() {
   const version = JSON.stringify(s.furniture ?? []);
   if (version === furnishingVersion) return;
   furnishingVersion = version;
+  if (s.housing?.status === "owned")
+    s.housing.momBed = (s.furniture ?? []).some(
+      (p) => p.item === "royal-bed" && p.z < -300 && p.y < 0.2,
+    );
   for (const r of furnishingRects) {
     const i = world.rects.indexOf(r);
     if (i >= 0) world.rects.splice(i, 1);
   }
   furnishingRects = [];
-  furnishingRoot.clear();
+  for (const child of [...furnishingRoot.children]) disposeAnimation(child);
   for (const p of s.furniture ?? []) {
     const model = makeFurnishing(p.item, p.seed);
     model.position.set(p.x, p.y, p.z);
     model.rotation.y = p.rotation;
     furnishingRoot.add(model);
     const f = furnitureById(p.item);
-    if (!f.wall && p.item !== "rug") {
+    if (!f.wall && !p.item.includes("rug")) {
       const r = {
         x: p.x,
         z: p.z,
@@ -2466,27 +2564,73 @@ function furnishingObstacles() {
       })),
     ]);
 }
-function beginFurniture(item: FurnishingId) {
-  if (!s.furnitureBag?.includes(item)) return;
+function beginFurniture(item: FurnishingId, sourceIndex?: number) {
+  if (sourceIndex === undefined && !s.furnitureBag?.includes(item)) return;
+  if (sourceIndex === undefined && (s.furniture?.length ?? 0) >= 200)
+    return toast(
+      "Your home has 200 furnishings. Put one away before adding another.",
+    );
+  cancelFurniture();
   close();
-  const ghost = makeFurnishing(item);
+  furnitureEditorOpen = true;
+  const source =
+    sourceIndex === undefined ? undefined : s.furniture?.[sourceIndex];
+  const sourceRect =
+    source && !furnitureById(source.item).wall && !source.item.includes("rug")
+      ? furnishingRects.find((r) => r.x === source.x && r.z === source.z)
+      : undefined;
+  if (sourceRect) {
+    const index = world.rects.indexOf(sourceRect);
+    if (index >= 0) world.rects.splice(index, 1);
+  }
+  const ghost = makeFurnishing(item, source?.seed);
+  ghost.traverse((o) => {
+    if (o instanceof T.Mesh) {
+      for (const material of Array.isArray(o.material)
+        ? o.material
+        : [o.material]) {
+        material.transparent = true;
+        material.opacity = 0.78;
+      }
+    }
+  });
   scene.add(ghost);
-  placingFurniture = { item, ghost, rotation: 0, valid: false };
-  toast(
-    "Move and aim to place. Green fits; red is obstructed. R rotates floor items. E places. Escape cancels.",
-  );
+  const outline = new T.BoxHelper(ghost, "#e55e64");
+  scene.add(outline);
+  placingFurniture = {
+    item,
+    ghost,
+    outline,
+    rotation: source?.rotation ?? 0,
+    valid: false,
+    sourceIndex,
+    sourceRect,
+    distance: 2.2,
+    obstacles: furnishingObstacles(),
+    walls: homeWalls(),
+    placed: (s.furniture ?? []).filter((_, i) => i !== sourceIndex),
+    locked: !!source,
+    point: source ? { ...source } : undefined,
+  };
+  if (source && furnishingRoot.children[sourceIndex!])
+    furnishingRoot.children[sourceIndex!].visible = false;
+  furnitureEditor.preview(item, sourceIndex !== undefined);
+  ($("#world") as HTMLCanvasElement).focus();
 }
 function updateFurniturePlacement() {
   const f = placingFurniture;
   if (!f) return;
   let point: PlacedFurniture = {
     item: f.item,
-    ...bedPosition(),
+    x: s.position.x + viewForward().x * f.distance,
+    z: s.position.z + viewForward().z * f.distance,
     y: 0,
     rotation: f.rotation,
+    ...(f.locked && f.point ? f.point : {}),
   };
-  if (furnitureById(f.item).wall) {
-    const walls = homeWalls();
+  point.rotation = f.rotation;
+  if (!f.locked && furnitureById(f.item).wall) {
+    const walls = f.walls;
     const facing = viewForward();
     const candidates = walls
       .map((w) => {
@@ -2511,21 +2655,21 @@ function updateFurniturePlacement() {
   f.point = point;
   f.valid = canPlaceFurniture(
     point,
-    furnishingObstacles(),
-    homeWalls(),
-    s.furniture ?? [],
+    f.obstacles,
+    f.walls,
+    f.placed,
     s.housing?.status === "owned",
   );
+  const original =
+    f.sourceIndex === undefined ? undefined : s.furniture?.[f.sourceIndex];
+  if (original?.seed !== undefined) point.seed = original.seed;
   f.ghost.position.set(point.x, point.y, point.z);
   f.ghost.rotation.y = point.rotation;
-  f.ghost.traverse((o) => {
-    if (o instanceof T.Mesh) {
-      const mat = o.material as T.MeshStandardMaterial;
-      mat.transparent = true;
-      mat.opacity = 0.65;
-      mat.color.set(f.valid ? "#63d684" : "#e55e64");
-    }
-  });
+  f.outline.update();
+  (f.outline.material as T.LineBasicMaterial).color.set(
+    f.valid ? "#63d684" : "#e55e64",
+  );
+  furnitureEditor.status(f.valid, !!f.locked);
 }
 function commitFurniture() {
   const f = placingFurniture;
@@ -2533,10 +2677,13 @@ function commitFurniture() {
     return toast(
       "Choose a clear wall without a window, or unoccupied floor space.",
     );
-  const at = s.furnitureBag!.indexOf(f.item);
-  if (at < 0) return;
-  s.furnitureBag!.splice(at, 1);
-  (s.furniture ??= []).push(f.point);
+  if (f.sourceIndex !== undefined) s.furniture![f.sourceIndex] = { ...f.point };
+  else {
+    const at = s.furnitureBag?.indexOf(f.item) ?? -1;
+    if (at < 0) return;
+    s.furnitureBag!.splice(at, 1);
+    (s.furniture ??= []).push({ ...f.point });
+  }
   if (
     s.housing?.status === "owned" &&
     f.item === "royal-bed" &&
@@ -2546,11 +2693,11 @@ function commitFurniture() {
     toast("Mom has a bed here now. She can stay with you.");
   }
   s.events.push(`Hung or placed ${furnitureById(f.item).name} at home.`);
-  f.ghost.removeFromParent();
-  placingFurniture = undefined;
+  cancelFurniture();
   syncFurnishings();
   save();
   toast("A little more personality for home.");
+  furnitureEditor.browse();
 }
 function hangMomCanvases() {
   for (const day of s.momCanvasDays ?? []) {
@@ -4128,13 +4275,22 @@ function interact(skipTrader = false): void {
     return toast(
       "Talk to the Community Guardian in the pagoda before planting here.",
     );
+  if (id.startsWith("meteor-seed-")) {
+    const [, , meteor, packet] = id.split("-");
+    if (collectMeteorPacket(s, Number(meteor), Number(packet))) {
+      save();
+      seedChime();
+      toast("A seed packet: five money seeds!");
+    }
+    return;
+  }
   if (id === "mansion-marvels") return mansionShop();
   if (id === "player-mansion") {
     if (s.housing?.status !== "owned")
       return toast("The house is locked. Nobody lives there now.");
     return panel(
       "My mansion",
-      "<p>Place furnishings from your Bag. Mom needs a canopy bed before she will stay here.</p>",
+      "<p>Press F5 to open the furniture editor and arrange your furnishings. Mom needs a canopy bed before she will stay here.</p>",
       [
         { label: "Open my Bag", run: bag },
         { label: "Back", run: close },
@@ -4379,7 +4535,7 @@ function interact(skipTrader = false): void {
   }
   if (id === "tv") return tvMenu();
   if (id === "notebook") return notebook();
-  if (id === "hat-rack") {
+  if (id === "hat-rack" || id === "mountain-hat-rack") {
     hatRack();
     return;
   }
@@ -4838,10 +4994,19 @@ addEventListener("keydown", (e) => {
     e.preventDefault();
   if (e.repeat) return;
   const key = e.key.toLowerCase();
+  if (key === "f5") {
+    e.preventDefault();
+    furnitureEditorOpen ? closeFurnitureEditor() : openFurnitureEditor();
+    return;
+  }
   if (key === "escape") {
     if (placingFurniture) {
-      placingFurniture.ghost.removeFromParent();
-      placingFurniture = undefined;
+      cancelFurniture();
+      furnitureEditor.browse();
+      return;
+    }
+    if (furnitureEditorOpen) {
+      closeFurnitureEditor();
       return;
     }
     if (placingBed) {
@@ -4871,10 +5036,29 @@ addEventListener("keydown", (e) => {
     return;
   }
   if (placingFurniture) {
-    if (key === "r") placingFurniture.rotation += Math.PI / 2;
-    if (key === "e") commitFurniture();
+    const f = placingFurniture;
+    if (key === "r") f.rotation += e.shiftKey ? Math.PI / 36 : Math.PI / 2;
+    else if (key === "l") f.locked = !f.locked;
+    else if ((key === "pageup" || key === "pagedown") && f.point) {
+      e.preventDefault();
+      f.locked = true;
+      f.point.y = T.MathUtils.clamp(
+        f.point.y + (key === "pageup" ? 0.1 : -0.1),
+        0,
+        3.4,
+      );
+    } else if (key.startsWith("arrow") && f.point) {
+      f.locked = true;
+      const step = e.shiftKey ? 0.02 : 0.1;
+      if (key === "arrowleft") f.point.x -= step;
+      if (key === "arrowright") f.point.x += step;
+      if (key === "arrowup") f.point.z -= step;
+      if (key === "arrowdown") f.point.z += step;
+    } else if (key === "e") commitFurniture();
+    else if (["w", "a", "s", "d", "shift"].includes(key)) keys.add(key);
     return;
   }
+  if (furnitureEditorOpen && key === "e") return;
   if (
     !begun ||
     world.life.busy ||
@@ -5035,8 +5219,7 @@ function resetTransientMotion() {
   for (const actor of [world.player, world.mom])
     for (const side of [-1, 1])
       actor.getObjectByName(`hand-${side}`)?.position.set(side * 0.43, 0.79, 0);
-  if (placingFurniture) disposeAnimation(placingFurniture.ghost);
-  placingFurniture = undefined;
+  closeFurnitureEditor();
   keyboardAudio.stop();
   beaGuide = undefined;
   if (hatHanging) {
@@ -5164,6 +5347,15 @@ $("#world").addEventListener(
     const e = event as WheelEvent;
     if (!begun || paused || !s.awake || riding) return;
     e.preventDefault();
+    if (placingFurniture) {
+      placingFurniture.locked = false;
+      placingFurniture.distance = T.MathUtils.clamp(
+        placingFurniture.distance + e.deltaY * 0.005,
+        0.7,
+        6,
+      );
+      return;
+    }
     const units = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? innerHeight : 1;
     zoomDistance = T.MathUtils.clamp(
       zoomDistance + e.deltaY * units * 0.006,
@@ -5272,9 +5464,11 @@ function selectTarget() {
     ) {
       const score =
         distance -
-        (t.id.startsWith("plot") && s.plots[+t.id.slice(4)].stage === "ready"
-          ? 0.35
-          : 0);
+        (t.id.startsWith("meteor-seed-") && distance < 1
+          ? 0.6
+          : t.id.startsWith("plot") && s.plots[+t.id.slice(4)].stage === "ready"
+            ? 0.35
+            : 0);
       if (score < bestScore && hasSight(t)) {
         best = t;
         bestScore = score;
@@ -5646,9 +5840,11 @@ function updateUI() {
     }
     prompt = label === "Ready tomorrow" ? label : `<kbd>E</kbd> ${label}`;
   }
+  if (furnitureEditorOpen && !placingFurniture)
+    prompt = "Furniture editor · Choose a model · F5 finishes";
   if (placingFurniture)
     prompt = placingFurniture.valid
-      ? "<kbd>E</kbd> Place furnishing · R rotate · Escape cancels"
+      ? "<kbd>E</kbd> Place furnishing · R rotate · L lock · F5 editor"
       : "Find clear wall or floor space · Escape cancels";
   if (world.life.cuddling !== undefined)
     prompt = "<kbd>E</kbd> Put chicken down";
@@ -6344,6 +6540,8 @@ function frame(now: number) {
     camera.position.set(-5, 15, 35);
     cameraAim.set(-7, 1, 10);
     camera.lookAt(cameraAim);
+  } else if (birdhouseScene) {
+    // The birdhouse film owns the camera for the whole frame.
   } else if (celebration) {
     const center = celebration.center;
     camera.position.lerp(
@@ -7479,6 +7677,7 @@ if (new URLSearchParams(location.search).has("test")) {
       })),
       rack: world.rackHats.children.map((o) => o.name),
       hanging: !!hatHanging,
+      hangingDestination: hatHanging?.to.toArray(),
       guiding: !!beaGuide,
       windows: scene.getObjectsByProperty("name", "inset-window").length,
       roofs: [world.robertsonsRoof, world.hatShopRoof, world.bikeShopRoof].map(
@@ -7594,14 +7793,18 @@ function roosterGreeting() {
   }
 }
 
-const meteorWorld = createMeteorWorld(scene, () => {
-  world.syncBeds(s.plots);
-  syncTimers();
-  save();
-  toast(
-    "A meteor struck the desert! Investigate its crater: a ready Money Tree waits at the center.",
-  );
-});
+const meteorWorld = createMeteorWorld(
+  scene,
+  () => {
+    world.syncBeds(s.plots);
+    syncTimers();
+    save();
+    toast(
+      "A meteor struck the desert! Investigate its crater: a ready Money Tree and ten seed packets wait at the center.",
+    );
+  },
+  world.targets,
+);
 
 const estateWorld = createEstateWorld(
   scene,
