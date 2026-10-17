@@ -1,3 +1,4 @@
+import { riverDistance, splitRiverBoundary } from "./river-land";
 import { flatPath } from "./flat-path";
 import { desertGround } from "./meteor-world";
 import { makeDesertPlants } from "./desert-plants";
@@ -79,7 +80,7 @@ export function createMillionaireWorld(
     { x: 49.1, z: -73.55, w: 0.8, d: 32.1 },
     { x: 41.2, z: -62.5, w: 4.2, d: 0.8 },
     { x: 44.05, z: -57.5, w: 10.1, d: 0.8 },
-  ];
+  ].flatMap(splitRiverBoundary);
   const boundary = new T.Group();
   boundary.name = "level-three-boundary-wall";
   group.add(boundary);
@@ -120,7 +121,7 @@ export function createMillionaireWorld(
     pieces.forEach((g) => g.dispose());
   }
   group.add(desertGround());
-  box(46, -0.3, -76, 12, 0.5, 32, "#a4bd77");
+  box(48, -0.3, -76, 16, 0.5, 32, "#a4bd77").name = "millionaire-east-verge";
   // East-hedge entrance runs outside town, then merges into the grove clearing.
   const entrancePath = part(
     flatPath(
@@ -156,6 +157,7 @@ export function createMillionaireWorld(
   // The onward lane joins the circular clearing tangentially, without a seam.
 
   function willow(x: number, z: number, size: number) {
+    if (riverDistance(x, z) < 6) return;
     const root = new T.Group();
     root.position.set(x, 0, z);
     group.add(root);

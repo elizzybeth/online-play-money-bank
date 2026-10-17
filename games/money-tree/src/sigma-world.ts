@@ -1,3 +1,6 @@
+import { createMrWacky } from "./mr-wacky";
+import { makeDiamondHand } from "./diamond-hands";
+import { splitRiverBoundary } from "./river-land";
 import { makeSoyjakHead, makeSoyjakStall } from "./soyjak-models";
 import {
   makeComposter,
@@ -177,11 +180,19 @@ export function createSigmaWorld(
     box(0, 1.44, 0.35, 0.35, 0.05, 0.05, "#222426", faceGroup);
     for (const side of [-1, 1]) {
       ball(side * 0.56, 0.96, 0, 0.23, "#999999", g).scale.set(0.9, 1.4, 0.9);
-      ball(side * 0.25, 0.96, 0.24, 0.23, "#b7b7b7", g).scale.set(
-        1,
-        0.75,
-        0.55,
-      );
+      if (id !== "stacy") {
+        const hand = makeDiamondHand(side);
+        hand.position.set(side * 0.58, 0.83, 0.32);
+        hand.rotation.z = -side * 0.18;
+        hand.scale.setScalar(0.85);
+        g.add(hand);
+      } else {
+        ball(side * 0.25, 0.96, 0.24, 0.23, "#b7b7b7", g).scale.set(
+          1,
+          0.75,
+          0.55,
+        );
+      }
       box(side * 0.16, 1.65, 0.34, 0.2, 0.04, 0.035, "#242629", faceGroup);
       ball(side * 0.18, 1.59, 0.337, 0.035, "#212121", faceGroup);
       const foot = ball(side * 0.19, 0.18, 0.04, 0.18, "#34383b", g);
@@ -552,6 +563,9 @@ export function createSigmaWorld(
   occluders.push(pepeGate);
   targets.push({ id: "pepe-door", x: -9.7, z: -65, label: "Enter Pepe" });
   const presenter = chad("pepe-show", -18, -66);
+  const presenterRect = rects.at(-1)!;
+  const presenterTarget = targets.at(-1)!;
+  const wacky = createMrWacky(town, rects, targets, speakers);
   mesh(
     new T.CylinderGeometry(0.025, 0.025, 0.4, 8),
     "#30383d",
@@ -626,6 +640,11 @@ export function createSigmaWorld(
         material.depthWrite = false;
       }
     }
+    if (popped !== wasPopped) {
+      presenter.position.x = presenterRect.x = popped ? -21.5 : -18;
+      presenterTarget.x = presenter.position.x + 1.3;
+    }
+    wacky.update(popped, dt, reduced);
     if (popped && !wasPopped) burstTime = 0;
     if (popped) burstTime = Math.min(2, burstTime + dt);
     wasPopped = popped;
@@ -917,7 +936,7 @@ export function createSigmaWorld(
     { x: 39, z: -51.25, w: 1, d: 12.5, clearHeight: 2.1 },
     { x: 39, z: -76, w: 1, d: 27, clearHeight: 2.1 },
     { x: 0, z: -90, w: 78, d: 1, clearHeight: 2.1 },
-  ]) {
+  ].flatMap(splitRiverBoundary)) {
     const hedge = box(r.x, 1.05, r.z, r.w, 2.1, r.d, "#658464");
     hedge.material = surfaceMaterial("#658464", "leaf", 8, 2);
     rects.push(r);
@@ -960,6 +979,7 @@ export function createSigmaWorld(
     houseBounds,
     meditators,
     updatePepe,
+    wacky,
     stacyChair,
     guestChair,
     handoffPacket,
@@ -967,11 +987,13 @@ export function createSigmaWorld(
       endHandoff();
       const npc = speakers.find((n) => n.id === id)?.object;
       if (!npc) return;
-      const hand = npc.children.find(
-        (o) =>
-          Math.abs(o.position.x - 0.25) < 0.01 &&
-          Math.abs(o.position.z - 0.24) < 0.01,
-      );
+      const hand =
+        npc.getObjectByName("diamond-hand-1") ??
+        npc.children.find(
+          (o) =>
+            Math.abs(o.position.x - 0.25) < 0.01 &&
+            Math.abs(o.position.z - 0.24) < 0.01,
+        );
       const start = npc.localToWorld(new T.Vector3(0.25, 1.02, 0.55));
       handoff = {
         start,

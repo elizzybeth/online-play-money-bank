@@ -210,3 +210,25 @@ Desktop keyboard and mouse. No touch/gamepad support yet. Home and haberdashery 
 Validation: 134 unit tests, production build, eight targeted browser cases, and close-up visual review passed. Full Chromium, Firefox and WebKit CI is required before merge.
 
 Final café visual review found the front crest obscured the newly raised Drinks lettering. The crest is now raised above the rear menu and shelf; the hat-card status baseline and pastry stall clearance were visually confirmed.
+
+## Bicycle features and Level 3 entrance, October 11
+
+- Honey Keeper's lower veil hem is a hollow cloth ring, separated from the transparent veil instead of an overlapping filled cylinder. The shared model fixes worn hats, rack stock and bag portraits.
+- Thread & Thimble has a Haberdashery sign directly above its doorway, using its HennyPenny lettering and cream/lavender identity. It clears the existing directional arrows.
+- Every purchased bike remains owned and saved. An oak and teal metal rack outside Spoke & Saddle displays stored bikes, offers a portrait selection menu, and returns the previous bike when you change rides. A bicycle parked elsewhere remains available for the existing E-to-mount interaction.
+- F activates a distinct feature while riding: Ribbon Rider confetti, penny-farthing bubbles, Sunday Cruiser flowers, BMX bunny hop, city-bike musical horn, mountain-bike fireflies, and road-bike Turbo. Each has its own cooldown. Features cancel on dismount; Turbo lasts five seconds and increases top speed by fifty percent. The riding controls show F and fit clear of the right HUD.
+- Opening Level 3 also removes the three old background foliage spheres that intersected Willow Lane near Sigma Town. The hedge gap and connecting entrance pavement now lead continuously from the town sidewalk into the east lane.
+
+Validation: 138 unit tests and the production build pass. Browser regressions cover rack ownership and switching, riding-only F activation, cooldowns, all seven features, BMX camera rise and landing, doorway-sign clearance, and the unlocked entrance. Close-up renders confirm the hollow hat hem and visible shop sign; route screenshots confirm the cleared lane and connected paving. Full Chromium, Firefox and WebKit checks are required before merge.
+
+## River, retail alleys and diamond hands, October 16
+
+- Terrain subtraction removes the river channel instead of overlaying water on grass. Convex triangle cuts match the rendered ribbon at bends. Bridges stand above pavement and provide the same ground height used by walking/cycling.
+- River collision is generated once, with deck openings; boundary hedge/wall meshes and collision are split consistently at outlets. Existing house footprints remain clear. Mabel's patch and gardening destination move together. Legacy custom beds preserve crop, yield and fertilizer data when moved to dry lawn; save imports use the same migration before storage replacement.
+- Both new shop alleys are checked against the live collision rectangles along their full length, and moved service/hat targets retain their existing purchase flows.
+- Fertilizer previews clone model resources before the portrait renderer disposes them; repeated inspections use the existing portrait cache. All Chad models receive both gold hands and diamond meshes; Stacy retains her original hands.
+- Efficiency review: channel carving, plant placement, collision generation and shared hand geometry run once at setup. Bank foliage uses five instanced meshes; ripples use one static line batch, with no frame traversal or DOM work. Drought changes materials/visibility only. No new save fields, history, backup count or write timers. Static river samples are not serialized. Bed migration is idempotent and preserves plant state. Existing HUD/news/Mom stationary checks and showroom retention checks remain required alongside full cross-browser CI.
+
+Mr Wacky visibility and interaction/collision registration follow the existing Pepe-popped flag. The host's model, collider and target shift together to keep the center clear. Dancing uses existing joint transforms only, stops after nine active seconds, pauses with the game, and reduces its amplitude for reduced motion. Unit coverage checks appearance, duplicate registration, all five sayings, dance motion and pausing. Browser coverage checks the original balloon/seed sequence and the post-pop character across reload.
+
+Final river validation: 206 unit tests, type checking and production build pass. Production browser checks confirm river-aware road routes, intact approach rails, boundary coverage, sign review positions and the terrain depth audit. The audit ignores only intersections thinner than Float32 coordinate precision while still detecting real millimetre overlaps and duplicate faces. Town ground and the adjoining desert notch share the same east edge. Outlet cuts use the actual perpendicular distance to each boundary, preserving approach walls.

@@ -1,3 +1,5 @@
+import { createRiverWorld } from "./river-world";
+import { riverDistance, splitRiverBoundary } from "./river-land";
 import { makeSeriousHat } from "./soyjak-models";
 import { makeCrop } from "./crop-model";
 import type { Crop } from "./garden-crops";
@@ -80,6 +82,7 @@ export function createWorld(scene: T.Scene) {
     { x: -18, z: -30, w: 21, d: 19 },
   ];
   const clearScenery = (x: number, z: number, radius: number) =>
+    riverDistance(x, z) > radius + 5 &&
     !paths
       .concat(doorways, sceneryExclusions)
       .some((r) => overlaps(x, z, radius, r));
@@ -433,7 +436,7 @@ export function createWorld(scene: T.Scene) {
   sleeper.rotation.x = -Math.PI / 2;
   sleeper.position.set(-19.1, 1.14, 1.75);
   sleeping.add(sleeper);
-  const townGround = box(0, -0.25, -25, 100, 0.5, 140, colors.grass);
+  const townGround = box(4, -0.25, -25, 108, 0.5, 140, colors.grass);
   townGround.name = "town-ground";
   townGround.userData.depthAudit = true;
   townGround.material = surfaceMaterial(colors.grass, "grass", 50, 45);
@@ -1426,9 +1429,9 @@ export function createWorld(scene: T.Scene) {
   speakers.push({
     id: "npc3",
     name: "Mabel",
-    object: person(-10, -8, "#dea58d", "#5f5549"),
+    object: person(-23, -12, "#dea58d", "#5f5549"),
   });
-  target("npc3", -10, -8, "Talk to Mabel");
+  target("npc3", -23, -12, "Talk to Mabel");
   // Robertsons walk-in shop at end of lane, front facing south.
   const sx = 8,
     sz = -31;
@@ -2310,7 +2313,7 @@ export function createWorld(scene: T.Scene) {
     [17, 20, ["cabbage", "carrot", "tomato"]],
     [8.2, 6.2, ["orchid", "kangaroo-paw", "tulip"]],
     [17, 6, ["banana", "bird-of-paradise", "monstera"]],
-    [-19.3, -8.5, ["lavender", "tulip", "fern"]],
+    [-23, -10.5, ["lavender", "tulip", "fern"]],
     [7, 12, ["sunflower", "sunflower", "sunflower"]],
     [7, 15, ["kangaroo-paw", "lavender", "orchid"]],
     [17.5, 12, ["rosette", "aloe", "cactus"]],
@@ -2321,8 +2324,8 @@ export function createWorld(scene: T.Scene) {
     [17.5, 1, ["monstera", "banana", "bird-of-paradise"]],
     [-19.3, -12, ["cabbage", "carrot", "tomato"]],
     [-19.3, -15, ["tomato", "carrot", "cabbage"]],
-    [-8.4, -10, ["sunflower", "sunflower", "sunflower"]],
-    [-8.4, -7, ["fern", "daisy", "lavender"]],
+    [-8.4, -12, ["sunflower", "sunflower", "sunflower"]],
+    [-23, -15.5, ["fern", "daisy", "lavender"]],
   ] as const) {
     const garden = new T.Group();
     garden.position.set(x, 0, z);
@@ -2484,22 +2487,16 @@ export function createWorld(scene: T.Scene) {
     for (let j = 0; j < 3; j++)
       ball(j * 1.6, 0, 0, 1.8, "#f6eedc", g).scale.set(1, 0.65, 0.8);
   }
-  // Jumpable hedgerow perimeter.
-  rects.push(
+  // River outlets interrupt both the visible hedge and its collision.
+  const hedgeRects = [
     { x: -39, z: 0, w: 1, d: 90, clearHeight: 2.3 },
     { x: 39, z: 0, w: 1, d: 90, clearHeight: 2.3 },
     { x: -3.25, z: -40, w: 70.5, d: 1, clearHeight: 2.3 },
     { x: 37.75, z: -40, w: 1.5, d: 1, clearHeight: 2.3 },
     { x: 0, z: 39, w: 77, d: 1, clearHeight: 2.3 },
-  );
-  // Visible hedgerows exactly match the boundary colliders.
-  const boundaryHedges = [
-    { x: -39, z: 0, w: 1, d: 90, clearHeight: 2.3 },
-    { x: 39, z: 0, w: 1, d: 90, clearHeight: 2.3 },
-    { x: -3.25, z: -40, w: 70.5, d: 1, clearHeight: 2.3 },
-    { x: 37.75, z: -40, w: 1.5, d: 1, clearHeight: 2.3 },
-    { x: 0, z: 39, w: 77, d: 1, clearHeight: 2.3 },
-  ].map((r) => {
+  ].flatMap(splitRiverBoundary);
+  rects.push(...hedgeRects);
+  const boundaryHedges = hedgeRects.map((r) => {
     const hedge = box(r.x, 1.05, r.z, r.w, 2.1, r.d, "#658464");
     occluders.push(hedge);
     const length = Math.max(r.w, r.d);
@@ -2692,7 +2689,9 @@ export function createWorld(scene: T.Scene) {
     fitWindow(object, w > d, Math.max(w, d), h, Math.min(w, d));
   }
   const life = createTownLife(scene, rects, targets, speakers, player, mom);
+  const river = createRiverWorld(scene, rects, [...paths, ...sigma.paths]);
   return {
+    river,
     life,
     cookingProps: [
       cooking,

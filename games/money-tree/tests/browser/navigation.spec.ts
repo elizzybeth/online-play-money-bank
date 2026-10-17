@@ -301,13 +301,23 @@ test("scenery clears paths and doors; visible hedges cover world boundaries", as
   });
   expect(result.obstructions).toEqual([]);
   expect(result.allPathsConnected).toBe(true);
-  expect(result.hedges).toHaveLength(5);
+  // River outlets split the perimeter; test coverage rather than a fixed mesh count.
   for (const bounds of result.hedges)
     expect(bounds.max[1] - bounds.min[1]).toBeGreaterThan(2);
-  expect(result.hedges[0].min[0]).toBeLessThan(-38);
-  expect(result.hedges[1].max[0]).toBeGreaterThan(38);
-  expect(result.hedges[2].min[2]).toBeLessThan(-39);
-  expect(result.hedges[4].max[2]).toBeGreaterThan(38);
+  const covered = (x: number, z: number) =>
+    result.hedges.some(
+      (h: any) =>
+        x >= h.min[0] && x <= h.max[0] && z >= h.min[2] && z <= h.max[2],
+    );
+  for (const [x, z] of [
+    [-39, -20],
+    [-39, 20],
+    [39, 20],
+    [0, -40],
+    [0, 39],
+  ])
+    expect(covered(x, z)).toBe(true);
+  expect(covered(-39, -4.5)).toBe(false);
 });
 
 test("camera eases through the front doorway without jumps or wall penetration", async ({

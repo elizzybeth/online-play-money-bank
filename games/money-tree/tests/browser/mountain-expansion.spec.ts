@@ -122,7 +122,7 @@ test("first Guardian conversation opens ten mountain hats and the seed ATM persi
     5,
   );
   await page.getByRole("button", { name: "Back", exact: true }).click();
-  await page.evaluate(() => (window as any).game.teleport(-12, -293));
+  await page.evaluate(() => (window as any).game.teleport(-6, -293));
   await frames(page);
   await page.evaluate(() => (window as any).game.mountainShopOverview());
   await sceneShot(page, testInfo.outputPath("terrace-threads.png"));
@@ -134,7 +134,7 @@ test("first Guardian conversation opens ten mountain hats and the seed ATM persi
   expect(
     (await page.evaluate(() => (window as any).game.savedState())).hats,
   ).toContain("verdant");
-  await page.evaluate(() => (window as any).game.teleport(-12, -312.1));
+  await page.evaluate(() => (window as any).game.teleport(-6, -312.1));
   await frames(page);
   await page.evaluate(() => (window as any).game.mountainShopInterior());
   await sceneShot(page, testInfo.outputPath("terrace-threads-interior.png"));

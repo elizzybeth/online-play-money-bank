@@ -155,7 +155,7 @@ test("Robertsons' two sign boards do not overlap", async ({ page }) => {
   );
   expect(name.min[1]).toBeGreaterThan(trade.max[1] + 0.1);
   await page.evaluate(() => {
-    (window as any).game.teleport(8, -8);
+    (window as any).game.teleport(8, -16);
     (window as any).game.setYaw(0);
   });
   await page.mouse.move(900, 600);

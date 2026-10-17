@@ -186,8 +186,15 @@ test("Willow Lane camera stays near the player and desert thoughts stay centered
     pepeInflation: 12,
     millionaire: m,
   });
-  for (const z of [-90, -100]) {
-    await page.evaluate((z) => (window as any).game.teleport(46, z), z);
+  // Follow the east lane onto the new grove bridge; the old (46,-100) spot is water.
+  for (const [x, z] of [
+    [46, -90],
+    [40, -104],
+  ]) {
+    await page.evaluate(
+      ([x, z]) => (window as any).game.teleport(x, z),
+      [x, z],
+    );
     await frames(page, 5);
     const v = await page.evaluate(() => ({
       p: (window as any).game.state().position,
