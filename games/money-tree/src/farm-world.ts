@@ -222,14 +222,27 @@ export function createFarm(scene: T.Scene, rects: Rect[], targets: Target[]) {
     m.castShadow = m.receiveShadow = true;
     root.add(m);
   };
+  // A tapered leaf is two triangles instead of a flattened sphere (36).
+  // Thousands of plants remain detailed without costly invisible back geometry.
+  const cornLeaf = new T.BufferGeometry();
+  cornLeaf.setAttribute(
+    "position",
+    new T.Float32BufferAttribute(
+      [-1, 0, 0, 0, 0.5, -1, 1, 0.9, 0, 0, 0.5, 1],
+      3,
+    ),
+  );
+  cornLeaf.setIndex([0, 1, 2, 0, 2, 3]);
+  cornLeaf.computeVertexNormals();
+  mat("#5c873c").side = T.DoubleSide;
   batch(
-    new T.CylinderGeometry(0.75, 1, 1, 5),
+    new T.CylinderGeometry(0.75, 1, 1, 5, 1, true),
     "#90a44f",
     stalkMatrices,
     "corn-stalks",
   );
-  batch(new T.SphereGeometry(1, 6, 4), "#5c873c", leafMatrices, "corn-leaves");
-  batch(new T.SphereGeometry(1, 6, 4), "#dfc65f", cobMatrices, "corn-cobs");
+  batch(cornLeaf, "#5c873c", leafMatrices, "corn-leaves");
+  batch(new T.SphereGeometry(1, 5, 3), "#dfc65f", cobMatrices, "corn-cobs");
   // Two orderly carrot plots beside the farmhouse, with orange shoulders.
   const carrots: T.Matrix4[] = [],
     tops: T.Matrix4[] = [];
