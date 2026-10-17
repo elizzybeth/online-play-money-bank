@@ -66,7 +66,11 @@ test("Pepe opens after both encounters, inflates after dialogue, and keeps colle
   expect(
     await page.evaluate(() => (window as any).game.state().pepePackets.length),
   ).toBe(25);
-  await page.evaluate(() => (window as any).game.teleport(-18, -64.4));
+  await page.evaluate(() => {
+    const g = (window as any).game,
+      t = g.targets.find((t: any) => t.id === "pepe-show");
+    g.teleport(t.x, t.z + 1);
+  });
   for (let frame = 0; frame < 60; frame++) await page.clock.fastForward(32);
   await page.keyboard.press("e");
   await expect(page.locator(".speech-bubble")).toContainText(
@@ -135,4 +139,71 @@ test("starting fresh immediately after the balloon pops releases cinematic contr
   expect(await page.evaluate(() => (window as any).game.state().awake)).toBe(
     true,
   );
+});
+
+test("Mr Wacky returns after a popped-Pepe save and dances through all five sayings", async ({
+  page,
+}, info) => {
+  const s = fresh();
+  Object.assign(s, {
+    awake: true,
+    foundTVSeeds: true,
+    metStacy: true,
+    foundMeditationSeeds: true,
+    pepeShowStarted: true,
+    pepePopped: true,
+    pepeInflation: 12,
+  });
+  await page.clock.install({ time: new Date("2026-01-01") });
+  await page.clock.pauseAt(new Date("2026-01-02"));
+  await page.addInitScript((s) => {
+    if (!localStorage.getItem("money-tree-v1"))
+      localStorage.setItem("money-tree-v1", JSON.stringify(s));
+  }, s);
+  await page.goto("./?test");
+  await page.getByRole("button", { name: "Wake up" }).click();
+  for (let i = 0; i < 6; i++) await page.clock.fastForward(64);
+  await page.evaluate(() => {
+    const g = (window as any).game,
+      t = g.targets.find((t: any) => t.id === "mr-wacky");
+    g.teleport(t.x, t.z);
+  });
+  for (let i = 0; i < 6; i++) await page.clock.fastForward(64);
+  await expect(page.locator("#prompt")).toContainText("Mr Wacky");
+  await page.keyboard.press("e");
+  for (const [i, line] of [
+    "Good clean fun!",
+    "Legal fun!",
+    "Illegal fun!",
+    "Sexy fun!",
+    "Inflatable fun!",
+  ].entries()) {
+    if (i)
+      await page.getByRole("button", { name: "Again!", exact: true }).click();
+    await expect(page.locator(".speech-bubble")).toContainText(line);
+  }
+  const before = await page.evaluate(() => (window as any).game.mrWacky());
+  for (let i = 0; i < 8; i++) await page.clock.fastForward(64);
+  expect(
+    (await page.evaluate(() => (window as any).game.mrWacky())).body,
+  ).not.toEqual(before.body);
+  await page.evaluate(() => (window as any).game.mrWackyReview());
+  await page.screenshot({ path: info.outputPath("mr-wacky.png") });
+  await page
+    .getByRole("button", { name: "See you, Mr Wacky", exact: true })
+    .click();
+  await page.evaluate(() => (window as any).game.storageFlush());
+  await page.reload();
+  await page.getByRole("button", { name: "Wake up" }).click();
+  for (let i = 0; i < 6; i++) await page.clock.fastForward(64);
+  expect(
+    (await page.evaluate(() => (window as any).game.mrWacky())).visible,
+  ).toBe(true);
+  expect(
+    await page.evaluate(
+      () =>
+        (window as any).game.targets.filter((t: any) => t.id === "mr-wacky")
+          .length,
+    ),
+  ).toBe(1);
 });

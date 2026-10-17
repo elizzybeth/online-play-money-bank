@@ -15,7 +15,10 @@ export function createMountainShop(
   targets: Target[],
   occluders: T.Object3D[],
 ) {
+  const offsetX = 6;
+  const firstTarget = targets.length;
   const root = new T.Group();
+  root.position.x = offsetX;
   root.name = "terrace-threads";
   scene.add(root);
   const obstacles: Rect[] = [];
@@ -47,7 +50,11 @@ export function createMountainShop(
     flatPath(
       [
         { x: -12, z: -307.5, w: 4, d: 7 },
-        { x: 9, z: -304, w: 46, d: 4 },
+        // Shared frontage connects both shops and both alleys to the mountain lane.
+        { x: -12, z: -304, w: 80, d: 4 },
+        { x: -40, z: -307.5, w: 4, d: 7 },
+        { x: -52, z: -318, w: 3, d: 32 },
+        { x: -27, z: -318, w: 4, d: 32 },
       ],
       0.065,
     ),
@@ -124,6 +131,10 @@ export function createMountainShop(
   const rackHats = new T.Group();
   rackHats.name = "terrace-hat-rack";
   root.add(rackHats);
+  // Models remain in boutique-local coordinates; collision and interaction
+  // points are world coordinates and move with the complete shop, exactly once.
+  for (const r of obstacles) r.x += offsetX;
+  for (const target of targets.slice(firstTarget)) target.x += offsetX;
   let rackKey = "";
   let visible = false;
   return {
@@ -161,8 +172,8 @@ export function createMountainShop(
         });
       }
       roof.visible = !(
-        s.position.x > -24 &&
-        s.position.x < 0 &&
+        s.position.x > -24 + offsetX &&
+        s.position.x < offsetX &&
         s.position.z > -325 &&
         s.position.z < -311
       );

@@ -1,0 +1,121 @@
+/** Smoothed from the player's October 16 river sketch; x/z are world units. */
+export const riverWaypoints = [
+  [-108, -129],
+  [-94, -131],
+  [-76, -143],
+  [-55, -146],
+  [-35, -140],
+  [-12, -137],
+  [2, -140],
+  [15, -140],
+  [19, -135],
+  [19, -120],
+  [22, -110],
+  [31, -104],
+  [42, -99],
+  [52, -94],
+  [53, -81],
+  [53, -66],
+  [48, -53],
+  [44, -46],
+  [43, -39],
+  [43, -26],
+  [43, -15],
+  [38, -7],
+  [31, -5],
+  [23, -5],
+  [14, -10],
+  [5, -9],
+  [-6, -6.5],
+  [-14, -6],
+  [-23, -6],
+  [-32, -4.5],
+  [-43, -4.5],
+] as const;
+export type RiverPoint = { x: number; z: number };
+// Hermite interpolation follows the sketch without sharply kinked banks.
+const points: RiverPoint[] = [];
+for (let i = 0; i < riverWaypoints.length - 1; i++) {
+  const a = riverWaypoints[Math.max(0, i - 1)],
+    b = riverWaypoints[i],
+    c = riverWaypoints[i + 1],
+    d = riverWaypoints[Math.min(i + 2, riverWaypoints.length - 1)];
+  const steps = Math.ceil(Math.hypot(c[0] - b[0], c[1] - b[1]) / 1.5);
+  for (let j = 0; j < steps; j++) {
+    const t = j / steps,
+      t2 = t * t,
+      t3 = t2 * t;
+    const axis = (k: number) =>
+      (2 * t3 - 3 * t2 + 1) * b[k] +
+      (t3 - 2 * t2 + t) * (c[k] - a[k]) * 0.35 +
+      (-2 * t3 + 3 * t2) * c[k] +
+      (t3 - t2) * (d[k] - b[k]) * 0.35;
+    points.push({ x: axis(0), z: axis(1) });
+  }
+}
+const end = riverWaypoints.at(-1)!;
+points.push({ x: end[0], z: end[1] });
+export const riverPoints: readonly RiverPoint[] = points;
+export const riverHalfWidth = 2.4,
+  riverBankWidth = 3.4;
+export const riverSections = points.map((p, i) => {
+  const a = points[Math.max(0, i - 1)],
+    b = points[Math.min(points.length - 1, i + 1)];
+  const len = Math.hypot(b.x - a.x, b.z - a.z);
+  return { ...p, nx: -(b.z - a.z) / len, nz: (b.x - a.x) / len };
+});
+export const riverBridges = [
+  { id: "village", x: 3, z: -8.6, w: 5, d: 12, axis: "z" },
+  { id: "east-road", x: 42, z: -16, w: 12, d: 5, axis: "x" },
+  { id: "grove", x: 34, z: -104, w: 15, d: 4, axis: "x" },
+] as const;
+export function riverDistance(x: number, z: number) {
+  if (x < -112 || x > 59 || z < -152 || z > 1) return Infinity;
+  let best = Infinity;
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1],
+      b = points[i],
+      dx = b.x - a.x,
+      dz = b.z - a.z;
+    const t = Math.max(
+      0,
+      Math.min(1, ((x - a.x) * dx + (z - a.z) * dz) / (dx * dx + dz * dz)),
+    );
+    const ex = x - a.x - t * dx,
+      ez = z - a.z - t * dz;
+    best = Math.min(best, ex * ex + ez * ez);
+  }
+  return Math.sqrt(best);
+}
+/** Keep boundary meshes and their colliders in agreement at river outlets. */
+export function splitRiverBoundary<
+  R extends { x: number; z: number; w: number; d: number },
+>(r: R): R[] {
+  const vertical = r.d > r.w,
+    center = vertical ? r.x : r.z,
+    half = (vertical ? r.w : r.d) / 2;
+  const cuts = points
+    .filter((p) => Math.abs((vertical ? p.x : p.z) - center) < half + 4.5)
+    .map((p) => [(vertical ? p.z : p.x) - 5, (vertical ? p.z : p.x) + 5])
+    .sort((a, b) => a[0] - b[0]);
+  let intervals = [
+    [
+      (vertical ? r.z : r.x) - (vertical ? r.d : r.w) / 2,
+      (vertical ? r.z : r.x) + (vertical ? r.d : r.w) / 2,
+    ],
+  ];
+  for (const [a, b] of cuts)
+    intervals = intervals.flatMap(([lo, hi]) =>
+      b <= lo || a >= hi
+        ? [[lo, hi]]
+        : [...(a > lo ? [[lo, a]] : []), ...(b < hi ? [[b, hi]] : [])],
+    );
+  return intervals
+    .filter(([a, b]) => b - a > 0.05)
+    .map(([a, b]) => ({
+      ...r,
+      ...(vertical
+        ? { z: (a + b) / 2, d: b - a }
+        : { x: (a + b) / 2, w: b - a }),
+    }));
+}

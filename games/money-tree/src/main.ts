@@ -1,3 +1,4 @@
+import { relocateRiverBeds } from "./river-gardens";
 import {
   canTellMomAboutMansion,
   beginMansionConversation,
@@ -385,6 +386,7 @@ await Promise.all(
 const world = createWorld(scene),
   camera = new T.PerspectiveCamera(52, innerWidth / innerHeight, 0.08, 700),
   ray = new T.Raycaster();
+relocateRiverBeds(s, world.rects);
 unlockSigma(s);
 ensureMountainPlots(s);
 world.setSigmaUnlocked(!!s.foundTVSeeds);
@@ -3226,7 +3228,30 @@ function shop(item: "seeds" | "can" | "shovel" | "fertilizer") {
     };
   panel(
     names[item],
-    `<p>${item === "seeds" ? "“That'll be $2.” Robertson slides a little paper bag across the counter." : item === "can" ? "A well-loved can. Just what a thirsty seed needs." : item === "shovel" ? "For less time digging and more time dreaming." : "Five doses per box. Each dose feeds one tree for overnight harvests up to $9."}</p><p>Price: <b>${money(prices[item])}</b> · You carry <b>${money(s.cash)}</b>.</p>`,
+    `${
+      item === "fertilizer"
+        ? `<img class="hat-portrait" src="${shopPortrait("fertilizer", () => {
+            const model = world.fertilizerBox.clone(true);
+            model.visible = true;
+            model.position.set(0, 0, 0);
+            model.rotation.set(0, 0, 0);
+            model.traverse((o) => {
+              if (o instanceof T.Mesh) {
+                o.geometry = o.geometry.clone();
+                const clone = (material: T.MeshStandardMaterial) => {
+                  const copy = material.clone();
+                  if (copy.map) copy.map = copy.map.clone();
+                  return copy;
+                };
+                o.material = Array.isArray(o.material)
+                  ? o.material.map(clone)
+                  : clone(o.material);
+              }
+            });
+            return model;
+          })}" alt="Fertilizer box · five doses">`
+        : ""
+    }<p>${item === "seeds" ? "“That'll be $2.” Robertson slides a little paper bag across the counter." : item === "can" ? "A well-loved can. Just what a thirsty seed needs." : item === "shovel" ? "For less time digging and more time dreaming." : "Five doses per box. Each dose feeds one tree for overnight harvests up to $9."}</p><p>Price: <b>${money(prices[item])}</b> · You carry <b>${money(s.cash)}</b>.</p>`,
     [
       {
         label: `Buy · ${money(prices[item])}`,
@@ -4408,6 +4433,14 @@ function tvMenu() {
   );
 }
 
+function wackyConversation() {
+  if (!s.pepePopped) return;
+  const line = world.sigma.wacky.interact(s.position.x, s.position.z);
+  speak("mr-wacky", `<p>“${line}”</p>`, [
+    { label: "Again!", run: wackyConversation },
+    { label: "See you, Mr Wacky", run: dismissSpeech, default: true },
+  ]);
+}
 function interact(skipTrader = false): void {
   if (world.life.cuddling !== undefined) {
     world.life.putDown();
@@ -4693,6 +4726,7 @@ function interact(skipTrader = false): void {
         ? "Pepe’s door is open."
         : "Meet Stacy and finish the Doge meditation to enter Pepe.",
     );
+  if (id === "mr-wacky") return wackyConversation();
   if (id === "pepe-show") {
     if (!canEnterPepe(s)) return;
     if (s.pepePopped)
@@ -5053,6 +5087,7 @@ function importSave() {
         toast("That save could not be read. Your current garden is safe.");
         return;
       }
+      relocateRiverBeds(next, world.rects);
       if (
         blocked(next.position.x, next.position.z, world.rects) ||
         !withinPlayableBounds(next)
@@ -7533,16 +7568,16 @@ if (new URLSearchParams(location.search).has("test")) {
       tickSigma(s, dt);
     },
     mountainShopOverview: () => {
-      camera.position.set(-7, 7.5, -291);
-      camera.lookAt(-12, 3, -315);
+      camera.position.set(-1, 7.5, -291);
+      camera.lookAt(-6, 3, -315);
       renderer.render(scene, camera);
     },
     mountainShopInterior: () => {
       const fov = camera.fov;
       camera.fov = 78;
       camera.updateProjectionMatrix();
-      camera.position.set(-12, 4.1, -312.1);
-      camera.lookAt(-12, 2.9, -321);
+      camera.position.set(-6, 4.1, -312.1);
+      camera.lookAt(-6, 2.9, -321);
       renderer.render(scene, camera);
       camera.fov = fov;
       camera.updateProjectionMatrix();
@@ -7652,15 +7687,15 @@ if (new URLSearchParams(location.search).has("test")) {
       })),
     jumpHeight: () => jumpHeight,
     marvelsSignReview: () => {
-      camera.position.set(-35, 5.3, -295);
-      camera.lookAt(-38, 4.3, -309);
+      camera.position.set(-31, 5.3, -295);
+      camera.lookAt(-34, 4.3, -309);
       renderer.render(scene, camera);
     },
     marvelsReview: () => {
       const roof = scene.getObjectByName("marvels-roof");
       if (roof) roof.visible = false;
-      camera.position.set(-29.7, 5.8, -310.7);
-      camera.lookAt(-39.5, 1.4, -320);
+      camera.position.set(-25.7, 5.8, -310.7);
+      camera.lookAt(-35.5, 1.4, -320);
       renderer.render(scene, camera);
     },
     marvelsStats: () => {
@@ -7726,6 +7761,51 @@ if (new URLSearchParams(location.search).has("test")) {
           visible: mesh.visible,
         };
       }),
+    mrWacky: () => world.sigma.wacky.stats(),
+    mrWackyReview: () => {
+      camera.position.set(-15, 3.8, -60.2);
+      camera.lookAt(-18, 1.6, -65);
+      renderer.render(scene, camera);
+    },
+    diamondHands: () => {
+      const chads: { id: string; hands: number; diamonds: number }[] = [];
+      world.sigma.town.traverse((o) => {
+        if (!o.userData.chad) return;
+        let hands = 0,
+          diamonds = 0;
+        o.traverse((child) => {
+          if (child.name.startsWith("diamond-hand-")) hands++;
+          if (child.name === "palm-diamond") diamonds++;
+        });
+        chads.push({ id: o.uuid, hands, diamonds });
+      });
+      return chads;
+    },
+    diamondHandsReview: () => {
+      camera.position.set(27, 2.2, -44.7);
+      camera.lookAt(27, 1.1, -48);
+      renderer.render(scene, camera);
+    },
+    river: () => ({
+      bridges: world.river.bridges,
+      colliders: world.river.colliders,
+      vegetation: world.river.vegetation.children.map((o) => ({
+        name: o.name,
+        count: (o as T.InstancedMesh).count,
+      })),
+    }),
+    riverOverview: (view: "village" | "grove" | "east") => {
+      const p =
+        view === "village"
+          ? [-5, -8]
+          : view === "grove"
+            ? [29, -105]
+            : [48, -61];
+      camera.position.set(p[0] + 20, 32, p[1] + 25);
+      camera.lookAt(p[0], 0, p[1]);
+      renderer.render(scene, camera);
+    },
+    riverDrought: (dry: boolean) => world.river.setDrought(dry),
     depthAudit: () => depthAudit(scene, { taggedOnly: true, upwardOnly: true }),
     targets: world.targets,
     homeDesign: () => ({

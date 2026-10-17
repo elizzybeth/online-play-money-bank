@@ -118,7 +118,7 @@ for (const style of ["hearst", "vernon"] as const)
       (await page.evaluate(() => (window as any).game.spaceEstate())).mom[2],
     ).toBeGreaterThan(-5);
     await page.keyboard.press("F5");
-    await page.evaluate(() => (window as any).game.teleport(-38, -311));
+    await page.evaluate(() => (window as any).game.teleport(-34, -311));
     await frames(page);
     await page.keyboard.press("e");
     await expect(

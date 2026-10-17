@@ -15,7 +15,7 @@ export function createNeighborGardens(
   const gardeners = [
     { id: "npc1", x: 12, z: 21.2 },
     { id: "npc2", x: 12, z: 7.2 },
-    { id: "npc3", x: -14, z: -6.8 },
+    { id: "npc3", x: -23, z: -13 },
   ].map((site, i) => {
     const actor = speakers.find((n) => n.id === site.id)!.object,
       collider = rects.find(

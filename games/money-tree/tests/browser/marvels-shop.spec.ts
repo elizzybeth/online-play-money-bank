@@ -20,7 +20,7 @@ test("permanent planting unlock keeps Terrace Threads, $50 seeds and new hat mod
   s.cash = 2000000;
   s.millionaire!.titheAccepted = s.millionaire!.summitSeeds = true;
   s.millionaire!.chats = {};
-  s.position = { x: -3, z: -304.8 };
+  s.position = { x: 3, z: -304.8 };
   await page.clock.install({ time: new Date("2026-01-01") });
   await page.clock.pauseAt(new Date("2026-01-02"));
   await page.addInitScript(
@@ -124,7 +124,7 @@ test("every Mansion Marvels showroom item has a model purchase and survives plac
   s.millionaire!.mountainEarned = 100000;
   expect(buyMansion(s, "hearst", true)).toBe(true);
   s.housing!.movingInSeen = true;
-  s.position = { x: -38, z: -311 };
+  s.position = { x: -34, z: -311 };
   expect(decode(JSON.stringify(s))).not.toBeNull();
   await page.clock.install({ time: new Date("2026-01-01") });
   await page.clock.pauseAt(new Date("2026-01-02"));
@@ -138,6 +138,25 @@ test("every Mansion Marvels showroom item has a model purchase and survives plac
     for (let i = 0; i < 8; i++) await page.clock.fastForward(64);
   };
   await frames();
+  // Both new alleys remain walkable for the full depth of the neighboring shops.
+  const blockedAlleyPoints = await page.evaluate(() => {
+    const g = (window as any).game;
+    const blocked: { x: number; z: number }[] = [];
+    for (const x of [-46, -21])
+      for (let z = -333; z <= -302; z += 0.25)
+        if (
+          g.rects.some(
+            (r: any) =>
+              x + 0.48 > r.x - r.w / 2 &&
+              x - 0.48 < r.x + r.w / 2 &&
+              z + 0.48 > r.z - r.d / 2 &&
+              z - 0.48 < r.z + r.d / 2,
+          )
+        )
+          blocked.push({ x, z });
+    return blocked;
+  });
+  expect(blockedAlleyPoints).toEqual([]);
   await page.evaluate(() => (window as any).game.marvelsSignReview());
   await page.screenshot({ path: info.outputPath("marvels-sign.png") });
   await page.evaluate(() => (window as any).game.marvelsReview());
@@ -147,7 +166,7 @@ test("every Mansion Marvels showroom item has a model purchase and survives plac
     (await page.evaluate(() => (window as any).game.marvelsStock())).sort(),
   ).toEqual(stock.map((f) => f.id).sort());
   // Far from the entrance, approach the back-row Chesterfield display.
-  await page.evaluate(() => (window as any).game.teleport(-32.7, -325.3));
+  await page.evaluate(() => (window as any).game.teleport(-28.7, -325.3));
   await frames();
   await page.keyboard.press("e");
   await expect(

@@ -1,0 +1,95 @@
+import { test, expect } from "@playwright/test";
+import { fresh } from "../../src/game";
+import { applyDebugAction } from "../../src/debug-menu";
+import { riverBridges } from "../../src/river-land";
+test("river bridges are walkable, banks are lush and drought can change them without rebuilding", async ({
+  page,
+}, info) => {
+  const s = fresh();
+  applyDebugAction(s, "level3");
+  s.awake = true;
+  s.metMom = true;
+  s.position = { x: 3, z: 1 };
+  await page.clock.install({ time: new Date("2026-01-01") });
+  await page.clock.pauseAt(new Date("2026-01-02"));
+  await page.addInitScript(
+    (s) => localStorage.setItem("money-tree-v1", JSON.stringify(s)),
+    s,
+  );
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto("./?test");
+  await page.getByRole("button", { name: "Wake up" }).click();
+  for (let i = 0; i < 8; i++) await page.clock.fastForward(64);
+  const data = await page.evaluate(() => (window as any).game.river());
+  const chads = await page.evaluate(() => (window as any).game.diamondHands());
+  expect(chads.length).toBeGreaterThan(8);
+  expect(chads.every((c: any) => c.hands === 2 && c.diamonds === 2)).toBe(true);
+  await page.evaluate(() => (window as any).game.diamondHandsReview());
+  await page.screenshot({ path: info.outputPath("diamond-hands.png") });
+
+  expect(
+    data.vegetation.find((v: any) => v.name === "bank-reeds").count,
+  ).toBeGreaterThan(100);
+  for (const bridge of riverBridges) {
+    const blocked = await page.evaluate((b) => {
+      const g = (window as any).game,
+        points = [];
+      const length = b.axis === "z" ? b.d : b.w;
+      for (let n = -length / 2 + 0.5; n < length / 2 - 0.5; n += 0.25) {
+        const x = b.x + (b.axis === "x" ? n : 0),
+          z = b.z + (b.axis === "z" ? n : 0);
+        if (
+          g.rects.some(
+            (r: any) =>
+              x + 0.48 > r.x - r.w / 2 &&
+              x - 0.48 < r.x + r.w / 2 &&
+              z + 0.48 > r.z - r.d / 2 &&
+              z - 0.48 < r.z + r.d / 2,
+          )
+        )
+          points.push({ x, z });
+      }
+      return points;
+    }, bridge);
+    expect(blocked, bridge.id).toEqual([]);
+  }
+  for (const view of ["village", "grove", "east"] as const) {
+    await page.evaluate((v) => (window as any).game.riverOverview(v), view);
+    await page.screenshot({ path: info.outputPath(`river-${view}.png`) });
+  }
+  await page.evaluate(() => (window as any).game.riverDrought(true));
+  await page.evaluate(() => (window as any).game.riverDrought(false));
+  expect(await page.evaluate(() => (window as any).game.river())).toEqual(data);
+  expect(errors).toEqual([]);
+});
+test("Robertsons fertilizer has an actual model preview and purchase adds five doses", async ({
+  page,
+}) => {
+  const s = fresh();
+  s.awake = true;
+  s.metMom = true;
+  s.cash = 1000;
+  await page.addInitScript(
+    (s) => localStorage.setItem("money-tree-v1", JSON.stringify(s)),
+    s,
+  );
+  await page.goto("./?test");
+  await page.getByRole("button", { name: "Wake up" }).click();
+  await page.evaluate(() => {
+    const g = (window as any).game,
+      t = g.targets.find((t: any) => t.id === "fertilizer");
+    g.teleport(t.x, t.z);
+  });
+  await page.keyboard.press("e");
+  await expect(
+    page.getByRole("heading", { name: "Fertilizer · five doses", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("img", { name: "Fertilizer box · five doses" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Buy · $5.00", exact: true }).click();
+  const result = await page.evaluate(() => (window as any).game.state());
+  expect(result.fertilizer).toBe(5);
+  expect(result.cash).toBe(500);
+});

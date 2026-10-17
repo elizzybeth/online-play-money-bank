@@ -19,7 +19,7 @@ export type Housing = {
 };
 export const mansionPrice = 100_000_000;
 export const mansionLot = { x: 88, z: -340, w: 34, d: 24 };
-export const marvelsLot = { x: -38, z: -318, w: 20, d: 18 };
+export const marvelsLot = { x: -34, z: -318, w: 20, d: 18 };
 export function spendFunds(s: State, amount: number) {
   if (!Number.isSafeInteger(amount) || amount < 0 || s.cash + s.bank < amount)
     return false;
