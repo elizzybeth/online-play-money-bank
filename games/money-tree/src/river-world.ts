@@ -212,7 +212,7 @@ export function createRiverWorld(scene: T.Scene, rects: Rect[], paths: Rect[]) {
   for (let i = 1; i < riverSections.length; i++) {
     const a = riverSections[i - 1],
       b = riverSections[i],
-      r = 1.65;
+      r = riverHalfWidth + 0.05;
     let pieces: Rect[] = [
       {
         x: (a.x + b.x) / 2,

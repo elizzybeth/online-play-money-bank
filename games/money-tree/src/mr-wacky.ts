@@ -66,6 +66,7 @@ export function createMrWacky(
     previous = joint;
   }
   const head = joints[3];
+  head.name = "head";
   for (const side of [-1, 1]) {
     const eye = part(
       new T.SphereGeometry(1, 12, 8),

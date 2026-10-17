@@ -92,3 +92,21 @@ test("legacy beds beside the new river retain crops and move to dry lawn only on
   assert.equal(relocateRiverBeds(s, []), 0);
   assert(decode(JSON.stringify(s)));
 });
+
+test("new garden beds cannot extend into the visible river water", async () => {
+  const { createRiverWorld } = await import("../src/river-world");
+  const { fresh, canPlaceBed } = await import("../src/game");
+  const rects: import("../src/game").Rect[] = [];
+  createRiverWorld(new T.Scene(), rects, []);
+  const s = fresh();
+  for (let x = -30; x <= -9; x += 0.5)
+    for (let z = -4; z < 3; z += 0.5)
+      if (canPlaceBed(s, x, z, rects))
+        for (const [dx, dz] of [
+          [-0.8, -1.4],
+          [0.8, -1.4],
+          [-0.8, 1.4],
+          [0.8, 1.4],
+        ])
+          assert(riverDistance(x + dx, z + dz) >= 2.4, `wet bed at ${x},${z}`);
+});
