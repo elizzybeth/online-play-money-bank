@@ -7867,7 +7867,7 @@ if (new URLSearchParams(location.search).has("test")) {
         overview: [-65, 58, -9, -65, 0, -28],
         house: [-56, 8, -4, -69, 2, -15],
         maze: [-65, 26, -24, -70, 0, -39],
-        sign: [8, 3, -17, 8, 3.2, -21],
+        sign: [8, 5, -14, 8, 6, -21],
         shop: [-7, 4, -13, -12, 2, -25],
       };
       const a = views[view];

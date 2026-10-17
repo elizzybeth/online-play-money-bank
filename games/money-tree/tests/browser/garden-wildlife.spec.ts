@@ -65,7 +65,7 @@ test("distinct neighborhood gardens and wildlife visit existing birdhouses", asy
   }
   await page.screenshot({ path: "../../outputs/money-tree-new-gardens.png" });
   for (const [x, z, name] of [
-    [7, -5, "carnivorous"],
+    [8.5, -4.5, "carnivorous"],
     [17.5, 9, "succulents"],
   ] as const) {
     await page.evaluate(

@@ -158,7 +158,7 @@ test("all required interaction targets are reachable in scene collision geometry
           b = z + dz,
           k = `${a},${b}`;
         if (
-          a < -76 ||
+          a < -186 ||
           a > 76 ||
           b < -168 ||
           b > 76 ||
@@ -310,14 +310,16 @@ test("scenery clears paths and doors; visible hedges cover world boundaries", as
         x >= h.min[0] && x <= h.max[0] && z >= h.min[2] && z <= h.max[2],
     );
   for (const [x, z] of [
-    [-39, -20],
-    [-39, 20],
+    [-94, -20],
+    [-94, 20],
+    [-68, -49],
+    [-39, -44.5],
     [39, 20],
     [0, -40],
     [0, 39],
   ])
     expect(covered(x, z)).toBe(true);
-  expect(covered(-39, -4.5)).toBe(false);
+  expect(covered(-94, -4.5)).toBe(false);
 });
 
 test("camera eases through the front doorway without jumps or wall penetration", async ({

@@ -59,8 +59,8 @@ export function createWorld(scene: T.Scene) {
     { x: 34, z: -29.25, w: 3, d: 26.5 },
     { x: -7.5, z: -19.25, w: 21, d: 2.5 },
     { x: -10.7, z: -20.5, w: 4.4, d: 3 },
-    { x: -30, z: -16, w: 36, d: 4 },
-    { x: -47, z: -29, w: 4, d: 32 },
+    { x: -29, z: -16, w: 38, d: 4 },
+    { x: -47, z: -27.5, w: 4, d: 35 },
     { x: -69, z: -10, w: 40, d: 2 },
   ];
   const doorways: Rect[] = [];
@@ -1517,8 +1517,8 @@ export function createWorld(scene: T.Scene) {
   robertsonsRoof.name = "robertsons-roof";
   robertsonsRoof.material = surfaceMaterial("#647a66", "shingles", 6, 5);
   (robertsonsRoof.material as T.MeshStandardMaterial).transparent = true;
-  label("Robertsons", 8, 4.8, -20.7, 8).name = "robertsons-name";
-  label("Hardware & Grocer", 8, 3.2, -20.7, 8, "#334a3c", 2.4).name =
+  label("Robertsons", 8, 8, -20.7, 8).name = "robertsons-name";
+  label("Hardware & Grocer", 8, 5.1, -20.7, 8, "#334a3c", 2.4).name =
     "robertsons-trade";
   for (const x of [15.15]) {
     box(x, 1, -29, 1, 2, 7, "#947859", true);
@@ -1862,6 +1862,7 @@ export function createWorld(scene: T.Scene) {
   }
   for (let i = 0; i < 16; i++)
     foliage(-34 + (i % 2) * 2, -35 + Math.floor(i / 2) * 8, 1.15);
+  for (const x of [-84, -71, -57]) foliage(x, 3.5, 1.35);
   for (const [x, z] of [
     [-5, 10],
     [-4, -5],
