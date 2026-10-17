@@ -1,4 +1,9 @@
-import { riverDistance, splitRiverBoundary } from "./river-land";
+import {
+  riverDistance,
+  splitRiverBoundary,
+  riverBoundaryGaps,
+  groveApproachPaths,
+} from "./river-land";
 import { flatPath } from "./flat-path";
 import { desertGround } from "./meteor-world";
 import { makeDesertPlants } from "./desert-plants";
@@ -120,19 +125,70 @@ export function createMillionaireWorld(
     boundary.add(mesh);
     pieces.forEach((g) => g.dispose());
   }
+  const fence = new T.Group();
+  fence.name = "riverbend-safety-fence";
+  group.add(fence);
+  const fenceParts = new Map<string, T.BufferGeometry[]>();
+  const fencePieceKeys = new Set<string>();
+  const fenceBox = (
+    x: number,
+    y: number,
+    z: number,
+    w: number,
+    h: number,
+    d: number,
+    color: string,
+  ) => {
+    const key = [x, y, z, w, h, d, color].join(",");
+    if (fencePieceKeys.has(key)) return;
+    fencePieceKeys.add(key);
+    const parts = fenceParts.get(color) ?? [];
+    parts.push(new T.BoxGeometry(w, h, d).translate(x, y, z));
+    fenceParts.set(color, parts);
+  };
+  for (const r of [
+    { x: 49.1, z: -73.55, w: 0.8, d: 32.1 },
+    { x: 44.05, z: -57.5, w: 10.1, d: 0.8 },
+  ].flatMap(riverBoundaryGaps)) {
+    // These remain solid for bikes and on foot, while open rails preserve the view.
+    boundaryRects.push(r);
+    const vertical = r.d > r.w,
+      length = vertical ? r.d : r.w;
+    for (const y of [0.4, 0.88])
+      fenceBox(
+        r.x,
+        y,
+        r.z,
+        vertical ? 0.12 : length,
+        0.12,
+        vertical ? length : 0.12,
+        "#a78b60",
+      );
+    const count = Math.ceil(length / 1.8);
+    for (let i = 0; i <= count; i++) {
+      const offset = -length / 2 + (i * length) / count;
+      fenceBox(
+        r.x + (vertical ? 0 : offset),
+        0.08,
+        r.z + (vertical ? offset : 0),
+        0.18,
+        1.96,
+        0.18,
+        "#d6c9ac",
+      );
+    }
+  }
+  for (const [color, parts] of fenceParts) {
+    const mesh = new T.Mesh(mergeGeometries(parts)!, material(color));
+    mesh.castShadow = mesh.receiveShadow = true;
+    fence.add(mesh);
+    parts.forEach((g) => g.dispose());
+  }
   group.add(desertGround());
   box(48, -0.3, -76, 16, 0.5, 32, "#a4bd77").name = "millionaire-east-verge";
-  // East-hedge entrance runs outside town, then merges into the grove clearing.
+  // Continue straight across the river, then turn toward the grove on dry land.
   const entrancePath = part(
-    flatPath(
-      [
-        { x: 42, z: -61, w: 10, d: 6 },
-        { x: 46, z: -82, w: 4, d: 44 },
-        { x: 40, z: -104, w: 16, d: 4 },
-        { x: 34, z: -113, w: 4, d: 18 },
-      ],
-      0.055,
-    ),
+    flatPath(groveApproachPaths, 0.055),
     "#c5b48d",
     0,
     0,
@@ -250,9 +306,9 @@ export function createMillionaireWorld(
     const x = 4 + col * 12 + Math.sin(i * 2.3) * 3,
       z = -108 - row * 9 + Math.cos(i * 1.7) * 2;
     // Keep both trunks and hanging foliage out of the approach corridor.
-    const approach =
-      (Math.abs(z + 104) < 7 && x > 30 && x < 52) ||
-      (Math.abs(x - 46) < 7 && z > -108);
+    const approach = groveApproachPaths.some(
+      (p) => Math.abs(x - p.x) < p.w / 2 + 5 && Math.abs(z - p.z) < p.d / 2 + 5,
+    );
     if (Math.abs(x - 34) > 8 && !approach) willow(x, z, 7 + (i % 4));
   }
   group.add(makeDesertPlants());

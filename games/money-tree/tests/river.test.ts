@@ -7,6 +7,8 @@ import {
   riverDistance,
   riverBridges,
   splitRiverBoundary,
+  riverBoundaryGaps,
+  groveApproachPaths,
 } from "../src/river-land";
 import { carveRiver } from "../src/river-carve";
 test("river stays outside the home and Mabel footprints and has smooth continuous banks", () => {
@@ -26,7 +28,7 @@ test("river stays outside the home and Mabel footprints and has smooth continuou
     for (let a = x - w / 2; a <= x + w / 2; a += 0.5)
       for (let b = z - d / 2; b <= z + d / 2; b += 0.5)
         assert(riverDistance(a, b) > 3.4, `${a},${b} intrudes on a house`);
-  assert.equal(riverBridges.length, 3);
+  assert.equal(riverBridges.length, 2);
 });
 test("river terrain carving removes the channel instead of layering over the ground", () => {
   const mesh = new T.Mesh(
@@ -111,10 +113,35 @@ test("new garden beds cannot extend into the visible river water", async () => {
           assert(riverDistance(x + dx, z + dz) >= 2.4, `wet bed at ${x},${z}`);
 });
 
-test("bridge entrances cut parallel boundaries without removing nearby approach rails", () => {
+test("removing the east-road crossing restores its hedge and retains approach rails", () => {
   const pieces = splitRiverBoundary({ x: 39, z: -25, w: 1, d: 80 });
   const covers = (z: number) =>
     pieces.some((r) => z > r.z - r.d / 2 && z < r.z + r.d / 2);
-  assert.equal(covers(-16), false);
   assert.equal(covers(-25), true);
+});
+
+test("grove bridge continues straight along the approach and the riverside turn is fenced", async () => {
+  const { createRiverWorld } = await import("../src/river-world");
+  const g = riverBridges.find((b) => b.id === "grove")!;
+  assert.equal(g.axis, "z");
+  assert.equal(g.x, 46);
+  for (let z = -90; z >= -112; z -= 0.5)
+    assert(
+      groveApproachPaths.some(
+        (r) => Math.abs(46 - r.x) <= r.w / 2 && Math.abs(z - r.z) <= r.d / 2,
+      ),
+    );
+  const rects: import("../src/game").Rect[] = [];
+  const world = createRiverWorld(new T.Scene(), rects, []);
+  assert(!world.root.getObjectByName("river-bridge-east-road"));
+  assert(
+    rects.some(
+      (r) => Math.abs(43 - r.x) < r.w / 2 && Math.abs(-16 - r.z) < r.d / 2,
+    ),
+  );
+  const rail = { x: 49.1, z: -73.55, w: 0.8, d: 32.1 };
+  const spans = [...splitRiverBoundary(rail), ...riverBoundaryGaps(rail)];
+  assert(riverBoundaryGaps(rail).length > 0);
+  for (let z = -89.5; z < -57.5; z += 0.25)
+    assert(spans.some((r) => Math.abs(z - r.z) <= r.d / 2));
 });

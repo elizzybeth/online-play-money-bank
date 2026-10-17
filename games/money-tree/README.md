@@ -163,8 +163,15 @@ Scene routes use exact segment clearance against expanded collision rectangles, 
 
 ### River and mountain alleys, October 16
 
-A river follows the player's sketched route past Willow Grove, down Sigma Town's east edge, and through the village. Three wooden bridges keep roads connected. The channel is cut out of terrain and pavement, with sloped banks, reeds, shrubs, flowers and trees. Bank greenery and water have a separate drought state for the future restrictions story; no restrictions begin in this release. Existing custom garden beds affected by the channel move to dry lawn while retaining their crops and harvest state. Mabel gardens beside her house on dry ground.
+A river follows the player's sketched route past Willow Grove, down Sigma Town's east edge, and through the village. Two wooden bridges keep the intended roads connected. The Willow Grove bridge continues straight along the approach; the east end of the Thread & Thimble road has no river crossing. Open fencing closes the riverside turn without hiding the water. The channel is cut out of terrain and pavement, with sloped banks, reeds, shrubs, flowers and trees. Bank greenery and water have a separate drought state for the future restrictions story; no restrictions begin in this release. Existing custom garden beds affected by the channel move to dry lawn while retaining their crops and harvest state. Mabel gardens beside her house on dry ground.
 
-Mansion Marvels moves four units east and Terrace Threads six, leaving alleys beside the community mansion row and between the shops. Their paths, service stations, hat rack, collision and interaction points move together. Fertilizer at Robertson's now includes a preview of its actual model. All Chads, including café staff and Soyjak, have golden open hands with blue diamond facets in their palms.
+Mansion Marvels moves four units east and Terrace Threads six, leaving alleys beside the community mansion row and between the shops. Their paths, service stations, hat rack, collision and interaction points move together. Fertilizer at Robertson's now includes a preview of its actual model. After the player launches a meme coin, all Chads, including café staff and Soyjak, switch together to golden open hands with blue diamond facets. They retain ordinary hands before launch.
 
 After Pepe's balloon pops, Mr Wacky appears in the center of the room while the host stands aside. Interact to start his inflatable dance and hear “Good clean fun!”, “Legal fun!”, “Illegal fun!”, “Sexy fun!” or “Inflatable fun!”; “Again!” cycles the sayings. The character returns from existing popped-Pepe saves without adding save fields, and reduced-motion mode softens the dance.
+
+
+### Expanding hat stacks and the home bike rack
+
+The starting hat limit is three. Opening Sigma Town adds a fourth slot; opening Mt. Millionaire adds a fifth. Both racks, shop purchases, the bag and save validation use the same derived limit. Existing saves retain their stacks and automatically gain the slots they have unlocked. The temporary Serious Hat remains an extra cosmetic effect.
+
+The owned-bike rack stands at the house's southeast corner, clear of its doors and the main lane. Its post-mounted charcoal sign has a white border, tall BIKE RACK lettering and a bicycle pictogram. Choosing, storing and mounting bicycles still use the same saved ownership.

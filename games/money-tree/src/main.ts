@@ -199,6 +199,7 @@ import {
   buyHat,
   equipHat,
   wornHats,
+  hatCapacity,
   wearing,
   removeHat,
   plantingSeconds,
@@ -2239,9 +2240,9 @@ function showHat(id: HatId) {
           ? wearing(s, id)
             ? "Already wearing"
             : "Put on this hat"
-          : `Buy & ${wornHats(s).length >= 3 ? "keep" : "wear"} · ${money(purchasePrice(s, hat.price))}`,
+          : `Buy & ${wornHats(s).length >= hatCapacity(s) ? "keep" : "wear"} · ${money(purchasePrice(s, hat.price))}`,
         disabled: s.hats.includes(id)
-          ? wearing(s, id) || wornHats(s).length >= 3
+          ? wearing(s, id) || wornHats(s).length >= hatCapacity(s)
           : s.cash < purchasePrice(s, hat.price),
         run: () => {
           if (s.hats.includes(id) ? equipHat(s, id) : buyHat(s, id)) {
@@ -2384,7 +2385,9 @@ function bag() {
     (b) =>
       (b.onclick = () => {
         if (!equipHat(s, b.dataset.hat as HatId))
-          toast("Three hats already! Visit your bedroom hat rack.");
+          toast(
+            `Your ${hatCapacity(s)} hat slots are full! Visit a hat rack to swap.`,
+          );
         save();
         bag();
       }),
@@ -2424,7 +2427,7 @@ function hangHat(id: HatId) {
 function hatRack() {
   panel(
     "Your hat rack",
-    `<p>Wear up to three hats. Their powers work together.</p><div class="hat-bag">${s.hats.map((id) => `<button data-rack-hat="${id}"><img src="${hatPortrait(id)}" alt=""><span>${hatById(id)!.name}</span><p class="hat-power">${hatPower(id, s.foundCapSeeds)}</p><b>${wearing(s, id) ? "Hang on rack" : "Put on"}</b></button>`).join("") || "<p>Your rack is waiting for its first hat.</p>"}</div>`,
+    `<p>Wear up to ${hatCapacity(s)} hats. Their powers work together. Each new level adds a slot.</p><div class="hat-bag">${s.hats.map((id) => `<button data-rack-hat="${id}"><img src="${hatPortrait(id)}" alt=""><span>${hatById(id)!.name}</span><p class="hat-power">${hatPower(id, s.foundCapSeeds)}</p><b>${wearing(s, id) ? "Hang on rack" : "Put on"}</b></button>`).join("") || "<p>Your rack is waiting for its first hat.</p>"}</div>`,
     [{ label: "Back to the day", default: true, run: close }],
   );
   document.querySelectorAll<HTMLButtonElement>("[data-rack-hat]").forEach(
@@ -2435,7 +2438,9 @@ function hatRack() {
           hangHat(id);
           return;
         } else if (!equipHat(s, id))
-          toast("Three hats already! Hang one on the rack first.");
+          toast(
+            `Your ${hatCapacity(s)} hat slots are full! Hang one on the rack first.`,
+          );
         save();
         hatRack();
       }),
@@ -4848,7 +4853,7 @@ function interact(skipTrader = false): void {
       world.syncBeds(s.plots);
       toast(
         id === "tv-seeds"
-          ? "Five seeds! A path has opened past Thread & Thimble. Sigma Town is through the hedge."
+          ? "Five seeds! A path has opened past Thread & Thimble. Sigma Town is through the hedge. You can now wear four hats at once."
           : "Five money seeds! Another chance for the garden.",
       );
     }
@@ -5635,12 +5640,18 @@ function targetDistance(t: Target) {
   const point = interactionPoint(t);
   return Math.hypot(s.position.x - point.x, s.position.z - point.z);
 }
+const bikeRackTarget = world.targets.find((t) => t.id === "bike-rack")!;
 function atBikeRack() {
-  return Math.hypot(s.position.x + 24, s.position.z + 14.7) < 1.5;
+  return (
+    Math.hypot(
+      s.position.x - bikeRackTarget.x,
+      s.position.z - bikeRackTarget.z,
+    ) < 1.5
+  );
 }
 function selectTarget() {
   const { x, z } = s.position;
-  if (atBikeRack()) return world.targets.find((t) => t.id === "bike-rack");
+  if (atBikeRack()) return bikeRackTarget;
   if (
     !riding &&
     parkedBike?.visible &&
@@ -6714,7 +6725,7 @@ function frame(now: number) {
   world.millionaire.update(s, active && s.awake ? dt : 0);
   if (s.millionaire?.unlocked && !millionairePathNoticed && begun) {
     toast(
-      "A gap has opened in Sigma Town’s east hedge, between the ATM and town entrance. Follow the path into the willow grove.",
+      "A gap has opened in Sigma Town’s east hedge, between the ATM and town entrance. Follow the path into the willow grove. You can now wear five hats at once.",
     );
     millionairePathNoticed = true;
   } else if (!s.millionaire?.unlocked) millionairePathNoticed = false;
@@ -7768,16 +7779,23 @@ if (new URLSearchParams(location.search).has("test")) {
       renderer.render(scene, camera);
     },
     diamondHands: () => {
-      const chads: { id: string; hands: number; diamonds: number }[] = [];
+      const chads: {
+        id: string;
+        hands: number;
+        diamonds: number;
+        ordinary: number;
+      }[] = [];
       world.sigma.town.traverse((o) => {
         if (!o.userData.chad) return;
         let hands = 0,
-          diamonds = 0;
-        o.traverse((child) => {
+          diamonds = 0,
+          ordinary = 0;
+        o.traverseVisible((child) => {
           if (child.name.startsWith("diamond-hand-")) hands++;
           if (child.name === "palm-diamond") diamonds++;
+          if (child.name.startsWith("ordinary-hand-")) ordinary++;
         });
-        chads.push({ id: o.uuid, hands, diamonds });
+        chads.push({ id: o.uuid, hands, diamonds, ordinary });
       });
       return chads;
     },
@@ -7799,10 +7817,23 @@ if (new URLSearchParams(location.search).has("test")) {
         view === "village"
           ? [-5, -8]
           : view === "grove"
-            ? [29, -105]
+            ? [46, -98]
             : [48, -61];
       camera.position.set(p[0] + 20, 32, p[1] + 25);
       camera.lookAt(p[0], 0, p[1]);
+      renderer.render(scene, camera);
+    },
+    riverCrossingReview: (view: "grove" | "bend" | "rack") => {
+      if (view === "grove") {
+        camera.position.set(46, 2.4, -87);
+        camera.lookAt(46, 0.7, -108);
+      } else if (view === "bend") {
+        camera.position.set(43, 2.3, -60);
+        camera.lookAt(50, 0.9, -60);
+      } else {
+        camera.position.set(0, 3.4, 22);
+        camera.lookAt(-4.7, 1.5, 16.1);
+      }
       renderer.render(scene, camera);
     },
     riverDrought: (dry: boolean) => world.river.setDrought(dry),

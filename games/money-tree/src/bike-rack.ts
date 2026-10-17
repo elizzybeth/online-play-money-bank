@@ -1,6 +1,7 @@
 import * as T from "three";
 import { bikes, type BikeId } from "./bikes";
 import { makeBike } from "./bike-models";
+export const homeBikeRack = { x: -4.7, z: 16.1, targetX: -4.7, targetZ: 18.4 };
 export function makeBikeRack() {
   const object = new T.Group();
   object.name = "owned-bike-rack";
@@ -49,4 +50,82 @@ export function makeBikeRack() {
           model.userData.bikeId !== away;
     },
   };
+}
+
+export function makeBikeRackSign() {
+  const root = new T.Group();
+  root.name = "bike-rack-sign";
+  root.position.set(3.1, 0, -1.15);
+  const white = new T.MeshStandardMaterial({
+    color: "#fff9df",
+    roughness: 0.6,
+  });
+  const post = new T.Mesh(new T.BoxGeometry(0.14, 3.65, 0.14), white);
+  post.position.y = 1.825;
+  root.add(post);
+  const frame = new T.Mesh(new T.BoxGeometry(1.25, 1.8, 0.1), white);
+  frame.position.y = 2.8;
+  root.add(frame);
+  const canvas = document.createElement("canvas");
+  canvas.width = 640;
+  canvas.height = 960;
+  const c = canvas.getContext("2d")!;
+  c.fillStyle = "#343a3c";
+  c.fillRect(0, 0, 640, 960);
+  c.strokeStyle = "#fff9df";
+  c.lineWidth = 16;
+  c.strokeRect(14, 14, 612, 932);
+  c.fillStyle = "#fff9df";
+  c.textAlign = "center";
+  c.font = "600 168px BarlowCondensed, sans-serif";
+  c.fillText("BIKE", 320, 225, 520);
+  c.fillText("RACK", 320, 420, 520);
+  c.lineWidth = 14;
+  c.lineCap = "round";
+  c.lineJoin = "round";
+  for (const x of [157, 483]) {
+    c.beginPath();
+    c.arc(x, 730, 110, 0, Math.PI * 2);
+    c.stroke();
+  }
+  const line = (points: number[][]) => {
+    c.beginPath();
+    c.moveTo(points[0][0], points[0][1]);
+    for (const [x, y] of points.slice(1)) c.lineTo(x, y);
+    c.stroke();
+  };
+  line([
+    [157, 730],
+    [247, 566],
+    [320, 730],
+    [157, 730],
+    [417, 566],
+    [483, 730],
+  ]);
+  line([
+    [247, 566],
+    [417, 566],
+    [433, 524],
+    [473, 524],
+  ]);
+  line([
+    [247, 566],
+    [233, 524],
+    [200, 524],
+    [263, 524],
+  ]);
+  line([
+    [320, 730],
+    [334, 766],
+    [361, 766],
+  ]);
+  const texture = new T.CanvasTexture(canvas);
+  texture.colorSpace = T.SRGBColorSpace;
+  const face = new T.Mesh(
+    new T.PlaneGeometry(1.18, 1.73),
+    new T.MeshBasicMaterial({ map: texture, side: T.DoubleSide }),
+  );
+  face.position.set(0, 2.8, 0.056);
+  root.add(face);
+  return root;
 }

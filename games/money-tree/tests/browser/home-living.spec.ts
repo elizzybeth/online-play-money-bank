@@ -189,7 +189,7 @@ test("Willow Lane camera stays near the player and desert thoughts stay centered
   // Follow the east lane onto the new grove bridge; the old (46,-100) spot is water.
   for (const [x, z] of [
     [46, -90],
-    [40, -104],
+    [46, -114],
   ]) {
     await page.evaluate(
       ([x, z]) => (window as any).game.teleport(x, z),

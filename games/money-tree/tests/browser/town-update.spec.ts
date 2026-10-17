@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { applyDebugAction } from "../../src/debug-menu";
 import { fresh, momStatus, type State } from "../../src/game";
 async function open(page: Page, s: State) {
   await page.addInitScript((s) => {
@@ -232,3 +233,46 @@ test("Mom stays in the garden when the player goes indoors", async ({
   expect(after).toEqual(before);
   await expect(page.locator(".speech-bubble")).toHaveCount(0);
 });
+
+for (const level of [2, 3])
+  test(`level ${level} adds a hat slot at the rack and saves the larger stack`, async ({
+    page,
+  }) => {
+    const s = fresh();
+    applyDebugAction(s, level === 3 ? "level3" : "level2");
+    s.metMom = true;
+    s.hats = ["cap", "propeller", "rabbit", "wizard", "inspector", "hardhat"];
+    s.equippedHats = ["cap", "propeller", "rabbit"];
+    s.equippedHat = "rabbit";
+    s.position = { x: -19.5, z: 4.8 };
+    await open(page, s);
+    await page.keyboard.press("e");
+    await expect(page.locator("#modal")).toContainText(
+      `Wear up to ${level + 2} hats`,
+    );
+    await page.locator("[data-rack-hat=wizard]").click();
+    if (level === 3) await page.locator("[data-rack-hat=inspector]").click();
+    expect(
+      await page.evaluate(() => (window as any).game.state().equippedHats),
+    ).toHaveLength(level + 2);
+    await page
+      .locator(
+        level === 3 ? "[data-rack-hat=hardhat]" : "[data-rack-hat=inspector]",
+      )
+      .click();
+    expect(
+      await page.evaluate(() => (window as any).game.state().equippedHats),
+    ).toHaveLength(level + 2);
+    await expect(page.locator("#toast")).toContainText(
+      `${level + 2} hat slots are full`,
+    );
+    await page.evaluate(() => (window as any).game.storageFlush());
+    await page.reload();
+    await page.getByRole("button", { name: "Wake up" }).click();
+    expect(
+      await page.evaluate(() => (window as any).game.state().equippedHats),
+    ).toHaveLength(level + 2);
+    expect(
+      await page.evaluate(() => (window as any).game.hatStack()),
+    ).toHaveLength(level + 2);
+  });

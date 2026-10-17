@@ -53,6 +53,15 @@ test("sigma garden, fresh Chads, Grindset name input, investments, coffee and sa
     .poll(() => page.evaluate(() => (window as any).game.state().position.z))
     .toBeLessThan(-42);
   await page.keyboard.up("w");
+  const beforeCoinHands = await page.evaluate(() =>
+    (window as any).game.diamondHands(),
+  );
+  expect(beforeCoinHands.length).toBeGreaterThan(8);
+  expect(
+    beforeCoinHands.every(
+      (c: any) => c.hands === 0 && c.diamonds === 0 && c.ordinary === 2,
+    ),
+  ).toBe(true);
   const garden = await page.evaluate(() => (window as any).game.sigma());
   expect(garden.plots).toHaveLength(10);
   // Street Chads roam; approach the live target rather than its old spawn.
@@ -99,6 +108,13 @@ test("sigma garden, fresh Chads, Grindset name input, investments, coffee and sa
   await expect(page.locator("#coin-name")).toHaveValue("Seed Funde");
   await page.locator("#coin-name").fill("Seed Fund");
   await page.getByRole("button", { name: "Name it", exact: true }).click();
+  await expect
+    .poll(async () =>
+      (await page.evaluate(() => (window as any).game.diamondHands())).every(
+        (c: any) => c.hands === 2 && c.diamonds === 2 && c.ordinary === 0,
+      ),
+    )
+    .toBe(true);
   await page.locator("#coin-amount").fill("2.00");
   await page.getByRole("button", { name: "Buy", exact: true }).click();
   await page.getByRole("button", { name: "Leave", exact: true }).click();
@@ -117,6 +133,11 @@ test("sigma garden, fresh Chads, Grindset name input, investments, coffee and sa
   await expect(page.locator("#coin-tracker")).toContainText("Seed Fund");
   expect(
     (await page.evaluate(() => (window as any).game.state())).communityPlanted,
+  ).toBe(true);
+  expect(
+    (await page.evaluate(() => (window as any).game.diamondHands())).every(
+      (c: any) => c.hands === 2 && c.diamonds === 2 && c.ordinary === 0,
+    ),
   ).toBe(true);
   expect(errors).toEqual([]);
   await at(page, 23, -62.8);

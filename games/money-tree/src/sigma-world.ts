@@ -160,6 +160,8 @@ export function createSigmaWorld(
   const entranceSign = sign("Sigma Town", 34, 4.8, -43, 5);
   box(31.7, 2.35, -43, 0.18, 4.7, 0.18, "#6c5940");
   box(36.3, 2.35, -43, 0.18, 4.7, 0.18, "#6c5940");
+  const chadHands: { ordinary: T.Object3D; diamond: T.Object3D }[] = [];
+  let diamondsActive = false;
   // Stylized grayscale Chads: slick hair, angular jaw, broad shoulders and little legs.
   function chad(id: string, x: number, z: number, apron = false) {
     const g = new T.Group();
@@ -180,18 +182,17 @@ export function createSigmaWorld(
     box(0, 1.44, 0.35, 0.35, 0.05, 0.05, "#222426", faceGroup);
     for (const side of [-1, 1]) {
       ball(side * 0.56, 0.96, 0, 0.23, "#999999", g).scale.set(0.9, 1.4, 0.9);
+      const ordinary = ball(side * 0.25, 0.96, 0.24, 0.23, "#b7b7b7", g);
+      ordinary.name = `ordinary-hand-${side}`;
+      ordinary.scale.set(1, 0.75, 0.55);
       if (id !== "stacy") {
         const hand = makeDiamondHand(side);
         hand.position.set(side * 0.58, 0.83, 0.32);
         hand.rotation.z = -side * 0.18;
         hand.scale.setScalar(0.85);
+        hand.visible = false;
         g.add(hand);
-      } else {
-        ball(side * 0.25, 0.96, 0.24, 0.23, "#b7b7b7", g).scale.set(
-          1,
-          0.75,
-          0.55,
-        );
+        chadHands.push({ ordinary, diamond: hand });
       }
       box(side * 0.16, 1.65, 0.34, 0.2, 0.04, 0.035, "#242629", faceGroup);
       ball(side * 0.18, 1.59, 0.337, 0.035, "#212121", faceGroup);
@@ -987,13 +988,10 @@ export function createSigmaWorld(
       endHandoff();
       const npc = speakers.find((n) => n.id === id)?.object;
       if (!npc) return;
-      const hand =
-        npc.getObjectByName("diamond-hand-1") ??
-        npc.children.find(
-          (o) =>
-            Math.abs(o.position.x - 0.25) < 0.01 &&
-            Math.abs(o.position.z - 0.24) < 0.01,
-        );
+      const diamond = npc.getObjectByName("diamond-hand-1");
+      const hand = diamond?.visible
+        ? diamond
+        : npc.getObjectByName("ordinary-hand-1");
       const start = npc.localToWorld(new T.Vector3(0.25, 1.02, 0.55));
       handoff = {
         start,
@@ -1026,6 +1024,14 @@ export function createSigmaWorld(
     },
     cancelHandoff: endHandoff,
     updateATM(name?: string) {
+      const active = !!name;
+      if (active !== diamondsActive) {
+        diamondsActive = active;
+        for (const hands of chadHands) {
+          hands.ordinary.visible = !active;
+          hands.diamond.visible = active;
+        }
+      }
       const present = rects.includes(atmRect);
       if (!!name !== present) {
         if (name) rects.push(atmRect);
