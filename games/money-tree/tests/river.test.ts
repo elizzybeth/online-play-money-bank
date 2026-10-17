@@ -110,3 +110,11 @@ test("new garden beds cannot extend into the visible river water", async () => {
         ])
           assert(riverDistance(x + dx, z + dz) >= 2.4, `wet bed at ${x},${z}`);
 });
+
+test("bridge entrances cut parallel boundaries without removing nearby approach rails", () => {
+  const pieces = splitRiverBoundary({ x: 39, z: -25, w: 1, d: 80 });
+  const covers = (z: number) =>
+    pieces.some((r) => z > r.z - r.d / 2 && z < r.z + r.d / 2);
+  assert.equal(covers(-16), false);
+  assert.equal(covers(-25), true);
+});

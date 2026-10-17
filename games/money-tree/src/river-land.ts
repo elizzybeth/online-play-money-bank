@@ -95,8 +95,8 @@ export function splitRiverBoundary<
     center = vertical ? r.x : r.z,
     half = (vertical ? r.w : r.d) / 2;
   const radius = riverBankWidth + half;
-  const cuts = points
-    .flatMap((p) => {
+  const cuts = [
+    ...points.flatMap((p) => {
       const delta = Math.abs((vertical ? p.x : p.z) - center);
       if (delta >= radius) return [];
       // Project the bank radius onto this wall. A fixed-width cut over-trimmed
@@ -104,8 +104,18 @@ export function splitRiverBoundary<
       const reach = Math.sqrt(radius * radius - delta * delta) + 0.8;
       const along = vertical ? p.z : p.x;
       return [[along - reach, along + reach]];
-    })
-    .sort((a, b) => a[0] - b[0]);
+    }),
+    // Road bridges need their entire deck opening even when the water itself
+    // passes just beyond a parallel hedge or wall.
+    ...riverBridges.flatMap((b) => {
+      const across = vertical ? b.x : b.z;
+      const acrossHalf = (vertical ? b.w : b.d) / 2;
+      if (Math.abs(across - center) >= acrossHalf + half) return [];
+      const along = vertical ? b.z : b.x;
+      const alongHalf = (vertical ? b.d : b.w) / 2;
+      return [[along - alongHalf, along + alongHalf]];
+    }),
+  ].sort((a, b) => a[0] - b[0]);
   let intervals = [
     [
       (vertical ? r.z : r.x) - (vertical ? r.d : r.w) / 2,
