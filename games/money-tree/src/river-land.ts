@@ -64,10 +64,16 @@ export const riverSections = points.map((p, i) => {
   const len = Math.hypot(b.x - a.x, b.z - a.z);
   return { ...p, nx: -(b.z - a.z) / len, nz: (b.x - a.x) / len };
 });
-export const riverBridges = [
+export const riverBridges: readonly {
+  id: string;
+  x: number;
+  z: number;
+  w: number;
+  d: number;
+  axis: "x" | "z";
+}[] = [
   { id: "village", x: 3, z: -8.6, w: 5, d: 12, axis: "z" },
-  { id: "east-road", x: 42, z: -16, w: 12, d: 5, axis: "x" },
-  { id: "grove", x: 34, z: -104, w: 15, d: 4, axis: "x" },
+  { id: "grove", x: 46, z: -98, w: 4, d: 18, axis: "z" },
 ] as const;
 export function riverDistance(x: number, z: number) {
   if (x < -112 || x > 59 || z < -152 || z > 1) return Infinity;
@@ -137,3 +143,40 @@ export function splitRiverBoundary<
         : { x: (a + b) / 2, w: b - a }),
     }));
 }
+
+/** Open fence spans replace only the missing wall at a riverside bend. */
+export function riverBoundaryGaps<
+  R extends { x: number; z: number; w: number; d: number },
+>(r: R): R[] {
+  const vertical = r.d > r.w;
+  const start = (vertical ? r.z : r.x) - (vertical ? r.d : r.w) / 2;
+  const end = (vertical ? r.z : r.x) + (vertical ? r.d : r.w) / 2;
+  const pieces = splitRiverBoundary(r).sort((a, b) =>
+    vertical ? a.z - b.z : a.x - b.x,
+  );
+  const gaps: R[] = [];
+  let cursor = start;
+  const add = (lo: number, hi: number) => {
+    if (hi - lo > 0.05)
+      gaps.push({
+        ...r,
+        ...(vertical
+          ? { z: (lo + hi) / 2, d: hi - lo }
+          : { x: (lo + hi) / 2, w: hi - lo }),
+      });
+  };
+  for (const p of pieces) {
+    const center = vertical ? p.z : p.x,
+      half = (vertical ? p.d : p.w) / 2;
+    add(cursor, center - half);
+    cursor = center + half;
+  }
+  add(cursor, end);
+  return gaps;
+}
+export const groveApproachPaths = [
+  { x: 42, z: -61, w: 10, d: 6 },
+  { x: 46, z: -87, w: 4, d: 54 },
+  { x: 40, z: -114, w: 16, d: 4 },
+  { x: 34, z: -122, w: 4, d: 16 },
+];

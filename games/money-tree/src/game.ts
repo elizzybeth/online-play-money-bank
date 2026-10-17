@@ -1066,7 +1066,7 @@ export function decode(raw: string | null): State | null {
       s.equippedHats = [s.equippedHat];
     if (
       !Array.isArray(s.equippedHats) ||
-      s.equippedHats.length > 3 ||
+      s.equippedHats.length > hatCapacity(s) ||
       new Set(s.equippedHats).size !== s.equippedHats.length ||
       !s.equippedHats.every((id: HatId) => s.hats.includes(id))
     )
@@ -1327,6 +1327,10 @@ export function neighborLine(s: State, id: string) {
   return `“${lines[count % lines.length]}”`;
 }
 
+/** Starting stack plus one permanent slot for each unlocked expansion. */
+export function hatCapacity(s: Pick<State, "foundTVSeeds" | "millionaire">) {
+  return s.millionaire?.unlocked ? 5 : s.foundTVSeeds ? 4 : 3;
+}
 export function wornHats(s: State): HatId[] {
   return s.equippedHats?.length
     ? s.equippedHats
@@ -1355,7 +1359,7 @@ export function equipHat(s: State, id: HatId | null) {
   const stack = [...wornHats(s)];
   if (id === null) s.equippedHats = [];
   else {
-    if (!stack.includes(id) && stack.length >= 3) return false;
+    if (!stack.includes(id) && stack.length >= hatCapacity(s)) return false;
     s.equippedHats = stack.includes(id) ? stack : [...stack, id];
   }
   s.equippedHat = s.equippedHats.at(-1) ?? null;

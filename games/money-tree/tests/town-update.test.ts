@@ -6,6 +6,7 @@ import {
   equipHat,
   removeHat,
   wornHats,
+  hatCapacity,
   movementSpeed,
   decode,
   findHiddenSeeds,
@@ -139,4 +140,23 @@ test("Mom has ten good-day activities, occasional bed days, and finished birdhou
       ),
     );
   }
+});
+
+test("each unlocked level adds one hat slot and larger stacks survive saving", async () => {
+  const { newMillionaire } = await import("../src/millionaire");
+  const s = fresh();
+  s.hats = ["cap", "propeller", "rabbit", "wizard", "inspector", "hardhat"];
+  assert.equal(hatCapacity(s), 3);
+  for (const id of s.hats.slice(0, 3)) assert(equipHat(s, id));
+  assert(!equipHat(s, "wizard"));
+  s.foundTVSeeds = true;
+  assert.equal(hatCapacity(s), 4);
+  assert(equipHat(s, "wizard"));
+  assert.equal(decode(JSON.stringify(s))!.equippedHats!.length, 4);
+  assert(!equipHat(s, "inspector"));
+  s.millionaire = { ...newMillionaire(), unlocked: true, afterPepe: 10000 };
+  assert.equal(hatCapacity(s), 5);
+  assert(equipHat(s, "inspector"));
+  assert.equal(decode(JSON.stringify(s))!.equippedHats!.length, 5);
+  assert(!equipHat(s, "hardhat"));
 });

@@ -166,7 +166,7 @@ test("outside rack swaps owned bicycles and F activates only the riding bike", a
   await start(page, {
     bikes: ["tassels", "road"],
     selectedBike: "tassels",
-    position: { x: -24, z: -14.7 },
+    position: { x: -4.7, z: 18.4 },
   });
   await frames(page, 5);
   expect(await page.evaluate(() => (window as any).game.bikeRack())).toEqual([
@@ -208,7 +208,7 @@ test("outside rack swaps owned bicycles and F activates only the riding bike", a
   expect(
     await page.evaluate(() => (window as any).game.bikeSpecial().multiplier),
   ).toBe(1);
-  await page.evaluate(() => (window as any).game.teleport(-24, -14.7));
+  await page.evaluate(() => (window as any).game.teleport(-4.7, 18.4));
   await frames(page, 5);
   await page.keyboard.press("e");
   expect(await page.evaluate(() => (window as any).game.bikeRack())).toEqual([

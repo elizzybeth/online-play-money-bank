@@ -1,10 +1,14 @@
 import { createRiverWorld } from "./river-world";
-import { riverDistance, splitRiverBoundary } from "./river-land";
+import {
+  riverDistance,
+  splitRiverBoundary,
+  groveApproachPaths,
+} from "./river-land";
 import { makeSeriousHat } from "./soyjak-models";
 import { makeCrop } from "./crop-model";
 import type { Crop } from "./garden-crops";
 import { makeRobertsonsDisplay } from "./robertsons-display";
-import { makeBikeRack } from "./bike-rack";
+import { makeBikeRack, makeBikeRackSign, homeBikeRack } from "./bike-rack";
 import { makeBedsideTable } from "./bedside-model";
 import { makeFurnishing } from "./furnishing-models";
 import type { FurnishingId } from "./furnishings";
@@ -1727,11 +1731,22 @@ export function createWorld(scene: T.Scene) {
   }
   doorways.push({ x: -18, z: -21, w: 5, d: 5 });
   const bikeRack = makeBikeRack();
-  bikeRack.object.position.set(-24, 0, -17);
+  bikeRack.object.position.set(homeBikeRack.x, 0, homeBikeRack.z);
+  bikeRack.object.add(makeBikeRackSign());
   scene.add(bikeRack.object);
-  rects.push({ x: -24, z: -17, w: 7, d: 3.2, clearHeight: 2.4 });
-  target("bike-rack", -24, -14.7, "Choose a bike");
-  label("Your bike rack", -24, 2.65, -18.15, 4).name = "bike-rack-sign";
+  rects.push({
+    x: homeBikeRack.x,
+    z: homeBikeRack.z,
+    w: 7,
+    d: 3.2,
+    clearHeight: 2.4,
+  });
+  target(
+    "bike-rack",
+    homeBikeRack.targetX,
+    homeBikeRack.targetZ,
+    "Choose a bike",
+  );
   const bikeDisplays = bikes.map((bike, i) => {
     const hung = i >= 4;
     const x = hung ? -24 + (i - 4) * 6 : i % 2 ? -12 : -24;
@@ -2689,7 +2704,11 @@ export function createWorld(scene: T.Scene) {
     fitWindow(object, w > d, Math.max(w, d), h, Math.min(w, d));
   }
   const life = createTownLife(scene, rects, targets, speakers, player, mom);
-  const river = createRiverWorld(scene, rects, [...paths, ...sigma.paths]);
+  const river = createRiverWorld(scene, rects, [
+    ...paths,
+    ...sigma.paths,
+    ...groveApproachPaths,
+  ]);
   return {
     river,
     life,

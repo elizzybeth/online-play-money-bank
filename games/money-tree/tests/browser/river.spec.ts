@@ -1,12 +1,15 @@
 import { test, expect } from "@playwright/test";
 import { fresh } from "../../src/game";
 import { applyDebugAction } from "../../src/debug-menu";
+import { createCoin } from "../../src/sigma";
 import { riverBridges } from "../../src/river-land";
 test("river bridges are walkable, banks are lush and drought can change them without rebuilding", async ({
   page,
 }, info) => {
   const s = fresh();
   applyDebugAction(s, "level3");
+  s.communityPlanted = true;
+  createCoin(s, "River Coin");
   s.awake = true;
   s.metMom = true;
   s.position = { x: 3, z: 1 };
@@ -53,6 +56,37 @@ test("river bridges are walkable, banks are lush and drought can change them wit
       return points;
     }, bridge);
     expect(blocked, bridge.id).toEqual([]);
+  }
+  expect(data.bridges.map((b: any) => b.id)).not.toContain("east-road");
+  const constraints = await page.evaluate(() => {
+    const g = (window as any).game;
+    const blocked = (x: number, z: number) =>
+      g.rects.some(
+        (r: any) =>
+          Math.abs(x - r.x) < r.w / 2 + 0.48 &&
+          Math.abs(z - r.z) < r.d / 2 + 0.48,
+      );
+    return {
+      noCrossing: blocked(43, -16),
+      straight: Array.from({ length: 45 }, (_, i) => -90 - i * 0.5).every(
+        (z) => !blocked(46, z),
+      ),
+      fence: Array.from({ length: 65 }, (_, i) => -89.5 + i * 0.49).every((z) =>
+        blocked(49.1, z),
+      ),
+    };
+  });
+  expect(constraints).toEqual({
+    noCrossing: true,
+    straight: true,
+    fence: true,
+  });
+  for (const view of ["grove", "bend", "rack"] as const) {
+    await page.evaluate(
+      (v) => (window as any).game.riverCrossingReview(v),
+      view,
+    );
+    await page.screenshot({ path: info.outputPath(`${view}-review.png`) });
   }
   for (const view of ["village", "grove", "east"] as const) {
     await page.evaluate((v) => (window as any).game.riverOverview(v), view);
