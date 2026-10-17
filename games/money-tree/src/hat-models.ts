@@ -1,3 +1,4 @@
+import { makeSaxophone } from "./saxophone";
 import * as T from "three";
 import { hatById, type HatId } from "./hats";
 // Shared geometry for shop stock, bag portraits, and the worn hat.
@@ -115,47 +116,7 @@ export function makeHat(id: HatId) {
     }
     box(0, 0.19, 0.45, 0.19, 0.11, 0.025, "#fff3d1");
   } else if (id === "alchemist") {
-    // Open-faced cloth hood, with a soft pointed back and draped side panels.
-    const hood = mesh(
-      new T.SphereGeometry(1, 28, 18, Math.PI, Math.PI),
-      "#303b38",
-      0,
-      0.12,
-      0.28,
-    );
-    hood.scale.set(0.51, 0.57, 0.5);
-    hood.material.side = T.DoubleSide;
-    const points = Array.from({ length: 33 }, (_, i) => {
-      const a = (Math.PI * i) / 32;
-      return new T.Vector3(Math.cos(a) * 0.49, 0.1 + Math.sin(a) * 0.56, 0.28);
-    });
-    mesh(
-      new T.TubeGeometry(new T.CatmullRomCurve3(points), 32, 0.028, 6, false),
-      "#59675d",
-    );
-    for (const side of [-1, 1]) {
-      const seam = Array.from({ length: 21 }, (_, i) => {
-        const a = Math.PI * (0.08 + (i / 20) * 0.84);
-        return new T.Vector3(
-          side * 0.22,
-          0.12 + Math.cos(a) * 0.516,
-          0.28 - Math.sin(a) * 0.454,
-        );
-      });
-      mesh(
-        new T.TubeGeometry(new T.CatmullRomCurve3(seam), 20, 0.008, 4, false),
-        "#49554e",
-      );
-    }
-    const tip = mesh(
-      new T.ConeGeometry(0.27, 0.5, 16),
-      "#303b38",
-      0,
-      0.43,
-      -0.37,
-    );
-    tip.rotation.x = -0.95;
-    mesh(new T.OctahedronGeometry(0.06), "#a9c5a3", 0, -0.2, 0.38);
+    g.add(makeSaxophone());
   } else if (id === "dew" || id === "harvest") {
     const gold = id === "dew" ? "#c9dfe2" : "#dfb844";
     const radius = 0.43;

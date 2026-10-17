@@ -3,9 +3,7 @@ export function nextSeedPacket(s: State): string | null {
   if (!s.boughtSeeds) return null;
   if (!s.foundCapSeeds) return "cap";
   if (!s.foundForestSeeds) return "forest";
-  if (!s.foundStoreSeeds) return "store";
   if (!s.foundGardenSeeds) return "garden";
-  if (!s.foundTVSeeds) return "tv";
   if (!s.foundMeditationSeeds) return "meditation";
   if (!s.foundStacySeeds) return "stacy";
   return null;
@@ -54,8 +52,8 @@ export function seedHint(s: State, level: number): string | null {
     garden: [
       "Maybe the neighbors have something growing besides flowers.",
       "I should search the neighbors’ flowerbeds.",
-      "Try the flowerbed near Mabel.",
-      "Look closely in the flowerbed east of my garden, near Mabel.",
+      "Try the flowerbed near Bea.",
+      "Look closely in Bea’s flowerbed, beside her house.",
     ],
     tv: [
       "Maybe I have overlooked something at home.",

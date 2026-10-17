@@ -162,10 +162,20 @@ export function createRiverWorld(scene: T.Scene, rects: Rect[], paths: Rect[]) {
         z = b.z + (alongZ ? 0 : side * (b.d / 2 + 0.12));
       part(
         x,
-        0.72,
+        1.04,
         z,
         alongZ ? 0.14 : length,
         0.16,
+        alongZ ? length : 0.14,
+        wood,
+        bridge,
+      );
+      part(
+        x,
+        0.18,
+        z,
+        alongZ ? 0.14 : length,
+        0.08,
         alongZ ? length : 0.14,
         wood,
         bridge,
@@ -175,20 +185,73 @@ export function createRiverWorld(scene: T.Scene, rects: Rect[], paths: Rect[]) {
         z,
         w: alongZ ? 0.2 : length,
         d: alongZ ? length : 0.2,
-        clearHeight: 0.86,
+        clearHeight: 1.1,
       });
       for (let j = 0; j <= Math.ceil(length / 2); j++) {
         const offset = -length / 2 + (j * length) / Math.ceil(length / 2);
         part(
           x + (alongZ ? 0 : offset),
-          0.41,
+          0.545,
           z + (alongZ ? offset : 0),
           0.2,
-          0.82,
+          1.09,
           0.2,
           stone,
           bridge,
         );
+      }
+    }
+    for (const side of [-1, 1]) {
+      const end = b.z + (side * b.d) / 2;
+      const vertices = [
+        b.x - b.w / 2,
+        0.14,
+        end,
+        b.x + b.w / 2,
+        0.14,
+        end,
+        b.x + b.w / 2 + 2,
+        0,
+        end + side * 2.8,
+        b.x - b.w / 2,
+        0.14,
+        end,
+        b.x + b.w / 2 + 2,
+        0,
+        end + side * 2.8,
+        b.x - b.w / 2 - 2,
+        0,
+        end + side * 2.8,
+      ];
+      const geo = new T.BufferGeometry();
+      geo.setAttribute("position", new T.Float32BufferAttribute(vertices, 3));
+      geo.computeVertexNormals();
+      const material = wood.clone();
+      material.side = T.DoubleSide;
+      const ramp = new T.Mesh(geo, material);
+      ramp.name = "bridge-flared-ramp";
+      ramp.receiveShadow = true;
+      bridge.add(ramp);
+      part(b.x, -0.06, end + side * 3.8, b.w + 4, 0.12, 2, wood, bridge).name =
+        "bridge-level-landing";
+      for (const edge of [-1, 1]) {
+        for (let i = 0; i < 7; i++) {
+          const t = (i + 0.5) / 7,
+            x = b.x + edge * (b.w / 2 + 2 * t + 0.12),
+            z = end + side * 2.8 * t;
+          const rail = part(
+            x,
+            1.04 - 0.14 * t,
+            z,
+            0.14,
+            0.16,
+            0.5,
+            wood,
+            bridge,
+          );
+          rail.rotation.y = edge * side * Math.atan2(2, 2.8);
+          rects.push({ x, z, w: 0.3, d: 0.5 });
+        }
       }
     }
     // Individual plank seams are narrow vertical faces, not overlapping decals.
@@ -277,7 +340,10 @@ export function createRiverWorld(scene: T.Scene, rects: Rect[], paths: Rect[]) {
     transform.updateMatrix();
     list.push(transform.matrix.clone());
   };
-  const reserved = [...paths, ...riverBridges];
+  const reserved = [
+    ...paths,
+    ...riverBridges.map((b) => ({ ...b, w: b.w + 5, d: b.d + 10 })),
+  ];
   for (let i = 2; i < riverSections.length - 2; i += 2) {
     const p = riverSections[i];
     for (const side of [-1, 1]) {

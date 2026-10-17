@@ -323,7 +323,8 @@ test("seed stashes unlock in order, collect once, and persist their random spot"
   findCapSeeds(s);
   assert(findHiddenSeeds(s, "forest"));
   assert(!findHiddenSeeds(s, "forest"));
-  assert(findHiddenSeeds(s, "store"));
+  assert(!findHiddenSeeds(s, "store"));
+  assert(findHiddenSeeds(s, "garden"));
   assert(!findHiddenSeeds(s, "store"));
   assert.equal(s.seeds, 15);
   assert.deepEqual(decode(JSON.stringify(s)), s);

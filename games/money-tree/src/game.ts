@@ -139,6 +139,7 @@ export type State = {
   boughtSeeds: boolean;
   foundCapSeeds: boolean;
   seedStashSpot?: number;
+  mazeSeedCooldown?: number;
   foundForestSeeds?: boolean;
   foundStoreSeeds?: boolean;
   plots: Plot[];
@@ -192,6 +193,7 @@ export const fresh = (): State => ({
   boughtSeeds: false,
   foundCapSeeds: false,
   seedStashSpot: Math.floor(Math.random() * 5),
+  mazeSeedCooldown: 0,
   foundForestSeeds: false,
   foundStoreSeeds: false,
   plots: Array.from({ length: 5 }, () => ({
@@ -317,22 +319,13 @@ export function fertilize(s: State, i: number) {
   )
     return false;
   let conserve = false;
-  if (wearing(s, "wizard") || wearing(s, "alchemist")) {
+  if (wearing(s, "wizard")) {
     s.rng = (s.rng * 16807) % 2147483647;
-    conserve = s.rng / 2147483647 < (wearing(s, "alchemist") ? 0.75 : 0.5);
-    noteHatPower(
-      s,
-      "to make my fertilizer last longer",
-      wearing(s, "alchemist") ? "alchemist" : "wizard",
-    );
+    conserve = s.rng / 2147483647 < 0.5;
+    noteHatPower(s, "to make my fertilizer last longer", "wizard");
   }
   if (!conserve) s.fertilizer--;
-  else
-    s.events.push(
-      wearing(s, "alchemist")
-        ? "Saved a fertilizer dose with my Soil Alchemist."
-        : "Saved a fertilizer dose with my Moonrise Wizard.",
-    );
+  else s.events.push("Saved a fertilizer dose with my Moonrise Wizard.");
   p.fertilized = true;
   p.fertilizedDay = s.day;
   if (p.stage === "growing") p.remaining *= 2 / 3;
@@ -340,7 +333,26 @@ export function fertilize(s: State, i: number) {
   return true;
 }
 // Crops mature only at the day boundary, never from elapsed awake time.
-export function tick(_s: State, _dt: number) {}
+export function tick(s: State, dt: number) {
+  if (s.awake && s.mazeSeedCooldown && Number.isFinite(dt) && dt > 0)
+    s.mazeSeedCooldown = Math.max(0, s.mazeSeedCooldown - dt);
+}
+export function collectMazeSeeds(s: State) {
+  if ((s.mazeSeedCooldown ?? 0) > 0) return false;
+  s.seeds += 5;
+  s.mazeSeedCooldown = 300;
+  s.events.push("Found five money seeds at the end of Robertson’s corn maze.");
+  return true;
+}
+export function walkingStepHeight(s: State, jumpHeight = 0) {
+  return Math.max(
+    0.5,
+    jumpHeight,
+    s.millionaire?.unlocked && wearing(s, "alchemist") && s.position.z <= -325
+      ? 2.1
+      : 0,
+  );
+}
 export function growOvernight(s: State) {
   for (const p of s.plots) {
     if (p.stage !== "growing") continue;
@@ -1004,6 +1016,16 @@ export function decode(raw: string | null): State | null {
     )
       return null;
     s.foundCapSeeds ??= false;
+    s.mazeSeedCooldown ??= 0;
+    if (
+      !Number.isFinite(s.mazeSeedCooldown) ||
+      s.mazeSeedCooldown < 0 ||
+      s.mazeSeedCooldown > 300
+    )
+      return null;
+    // Old saves keep their unlock; a collected garden packet now also qualifies.
+    if (s.foundCapSeeds && s.foundForestSeeds && s.foundGardenSeeds)
+      s.foundTVSeeds = true;
     s.seedStashSpot ??= Math.floor(Math.random() * seedStashSpots.length);
     s.foundForestSeeds ??= false;
     s.foundStoreSeeds ??= false;
@@ -1205,14 +1227,22 @@ export type Rect = {
   w: number;
   d: number;
   clearHeight?: number;
+  exitEast?: boolean;
 };
 export const airborneRects = (rects: Rect[], height: number) =>
   rects.filter(
     (r) => r.clearHeight === undefined || height <= r.clearHeight + 0.1,
   );
-export function blocked(x: number, z: number, rects: Rect[], radius = 0.48) {
+export function blocked(
+  x: number,
+  z: number,
+  rects: Rect[],
+  radius = 0.48,
+  fromX?: number,
+) {
   return rects.some(
     (r) =>
+      !(r.exitEast && fromX !== undefined && fromX < r.x + r.w / 2 + radius) &&
       x + radius > r.x - r.w / 2 &&
       x - radius < r.x + r.w / 2 &&
       z + radius > r.z - r.d / 2 &&
@@ -1253,16 +1283,18 @@ export function move(
   rects: Rect[],
   stepHeight = 0.5,
 ) {
-  if (blocked(pos.x, pos.z, rects))
-    Object.assign(pos, clearPosition(pos, rects, Math.min(-39, pos.z - 3)));
+  if (blocked(pos.x, pos.z, rects, 0.48, pos.x))
+    Object.assign(pos, clearPosition(pos, rects, Math.min(-49, pos.z - 3)));
   const n = Math.max(1, Math.ceil(Math.hypot(dx, dz) / 0.12));
   for (let i = 0; i < n; i++) {
     const x = pos.x + dx / n,
       z = pos.z + dz / n;
     const climbable = (x: number, z: number) =>
       terrainHeight(x, z) - terrainHeight(pos.x, pos.z) <= stepHeight;
-    if (!blocked(x, pos.z, rects) && climbable(x, pos.z)) pos.x = x;
-    if (!blocked(pos.x, z, rects) && climbable(pos.x, z)) pos.z = z;
+    if (!blocked(x, pos.z, rects, 0.48, pos.x) && climbable(x, pos.z))
+      pos.x = x;
+    if (!blocked(pos.x, z, rects, 0.48, pos.x) && climbable(pos.x, z))
+      pos.z = z;
   }
   return pos;
 }
@@ -1402,15 +1434,14 @@ export function findHiddenSeeds(
     garden: "foundGardenSeeds",
     tv: "foundTVSeeds",
   } as const;
-  const previous = {
-    forest: s.foundCapSeeds,
-    store: s.foundForestSeeds,
-    garden: s.foundStoreSeeds,
-    tv: s.foundGardenSeeds,
-  };
-  if (!previous[location] || s[fields[location]]) return false;
+  if (location === "store" || location === "tv") return false;
+  const previous = location === "forest" ? s.foundCapSeeds : s.foundForestSeeds;
+  if (!previous || s[fields[location]]) return false;
   s[fields[location]] = true;
-  if (location === "tv") unlockSigma(s);
+  if (location === "garden") {
+    s.foundTVSeeds = true;
+    unlockSigma(s);
+  }
   s.seeds += 5;
   const places = {
     forest: "among the trees",
@@ -1585,11 +1616,7 @@ export function seedSearchHint(s: State) {
     return "Try the haberdasher’s. Check the brim of a cap.";
   if (!s.foundForestSeeds)
     return "You already found the cap packet. Try looking among the trees around town.";
-  if (!s.foundStoreSeeds)
-    return "A packet might have slipped behind the groceries. Take a careful look around my store.";
   if (!s.foundGardenSeeds)
-    return "Have a look around the neighbors’ flowerbeds. Little things turn up in surprising places.";
-  if (!s.foundTVSeeds)
-    return "You might find something you missed at home. Try looking behind the furniture.";
+    return "Have a look in Bea’s flowerbed, beside her house.";
   return "Keep exploring. A Sprout Cap sometimes saves a seed when you harvest, too.";
 }

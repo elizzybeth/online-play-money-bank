@@ -21,7 +21,7 @@ test("river stays outside the home and Mabel footprints and has smooth continuou
   for (const [x, z, w, d] of [
     [-15, 6, 12, 16],
     [-5, 10, 8, 8],
-    [-14, -13, 7, 6],
+    [-39, -25, 7, 6],
     [12, 1, 7, 6],
     [12, 15, 7, 6],
   ])

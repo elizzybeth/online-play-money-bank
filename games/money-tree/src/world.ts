@@ -1,3 +1,4 @@
+import { createFarm } from "./farm-world";
 import { createRiverWorld } from "./river-world";
 import {
   riverDistance,
@@ -57,7 +58,10 @@ export function createWorld(scene: T.Scene) {
     { x: 24, z: -20, w: 3, d: 9 },
     { x: 34, z: -29.25, w: 3, d: 26.5 },
     { x: -7.5, z: -19.25, w: 21, d: 2.5 },
-    { x: -18, z: -20.5, w: 3, d: 2.5 },
+    { x: -10.7, z: -20.5, w: 4.4, d: 3 },
+    { x: -29, z: -16, w: 38, d: 4 },
+    { x: -47, z: -27.5, w: 4, d: 35 },
+    { x: -69, z: -10, w: 40, d: 2 },
   ];
   const doorways: Rect[] = [];
   const scenery: {
@@ -82,7 +86,8 @@ export function createWorld(scene: T.Scene) {
     { x: -15, z: 19, w: 14, d: 8 },
     { x: 12, z: 15, w: 7, d: 6 },
     { x: 12, z: 1, w: 7, d: 6 },
-    { x: -14, z: -13, w: 7, d: 6 },
+    { x: -39, z: -25, w: 8, d: 8 },
+    { x: -69, z: -25, w: 49, d: 39 },
     { x: -18, z: -30, w: 21, d: 19 },
   ];
   const clearScenery = (x: number, z: number, radius: number) =>
@@ -440,7 +445,7 @@ export function createWorld(scene: T.Scene) {
   sleeper.rotation.x = -Math.PI / 2;
   sleeper.position.set(-19.1, 1.14, 1.75);
   sleeping.add(sleeper);
-  const townGround = box(4, -0.25, -25, 108, 0.5, 140, colors.grass);
+  const townGround = box(-21.5, -0.25, -25, 159, 0.5, 140, colors.grass);
   townGround.name = "town-ground";
   townGround.userData.depthAudit = true;
   townGround.material = surfaceMaterial(colors.grass, "grass", 50, 45);
@@ -788,22 +793,82 @@ export function createWorld(scene: T.Scene) {
   function paintForDay(day: number) {
     if (canvasDay === day) return;
     canvasDay = day;
-    const style = (
-      ["sunset", "botanical", "geometric", "seascape"] as FurnishingId[]
-    )[day % 4];
-    const art = makeFurnishing(style, day);
-    const map = (
-      art.children[1] as T.Mesh<T.BufferGeometry, T.MeshBasicMaterial>
-    ).material.map!;
+    const artCanvas = document.createElement("canvas");
+    artCanvas.width = 512;
+    artCanvas.height = 384;
+    const c = artCanvas.getContext("2d")!;
+    c.fillStyle = ["#d5e4d6", "#e3c9c3", "#cbdbe3", "#e4ddb9"][day % 4];
+    c.fillRect(0, 0, 512, 384);
+    c.fillStyle = "#ac8866";
+    c.fillRect(0, 270, 512, 114);
+    // Striped tablecloth, a ceramic pitcher, flowers and seasonal fruit.
+    c.fillStyle = "#ede6cd";
+    c.beginPath();
+    c.moveTo(35, 266);
+    c.lineTo(400, 266);
+    c.lineTo(455, 384);
+    c.lineTo(0, 384);
+    c.fill();
+    c.strokeStyle = "#bd7171";
+    c.lineWidth = 3;
+    for (let i = 0; i < 8; i++) {
+      c.beginPath();
+      c.moveTo(60 + i * 40, 270);
+      c.lineTo(30 + i * 52, 384);
+      c.stroke();
+    }
+    c.fillStyle = "#547e8b";
+    c.beginPath();
+    c.moveTo(170, 174);
+    c.bezierCurveTo(160, 210, 135, 282, 185, 305);
+    c.bezierCurveTo(250, 324, 272, 266, 235, 174);
+    c.closePath();
+    c.fill();
+    c.strokeStyle = "#547e8b";
+    c.lineWidth = 15;
+    c.beginPath();
+    c.ellipse(252, 231, 27, 44, 0, 0, Math.PI * 2);
+    c.stroke();
+    for (let i = 0; i < 7; i++) {
+      const x = 128 + i * 24,
+        y = 80 + ((i * 37 + day * 13) % 70);
+      c.strokeStyle = "#4d6d42";
+      c.lineWidth = 4;
+      c.beginPath();
+      c.moveTo(205, 181);
+      c.lineTo(x, y);
+      c.stroke();
+      for (let p = 0; p < 6; p++) {
+        c.fillStyle = ["#fff0ab", "#ce728e", "#b5a1d4", "#f0b078"][
+          (day + i) % 4
+        ];
+        c.beginPath();
+        c.ellipse(x + Math.cos(p) * 12, y + Math.sin(p) * 12, 12, 7, p, 0, 7);
+        c.fill();
+      }
+      c.fillStyle = "#a97a39";
+      c.beginPath();
+      c.arc(x, y, 6, 0, 7);
+      c.fill();
+    }
+    for (let i = 0; i < 3; i++) {
+      c.fillStyle = i % 2 ? "#d8ac4f" : "#b6523e";
+      c.beginPath();
+      c.ellipse(315 + i * 44, 303 + (i % 2) * 15, 23, 20, 0, 0, 7);
+      c.fill();
+      c.strokeStyle = "#5b693e";
+      c.lineWidth = 3;
+      c.beginPath();
+      c.moveTo(315 + i * 44, 284);
+      c.lineTo(320 + i * 44, 276);
+      c.stroke();
+    }
+    const map = new T.CanvasTexture(artCanvas);
+    map.colorSpace = T.SRGBColorSpace;
     const material = picture.material as T.MeshStandardMaterial;
     material.map?.dispose();
     material.map = map;
     material.needsUpdate = true;
-    art.children.forEach((child) => {
-      const m = child as T.Mesh;
-      m.geometry.dispose();
-      (m.material as T.Material).dispose();
-    });
   }
   const book = new T.Group();
   mom.add(book);
@@ -1400,7 +1465,7 @@ export function createWorld(scene: T.Scene) {
   }
   house(12, 15, "#dcbab0", "THE WILLOWS");
   house(12, 1, "#efdbaf", "ROSE COTTAGE");
-  house(-14, -13, "#c4d2b0", "MAPLE HOUSE");
+  house(-39, -25, "#c4d2b0", "MAPLE HOUSE");
   speakers.push({
     id: "npc1",
     name: "Bea",
@@ -1433,9 +1498,9 @@ export function createWorld(scene: T.Scene) {
   speakers.push({
     id: "npc3",
     name: "Mabel",
-    object: person(-23, -12, "#dea58d", "#5f5549"),
+    object: person(-39, -19, "#dea58d", "#5f5549"),
   });
-  target("npc3", -23, -12, "Talk to Mabel");
+  target("npc3", -39, -19, "Talk to Mabel");
   // Robertsons walk-in shop at end of lane, front facing south.
   const sx = 8,
     sz = -31;
@@ -1452,8 +1517,8 @@ export function createWorld(scene: T.Scene) {
   robertsonsRoof.name = "robertsons-roof";
   robertsonsRoof.material = surfaceMaterial("#647a66", "shingles", 6, 5);
   (robertsonsRoof.material as T.MeshStandardMaterial).transparent = true;
-  label("Robertsons", 8, 4.8, -20.7, 8).name = "robertsons-name";
-  label("Hardware & Grocer", 8, 3.1, -20.7, 8, "#334a3c", 8).name =
+  label("Robertsons", 8, 8, -20.7, 8).name = "robertsons-name";
+  label("Hardware & Grocer", 8, 5.1, -20.7, 8, "#334a3c", 2.4).name =
     "robertsons-trade";
   for (const x of [15.15]) {
     box(x, 1, -29, 1, 2, 7, "#947859", true);
@@ -1701,9 +1766,9 @@ export function createWorld(scene: T.Scene) {
   box(-28, 3.6, -30, 0.25, 7.2, 18, "#b5c4cd", true);
   box(-8, 3.6, -30, 0.25, 7.2, 18, "#b5c4cd", true);
   box(-18, 3.6, -39, 20, 7.2, 0.25, "#b5c4cd", true);
-  for (const x of [-24.25, -11.75])
-    box(x, 3.6, -21, 7.5, 7.2, 0.25, "#b5c4cd", true);
-  box(-18, 5.15, -21, 5, 4.1, 0.25, "#b5c4cd");
+  box(-20.45, 3.6, -21, 15.1, 7.2, 0.25, "#b5c4cd", true);
+  box(-8.2, 3.6, -21, 0.4, 7.2, 0.25, "#b5c4cd", true);
+  box(-10.65, 5.15, -21, 4.5, 4.1, 0.25, "#b5c4cd");
   const bikeShopRoof = box(-18, 7.4, -30, 20.5, 0.25, 18.5, "#647a84");
   bikeShopRoof.material = surfaceMaterial("#647a84", "shingles", 6, 5);
   (bikeShopRoof.material as T.MeshStandardMaterial).transparent = true;
@@ -1729,7 +1794,7 @@ export function createWorld(scene: T.Scene) {
     lamp.position.set(x, 3.08, -29);
     scene.add(lamp);
   }
-  doorways.push({ x: -18, z: -21, w: 5, d: 5 });
+  doorways.push({ x: -10.65, z: -21, w: 4.5, d: 5 });
   const bikeRack = makeBikeRack();
   bikeRack.object.position.set(homeBikeRack.x, 0, homeBikeRack.z);
   bikeRack.object.add(makeBikeRackSign());
@@ -1797,6 +1862,7 @@ export function createWorld(scene: T.Scene) {
   }
   for (let i = 0; i < 16; i++)
     foliage(-34 + (i % 2) * 2, -35 + Math.floor(i / 2) * 8, 1.15);
+  for (const x of [-84, -71, -57]) foliage(x, 3.5, 1.35);
   for (const [x, z] of [
     [-5, 10],
     [-4, -5],
@@ -2504,11 +2570,13 @@ export function createWorld(scene: T.Scene) {
   }
   // River outlets interrupt both the visible hedge and its collision.
   const hedgeRects = [
-    { x: -39, z: 0, w: 1, d: 90, clearHeight: 2.3 },
+    { x: -94, z: -5, w: 1, d: 88, clearHeight: 2.3 },
+    { x: -66.5, z: -49, w: 55, d: 1, clearHeight: 2.3 },
+    { x: -39, z: -44.5, w: 1, d: 9, clearHeight: 2.3 },
     { x: 39, z: 0, w: 1, d: 90, clearHeight: 2.3 },
     { x: -3.25, z: -40, w: 70.5, d: 1, clearHeight: 2.3 },
     { x: 37.75, z: -40, w: 1.5, d: 1, clearHeight: 2.3 },
-    { x: 0, z: 39, w: 77, d: 1, clearHeight: 2.3 },
+    { x: -27.5, z: 39, w: 132, d: 1, clearHeight: 2.3 },
   ].flatMap(splitRiverBoundary);
   rects.push(...hedgeRects);
   const boundaryHedges = hedgeRects.map((r) => {
@@ -2664,19 +2732,19 @@ export function createWorld(scene: T.Scene) {
     storeSeeds = new T.Group(),
     gardenSeeds = new T.Group(),
     tvSeeds = new T.Group();
-  for (const packet of [forestSeeds, storeSeeds, gardenSeeds, tvSeeds]) {
+  for (const packet of [forestSeeds, gardenSeeds]) {
     scene.add(packet);
     packet.add(makeSeedPacket());
   }
   gardenSeeds.position.set(7.8, 0.13, 20.8);
   tvSeeds.position.set(-9.55, 1.25, 9);
   target("garden-seeds", 7.8, 20.8, "Look in the flowerbed");
-  target("tv-seeds", -10, 7.9, "Look behind the TV");
+
   storeSeeds.position.set(12, 0.92, -32);
   box(12, 0.45, -32, 0.9, 0.9, 0.65, "#b2946d");
   for (const x of [11.75, 12.05]) cyl(x, 1.12, -31.8, 0.1, 0.38, "#a7b5a0");
   target("forest-seeds", 29, -35, "Search the seed packet");
-  target("store-seeds", 12, -31.5, "Search behind the tins");
+
   for (const object of scene.children.slice()) {
     if (!(object instanceof T.Mesh) || !object.userData.boxDimensions) continue;
     const { w, h, d } = object.userData.boxDimensions;
@@ -2704,6 +2772,7 @@ export function createWorld(scene: T.Scene) {
     fitWindow(object, w > d, Math.max(w, d), h, Math.min(w, d));
   }
   const life = createTownLife(scene, rects, targets, speakers, player, mom);
+  const farm = createFarm(scene, rects, targets);
   const river = createRiverWorld(scene, rects, [
     ...paths,
     ...sigma.paths,
@@ -2711,6 +2780,7 @@ export function createWorld(scene: T.Scene) {
   ]);
   return {
     river,
+    farm,
     life,
     cookingProps: [
       cooking,

@@ -43,16 +43,16 @@ test("three hat powers stack, fourth stays on rack, removal frees a slot and leg
     null,
   );
 });
-test("hidden seed sequence continues through neighbor flowerbed and home TV once each", () => {
+test("third retained packet in Bea’s garden unlocks Sigma once", () => {
   const s = fresh();
   assert(!findHiddenSeeds(s, "garden"));
   assert(!findHiddenSeeds(s, "tv"));
   s.foundCapSeeds = true;
-  for (const place of ["forest", "store", "garden", "tv"] as const) {
+  for (const place of ["forest", "garden"] as const) {
     assert(findHiddenSeeds(s, place));
     assert(!findHiddenSeeds(s, place));
   }
-  assert.equal(s.seeds, 20);
+  assert.equal(s.seeds, 10);
   assert.equal(decode(JSON.stringify(s))!.foundTVSeeds, true);
 });
 test("200 distinct thoughts respect health, activity, finances and recent selection", () => {

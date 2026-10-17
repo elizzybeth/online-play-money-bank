@@ -115,7 +115,8 @@ test("Mom's paint invitation colors both birdhouses and hangs them together", as
   }
   for (let i = 0; i < 600; i++) {
     await page.clock.fastForward(100);
-    if (!(await page.evaluate(() => (window as any).game.birdhouseFilm())))
+    // Poll only completion; the full route/collision snapshot is checked above.
+    if (!(await page.evaluate(() => !!(window as any).game.birdhouseFilm())))
       break;
   }
   expect(

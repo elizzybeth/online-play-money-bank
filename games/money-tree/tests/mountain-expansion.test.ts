@@ -166,7 +166,7 @@ test("mountain harvest and seedkeeper bonuses, compost doubling, and automatic c
     };
     fertilize(s, 2);
   }
-  assert.ok(before - s.fertilizer > 200 && before - s.fertilizer < 300);
+  assert.equal(before - s.fertilizer, 1000);
   s.position = { x: 25, z: -340 };
   assert.equal(movementSpeed(s, false), 5.4);
 });

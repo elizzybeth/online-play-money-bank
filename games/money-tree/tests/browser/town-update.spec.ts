@@ -120,7 +120,7 @@ test("bedroom rack swaps a full stack and keeps decorative hats at top", async (
     .toEqual([true, true]);
   await page.screenshot({ path: "../../outputs/money-tree-three-hats.png" });
 });
-test("fourth and fifth hidden packets unlock and persist in flowerbed and behind TV", async ({
+test("third retained packet unlocks Sigma in Bea’s flowerbed and persists", async ({
   page,
 }) => {
   const s = fresh();
@@ -129,7 +129,6 @@ test("fourth and fifth hidden packets unlock and persist in flowerbed and behind
     boughtSeeds: true,
     foundCapSeeds: true,
     foundForestSeeds: true,
-    foundStoreSeeds: true,
     position: { x: 7.8, z: 20.8 },
   });
   await open(page, s);
@@ -138,20 +137,16 @@ test("fourth and fifth hidden packets unlock and persist in flowerbed and behind
   expect((await page.evaluate(() => (window as any).game.state())).seeds).toBe(
     5,
   );
-  await page.evaluate(() => (window as any).game.teleport(-10, 7.9));
-  if (await page.getByRole("button", { name: "End conversation" }).count())
-    for (
-      let i = 0;
-      i < 3 && (await page.locator(".speech-bubble").count());
-      i++
-    )
-      await page.keyboard.press("e");
-  await expect(page.locator(".speech-bubble")).toHaveCount(0);
-  await expect(page.locator("#prompt")).toContainText("behind the TV");
-  await page.keyboard.press("e");
-  expect((await page.evaluate(() => (window as any).game.state())).seeds).toBe(
-    10,
-  );
+  expect(
+    (await page.evaluate(() => (window as any).game.state())).foundTVSeeds,
+  ).toBe(true);
+  expect(
+    await page.evaluate(() =>
+      (window as any).game.targets.some((t: any) =>
+        ["store-seeds", "tv-seeds"].includes(t.id),
+      ),
+    ),
+  ).toBe(false);
   await page.reload();
   await page.getByRole("button", { name: "Wake up" }).click();
   expect(

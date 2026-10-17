@@ -1,9 +1,53 @@
+import { heritageSign, robertsonsLabels } from "./heritage-signs";
 // Original shop identities, drawn at texture resolution with bundled fonts.
 export function signCanvas(text: string, width = 768, height = 192) {
+  if (text === "Hardware & Grocer") return heritageSign(text, 1536, 640, true);
+  if (
+    robertsonsLabels.has(text) ||
+    /^(WATERING CAN|SHOVEL|FERTILIZER|Garden bed|Soil) ·/.test(text)
+  )
+    return heritageSign(text, Math.max(width, 1536), Math.max(height, 512));
   const c = document.createElement("canvas");
   c.width = width;
   c.height = height;
   const g = c.getContext("2d")!;
+  if (text === "CORN MAZE ENTRANCE") {
+    g.fillStyle = "#785437";
+    g.fillRect(width * 0.46, 0, width * 0.08, height);
+    for (const [label, y] of [
+      ["CORN", 0.21],
+      ["MAZE", 0.55],
+    ] as const) {
+      g.fillStyle = "#f8e1a1";
+      g.fillRect(width * 0.05, height * (y - 0.17), width * 0.9, height * 0.3);
+      g.fillStyle = "#ce503c";
+      g.fillRect(
+        width * 0.07,
+        height * (y - 0.15),
+        width * 0.86,
+        height * 0.26,
+      );
+      g.fillStyle = "#ffe8ab";
+      g.font = `${height * 0.24}px HennyPenny`;
+      g.textAlign = "center";
+      g.textBaseline = "middle";
+      g.fillText(label, width / 2, height * y, width * 0.8);
+    }
+    g.fillStyle = "#e4c677";
+    g.beginPath();
+    g.moveTo(width * 0.08, height * 0.79);
+    g.lineTo(width * 0.8, height * 0.79);
+    g.lineTo(width * 0.94, height * 0.88);
+    g.lineTo(width * 0.8, height * 0.97);
+    g.lineTo(width * 0.08, height * 0.97);
+    g.lineTo(width * 0.16, height * 0.88);
+    g.closePath();
+    g.fill();
+    g.fillStyle = "#503b28";
+    g.font = `${height * 0.115}px Lobster`;
+    g.fillText("Entrance", width * 0.5, height * 0.885, width * 0.7);
+    return c;
+  }
   if (text === "Grindset") {
     g.fillStyle = "#143f38";
     g.fillRect(0, 0, width, height);

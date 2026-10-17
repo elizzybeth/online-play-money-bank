@@ -131,21 +131,103 @@ export function makeFurnishing(id: FurnishingId, seed = 0) {
     const palette = ["#e3a524", "#ab3373", "#007d83", "#f2783e", "#274b67"];
     c.fillStyle = palette[seed % 5];
     c.fillRect(0, 0, 384, 320);
-    if (id === "sunset" || id === "seascape") {
-      for (let i = 0; i < 7; i++) {
-        c.fillStyle = palette[(i + seed) % 5];
+    if (id === "sunset") {
+      const sky = c.createLinearGradient(0, 0, 0, 320);
+      sky.addColorStop(0, "#46264f");
+      sky.addColorStop(0.48, "#ee7958");
+      sky.addColorStop(1, "#edc47e");
+      c.fillStyle = sky;
+      c.fillRect(0, 0, 384, 320);
+      c.fillStyle = "#ffdf91";
+      c.beginPath();
+      c.arc(245 + (seed % 3) * 9, 136, 43, 0, Math.PI * 2);
+      c.fill();
+      for (let i = 0; i < 3; i++) {
+        c.fillStyle = ["#9c5265", "#5a4059", "#292c42"][i];
         c.beginPath();
-        c.moveTo(0, 160 + i * 25);
+        c.moveTo(0, 210 + i * 28);
         for (let x = 0; x <= 384; x += 12)
-          c.lineTo(x, 160 + i * 25 + Math.sin(x * 0.025 + seed + i) * 15);
+          c.lineTo(
+            x,
+            205 + i * 28 + Math.sin(x * 0.014 + i + seed * 0.15) * 25,
+          );
         c.lineTo(384, 320);
         c.lineTo(0, 320);
         c.fill();
       }
-      c.fillStyle = "#ffe09b";
+      // A lone silhouetted tree gives the landscape a different composition.
+      c.strokeStyle = "#292c42";
+      c.lineWidth = 7;
       c.beginPath();
-      c.arc(80 + ((seed * 37) % 210), 85, 32, 0, Math.PI * 2);
+      c.moveTo(65, 285);
+      c.lineTo(72, 196);
+      c.lineTo(48, 166);
+      c.moveTo(72, 209);
+      c.lineTo(104, 175);
+      c.stroke();
+      c.fillStyle = "#292c42";
+      for (const [x, y, r] of [
+        [48, 162, 22],
+        [76, 155, 28],
+        [104, 173, 20],
+      ]) {
+        c.beginPath();
+        c.arc(x, y, r, 0, 7);
+        c.fill();
+      }
+    } else if (id === "seascape") {
+      c.fillStyle = "#c8e4e8";
+      c.fillRect(0, 0, 384, 320);
+      c.fillStyle = "#6aafb5";
+      c.fillRect(0, 122, 384, 198);
+      for (let row = 0; row < 12; row++) {
+        c.strokeStyle = row % 2 ? "#e8f3dc" : "#31818f";
+        c.lineWidth = 2 + row * 0.35;
+        c.beginPath();
+        for (let x = 0; x <= 384; x += 6) {
+          const y = 140 + row * 13 + Math.sin(x * 0.045 + row + seed) * 3;
+          c.lineTo(x, y);
+        }
+        c.stroke();
+      }
+      c.fillStyle = "#f6e2b5";
+      c.beginPath();
+      c.moveTo(0, 200);
+      c.bezierCurveTo(80, 220, 150, 290, 384, 300);
+      c.lineTo(384, 320);
+      c.lineTo(0, 320);
       c.fill();
+      // Crisp white sailboat, a distant headland and gulls; no sun disk.
+      c.fillStyle = "#517a81";
+      c.beginPath();
+      c.moveTo(270, 122);
+      c.lineTo(340, 89);
+      c.lineTo(384, 95);
+      c.lineTo(384, 130);
+      c.fill();
+      c.fillStyle = "#fff7dd";
+      c.beginPath();
+      c.moveTo(174, 86);
+      c.lineTo(174, 172);
+      c.lineTo(126, 172);
+      c.fill();
+      c.fillStyle = "#254853";
+      c.fillRect(176, 83, 3, 104);
+      c.beginPath();
+      c.moveTo(120, 184);
+      c.lineTo(203, 184);
+      c.lineTo(190, 196);
+      c.lineTo(134, 196);
+      c.fill();
+      c.strokeStyle = "#47717d";
+      c.lineWidth = 2;
+      for (const x of [48, 76, 215]) {
+        c.beginPath();
+        c.moveTo(x, 55);
+        c.quadraticCurveTo(x + 8, 48, x + 16, 55);
+        c.quadraticCurveTo(x + 24, 48, x + 32, 55);
+        c.stroke();
+      }
     } else if (id === "botanical") {
       for (let i = 0; i < 9; i++) {
         let x = 30 + i * 40,

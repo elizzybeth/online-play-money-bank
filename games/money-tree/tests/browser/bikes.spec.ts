@@ -120,7 +120,7 @@ test("H gives a first-person cockpit, slowest bike beats running, B rings, walls
     0,
   );
   await page.keyboard.press("h");
-  await page.evaluate(() => (window as any).game.teleport(-18, -19));
+  await page.evaluate(() => (window as any).game.teleport(-10.65, -19));
   await page.evaluate(() => (window as any).game.setYaw(0));
   await page.keyboard.press("h");
   await frames(page, 55);
