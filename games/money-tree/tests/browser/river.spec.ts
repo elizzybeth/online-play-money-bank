@@ -57,6 +57,26 @@ test("river bridges are walkable, banks are lush and drought can change them wit
     }, bridge);
     expect(blocked, bridge.id).toEqual([]);
   }
+  const approachObstacles = await page.evaluate((bridges) => {
+    const rects = (window as any).game.rects,
+      blocked = [];
+    for (const b of bridges)
+      for (const side of [-1, 1])
+        for (const dx of [-3, 0, 3]) {
+          const x = b.x + dx,
+            z = b.z + side * (b.d / 2 + 2);
+          if (
+            rects.some(
+              (r: any) =>
+                Math.abs(x - r.x) < r.w / 2 + 0.48 &&
+                Math.abs(z - r.z) < r.d / 2 + 0.48,
+            )
+          )
+            blocked.push({ id: b.id, x, z });
+        }
+    return blocked;
+  }, riverBridges);
+  expect(approachObstacles).toEqual([]);
   expect(data.bridges.map((b: any) => b.id)).not.toContain("east-road");
   const constraints = await page.evaluate(() => {
     const g = (window as any).game;
@@ -71,7 +91,7 @@ test("river bridges are walkable, banks are lush and drought can change them wit
       straight: Array.from({ length: 45 }, (_, i) => -90 - i * 0.5).every(
         (z) => !blocked(46, z),
       ),
-      fence: Array.from({ length: 65 }, (_, i) => -89.5 + i * 0.49).every((z) =>
+      fence: Array.from({ length: 54 }, (_, i) => -84 + i * 0.49).every((z) =>
         blocked(49.1, z),
       ),
     };

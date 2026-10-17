@@ -1,5 +1,5 @@
 import * as T from "three";
-import { riverSections, riverBankWidth } from "./river-land";
+import { riverSections, riverBankWidth, riverBridges } from "./river-land";
 type V = { x: number; y: number; z: number; u: number; v: number };
 const quads = riverSections.slice(1).flatMap((b, i) => {
   const a = riverSections[i],
@@ -31,6 +31,51 @@ const quads = riverSections.slice(1).flatMap((b, i) => {
     };
   });
 });
+// The bridge and its flared approaches replace the underlying road/grass too.
+// This avoids the ramp intersecting a sidewalk as it descends to its landing.
+for (const b of riverBridges) {
+  const polygons = [
+    [
+      { x: b.x - b.w / 2, z: b.z - b.d / 2 },
+      { x: b.x + b.w / 2, z: b.z - b.d / 2 },
+      { x: b.x + b.w / 2, z: b.z + b.d / 2 },
+      { x: b.x - b.w / 2, z: b.z + b.d / 2 },
+    ],
+  ];
+  for (const side of [-1, 1]) {
+    const end = b.z + (side * b.d) / 2;
+    polygons.push([
+      { x: b.x - b.w / 2, z: end },
+      { x: b.x + b.w / 2, z: end },
+      { x: b.x + b.w / 2 + 2, z: end + side * 2.8 },
+      { x: b.x - b.w / 2 - 2, z: end + side * 2.8 },
+    ]);
+    polygons.push([
+      { x: b.x - b.w / 2 - 2, z: end + side * 2.8 },
+      { x: b.x + b.w / 2 + 2, z: end + side * 2.8 },
+      { x: b.x + b.w / 2 + 2, z: end + side * 4.8 },
+      { x: b.x - b.w / 2 - 2, z: end + side * 4.8 },
+    ]);
+  }
+  for (const p of polygons)
+    for (const q of [
+      [p[0], p[1], p[2]],
+      [p[0], p[2], p[3]],
+    ]) {
+      const area = q.reduce(
+        (s, p, i) => s + p.x * q[(i + 1) % 3].z - p.z * q[(i + 1) % 3].x,
+        0,
+      );
+      if (area < 0) q.reverse();
+      quads.push({
+        q,
+        minX: Math.min(...q.map((p) => p.x)),
+        maxX: Math.max(...q.map((p) => p.x)),
+        minZ: Math.min(...q.map((p) => p.z)),
+        maxZ: Math.max(...q.map((p) => p.z)),
+      });
+    }
+}
 /** Subtract the actual channel from existing terrain/pavement, once at setup.
  * Water sits below ground: no coplanar overlays, hidden grass, or depth bias. */
 export function carveRiver(mesh: T.Mesh) {

@@ -1,3 +1,4 @@
+import * as T from "three";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { hats } from "../src/hats";
@@ -22,7 +23,11 @@ test("twenty distinct hats have detailed models, prices and powers", () => {
   assert.equal(Math.max(...hats.map((h) => h.price)), 45000);
   for (const hat of hats) {
     const model = makeHat(hat.id);
-    assert(model.children.length >= 5);
+    let pieces = 0;
+    model.traverse((o) => {
+      if (o instanceof T.Mesh) pieces++;
+    });
+    assert(pieces >= 5);
     assert(hat.power.length > 0);
   }
 });

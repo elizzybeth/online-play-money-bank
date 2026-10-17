@@ -31,6 +31,9 @@ export const riverWaypoints = [
   [-23, -6],
   [-32, -4.5],
   [-43, -4.5],
+  [-61, -4.5],
+  [-79, -4.5],
+  [-101, -4.5],
 ] as const;
 export type RiverPoint = { x: number; z: number };
 // Hermite interpolation follows the sketch without sharply kinked banks.
@@ -72,8 +75,8 @@ export const riverBridges: readonly {
   d: number;
   axis: "x" | "z";
 }[] = [
-  { id: "village", x: 3, z: -8.6, w: 5, d: 12, axis: "z" },
-  { id: "grove", x: 46, z: -98, w: 4, d: 18, axis: "z" },
+  { id: "village", x: 3, z: -8.6, w: 8, d: 12, axis: "z" },
+  { id: "grove", x: 46, z: -98, w: 8, d: 18, axis: "z" },
 ] as const;
 export function riverDistance(x: number, z: number) {
   if (x < -112 || x > 59 || z < -152 || z > 1) return Infinity;
@@ -180,3 +183,17 @@ export const groveApproachPaths = [
   { x: 40, z: -114, w: 16, d: 4 },
   { x: 34, z: -122, w: 4, d: 16 },
 ];
+
+/** Decks are flat; wide, 1:20 ramps join level turning landings to the lawn. */
+export function bridgeHeight(x: number, z: number): number | undefined {
+  for (const b of riverBridges) {
+    const across = b.axis === "z" ? Math.abs(x - b.x) : Math.abs(z - b.z);
+    const along = b.axis === "z" ? Math.abs(z - b.z) : Math.abs(x - b.x);
+    const half = (b.axis === "z" ? b.d : b.w) / 2;
+    const width = (b.axis === "z" ? b.w : b.d) / 2;
+    if (along <= half && across <= width) return 0.14;
+    const t = (along - half) / 2.8;
+    if (t >= 0 && t <= 1 && across <= width + t * 2) return 0.14 * (1 - t);
+    if (t > 1 && t <= 1 + 2 / 2.8 && across <= width + 2) return 0;
+  }
+}

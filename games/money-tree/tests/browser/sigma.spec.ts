@@ -22,7 +22,7 @@ async function open(page: Page, unlocked = true) {
 async function at(page: Page, x: number, z: number) {
   await page.evaluate(([x, z]) => (window as any).game.teleport(x, z), [x, z]);
 }
-test("hedge passage stays closed until fifth packet, then a real walk crosses into Sigma Town", async ({
+test("hedge passage stays closed until third packet, then a real walk crosses into Sigma Town", async ({
   page,
 }) => {
   await open(page, false);

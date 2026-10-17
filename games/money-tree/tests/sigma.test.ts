@@ -34,11 +34,11 @@ import {
 import { journalContext } from "../src/journal";
 const unlocked = () => {
   const s = fresh();
-  s.foundGardenSeeds = true;
-  assert(findHiddenSeeds(s, "tv"));
+  s.foundCapSeeds = s.foundForestSeeds = true;
+  assert(findHiddenSeeds(s, "garden"));
   return s;
 };
-test("fifth packet unlocks ten unique sigma plots once, preserving existing beds and resources", () => {
+test("third packet unlocks ten unique sigma plots once, preserving existing beds and resources", () => {
   const s = fresh();
   s.plots.push({
     x: -26,
@@ -50,8 +50,8 @@ test("fifth packet unlocks ten unique sigma plots once, preserving existing beds
     fertilized: false,
   });
   assert(!unlockSigma(s));
-  s.foundGardenSeeds = true;
-  assert(findHiddenSeeds(s, "tv"));
+  s.foundCapSeeds = s.foundForestSeeds = true;
+  assert(findHiddenSeeds(s, "garden"));
   assert.equal(s.plots.length, 16);
   assert.equal(s.plots[5].yield, 500);
   assert(!unlockSigma(s));
@@ -310,7 +310,7 @@ test("five additional market factors are persistent and independently affect pri
     [
       "discoveries",
       (s) => {
-        s.foundCapSeeds = true;
+        s.foundMeditationSeeds = true;
       },
     ],
     [

@@ -126,11 +126,11 @@ export const hats = [
   },
   {
     id: "alchemist",
-    name: "Soil Alchemist",
+    name: "Giant Steps",
     price: 30000,
     color: "#8a69b0",
     power:
-      "75% chance to conserve fertilizer. Combines with terrace gardening and works at home.",
+      "Walk straight up Mt. Millionaire’s terraces. A brass saxophone for giant steps.",
   },
   {
     id: "dew",

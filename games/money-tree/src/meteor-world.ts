@@ -27,8 +27,8 @@ export function desertGround() {
   // another ground plane at exactly y=0 across the Level 3 transition.
   shape.lineTo(58, -90);
   shape.lineTo(58, -95);
-  shape.lineTo(-50, -95);
-  shape.lineTo(-50, -90);
+  shape.lineTo(-101, -95);
+  shape.lineTo(-101, -90);
   shape.lineTo(-105, -90);
   shape.closePath();
   for (const [x, z] of meteorSites) {

@@ -210,6 +210,8 @@ import {
   momReply,
   seedStashSpots,
   findHiddenSeeds,
+  collectMazeSeeds,
+  walkingStepHeight,
   findCapSeeds,
   fresh,
   load,
@@ -380,8 +382,17 @@ Object.assign(sun.shadow.camera, {
 sun.shadow.bias = -0.001;
 scene.add(sun);
 await Promise.all(
-  ["Gaegu", "Nunito", "Lobster", "HennyPenny", "Bungee", "BarlowCondensed"].map(
-    (f) => document.fonts.load(`${f === "Nunito" ? "italic " : ""}24px ${f}`),
+  [
+    "Gaegu",
+    "Nunito",
+    "Lobster",
+    "HennyPenny",
+    "Bungee",
+    "BarlowCondensed",
+    "Rye",
+    "GlassAntiqua",
+  ].map((f) =>
+    document.fonts.load(`${f === "Nunito" ? "italic " : ""}24px ${f}`),
   ),
 ).catch(() => {});
 const world = createWorld(scene),
@@ -1770,7 +1781,7 @@ function updateSpeech(dt: number) {
   forestTarget.x = spot.x;
   forestTarget.z = spot.z;
   world.forestSeeds.visible = !!s.foundCapSeeds && !s.foundForestSeeds;
-  world.storeSeeds.visible = !!s.foundForestSeeds && !s.foundStoreSeeds;
+  world.storeSeeds.visible = false;
   if (speaking) {
     speaking.remaining -= dt;
     if (speaking.remaining <= 0) dismissSpeech();
@@ -4839,6 +4850,15 @@ function interact(skipTrader = false): void {
       ],
       "YOUR BED",
     );
+  if (id === "maze-seeds") {
+    if (collectMazeSeeds(s)) {
+      save();
+      toast(
+        "Five money seeds! A new packet will grow here in five minutes of active play.",
+      );
+    }
+    return;
+  }
   if (
     ["forest-seeds", "store-seeds", "garden-seeds", "tv-seeds"].includes(id)
   ) {
@@ -4852,7 +4872,7 @@ function interact(skipTrader = false): void {
       world.setSigmaUnlocked(!!s.foundTVSeeds);
       world.syncBeds(s.plots);
       toast(
-        id === "tv-seeds"
+        id === "garden-seeds"
           ? "Five seeds! A path has opened past Thread & Thimble. Sigma Town is through the hedge. You can now wear four hats at once."
           : "Five money seeds! Another chance for the garden.",
       );
@@ -5695,14 +5715,14 @@ function selectTarget() {
         mountainShopOpen(s)) &&
       (t.id !== "coin-atm" || !!s.coin) &&
       (t.id !== "forest-seeds" || (!!s.foundCapSeeds && !s.foundForestSeeds)) &&
-      (t.id !== "store-seeds" ||
-        (!!s.foundForestSeeds && !s.foundStoreSeeds)) &&
+      t.id !== "store-seeds" &&
       (t.id !== "garden-seeds" ||
-        (!!s.foundStoreSeeds && !s.foundGardenSeeds)) &&
+        (!!s.foundForestSeeds && !s.foundGardenSeeds)) &&
       (!t.id.startsWith("pepe-seed-") ||
         (!!s.pepePopped && !s.pepePackets?.includes(Number(t.id.slice(10))))) &&
       (t.id !== "pepe-door" || !canEnterPepe(s)) &&
-      (t.id !== "tv-seeds" || (!!s.foundGardenSeeds && !s.foundTVSeeds)) &&
+      t.id !== "tv-seeds" &&
+      (t.id !== "maze-seeds" || !(s.mazeSeedCooldown ?? 0)) &&
       (distance = targetDistance(t)) <
         (t.id.startsWith("bike-") && t.id !== "bike-rack"
           ? 4.5
@@ -5878,17 +5898,13 @@ function updateUI() {
       : "Robertson has a watering can for $1.";
   } else if (s.boughtSeeds && !s.seeds) {
     objective = "Find fresh seeds";
-    hint = s.foundCapSeeds
-      ? s.foundForestSeeds
-        ? s.foundStoreSeeds
-          ? !s.foundGardenSeeds
-            ? "Look closely in your neighbors’ flowerbeds."
-            : !s.foundTVSeeds
-              ? "Something may be tucked behind the TV at home."
-              : "Your Sprout Cap has a 50% chance to save a seed at harvest. Keep exploring."
-          : "Look carefully around Robertson’s shelves for another seed packet."
-        : "Look for a small seed packet out among the trees."
-      : "Robertson has no more seeds. Look in the brim of a cap at Thread & Thimble.";
+    hint = !s.foundCapSeeds
+      ? "Look in the brim of a cap at Thread & Thimble."
+      : !s.foundForestSeeds
+        ? "Search among the trees around town."
+        : !s.foundGardenSeeds
+          ? "Look in Bea’s flowerbeds beside her house."
+          : "Visit Robertson’s corn maze, or explore Sigma Town for more seeds.";
   } else if (s.metRobertson) {
     objective = "Seeds of possibility";
     hint = "Buy five seeds for $2. A shovel makes planting quicker.";
@@ -6003,29 +6019,31 @@ function updateUI() {
   const { x, z } = s.position;
   setText(
     $("#location"),
-    s.housing?.status === "owned" &&
-      Math.abs(x - mansionLot.x) < 16 &&
-      Math.abs(z - mansionLot.z) < 11
-      ? `${s.housing.style === "hearst" ? "Magnate Mansion" : "Presidential Palace"} · Home`
-      : s.housing?.storeOpened && x > -48 && x < -28 && z > -327 && z < -309
-        ? "Mansion Marvels"
-        : s.millionaire?.unlocked && z < -90
-          ? z < -335
-            ? "Mt. Millionaire"
-            : "The Willow Grove"
-          : s.foundTVSeeds && z < -40
-            ? "Sigma Town"
-            : atHome()
-              ? "Home, Sweet Home"
-              : x < -8 && x > -23 && z >= 14 && z < 24
-                ? "Your Little Garden"
-                : z < -21 && z > -39 && x > -4 && x < 16
-                  ? "Robertsons"
-                  : z < -23 && z > -35 && x > 18 && x < 30
-                    ? "Thread & Thimble"
-                    : z < -13
-                      ? "Market Lane"
-                      : "Willow Lane",
+    x < -44 && z > -49 && z < 0
+      ? "Robertson’s Farm"
+      : s.housing?.status === "owned" &&
+          Math.abs(x - mansionLot.x) < 16 &&
+          Math.abs(z - mansionLot.z) < 11
+        ? `${s.housing.style === "hearst" ? "Magnate Mansion" : "Presidential Palace"} · Home`
+        : s.housing?.storeOpened && x > -48 && x < -28 && z > -327 && z < -309
+          ? "Mansion Marvels"
+          : s.millionaire?.unlocked && z < -90
+            ? z < -335
+              ? "Mt. Millionaire"
+              : "The Willow Grove"
+            : s.foundTVSeeds && z < -40
+              ? "Sigma Town"
+              : atHome()
+                ? "Home, Sweet Home"
+                : x < -8 && x > -23 && z >= 14 && z < 24
+                  ? "Your Little Garden"
+                  : z < -21 && z > -39 && x > -4 && x < 16
+                    ? "Robertsons"
+                    : z < -23 && z > -35 && x > 18 && x < 30
+                      ? "Thread & Thimble"
+                      : z < -13
+                        ? "Market Lane"
+                        : "Willow Lane",
   );
   near = selectTarget();
   let prompt =
@@ -6160,8 +6178,10 @@ function frame(now: number) {
     )
   )
     visit("Saw Mom’s finished birdhouses hanging in the trees.");
-  world.gardenSeeds.visible = !!s.foundStoreSeeds && !s.foundGardenSeeds;
-  world.tvSeeds.visible = !!s.foundGardenSeeds && !s.foundTVSeeds;
+  world.gardenSeeds.visible = !!s.foundForestSeeds && !s.foundGardenSeeds;
+  world.tvSeeds.visible = false;
+  world.farm.seed.visible = !(s.mazeSeedCooldown ?? 0);
+  world.farm.update(s.position);
   const inHatShop =
     s.position.x > 18 &&
     s.position.x < 30 &&
@@ -6548,7 +6568,13 @@ function frame(now: number) {
           speed = dt * movementSpeed(s, keys.has("shift"));
         const dx = (f * direction.x - r * direction.z) * speed,
           dz = (f * direction.z + r * direction.x) * speed;
-        move(s.position, dx, dz, movementRects, Math.max(0.5, jumpHeight));
+        move(
+          s.position,
+          dx,
+          dz,
+          movementRects,
+          walkingStepHeight(s, jumpHeight),
+        );
         world.player.rotation.y = Math.atan2(dx, dz);
         walk += dt * (keys.has("shift") ? 17.5 : 10);
         world.player.position.y = reducedMotion ? 0 : Math.sin(walk) * 0.045;
@@ -7836,6 +7862,27 @@ if (new URLSearchParams(location.search).has("test")) {
       }
       renderer.render(scene, camera);
     },
+    farmReview: (view: "overview" | "house" | "maze" | "sign" | "shop") => {
+      const views = {
+        overview: [-65, 58, -9, -65, 0, -28],
+        house: [-56, 8, -4, -69, 2, -15],
+        maze: [-65, 26, -24, -70, 0, -39],
+        sign: [8, 3, -17, 8, 3.2, -21],
+        shop: [-7, 4, -13, -12, 2, -25],
+      };
+      const a = views[view];
+      camera.position.set(a[0], a[1], a[2]);
+      camera.lookAt(a[3], a[4], a[5]);
+      renderer.render(scene, camera);
+    },
+    farm: () => ({
+      packet: world.farm.seed.position.toArray(),
+      visible: world.farm.seed.visible,
+      cooldown: s.mazeSeedCooldown,
+      cornMeshes: world.farm.root.children.filter(
+        (o) => o instanceof T.InstancedMesh,
+      ).length,
+    }),
     riverDrought: (dry: boolean) => world.river.setDrought(dry),
     depthAudit: () => depthAudit(scene, { taggedOnly: true, upwardOnly: true }),
     targets: world.targets,

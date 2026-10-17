@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { fresh, seedStashSpots } from "../../src/game";
 for (let spot = 0; spot < seedStashSpots.length; spot++)
-  test(`forest stash ${spot} is reachable and leads to Robertson's stash`, async ({
+  test(`forest stash ${spot} is reachable and leads to Bea’s garden`, async ({
     page,
   }) => {
     const s = fresh();
@@ -27,8 +27,8 @@ for (let spot = 0; spot < seedStashSpots.length; spot++)
     expect(await page.evaluate(() => (window as any).game.state().seeds)).toBe(
       5,
     );
-    await page.evaluate(() => (window as any).game.teleport(12, -31.5));
-    await expect(page.locator("#prompt")).toContainText("behind the tins");
+    await page.evaluate(() => (window as any).game.teleport(7.8, 20.8));
+    await expect(page.locator("#prompt")).toContainText("flowerbed");
     await page.keyboard.press("e");
     expect(await page.evaluate(() => (window as any).game.state().seeds)).toBe(
       10,
@@ -37,7 +37,9 @@ for (let spot = 0; spot < seedStashSpots.length; spot++)
     await page.getByRole("button", { name: "Wake up" }).click();
     const saved = await page.evaluate(() => (window as any).game.state());
     expect(saved.seedStashSpot).toBe(spot);
-    expect(saved.foundStoreSeeds).toBe(true);
+    expect(saved.foundGardenSeeds).toBe(true);
+    expect(saved.foundTVSeeds).toBe(true);
+    expect(saved.foundStoreSeeds).toBe(false);
   });
 test("up and down arrows tilt the camera without walking", async ({ page }) => {
   const s = fresh();

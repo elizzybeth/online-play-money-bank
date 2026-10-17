@@ -81,8 +81,8 @@ export function createMillionaireWorld(
     { x: -25.95, z: -89.6, w: 136.9, d: 0.8 },
     { x: 105.35, z: -89.6, w: 111.7, d: 0.8 },
     // Turn both rails into the east hedge opening; no exposed side routes.
-    { x: 42.9, z: -76.05, w: 0.8, d: 27.1 },
-    { x: 49.1, z: -73.55, w: 0.8, d: 32.1 },
+    { x: 42.9, z: -73.35, w: 0.8, d: 21.7 },
+    { x: 49.1, z: -70.85, w: 0.8, d: 26.7 },
     { x: 41.2, z: -62.5, w: 4.2, d: 0.8 },
     { x: 44.05, z: -57.5, w: 10.1, d: 0.8 },
   ].flatMap(splitRiverBoundary);
@@ -147,7 +147,7 @@ export function createMillionaireWorld(
     fenceParts.set(color, parts);
   };
   for (const r of [
-    { x: 49.1, z: -73.55, w: 0.8, d: 32.1 },
+    { x: 49.1, z: -70.85, w: 0.8, d: 26.7 },
     { x: 44.05, z: -57.5, w: 10.1, d: 0.8 },
   ].flatMap(riverBoundaryGaps)) {
     // These remain solid for bikes and on foot, while open rails preserve the view.
