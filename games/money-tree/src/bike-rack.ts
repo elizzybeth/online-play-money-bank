@@ -60,10 +60,12 @@ export function makeBikeRackSign() {
     color: "#fff9df",
     roughness: 0.6,
   });
-  const post = new T.Mesh(new T.BoxGeometry(0.14, 3.65, 0.14), white);
-  post.position.y = 1.825;
+  const post = new T.Mesh(new T.BoxGeometry(0.14, 1.9, 0.14), white);
+  post.name = "bike-rack-sign-post";
+  post.position.y = 0.95;
   root.add(post);
   const frame = new T.Mesh(new T.BoxGeometry(1.25, 1.8, 0.1), white);
+  frame.name = "bike-rack-sign-frame";
   frame.position.y = 2.8;
   root.add(frame);
   const canvas = document.createElement("canvas");
@@ -121,11 +123,15 @@ export function makeBikeRackSign() {
   ]);
   const texture = new T.CanvasTexture(canvas);
   texture.colorSpace = T.SRGBColorSpace;
-  const face = new T.Mesh(
-    new T.PlaneGeometry(1.18, 1.73),
-    new T.MeshBasicMaterial({ map: texture, side: T.DoubleSide }),
-  );
-  face.position.set(0, 2.8, 0.056);
-  root.add(face);
+  const faceGeometry = new T.PlaneGeometry(1.18, 1.73);
+  const faceMaterial = new T.MeshBasicMaterial({ map: texture });
+  // Separate outward-facing prints keep both sides upright and opaque.
+  for (const side of [-1, 1]) {
+    const face = new T.Mesh(faceGeometry, faceMaterial);
+    face.name = `bike-rack-sign-face-${side}`;
+    face.position.set(0, 2.8, side * 0.056);
+    face.rotation.y = side === 1 ? 0 : Math.PI;
+    root.add(face);
+  }
   return root;
 }
