@@ -55,6 +55,16 @@ export function createMrWacky(
     joint.position.y = i === 0 ? 0.28 : 0.65;
     previous.add(joint);
     joints.push(joint);
+    // Soft overlapping collars keep the air tube closed as its joints bend.
+    const collar = part(
+      new T.SphereGeometry(0.44, 12, 8),
+      green,
+      0,
+      0.02,
+      0,
+      joint,
+    );
+    collar.scale.y = 0.42;
     part(
       new T.CylinderGeometry(0.43, 0.43, 0.68, 16),
       green,
