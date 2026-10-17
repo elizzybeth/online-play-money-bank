@@ -94,9 +94,17 @@ export function splitRiverBoundary<
   const vertical = r.d > r.w,
     center = vertical ? r.x : r.z,
     half = (vertical ? r.w : r.d) / 2;
+  const radius = riverBankWidth + half;
   const cuts = points
-    .filter((p) => Math.abs((vertical ? p.x : p.z) - center) < half + 4.5)
-    .map((p) => [(vertical ? p.z : p.x) - 5, (vertical ? p.z : p.x) + 5])
+    .flatMap((p) => {
+      const delta = Math.abs((vertical ? p.x : p.z) - center);
+      if (delta >= radius) return [];
+      // Project the bank radius onto this wall. A fixed-width cut over-trimmed
+      // corners and removed the parallel approach rail beside the river.
+      const reach = Math.sqrt(radius * radius - delta * delta) + 0.8;
+      const along = vertical ? p.z : p.x;
+      return [[along - reach, along + reach]];
+    })
     .sort((a, b) => a[0] - b[0]);
   let intervals = [
     [

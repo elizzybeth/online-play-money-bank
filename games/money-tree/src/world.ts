@@ -436,7 +436,7 @@ export function createWorld(scene: T.Scene) {
   sleeper.rotation.x = -Math.PI / 2;
   sleeper.position.set(-19.1, 1.14, 1.75);
   sleeping.add(sleeper);
-  const townGround = box(0, -0.25, -25, 116, 0.5, 140, colors.grass);
+  const townGround = box(4, -0.25, -25, 108, 0.5, 140, colors.grass);
   townGround.name = "town-ground";
   townGround.userData.depthAudit = true;
   townGround.material = surfaceMaterial(colors.grass, "grass", 50, 45);

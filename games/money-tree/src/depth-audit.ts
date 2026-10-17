@@ -155,12 +155,26 @@ function overlap(a: T.Vector3[], b: T.Vector3[], drop: number) {
     poly = out;
     if (poly.length < 3) return 0;
   }
-  return (
+  const area =
     Math.abs(
       poly.reduce((sum, p, i) => {
         const q = poly[(i + 1) % poly.length];
         return sum + p[0] * q[1] - p[1] * q[0];
       }, 0),
-    ) / 2
+    ) / 2;
+  // Clipped terrain edges are stored as Float32 vertices. Independent edge
+  // intersections can differ by a few ULPs, producing long, sub-pixel slivers.
+  // Reject only intersections thinner than that coordinate precision; real
+  // narrow overlaps and duplicate faces still have measurable interior area.
+  const perimeter = poly.reduce((sum, p, i) => {
+    const q = poly[(i + 1) % poly.length];
+    return sum + Math.hypot(q[0] - p[0], q[1] - p[1]);
+  }, 0);
+  const coordinateScale = Math.max(
+    1,
+    ...a.concat(b).flatMap(project).map(Math.abs),
   );
+  return perimeter && (2 * area) / perimeter > coordinateScale * 2 ** -22
+    ? area
+    : 0;
 }

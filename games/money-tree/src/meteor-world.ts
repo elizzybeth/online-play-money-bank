@@ -25,8 +25,8 @@ export function desertGround() {
   shape.lineTo(165, -90);
   // The town's grass already covers this strip. Cut it out rather than stack
   // another ground plane at exactly y=0 across the Level 3 transition.
-  shape.lineTo(50, -90);
-  shape.lineTo(50, -95);
+  shape.lineTo(58, -90);
+  shape.lineTo(58, -95);
   shape.lineTo(-50, -95);
   shape.lineTo(-50, -90);
   shape.lineTo(-105, -90);

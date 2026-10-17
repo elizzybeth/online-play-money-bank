@@ -61,3 +61,16 @@ test("impact crater keeps a low draw count, a depressed center, finite rock tran
   for (const value of debris.instanceMatrix.array)
     assert.ok(Number.isFinite(value));
 });
+
+test("depth audit ignores Float32 edge slivers while detecting millimetre overlaps and duplicate faces", () => {
+  const root = new T.Group();
+  const a = plane(0, 0, 100),
+    b = plane(100 - 0.00001, 0, 100);
+  a.position.z = b.position.z = -140;
+  root.add(a, b);
+  assert.equal(depthAudit(root).length, 0);
+  b.position.x = 100 - 0.001;
+  assert.ok(depthAudit(root).length > 0);
+  b.position.x = 0;
+  assert.ok(depthAudit(root).length > 0);
+});
