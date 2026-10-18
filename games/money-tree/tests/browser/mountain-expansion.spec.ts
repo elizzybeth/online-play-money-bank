@@ -106,10 +106,13 @@ test("first Guardian conversation opens ten mountain hats and the seed ATM persi
   expect(unreachable).toEqual([]);
   await go(page, "mountain-composter");
   await page
-    .getByRole("button", { name: "Trade 25 scraps for soil", exact: true })
+    .getByRole("button", {
+      name: "Trade 25 scraps for fertilizer",
+      exact: true,
+    })
     .click();
   expect(
-    (await page.evaluate(() => (window as any).game.state())).soilBags,
+    (await page.evaluate(() => (window as any).game.state())).fertilizer,
   ).toBe(1);
   expect(
     (await page.evaluate(() => (window as any).game.state())).compostScraps,

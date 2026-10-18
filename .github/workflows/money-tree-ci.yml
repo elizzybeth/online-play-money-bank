@@ -34,16 +34,7 @@ jobs:
       fail-fast: false
       matrix:
         browser: [chromium, firefox, webkit]
-        shard: [1, 2, 3, 4, 5, 6, 7, 8]
-        exclude:
-          - { browser: firefox, shard: 5 }
-          - { browser: firefox, shard: 6 }
-          - { browser: firefox, shard: 7 }
-          - { browser: firefox, shard: 8 }
-          - { browser: webkit, shard: 5 }
-          - { browser: webkit, shard: 6 }
-          - { browser: webkit, shard: 7 }
-          - { browser: webkit, shard: 8 }
+        shard: [1, 2, 3, 4, 5, 6]
     runs-on: ubuntu-latest
     timeout-minutes: 60
     defaults:
@@ -60,11 +51,18 @@ jobs:
           cache: pnpm
           cache-dependency-path: games/money-tree/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps ${{ matrix.browser }}
-      - run: xvfb-run --auto-servernum pnpm test:e2e --headed --reporter=line --shard=${{ matrix.shard }}/${{ matrix.browser == 'chromium' && 8 || 4 }}
+      - run: pnpm exec playwright install --with-deps --no-shell ${{ matrix.browser }}
+      - run: xvfb-run --auto-servernum pnpm test:e2e --headed --shard=${{ matrix.shard }}/6
         timeout-minutes: 50
         env:
           MONEY_TREE_BROWSER: ${{ matrix.browser }}
+          MONEY_TREE_BUILD_DIR: ../../money-tree
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: money-tree-timings-${{ matrix.browser }}-${{ matrix.shard }}
+          path: games/money-tree/test-results/browser-timings.json
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

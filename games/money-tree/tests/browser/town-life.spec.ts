@@ -207,10 +207,12 @@ test("composter exchanges scraps, Twin Planter waters and feeds both beds, and w
   await start(page, s);
   await page.keyboard.press("e");
   await expect(page.getByRole("dialog")).toContainText("27 scraps");
-  await page.getByRole("button", { name: "Trade 25 scraps for soil" }).click();
+  await page
+    .getByRole("button", { name: "Trade 25 scraps for fertilizer" })
+    .click();
   expect(
-    await page.evaluate(async () => (window as any).game.state().soilBags),
-  ).toBe(1);
+    await page.evaluate(async () => (window as any).game.state().fertilizer),
+  ).toBe(3);
   await expect(page.locator("#compost-hud")).toContainText("2");
   await page.evaluate(async () => (window as any).game.teleport(-20, 21));
   await frames(page);
@@ -240,7 +242,7 @@ test("composter exchanges scraps, Twin Planter waters and feeds both beds, and w
   ).toBe(true);
   expect(
     await page.evaluate(async () => (window as any).game.state().fertilizer),
-  ).toBe(0);
+  ).toBe(1);
 });
 test("five hens and a rooster wander and Tuck jumps into your arms; Mom has a usable chair and cooks bacon", async ({
   page,

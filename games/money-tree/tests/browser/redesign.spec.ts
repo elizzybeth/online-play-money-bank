@@ -143,7 +143,7 @@ test("the mascot waits for the player and escorts them into the summit pagoda", 
     page.getByRole("button", { name: "Tell me more", exact: true }),
   ).toBeVisible();
 });
-test("home counters occupy the lower right, notebook handwriting follows its rules, and captions stay on TV", async ({
+test("home counters occupy the lower right, notebook handwriting follows its rules, and TV captions remain readable beside the screen", async ({
   page,
 }) => {
   const s = Object.assign(fresh(), {
@@ -165,7 +165,13 @@ test("home counters occupy the lower right, notebook handwriting follows its rul
   const design = await page.evaluate(() => (window as any).game.homeDesign());
   expect(design.furnishings).toBeGreaterThan(12);
   expect(design.tumbleweeds).toHaveLength(12);
-  await expect(page.locator("#tv-news-caption")).toHaveCount(0);
+  await page.evaluate(() => (window as any).game.setYaw(-Math.PI / 2));
+  for (let i = 0; i < 10; i++) await page.clock.fastForward(64);
+  await expect(page.locator("#tv-news-caption")).toBeVisible();
+  await expect(page.locator("#tv-caption-attribution path")).toHaveAttribute(
+    "d",
+    /^M /,
+  );
   expect(design.tv.caption).toBeTruthy();
   await capture(page, "jewel-home");
   await page.keyboard.press("j");

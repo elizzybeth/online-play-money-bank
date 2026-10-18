@@ -92,9 +92,18 @@ export function createNeighborGardens(
     batch.geometry.forEach((g) => g.dispose());
   }
   return {
-    update(dt: number, speaking?: string, beaBusy = false) {
+    update(
+      dt: number,
+      speaking?: string,
+      beaBusy = false,
+      celebrating = false,
+    ) {
       gardeners.forEach((g) => {
-        if (g.site.id === speaking || (g.site.id === "npc1" && beaBusy)) {
+        if (
+          celebrating ||
+          g.site.id === speaking ||
+          (g.site.id === "npc1" && beaBusy)
+        ) {
           g.can.visible = g.bag.visible = g.droplets.visible = false;
           return;
         }

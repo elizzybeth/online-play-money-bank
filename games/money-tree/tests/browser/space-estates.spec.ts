@@ -170,8 +170,6 @@ for (const distant of [false, true])
     expect(packet).toBeTruthy();
     await page.evaluate((p) => (window as any).game.teleport(p.x, p.z), packet);
     await frames(page);
-    await expect(page.locator("#prompt")).toContainText("Pick up seed packet");
-    await page.keyboard.press("e");
     await frames(page);
     expect(
       (await page.evaluate(() => (window as any).game.state())).seeds,

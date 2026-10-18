@@ -11,14 +11,14 @@ import {
   harvest,
 } from "../src/game";
 import {
-  compostSoil,
+  compostFertilizer,
   buySpanakopita,
   shareSpanakopita,
   gardenBatch,
 } from "../src/town-life";
 import { marketSignals, createCoin, tickSigma } from "../src/sigma";
 import { notebookLines, notebookSpreads } from "../src/notebook-layout";
-test("compost only starts in Sigma, awards 1 to 3 on dead-tree replanting and trades exactly 25 for soil", () => {
+test("compost only starts in Sigma, awards 1 to 3 on dead-tree replanting and trades exactly 25 for fertilizer", () => {
   const s = fresh();
   s.seeds = 10;
   s.plots[0].stage = "harvested";
@@ -32,11 +32,12 @@ test("compost only starts in Sigma, awards 1 to 3 on dead-tree replanting and tr
   plant(s, 1);
   assert.equal(s.compostScraps, before);
   s.compostScraps = 24;
-  assert.equal(compostSoil(s), false);
+  assert.equal(compostFertilizer(s), false);
   s.compostScraps = 27;
-  assert(compostSoil(s));
+  assert(compostFertilizer(s));
   assert.equal(s.compostScraps, 2);
-  assert.equal(s.soilBags, 1);
+  assert.equal(s.fertilizer, 1);
+  assert.equal(s.soilBags, 0);
   assert.equal(decode(JSON.stringify({ ...s, compostScraps: -1 })), null);
   assert.equal(decode(JSON.stringify(s))?.compostScraps, 2);
 });

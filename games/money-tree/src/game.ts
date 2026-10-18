@@ -75,6 +75,7 @@ export type Plot = {
 };
 export type State = {
   cropSeeds?: Partial<Record<Crop, number>>;
+  activeSeed?: "money" | Crop;
   version: 1;
   adventure?: Adventure;
   housing?: Housing;
@@ -269,9 +270,9 @@ export function plant(s: State, i: number) {
   delete s.plots[i].crop;
   s.plots[i].stage = "planted";
   if (s.plots[i].mountain) {
-    s.plots[i].fertilized = true;
+    s.plots[i].fertilized = false;
     s.plots[i].stage = "growing";
-    s.plots[i].remaining = 120;
+    s.plots[i].remaining = 180;
     s.plots[i].yield = 0;
   }
   if (!s.plots[i].mountain && foodPower(s, "garden")) {

@@ -124,16 +124,17 @@ test("replanting a home bed brings Mom out, persists the conversation, and leave
   });
   s.plots[4].stage = "harvested";
   await start(page, s);
-  await page.keyboard.press("e");
+  await page.keyboard.press("g");
   await expect(
-    page.getByRole("heading", { name: "What shall we plant?" }),
+    page.getByRole("heading", { name: "Choose your planting seed" }),
   ).toBeVisible();
   await page
     .getByRole("button", {
-      name: "Iris · Mom’s favorite · 1 seeds",
+      name: "Select iris seeds · 1 available",
       exact: true,
     })
     .click();
+  await page.keyboard.press("e");
   await frames(page, 40, 250);
   expect(
     (await page.evaluate(() => (window as any).game.state())).plots[4].crop,

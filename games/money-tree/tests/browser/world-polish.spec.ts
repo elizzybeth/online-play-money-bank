@@ -102,15 +102,18 @@ test("E defaults to all compost with a separate one-bag trade and presenter resp
   await open(page, s);
   await page.keyboard.press("e");
   await expect(
-    page.getByRole("button", { name: "Trade 25 scraps for soil", exact: true }),
+    page.getByRole("button", {
+      name: "Trade 25 scraps for fertilizer",
+      exact: true,
+    }),
   ).toBeVisible();
   await page.keyboard.press("e");
   expect(
     await page.evaluate(() => (window as any).game.state().compostScraps),
   ).toBe(16);
-  expect(await page.evaluate(() => (window as any).game.state().soilBags)).toBe(
-    21,
-  );
+  expect(
+    await page.evaluate(() => (window as any).game.state().fertilizer),
+  ).toBe(21);
   await page.evaluate(() => {
     const g = (window as any).game,
       t = g.targets.find((t: any) => t.id === "pepe-show");

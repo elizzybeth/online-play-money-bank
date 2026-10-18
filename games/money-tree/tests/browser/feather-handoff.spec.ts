@@ -39,7 +39,7 @@ test("feather stays in hair until the player replies with E, passes to Mom, then
     }
     throw Error("No clear position near Mom");
   });
-  for (let i = 0; i < 10; i++) await page.clock.runFor(40);
+  for (let i = 0; i < 10; i++) await page.clock.fastForward(40);
   if (!(await page.locator(".speech-bubble").count()))
     await page.keyboard.press("e");
   await expect(page.locator(".speech-bubble")).toContainText(
@@ -55,11 +55,11 @@ test("feather stays in hair until the player replies with E, passes to Mom, then
     ),
   ).toBe("Cluck");
   await page.keyboard.press("e");
-  for (let i = 0; i < 32; i++) await page.clock.runFor(40);
+  for (let i = 0; i < 32; i++) await page.clock.fastForward(40);
   expect(
     await page.evaluate(() => (window as any).game.spaceEstate().featherParent),
   ).toBe("hand-1");
-  for (let i = 0; i < 23; i++) await page.clock.runFor(40);
+  for (let i = 0; i < 23; i++) await page.clock.fastForward(40);
   expect(
     await page.evaluate(() => (window as any).game.spaceEstate().featherOwner),
   ).toBe("mom");
@@ -67,7 +67,7 @@ test("feather stays in hair until the player replies with E, passes to Mom, then
     await page.screenshot({
       path: process.env.MONEY_TREE_CAPTURE + "/feather-pass.png",
     });
-  for (let i = 0; i < 30; i++) await page.clock.runFor(40);
+  for (let i = 0; i < 30; i++) await page.clock.fastForward(40);
   await expect(page.locator(".speech-bubble")).toContainText("Thank you, love");
   expect(
     await page.evaluate(() => (window as any).game.state().adventure.feather),
