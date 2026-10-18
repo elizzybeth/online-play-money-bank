@@ -37,6 +37,7 @@ export function plantCrop(s: State, i: number, crop: Crop) {
   p.stage = "planted";
   p.yield = 0;
   p.fertilized = false;
+  delete p.fertilizedDay;
   p.remaining = 0;
   if (
     s.can &&

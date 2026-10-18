@@ -604,7 +604,7 @@ export function createSigmaWorld(
   });
   let pepeOpen = false,
     burstTime = 0,
-    wasPopped = false;
+    wasPopped: boolean | undefined;
   function updatePepe(
     open: boolean,
     seconds: number,
@@ -646,7 +646,9 @@ export function createSigmaWorld(
       presenterTarget.x = presenter.position.x + 1.3;
     }
     wacky.update(popped, dt, reduced);
-    if (popped && !wasPopped) burstTime = 0;
+    // A restored completed event starts settled; only a new pop flies outward.
+    if (wasPopped === undefined && popped) burstTime = 2;
+    else if (popped && wasPopped === false) burstTime = 0;
     if (popped) burstTime = Math.min(2, burstTime + dt);
     wasPopped = popped;
     const progress = reduced ? 1 : Math.min(1, burstTime / 2);
@@ -980,6 +982,10 @@ export function createSigmaWorld(
     houseBounds,
     meditators,
     updatePepe,
+    resetPepeAnimation() {
+      wasPopped = undefined;
+      burstTime = 0;
+    },
     wacky,
     stacyChair,
     guestChair,

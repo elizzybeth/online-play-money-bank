@@ -48,8 +48,7 @@ test("Pepe opens after both encounters, inflates after dialogue, and keeps colle
     await page.evaluate(() => (window as any).game.state().pepePackets),
   ).toEqual([0]);
   expect(await page.evaluate(() => (window as any).game.state().seeds)).toBe(5);
-  // Let the saved burst finish before walking over the remaining ground packets.
-  for (let frame = 0; frame < 10; frame++) await page.clock.fastForward(250);
+  // A completed saved burst is already settled after reloading.
   for (let i = 1; i < 25; i++) {
     await page.evaluate((i) => {
       const t = (window as any).game.targets.find(

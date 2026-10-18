@@ -268,12 +268,14 @@ export function plant(s: State, i: number) {
     if (s.rng / 2147483647 >= 0.5) s.seeds--;
   } else s.seeds--;
   delete s.plots[i].crop;
+  delete s.plots[i].fertilizedDay;
+  s.plots[i].fertilized = false;
+  s.plots[i].remaining = 0;
+  s.plots[i].yield = 0;
   s.plots[i].stage = "planted";
   if (s.plots[i].mountain) {
-    s.plots[i].fertilized = false;
     s.plots[i].stage = "growing";
     s.plots[i].remaining = 180;
-    s.plots[i].yield = 0;
   }
   if (!s.plots[i].mountain && foodPower(s, "garden")) {
     s.plots[i].stage = "growing";
