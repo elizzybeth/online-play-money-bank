@@ -49,3 +49,21 @@ test("touching a wall does not cut it away while the camera remains on the same 
   cuts.update([wall], point(1.7), point(3), point(4));
   assert.equal(wall.visible, false);
 });
+
+test("cached leaf bounds reuse unchanged calculations and invalidate parent and vertex changes", () => {
+  const walls = new CameraWalls(),
+    parent = new T.Group(),
+    mesh = new T.Mesh(new T.BoxGeometry(2, 2, 2));
+  parent.add(mesh);
+  const first = walls.bounds(mesh);
+  for (let i = 0; i < 300; i++) assert.equal(walls.bounds(mesh), first);
+  assert.equal(walls.stats().boundsBuilds, 1);
+  parent.position.x = 5;
+  assert.equal(walls.bounds(mesh).min.x, 4);
+  const positions = mesh.geometry.attributes.position;
+  for (let i = 0; i < positions.count; i++)
+    positions.setX(i, positions.getX(i) * 2);
+  positions.needsUpdate = true;
+  assert.equal(walls.bounds(mesh).min.x, 3);
+  assert.equal(walls.stats().boundsBuilds, 3);
+});

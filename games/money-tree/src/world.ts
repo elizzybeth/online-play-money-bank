@@ -1,3 +1,5 @@
+import { addShopGardens } from "./shop-gardens";
+import { arrangeHatStack } from "./hat-arrangement";
 import { createFarm } from "./farm-world";
 import { createRiverWorld } from "./river-world";
 import {
@@ -60,7 +62,7 @@ export function createWorld(scene: T.Scene) {
     { x: -7.5, z: -19.25, w: 21, d: 2.5 },
     { x: -10.7, z: -20.5, w: 4.4, d: 3 },
     { x: -29, z: -16, w: 38, d: 4 },
-    { x: -47, z: -27.5, w: 4, d: 35 },
+    { x: -47, z: -37, w: 4, d: 54 },
     { x: -69, z: -10, w: 40, d: 2 },
   ];
   const doorways: Rect[] = [];
@@ -445,7 +447,7 @@ export function createWorld(scene: T.Scene) {
   sleeper.rotation.x = -Math.PI / 2;
   sleeper.position.set(-19.1, 1.14, 1.75);
   sleeping.add(sleeper);
-  const townGround = box(-21.5, -0.25, -25, 159, 0.5, 140, colors.grass);
+  const townGround = box(-38, -0.25, -25, 192, 0.5, 140, colors.grass);
   townGround.name = "town-ground";
   townGround.userData.depthAudit = true;
   townGround.material = surfaceMaterial(colors.grass, "grass", 50, 45);
@@ -1498,9 +1500,9 @@ export function createWorld(scene: T.Scene) {
   speakers.push({
     id: "npc3",
     name: "Mabel",
-    object: person(-39, -19, "#dea58d", "#5f5549"),
+    object: person(-39, -30.7, "#dea58d", "#5f5549"),
   });
-  target("npc3", -39, -19, "Talk to Mabel");
+  target("npc3", -39, -30.7, "Talk to Mabel");
   // Robertsons walk-in shop at end of lane, front facing south.
   const sx = 8,
     sz = -31;
@@ -1670,9 +1672,9 @@ export function createWorld(scene: T.Scene) {
   wornHat.position.y = 1.93;
   player.add(wornHat);
   let wornKey = "";
-  function setHat(ids: HatId[] | HatId | null, serious = false) {
+  function setHat(ids: HatId[] | HatId | null, serious = false, level = 1) {
     const stack = Array.isArray(ids) ? ids : ids ? [ids] : [];
-    const key = stack.join(",") + (serious ? ":serious" : "");
+    const key = stack.join(",") + (serious ? ":serious" : "") + `:${level}`;
     if (key === wornKey) return;
     wornKey = key;
     wornHat.traverse((o) => {
@@ -1684,46 +1686,34 @@ export function createWorld(scene: T.Scene) {
       }
     });
     wornHat.clear();
-    const models = stack
-      .map((id) => {
-        const model = makeHat(id);
-        const height = new T.Box3().setFromObject(model).max.y;
-        if (height > 0.72) model.scale.y = 0.72 / height;
-        // Stack on the crown, not the veil hanging below the brim.
-        const size = new T.Box3().setFromObject(model).max.y;
-        return {
-          id,
-          model,
-          size,
-          height,
-          priority: id === "propeller" ? 2 : id === "rabbit" ? 1 : 0,
-        };
-      })
-      .sort((a, b) => a.priority - b.priority || a.height - b.height);
-    let y = 0;
+    const models = stack.map((id) => {
+      const model = makeHat(id);
+      return { id, model, height: new T.Box3().setFromObject(model).max.y };
+    });
+    const layout = arrangeHatStack(models, level);
     wornHat.scale.set(1, 1, 1);
-    for (const { id, model, size } of models) {
-      model.position.y = y;
-      model.userData.hatId = id;
-      wornHat.add(model);
-      y += size * 0.98;
+    for (const item of layout) {
+      item.model.position.y = item.y;
+      item.model.userData.hatId = item.id;
+      wornHat.add(item.model);
     }
-    if (y > 0.95) {
-      const ratio = 0.95 / y;
-      for (const child of wornHat.children) {
-        child.position.y *= ratio;
-        child.scale.y *= ratio;
-      }
-      y = 0.95;
-    }
+    wornHat.userData.height =
+      Math.max(0, ...layout.map((item) => item.y + item.height)) +
+      (serious ? 0.35 : 0);
     if (serious) {
       const paper = makeSeriousHat();
-      paper.position.y = y;
+      // Paper is a base for ornaments rather than covering the nest/saxophone.
+      paper.userData.hatId = "serious";
+      const bonnet = layout.find((item) => item.id === "seedkeeper");
+      paper.position.y = bonnet
+        ? Math.min(bonnet.height * 0.85, 0.45 + level * 0.25)
+        : 0;
+      for (const item of layout)
+        if (item.id !== "seedkeeper") item.model.position.y += 0.35;
       wornHat.add(paper);
-      y += 0.43;
     }
-    if (y > 1.38) wornHat.scale.y = 1.38 / y;
   }
+
   // Pegs and an upright post in the bedroom, clear of the door and desk.
   cyl(-20.2, 1.35, 4.8, 0.07, 2.7, "#a48162");
   for (const y of [0.6, 1.06, 1.52, 1.98, 2.44])
@@ -2394,7 +2384,7 @@ export function createWorld(scene: T.Scene) {
     [17, 20, ["cabbage", "carrot", "tomato"]],
     [8.2, 6.2, ["orchid", "kangaroo-paw", "tulip"]],
     [17, 6, ["banana", "bird-of-paradise", "monstera"]],
-    [-23, -10.5, ["lavender", "tulip", "fern"]],
+    [-43, -32, ["lavender", "tulip", "fern"]],
     [7, 12, ["sunflower", "sunflower", "sunflower"]],
     [7, 15, ["kangaroo-paw", "lavender", "orchid"]],
     [17.5, 12, ["rosette", "aloe", "cactus"]],
@@ -2403,10 +2393,10 @@ export function createWorld(scene: T.Scene) {
     [7, 1, ["pitcher", "flytrap", "sundew"]],
     [17.5, -2, ["bird-of-paradise", "orchid", "monstera"]],
     [17.5, 1, ["monstera", "banana", "bird-of-paradise"]],
-    [-19.3, -12, ["cabbage", "carrot", "tomato"]],
-    [-19.3, -15, ["tomato", "carrot", "cabbage"]],
-    [-8.4, -12, ["sunflower", "sunflower", "sunflower"]],
-    [-23, -15.5, ["fern", "daisy", "lavender"]],
+    [-41, -35, ["cabbage", "carrot", "tomato"]],
+    [-41, -38, ["tomato", "carrot", "cabbage"]],
+    [-36, -32, ["sunflower", "sunflower", "sunflower"]],
+    [-44, -35, ["fern", "daisy", "lavender"]],
   ] as const) {
     const garden = new T.Group();
     garden.position.set(x, 0, z);
@@ -2570,13 +2560,13 @@ export function createWorld(scene: T.Scene) {
   }
   // River outlets interrupt both the visible hedge and its collision.
   const hedgeRects = [
-    { x: -94, z: -5, w: 1, d: 88, clearHeight: 2.3 },
-    { x: -66.5, z: -49, w: 55, d: 1, clearHeight: 2.3 },
-    { x: -39, z: -44.5, w: 1, d: 9, clearHeight: 2.3 },
+    { x: -130, z: -12.5, w: 1, d: 103, clearHeight: 2.3 },
+    { x: -84.5, z: -64.5, w: 91, d: 1, clearHeight: 2.3 },
+    { x: -39, z: -52, w: 1, d: 24, clearHeight: 2.3 },
     { x: 39, z: 0, w: 1, d: 90, clearHeight: 2.3 },
     { x: -3.25, z: -40, w: 70.5, d: 1, clearHeight: 2.3 },
     { x: 37.75, z: -40, w: 1.5, d: 1, clearHeight: 2.3 },
-    { x: -27.5, z: 39, w: 132, d: 1, clearHeight: 2.3 },
+    { x: -45.5, z: 39, w: 168, d: 1, clearHeight: 2.3 },
   ].flatMap(splitRiverBoundary);
   rects.push(...hedgeRects);
   const boundaryHedges = hedgeRects.map((r) => {
@@ -2773,6 +2763,7 @@ export function createWorld(scene: T.Scene) {
   }
   const life = createTownLife(scene, rects, targets, speakers, player, mom);
   const farm = createFarm(scene, rects, targets);
+  addShopGardens(scene);
   const river = createRiverWorld(scene, rects, [
     ...paths,
     ...sigma.paths,

@@ -8,12 +8,42 @@ on:
 permissions:
   contents: read
 jobs:
+  core:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: games/money-tree
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: games/money-tree/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+      - run: pnpm build
+      - name: Verify checked-in Pages artifact
+        run: diff -r dist ../../money-tree
   verify:
+    needs: core
     strategy:
       fail-fast: false
       matrix:
         browser: [chromium, firefox, webkit]
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+        exclude:
+          - { browser: firefox, shard: 5 }
+          - { browser: firefox, shard: 6 }
+          - { browser: firefox, shard: 7 }
+          - { browser: firefox, shard: 8 }
+          - { browser: webkit, shard: 5 }
+          - { browser: webkit, shard: 6 }
+          - { browser: webkit, shard: 7 }
+          - { browser: webkit, shard: 8 }
     runs-on: ubuntu-latest
     timeout-minutes: 60
     defaults:
@@ -30,15 +60,11 @@ jobs:
           cache: pnpm
           cache-dependency-path: games/money-tree/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
-      - run: pnpm test
       - run: pnpm exec playwright install --with-deps ${{ matrix.browser }}
-      - run: xvfb-run --auto-servernum pnpm test:e2e --headed --reporter=line --shard=${{ matrix.shard }}/4
+      - run: xvfb-run --auto-servernum pnpm test:e2e --headed --reporter=line --shard=${{ matrix.shard }}/${{ matrix.browser == 'chromium' && 8 || 4 }}
         timeout-minutes: 50
         env:
           MONEY_TREE_BROWSER: ${{ matrix.browser }}
-      - run: pnpm build
-      - name: Verify checked-in Pages artifact
-        run: diff -r dist ../../money-tree
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

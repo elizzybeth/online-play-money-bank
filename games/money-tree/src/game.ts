@@ -1005,8 +1005,10 @@ export function decode(raw: string | null): State | null {
             "grindset",
             "gigachad",
             "soyjak",
+            "pepe-show",
           ].includes(key) ||
             /^sigma-chad-[0-5]$/.test(key) ||
+            /^doge-meditator-[0-9]$/.test(key) ||
             /^mom-reply-(resting|bedrest|cooking|birdhouses|painting|reading|garden|mending|puzzles|music|letters|feeding|bacon)$/.test(
               key,
             )) &&
@@ -1262,7 +1264,6 @@ export function clearPosition(
       millionaire: north < -90 ? { unlocked: true } : undefined,
       foundTVSeeds: north < -39,
     }) &&
-    z >= north &&
     z <= 38 &&
     !blocked(x, z, rects);
   if (clear(pos.x, pos.z)) return pos;

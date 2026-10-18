@@ -39,7 +39,7 @@ test("river bridges are walkable, banks are lush and drought can change them wit
       const g = (window as any).game,
         points = [];
       const length = b.axis === "z" ? b.d : b.w;
-      for (let n = -length / 2 + 0.5; n < length / 2 - 0.5; n += 0.25) {
+      for (let n = -length / 2 - 4.2; n < length / 2 + 4.2; n += 0.25) {
         const x = b.x + (b.axis === "x" ? n : 0),
           z = b.z + (b.axis === "z" ? n : 0);
         if (

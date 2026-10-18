@@ -67,7 +67,7 @@ test("walk-in showroom has seven physical bikes, mixed wall/floor displays, purc
     await page.evaluate(() => (window as any).game.state().selectedBike),
   ).toBe("road");
 });
-test("H gives a first-person cockpit, slowest bike beats running, B rings, walls block and dismount restores walking", async ({
+test("H gives a first-person cockpit, slowest bike beats running, B rings and dismount restores walking", async ({
   page,
 }) => {
   await start(page, {
@@ -106,7 +106,9 @@ test("H gives a first-person cockpit, slowest bike beats running, B rings, walls
   expect(
     await page.evaluate(() => (window as any).game.bicycle().firstPerson),
   ).toBe(false);
-  await page.evaluate(() => (window as any).game.teleport(17, -28));
+});
+test("bike stops against a shop wall", async ({ page }) => {
+  await start(page, { bikes: ["tassels"], selectedBike: "tassels", position: { x: 17, z: -28 } });
   await page.keyboard.press("h");
   await frames(page, 55);
   await page.evaluate(() => (window as any).game.setYaw(Math.PI / 2));
@@ -119,8 +121,9 @@ test("H gives a first-person cockpit, slowest bike beats running, B rings, walls
   expect(await page.evaluate(() => (window as any).game.bicycle().speed)).toBe(
     0,
   );
-  await page.keyboard.press("h");
-  await page.evaluate(() => (window as any).game.teleport(-10.65, -19));
+});
+test("entering a shop dismounts the bike", async ({ page }) => {
+  await start(page, { bikes: ["tassels"], selectedBike: "tassels", position: { x: -10.65, z: -19 } });
   await page.evaluate(() => (window as any).game.setYaw(0));
   await page.keyboard.press("h");
   await frames(page, 55);

@@ -933,7 +933,7 @@ export function createSigmaWorld(
   rects.push({ x: 10, z: -80.5, w: 12.6, d: 0.25, clearHeight: 4.5 });
   // Visible perimeter and a gap aligned with the lane entrance.
   for (const r of [
-    { x: -39, z: -67.25, w: 1, d: 44.5, clearHeight: 2.1 },
+    { x: -39, z: -77.25, w: 1, d: 24.5, clearHeight: 2.1 },
     { x: 39, z: -51.25, w: 1, d: 12.5, clearHeight: 2.1 },
     { x: 39, z: -76, w: 1, d: 27, clearHeight: 2.1 },
     { x: 0, z: -90, w: 78, d: 1, clearHeight: 2.1 },

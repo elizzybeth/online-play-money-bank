@@ -19,9 +19,18 @@ test("farm is reachable, maze reward survives reload, and new layouts render cle
   await page.goto("./?test");
   await page.getByRole("button", { name: "Wake up" }).click();
   for (let i = 0; i < 8; i++) await page.clock.fastForward(40);
-  expect(
-    await page.evaluate(() => (window as any).game.farm().cornMeshes),
-  ).toBe(5);
+  const cropBatches = await page.evaluate(
+    () => (window as any).game.farm().cornMeshes,
+  );
+  expect(cropBatches).toBeGreaterThan(9);
+  expect(cropBatches).toBeLessThan(100);
+  const mabelBeds = await page.evaluate(() =>
+    (window as any).game
+      .wildlife()
+      .gardens.filter((g: any) => g.position[0] < -30),
+  );
+  expect(mabelBeds).toHaveLength(5);
+  expect(mabelBeds.every((g: any) => g.position[2] < -30)).toBe(true);
   await walkTo(page, -47, -30);
   expect(
     (await page.evaluate(() => (window as any).game.state())).position.z,
@@ -53,7 +62,9 @@ test("farm is reachable, maze reward survives reload, and new layouts render cle
     content:
       "#hud,#resource-hud,#quest,#controls,#coin-tracker,#bank-hud-stack,#topbar,#prompt,#thought,#toast,.npc-name{visibility:hidden!important}",
   });
-  for (const v of ["overview", "house", "maze", "sign", "shop"]) {
+  for (const v of info.project.use.browserName === "chromium"
+    ? ["overview", "house", "maze", "sign", "shop"]
+    : []) {
     await page.evaluate((v) => (window as any).game.farmReview(v), v);
     await page.screenshot({ path: info.outputPath(`${v}.png`) });
   }

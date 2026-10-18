@@ -71,6 +71,9 @@ test("Twin Planter plants adjoining beds once for two seeds", async ({
 test("Mom's paint invitation colors both birdhouses and hangs them together", async ({
   page,
 }) => {
+  // Render the entire shared walk and hanging cinematic. Software Chromium
+  // needs a larger budget than short interactions; route assertions stay intact.
+  test.setTimeout(process.env.CI ? 480000 : 240000);
   const s = Object.assign(fresh(), {
     awake: true,
     day: 4,

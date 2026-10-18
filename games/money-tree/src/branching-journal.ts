@@ -196,15 +196,24 @@ export function constructJournal(
         `The community took its tenth from my money tree earnings today.`,
       );
   }
-  const recentPages = c.previous.slice(-8).map(normalize);
+  // Local caches live for one entry only; no journal history is retained globally.
+  const wordsCache = new Map<string, string[]>();
+  const wordsFor = (text: string) => {
+    let words = wordsCache.get(text);
+    if (!words) {
+      words = normalize(text).split(" ");
+      wordsCache.set(text, words);
+    }
+    return words;
+  };
+  // Newlines cannot occur in normalized phrases, so matches cannot cross pages.
+  const recentText = c.previous.slice(-8).map(normalize).join("\n");
   const repeatsPhrase = (text: string) => {
-    const words = normalize(text).split(" ");
+    const words = wordsFor(text);
     return words.some(
       (_, i) =>
         i + 7 <= words.length &&
-        recentPages.some((page) =>
-          page.includes(words.slice(i, i + 7).join(" ")),
-        ),
+        recentText.includes(words.slice(i, i + 7).join(" ")),
     );
   };
   const choose = (
@@ -220,15 +229,13 @@ export function constructJournal(
         return slots[k];
       }),
     }));
-    const existing = paragraphs.map(normalize);
+    const existingText = " " + paragraphs.map(normalize).join(" \n ") + " ";
     const repeatedWithinPage = (text: string) => {
-      const words = normalize(text).split(" ");
+      const words = wordsFor(text);
       return words.some(
         (_, i) =>
           i + 3 <= words.length &&
-          existing.some((p) =>
-            ` ${p} `.includes(` ${words.slice(i, i + 3).join(" ")} `),
-          ),
+          existingText.includes(` ${words.slice(i, i + 3).join(" ")} `),
       );
     };
     const fresh = candidates.filter(

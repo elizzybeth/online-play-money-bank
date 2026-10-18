@@ -1,3 +1,4 @@
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import * as T from "three";
 import type { Rect } from "./game";
 import {
@@ -268,10 +269,49 @@ export function createRiverWorld(scene: T.Scene, rects: Rect[], paths: Rect[]) {
         bridge,
       );
     }
+    const batches = new Map<T.Material, T.BufferGeometry[]>();
+    for (const child of [...bridge.children])
+      if (child instanceof T.Mesh) {
+        child.updateMatrix();
+        const material = child.material as T.Material;
+        const geometries = batches.get(material) ?? [];
+        // Non-indexed vertices unify ramp triangles and box attributes.
+        const source = child.geometry.index
+          ? child.geometry.toNonIndexed()
+          : child.geometry.clone();
+        source.deleteAttribute("uv");
+        geometries.push(source.applyMatrix4(child.matrix));
+        batches.set(material, geometries);
+        child.geometry.dispose();
+        bridge.remove(child);
+      }
+    for (const [material, geometries] of batches) {
+      const mesh = new T.Mesh(mergeGeometries(geometries)!, material);
+      mesh.castShadow = mesh.receiveShadow = true;
+      bridge.add(mesh);
+      geometries.forEach((g) => g.dispose());
+    }
   }
   // Ordinary rectangles keep existing movement, NPC route finding and airborne
   // checks consistent. Split them around each deck so bridges remain traversable.
   let colliders: Rect[] = [];
+  // Clear the full ramp and landing corridor too. Water segment AABBs can
+  // extend onto a bank just beyond a shortened deck.
+  const openings = riverBridges.flatMap((b) => {
+    const along = b.axis === "z" ? b.d : b.w;
+    const width = b.axis === "z" ? b.w : b.d;
+    const rect = (offset: number, span: number, breadth: number) => ({
+      x: b.x + (b.axis === "x" ? offset : 0),
+      z: b.z + (b.axis === "z" ? offset : 0),
+      w: b.axis === "z" ? breadth : span,
+      d: b.axis === "z" ? span : breadth,
+    });
+    return [rect(0, along + 9.6, width), ...[-1, 1].flatMap((side) => [
+      ...Array.from({ length: 8 }, (_, i) =>
+        rect(side * (along / 2 + (i + 0.5) * 0.35), 0.35, width + i * 0.5)),
+      rect(side * (along / 2 + 3.8), 2, width + 4),
+    ])];
+  });
   for (let i = 1; i < riverSections.length; i++) {
     const a = riverSections[i - 1],
       b = riverSections[i],
@@ -284,7 +324,7 @@ export function createRiverWorld(scene: T.Scene, rects: Rect[], paths: Rect[]) {
         d: Math.abs(b.z - a.z) + 2 * r,
       },
     ];
-    for (const bridge of riverBridges) {
+    for (const bridge of openings) {
       pieces = pieces.flatMap((p) => {
         const l = p.x - p.w / 2,
           h = p.x + p.w / 2,
@@ -445,6 +485,11 @@ export function createRiverWorld(scene: T.Scene, rects: Rect[], paths: Rect[]) {
     "#69a776",
     crowns,
   );
+  root.updateMatrixWorld(true);
+  root.traverse((o) => {
+    o.matrixAutoUpdate = false;
+    o.matrixWorldAutoUpdate = false;
+  });
   let dry = false;
   return {
     root,

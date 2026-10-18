@@ -1,3 +1,5 @@
 Follow SDLC.md for implementation and releases. Perform the documented efficiency review every third feature batch and whenever the user reports hiccups, repeated DOM updates or growing save storage. Preserve legacy saves during migration and verify persistence failures before publishing storage changes.
 
 For this project, publish completed requested changes and merge the pull request after all CI checks pass without asking for repeat merge confirmation. Verify the deployed build afterward. This is the user’s standing release preference.
+
+Every time work resumes on Money Tree, instrument and profile both the program and its tests. Use in-program counters/timings together with native CPU/heap/network/rendering tools. Investigate memory and resource retention, reusable caches and calculations, save/disk activity, network usage and graphics work. Record measured evidence before and after optimizations; keep raw profiles private and distinguish reduced work from FPS claims. Preserve meaningful coverage while removing duplicated checks.

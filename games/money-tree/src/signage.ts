@@ -34,6 +34,9 @@ export function signCanvas(text: string, width = 768, height = 192) {
       g.fillText(label, width / 2, height * y, width * 0.8);
     }
     g.fillStyle = "#e4c677";
+    g.save();
+    g.translate(width, 0);
+    g.scale(-1, 1);
     g.beginPath();
     g.moveTo(width * 0.08, height * 0.79);
     g.lineTo(width * 0.8, height * 0.79);
@@ -43,6 +46,7 @@ export function signCanvas(text: string, width = 768, height = 192) {
     g.lineTo(width * 0.16, height * 0.88);
     g.closePath();
     g.fill();
+    g.restore();
     g.fillStyle = "#503b28";
     g.font = `${height * 0.115}px Lobster`;
     g.fillText("Entrance", width * 0.5, height * 0.885, width * 0.7);
