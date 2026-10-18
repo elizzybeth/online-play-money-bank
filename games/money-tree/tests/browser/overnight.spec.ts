@@ -155,7 +155,13 @@ test("TV switches between cartoons and local news, and keeps the chosen channel"
   await expect(page.locator("#modal")).toContainText("What’s on TV?");
   await page.getByRole("button", { name: "Watch Town News" }).click();
   await page.clock.fastForward(32);
-  await expect(page.locator("#tv-news-caption")).toHaveCount(0);
+  await page.evaluate(() => (window as any).game.setYaw(-Math.PI / 2));
+  for (let i = 0; i < 10; i++) await page.clock.fastForward(64);
+  await expect(page.locator("#tv-news-caption")).toBeVisible();
+  await expect(page.locator("#tv-caption-attribution path")).toHaveAttribute(
+    "d",
+    /^M /,
+  );
   expect(
     await page.evaluate(() => (window as any).game.homeDesign().tv.caption),
   ).toContain("twenty-five packets");

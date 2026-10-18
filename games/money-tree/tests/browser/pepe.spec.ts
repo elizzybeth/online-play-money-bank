@@ -41,8 +41,6 @@ test("Pepe opens after both encounters, inflates after dialogue, and keeps colle
     (window as any).game.teleport(t.x, t.z);
   });
   for (let i = 0; i < 30; i++) await page.clock.fastForward(16);
-  await expect(page.locator("#prompt")).toContainText("money seeds");
-  await page.keyboard.press("e");
   expect(await page.evaluate(() => (window as any).game.state().seeds)).toBe(5);
   await page.reload();
   await page.getByRole("button", { name: "Wake up" }).click();
@@ -50,6 +48,8 @@ test("Pepe opens after both encounters, inflates after dialogue, and keeps colle
     await page.evaluate(() => (window as any).game.state().pepePackets),
   ).toEqual([0]);
   expect(await page.evaluate(() => (window as any).game.state().seeds)).toBe(5);
+  // Let the saved burst finish before walking over the remaining ground packets.
+  for (let frame = 0; frame < 10; frame++) await page.clock.fastForward(250);
   for (let i = 1; i < 25; i++) {
     await page.evaluate((i) => {
       const t = (window as any).game.targets.find(
@@ -58,7 +58,6 @@ test("Pepe opens after both encounters, inflates after dialogue, and keeps colle
       (window as any).game.teleport(t.x, t.z);
     }, i);
     for (let frame = 0; frame < 3; frame++) await page.clock.fastForward(16);
-    await page.keyboard.press("e");
   }
   expect(await page.evaluate(() => (window as any).game.state().seeds)).toBe(
     125,

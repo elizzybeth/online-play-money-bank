@@ -54,3 +54,24 @@ export function productPortrait(renderer: T.WebGLRenderer, model: T.Object3D) {
     });
   }
 }
+
+/** A disposable preview must own resources independently of the shop display. */
+export function cloneProductModel(source: T.Object3D) {
+  const model = source.clone(true);
+  model.visible = true;
+  model.position.set(0, 0, 0);
+  model.rotation.set(0, 0, 0);
+  model.traverse((o) => {
+    if (!(o instanceof T.Mesh)) return;
+    o.geometry = o.geometry.clone();
+    const clone = (material: T.MeshStandardMaterial) => {
+      const copy = material.clone();
+      if (copy.map) copy.map = copy.map.clone();
+      return copy;
+    };
+    o.material = Array.isArray(o.material)
+      ? o.material.map(clone)
+      : clone(o.material);
+  });
+  return model;
+}

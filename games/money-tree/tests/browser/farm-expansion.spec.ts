@@ -31,6 +31,21 @@ test("farm is reachable, maze reward survives reload, and new layouts render cle
   );
   expect(mabelBeds).toHaveLength(5);
   expect(mabelBeds.every((g: any) => g.position[2] < -30)).toBe(true);
+  // Measure rendered foliage, including leaves and flower heads, rather than bed centers.
+  for (let i = 0; i < mabelBeds.length; i++) {
+    for (let j = i + 1; j < mabelBeds.length; j++) {
+      const a = mabelBeds[i].bounds,
+        b = mabelBeds[j].bounds;
+      const gapX = Math.max(a.min[0] - b.max[0], b.min[0] - a.max[0]);
+      const gapZ = Math.max(a.min[2] - b.max[2], b.min[2] - a.max[2]);
+      expect(Math.max(gapX, gapZ)).toBeGreaterThan(0.2);
+    }
+  }
+  const crops = await page.evaluate(
+    () => (window as any).game.farm().cropBounds,
+  );
+  expect(crops.length).toBeGreaterThan(4);
+  for (const crop of crops) expect(crop.max[2]).toBeLessThan(-13);
   await walkTo(page, -47, -30);
   expect(
     (await page.evaluate(() => (window as any).game.state())).position.z,
@@ -42,8 +57,6 @@ test("farm is reachable, maze reward survives reload, and new layouts render cle
     g.teleport(t.x, t.z);
   });
   await page.clock.fastForward(40);
-  await expect(page.locator("#prompt")).toContainText("corn maze seed packet");
-  await page.keyboard.press("e");
   await page.clock.fastForward(40);
   expect(await page.evaluate(() => (window as any).game.state().seeds)).toBe(
     before + 5,

@@ -863,7 +863,7 @@ export function createSigmaWorld(
     id: "composter",
     x: 17.7,
     z: -78.2,
-    label: "Trade compost scraps for soil",
+    label: "Trade compost scraps for fertilizer",
   });
   sign("COMPOST", 17.7, 2.65, -79.5, 2.2);
   sign("25 scraps → Soil", 17.7, 1.9, -79.5, 2.2);

@@ -265,11 +265,11 @@ export function createFarm(scene: T.Scene, rects: Rect[], targets: Target[]) {
   const carrots: T.Matrix4[] = [],
     tops: T.Matrix4[] = [];
   for (const px of [-82, -56]) {
-    box(px, 0.025, -15, 8, 0.05, 10, "#7b5b3a");
+    box(px, 0.025, -19, 8, 0.05, 8, "#7b5b3a");
     for (let row = 0; row < 5; row++)
       for (let col = 0; col < 11; col++) {
         const cx = px - 3.2 + col * 0.64,
-          cz = -19 + row * 1.75;
+          cz = -22 + row * 1.4;
         place(carrots, cx, 0.08, cz, 0.12, 0.2, 0.12);
         for (let j = 0; j < 3; j++)
           place(tops, cx, 0.35, cz, 0.08, 0.45, 0.35, j * 2.1);
@@ -282,11 +282,11 @@ export function createFarm(scene: T.Scene, rects: Rect[], targets: Target[]) {
     stalks: T.Matrix4[] = [],
     petals: T.Matrix4[] = [];
   for (const [index, px] of [-118, -105, -92].entries()) {
-    box(px, 0.025, -12, 9, 0.05, 7, "#7b5b3a");
+    box(px, 0.025, -18, 9, 0.05, 7, "#7b5b3a");
     for (let row = 0; row < 4; row++)
       for (let col = 0; col < 6; col++) {
         const cx = px - 3.4 + col * 1.35,
-          cz = -14.5 + row * 1.6;
+          cz = -20.5 + row * 1.6;
         if (index === 0) {
           place(gourds, cx, 0.32, cz, 0.48, 0.38, 0.43, col);
           place(stalks, cx, 0.73, cz, 0.045, 0.28, 0.045);

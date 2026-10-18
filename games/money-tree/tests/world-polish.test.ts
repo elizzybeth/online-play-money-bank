@@ -4,7 +4,7 @@ import { arrangeHatStack } from "../src/hat-arrangement";
 import { fresh, decode, clearPosition } from "../src/game";
 import { applyDebugAction } from "../src/debug-menu";
 import { advanceAdventure, landMeteor } from "../src/adventure";
-import { compostSoil } from "../src/town-life";
+import { compostFertilizer } from "../src/town-life";
 import { maze } from "../src/farm-layout";
 test("ornaments stay above crowns, bonnet below all and sax above nest without scaling dimensions", () => {
   const hats = [
@@ -28,14 +28,15 @@ test("bulk compost trades complete groups with no loss of remainder and single e
   const s = fresh();
   s.foundTVSeeds = true;
   s.compostScraps = 541;
-  assert(compostSoil(s, true));
-  assert.equal(s.soilBags, 21);
+  assert(compostFertilizer(s, true));
+  assert.equal(s.fertilizer, 21);
+  assert.equal(s.soilBags, 0);
   assert.equal(s.compostScraps, 16);
-  assert(!compostSoil(s, true));
+  assert(!compostFertilizer(s, true));
   s.compostScraps = 77;
-  assert(compostSoil(s));
+  assert(compostFertilizer(s));
   assert.equal(s.compostScraps, 52);
-  assert.equal(s.soilBags, 22);
+  assert.equal(s.fertilizer, 22);
 });
 test("meteor rotation visits interior desert, remains bounded and saves during replacement flights", () => {
   const s = Object.assign(fresh(), { awake: true });

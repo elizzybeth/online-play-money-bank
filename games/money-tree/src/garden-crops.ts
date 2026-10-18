@@ -25,7 +25,6 @@ export function plantCrop(s: State, i: number, crop: Crop) {
   if (
     !p ||
     p.mountain ||
-    p.community ||
     p.meteor ||
     p.soilFilled === false ||
     !["empty", "harvested"].includes(p.stage) ||
@@ -46,7 +45,9 @@ export function plantCrop(s: State, i: number, crop: Crop) {
     p.stage = "growing";
     p.remaining = 180;
   }
-  s.events.push(`Planted ${crop} seeds in the home garden.`);
+  s.events.push(
+    `Planted ${crop} seeds in the ${p.community ? "community" : "home"} garden.`,
+  );
   return true;
 }
 export function harvestCrop(s: State, i: number) {
@@ -61,6 +62,9 @@ export function harvestCrop(s: State, i: number) {
 }
 export function validCrops(s: State) {
   return (
+    (s.activeSeed === undefined ||
+      s.activeSeed === "money" ||
+      crops.includes(s.activeSeed)) &&
     (s.cropSeeds === undefined ||
       (!!s.cropSeeds &&
         typeof s.cropSeeds === "object" &&
@@ -72,7 +76,23 @@ export function validCrops(s: State) {
     s.plots.every(
       (p) =>
         p.crop === undefined ||
-        (crops.includes(p.crop) && !p.mountain && !p.community && !p.meteor),
+        (crops.includes(p.crop) && !p.mountain && !p.meteor),
     )
   );
+}
+
+export function seedCount(s: State, seed: "money" | Crop) {
+  return seed === "money" ? s.seeds : (s.cropSeeds?.[seed] ?? 0);
+}
+export function activePlantingSeed(s: State): "money" | Crop {
+  if (s.activeSeed && seedCount(s, s.activeSeed) > 0) return s.activeSeed;
+  return s.seeds > 0
+    ? "money"
+    : (crops.find((c) => seedCount(s, c) > 0) ?? "money");
+}
+export function selectPlantingSeed(s: State, seed: "money" | Crop) {
+  if ((seed !== "money" && !crops.includes(seed)) || seedCount(s, seed) < 1)
+    return false;
+  s.activeSeed = seed;
+  return true;
 }

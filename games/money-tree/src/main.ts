@@ -1,3 +1,4 @@
+import { createTVCaptions } from "./tv-captions";
 import { profiling } from "./profiling";
 import { relocateRiverBeds } from "./river-gardens";
 import {
@@ -13,6 +14,9 @@ import { collectMeteorPacket } from "./adventure";
 import { buySoy, soyProducts } from "./soyjak";
 import {
   crops,
+  seedCount,
+  activePlantingSeed,
+  selectPlantingSeed,
   seedOffers,
   buyGardenSeeds,
   plantCrop,
@@ -37,7 +41,9 @@ import { debugActions, applyDebugAction, type DebugAction } from "./debug-menu";
 import { IndexedSaveStore } from "./indexed-save-store";
 import { depthAudit } from "./depth-audit";
 import { makeGrocery } from "./grocery-models";
-import { productPortrait } from "./product-portrait";
+import { makeCrop } from "./crop-model";
+import { moneySkeleton } from "./money-tree-model";
+import { productPortrait, cloneProductModel } from "./product-portrait";
 import { createNeighborGardens } from "./neighbor-gardens";
 import { createEstateWorld } from "./estate-world";
 import { makeTruck, makeRepoMan } from "./estate-models";
@@ -81,7 +87,7 @@ import {
 import { makeFurnishing } from "./furnishing-models";
 import { notebookLines, notebookSpreads } from "./notebook-layout";
 import {
-  compostSoil,
+  compostFertilizer,
   buySpanakopita,
   shareSpanakopita,
   gardenBatch,
@@ -426,6 +432,7 @@ if (s.familyStory?.escort) {
   );
   positionStoryMom(p.x, p.z);
 }
+const tvCaptions = createTVCaptions(world.tvScreen);
 scene.add(camera);
 const bikeCockpit = makeBikeCockpit();
 camera.add(bikeCockpit.object);
@@ -1327,7 +1334,7 @@ function updateCelebration(dt: number) {
       );
       p.object.visible = true;
       p.object.position.copy(p.worldPosition).lerp(destination, rush);
-      p.object.rotation.y = a + Math.PI;
+      p.object.rotation.set(0, a + Math.PI, 0);
     });
     celebration.wildlife.forEach((b, i) => {
       const a = t * 0.8 + i * 0.6,
@@ -1391,6 +1398,10 @@ function walkToBea() {
   );
 }
 function positionStoryMom(x: number, z: number, seated = false) {
+  if (momAway(s)) {
+    world.mom.visible = false;
+    return;
+  }
   world.mom.visible = true;
   world.mom.rotation.x = 0;
   world.mom.position.set(x, seated ? 0.6 : 0, z);
@@ -1617,7 +1628,7 @@ function returnToMom() {
 
 const keys = new Set<string>();
 let modalDefault: HTMLButtonElement | undefined;
-const plotVersions: string[] = [];
+let plotVersions = new WeakMap<T.Group, string>();
 const timerLayer = document.createElement("div");
 timerLayer.id = "timers";
 document.body.append(timerLayer);
@@ -2345,7 +2356,7 @@ function bag() {
   ];
   panel(
     "Your bag",
-    `<div class="inventory-grid">${items.map((item) => `<${item.id === "bed" ? 'button type="button"' : "div"} class="inventory-card ${item.available ? "" : "empty"}" data-item="${item.id}" ${item.id === "bed" ? `aria-label="Place a garden bed from your bag" ${item.available ? "" : "disabled"}` : ""}>${inventoryIcon(item.id)}<span>${item.label}</span><b>${item.value}</b>${item.id === "bed" && item.available ? "<small>Click to place</small>" : ""}</${item.id === "bed" ? "button" : "div"}>`).join("")}</div><p class="fine">Garden seeds: ${crops.map((c) => `${c}: ${s.cropSeeds?.[c] ?? 0}`).join(" · ")}</p><div class="hat-bag">${s.hats.map((id) => `<button type="button" data-hat="${id}"><img src="${hatPortrait(id)}" alt=""><span>${hatById(id)!.name}</span><small>${hatPower(id, s.foundCapSeeds)}</small><b>${wearing(s, id) ? "Wearing" : "Equip"}</b></button>`).join("")}</div>`,
+    `<div class="inventory-grid">${items.map((item) => `<${item.id === "bed" ? 'button type="button"' : "div"} class="inventory-card ${item.available ? "" : "empty"}" data-item="${item.id}" ${item.id === "bed" ? `aria-label="Place a garden bed from your bag" ${item.available ? "" : "disabled"}` : ""}>${inventoryIcon(item.id)}<span>${item.label}</span><b>${item.value}</b>${item.id === "bed" && item.available ? "<small>Click to place</small>" : ""}</${item.id === "bed" ? "button" : "div"}>`).join("")}</div><div class="inventory-grid" aria-label="Flower and vegetable seeds">${crops.map((c) => `<div class="inventory-card ${seedCount(s, c) ? "" : "empty"}"><img src="${seedPortrait(c)}" alt="${c} plant model"><span>${c} seeds</span><b>${seedCount(s, c)}</b><small>${activePlantingSeed(s) === c ? "Selected for planting" : ""}</small></div>`).join("")}</div><div class="hat-bag">${s.hats.map((id) => `<button type="button" data-hat="${id}"><img src="${hatPortrait(id)}" alt=""><span>${hatById(id)!.name}</span><small>${hatPower(id, s.foundCapSeeds)}</small><b>${wearing(s, id) ? "Wearing" : "Equip"}</b></button>`).join("")}</div>`,
     [
       ...(s.equippedHat
         ? [
@@ -3255,24 +3266,7 @@ function shop(item: "seeds" | "can" | "shovel" | "fertilizer") {
     `${
       item === "fertilizer"
         ? `<img class="hat-portrait" src="${shopPortrait("fertilizer", () => {
-            const model = world.fertilizerBox.clone(true);
-            model.visible = true;
-            model.position.set(0, 0, 0);
-            model.rotation.set(0, 0, 0);
-            model.traverse((o) => {
-              if (o instanceof T.Mesh) {
-                o.geometry = o.geometry.clone();
-                const clone = (material: T.MeshStandardMaterial) => {
-                  const copy = material.clone();
-                  if (copy.map) copy.map = copy.map.clone();
-                  return copy;
-                };
-                o.material = Array.isArray(o.material)
-                  ? o.material.map(clone)
-                  : clone(o.material);
-              }
-            });
-            return model;
+            return cloneProductModel(world.fertilizerBox);
           })}" alt="Fertilizer box · five doses">`
         : ""
     }<p>${item === "seeds" ? "“That'll be $2.” Robertson slides a little paper bag across the counter." : item === "can" ? "A well-loved can. Just what a thirsty seed needs." : item === "shovel" ? "For less time digging and more time dreaming." : "Five doses per box. Each dose feeds one tree for overnight harvests up to $9."}</p><p>Price: <b>${money(prices[item])}</b> · You carry <b>${money(s.cash)}</b>.</p>`,
@@ -3503,7 +3497,7 @@ function robertson() {
 function gardenSupply(item: "bed" | "soil") {
   panel(
     item === "bed" ? "A new garden bed" : "Soil for a garden bed",
-    `<p>${item === "bed" ? "A wooden bed to carry home and place on your property. Fill it with soil before planting." : "One bag fills one empty bed. Stand near the bed and press E to add it."}</p><p>Price: ${money(item === "bed" ? 3000 : 1000)}. Pocket: ${money(s.cash)}.</p>`,
+    `${item === "bed" ? `<img class="hat-portrait" src="${shopPortrait("garden-bed", () => cloneProductModel(world.gardenBedDisplay))}" alt="Wooden garden bed model">` : ""}<p>${item === "bed" ? "A wooden bed to carry home and place on your property. Fill it with soil before planting." : "One bag fills one empty bed. Stand near the bed and press E to add it."}</p><p>Price: ${money(item === "bed" ? 3000 : 1000)}. Pocket: ${money(s.cash)}.</p>`,
     [
       {
         label: item === "bed" ? "Buy garden bed · $30" : "Buy soil · $10",
@@ -3597,7 +3591,7 @@ function debugMenu(group?: string, message = "") {
     world.setPlayerSeated(false);
     world.setSigmaUnlocked(!!s.foundTVSeeds);
     world.syncBeds(s.plots);
-    plotVersions.length = 0;
+    plotVersions = new WeakMap<T.Group, string>();
     save();
     debugMenu(
       group,
@@ -3733,7 +3727,7 @@ function pauseMenu() {
                   world.setPlayerSeated(false);
                   wasHome = true;
                   visitedOutside = false;
-                  plotVersions.length = 0;
+                  plotVersions = new WeakMap<T.Group, string>();
                   save();
                   close();
                 },
@@ -3953,7 +3947,7 @@ function religionConversation(
   save();
   speak(
     speaker,
-    `<p>${escapeHTML(terraceLine(id, count, true))}</p><p class="fine">One hundred terrace sites. Plant, sleep, harvest. No water or fertilizer required.</p>`,
+    `<p>${escapeHTML(terraceLine(id, count, true))}</p><p class="fine">One hundred terrace sites. Plant, sleep, harvest. Automatically watered; apply fertilizer yourself for a larger harvest.</p>`,
     [
       { label: "Thank you", default: true, run: dismissSpeech },
       {
@@ -4534,15 +4528,7 @@ function interact(skipTrader = false): void {
     return toast(
       "Talk to the Community Guardian in the pagoda before planting here.",
     );
-  if (id.startsWith("meteor-seed-")) {
-    const [, , meteor, packet] = id.split("-");
-    if (collectMeteorPacket(s, Number(meteor), Number(packet))) {
-      save();
-      seedChime();
-      toast("A seed packet: five money seeds!");
-    }
-    return;
-  }
+  if (pickUpSeedPacket(id)) return;
   if (id === "mansion-marvels") return mansionShop();
   if (id === "player-mansion") {
     if (s.housing?.status !== "owned")
@@ -4690,29 +4676,29 @@ function interact(skipTrader = false): void {
   if (id === "composter" || id === "mountain-composter")
     return panel(
       "Community compost",
-      `<p>You have ${s.compostScraps ?? 0} scraps. Replanting dead money trees adds 1 to 3 scraps. Trade 25 scraps for one bag of soil.</p>`,
+      `<p>You have ${s.compostScraps ?? 0} scraps. Replanting dead money trees adds 1 to 3 scraps. Trade 25 scraps for one fertilizer dose.</p>`,
       [
         {
-          label: `Trade all scraps for ${Math.floor((s.compostScraps ?? 0) / 25)} bags of soil`,
+          label: `Trade all scraps for ${Math.floor((s.compostScraps ?? 0) / 25)} fertilizer doses`,
           default: true,
           disabled: (s.compostScraps ?? 0) < 25,
           run: () => {
             const bags = Math.floor((s.compostScraps ?? 0) / 25);
-            if (compostSoil(s, true)) {
+            if (compostFertilizer(s, true)) {
               save();
               close();
-              toast(`${bags} bags of soil from our community compost.`);
+              toast(`${bags} fertilizer doses from our community compost.`);
             }
           },
         },
         {
-          label: "Trade 25 scraps for soil",
+          label: "Trade 25 scraps for fertilizer",
           disabled: (s.compostScraps ?? 0) < 25,
           run: () => {
-            if (compostSoil(s)) {
+            if (compostFertilizer(s)) {
               save();
               close();
-              toast("One bag of soil from our community compost.");
+              toast("One fertilizer dose from our community compost.");
             }
           },
         },
@@ -4785,13 +4771,6 @@ function interact(skipTrader = false): void {
           : "That balloon is still getting bigger...",
       );
     return pepeConversation();
-  }
-  if (id.startsWith("pepe-seed-")) {
-    if (collectPepePacket(s, Number(id.slice(10)))) {
-      save();
-      toast("Five money seeds! There are more packets scattered around Sigma.");
-    }
-    return;
   }
   if (id === "stacy") return stacyConversation();
   if (id === "stacy-chair") return stacyConversation();
@@ -4871,35 +4850,6 @@ function interact(skipTrader = false): void {
       ],
       "YOUR BED",
     );
-  if (id === "maze-seeds") {
-    if (collectMazeSeeds(s)) {
-      save();
-      toast(
-        "Five money seeds! A new packet will grow here in five minutes of active play.",
-      );
-    }
-    return;
-  }
-  if (
-    ["forest-seeds", "store-seeds", "garden-seeds", "tv-seeds"].includes(id)
-  ) {
-    if (
-      findHiddenSeeds(
-        s,
-        id.split("-")[0] as "forest" | "store" | "garden" | "tv",
-      )
-    ) {
-      save();
-      world.setSigmaUnlocked(!!s.foundTVSeeds);
-      world.syncBeds(s.plots);
-      toast(
-        id === "garden-seeds"
-          ? "Five seeds! A path has opened past Thread & Thimble. Sigma Town is through the hedge. You can now wear four hats at once."
-          : "Five money seeds! Another chance for the garden.",
-      );
-    }
-    return;
-  }
   if (id === "mom") {
     s.momLastTalkDay = s.day;
     momSpoke = true;
@@ -4997,13 +4947,8 @@ function interact(skipTrader = false): void {
       return;
     }
     if (["empty", "harvested"].includes(p.stage)) {
-      if (
-        !p.mountain &&
-        !p.community &&
-        !p.meteor &&
-        crops.some((c) => (s.cropSeeds?.[c] ?? 0) > 0)
-      )
-        return chooseGardenSeed(i);
+      if (!p.mountain && !p.meteor && activePlantingSeed(s) !== "money")
+        return startGardenPlant(i, activePlantingSeed(s) as Crop);
       if (!s.seeds)
         return toast(
           s.boughtSeeds
@@ -5023,7 +4968,7 @@ function interact(skipTrader = false): void {
       );
       toast(
         p.mountain
-          ? `Planting directly in terrace soil… Stand still for ${plantingSeconds(s)} seconds. No watering or fertilizer needed.`
+          ? `Planting directly in terrace soil… Stand still for ${plantingSeconds(s)} seconds. Automatically watered. Fertilizer is optional and applied separately.`
           : s.shovel
             ? `Digging… Stand still for ${plantingSeconds(s)} seconds to plant ${action.ids.length === 2 ? "both adjoining beds" : "this bed"}.`
             : `Digging by hand takes ${Number(plantingSeconds(s).toFixed(1))} seconds. A $1 shovel from Robertsons cuts it to ${Number(plantingSeconds({ ...s, shovel: true }).toFixed(1))} seconds. Stand still to plant.`,
@@ -5058,7 +5003,7 @@ function interact(skipTrader = false): void {
       } else
         toast(
           p.mountain
-            ? "This terrace tree needs no water or fertilizer. It will be ready after you sleep."
+            ? "This terrace tree is automatically watered. Apply fertilizer for a larger harvest, then sleep."
             : "Watered. This tree will be ready after you sleep.",
         );
     } else {
@@ -5159,7 +5104,7 @@ function importSave() {
     resetTransientMotion();
     wasHome = atHome();
     visitedOutside = s.awake && !wasHome;
-    plotVersions.length = 0;
+    plotVersions = new WeakMap<T.Group, string>();
     save();
     close();
     if (!begun) $("#begin").click();
@@ -5199,7 +5144,7 @@ $("#new-game").onclick = () => {
           pitch = 0.42;
           thoughtTime = 0;
           setHidden(thought, true);
-          plotVersions.length = 0;
+          plotVersions = new WeakMap<T.Group, string>();
           save();
           close();
           $("#begin").click();
@@ -5354,6 +5299,19 @@ addEventListener("keydown", (e) => {
     return;
   if (celebration) return;
   if ((s.pepeShowStarted && !s.pepePopped) || pepeViewHold > 0) return;
+  if (
+    key === "g" &&
+    !riding &&
+    !action &&
+    near?.id.startsWith("plot") &&
+    !s.plots[+near.id.slice(4)].mountain &&
+    !s.plots[+near.id.slice(4)].meteor &&
+    crops.some((c) => seedCount(s, c) > 0)
+  ) {
+    e.preventDefault();
+    chooseGardenSeed(+near.id.slice(4));
+    return;
+  }
   if (key === "h") {
     mountBike();
     return;
@@ -5951,7 +5909,7 @@ function updateUI() {
   } else if (s.awake && s.millionaire?.titheAccepted && s.position.z < -330) {
     objective = "A hundred places to plant";
     hint =
-      "The dead trees mark fertile terrace soil. Plant seeds, then sleep at home and harvest in the morning. No water or fertilizer needed.";
+      "The dead trees mark fertile terrace soil. Plant seeds, then sleep at home and harvest in the morning. The terraces supply water; apply fertilizer separately for larger harvests.";
   }
   if (s.adventure?.meteors?.some((m) => m.landed && !m.harvested)) {
     objective = "Something fell from the sky";
@@ -6098,14 +6056,12 @@ function updateUI() {
         (["empty", "harvested"].includes(p.stage) &&
           !s.seeds &&
           (p.mountain ||
-            p.community ||
             !!p.meteor ||
             !crops.some((c) => (s.cropSeeds?.[c] ?? 0) > 0))) ||
         (p.stage === "planted" && !s.can);
       label = ["empty", "harvested"].includes(p.stage)
         ? s.seeds ||
           (!p.mountain &&
-            !p.community &&
             !p.meteor &&
             crops.some((c) => (s.cropSeeds?.[c] ?? 0) > 0))
           ? `${plantingBatch(s, +near.id.slice(4)).length > 2 ? "Plant terrace" : plantingBatch(s, +near.id.slice(4)).length === 2 ? "Plant two adjoining beds" : "Plant seeds"} · stand still (${Number(plantingSeconds(s).toFixed(1))}s)`
@@ -6131,6 +6087,11 @@ function updateUI() {
       }
     }
     prompt = label === "Ready tomorrow" ? label : `<kbd>E</kbd> ${label}`;
+    if (near.id.startsWith("plot") && !riding) {
+      const p = s.plots[+near.id.slice(4)];
+      if (!p.mountain && !p.meteor && crops.some((c) => seedCount(s, c) > 0))
+        prompt += ` · <kbd>G</kbd> Choose seed · ${activePlantingSeed(s)} selected`;
+    }
   }
   if (furnitureEditorOpen && !placingFurniture)
     prompt = "Furniture editor · Choose a model · F5 finishes";
@@ -6329,7 +6290,8 @@ function frame(now: number) {
         { label: "Sit down with Mom", run: () => beaTea() },
       ]);
     }
-  } else world.setBeaInside(inBeaHouse(s.position) || teaSeated);
+  } else if (!celebration)
+    world.setBeaInside(inBeaHouse(s.position) || teaSeated);
   const beaRoof = scene.getObjectByName("bea-house-roof") as T.Mesh;
   if (beaRoof) {
     const m = beaRoof.material as T.MeshStandardMaterial;
@@ -6804,7 +6766,10 @@ function frame(now: number) {
     active ? dt : 0,
     reducedMotion,
   );
-  if (world.syncBeds(s.plots)) plotVersions.splice(5);
+  meteorWorld.update(s, active && s.awake ? dt : 0);
+  world.syncBeds(s.plots);
+  profiling.count("plotSyncPasses");
+
   while (timers.length < s.plots.length) {
     const el = document.createElement("div");
     el.className = "tree-timer";
@@ -6813,7 +6778,6 @@ function frame(now: number) {
   }
   while (timers.length > s.plots.length) {
     timers.pop()!.remove();
-    plotVersions.pop();
   }
   if (placingBed && !s.gardenBeds) placingBed = false;
   bedGhost.visible = placingBed && begun && !paused;
@@ -6828,9 +6792,10 @@ function frame(now: number) {
   for (let i = 0; i < s.plots.length; i++) {
     const p = s.plots[i],
       v = `${p.stage}:${p.fertilized}:${p.crop ?? "money"}`;
-    if (v !== plotVersions[i]) {
+    if (v !== plotVersions.get(world.plots[i])) {
       world.moneyTree(i, p.stage, p.fertilized, p.crop);
-      plotVersions[i] = v;
+      profiling.count("treeModelsBuilt");
+      plotVersions.set(world.plots[i], v);
       treesChanged = true;
     }
   }
@@ -7209,7 +7174,12 @@ function frame(now: number) {
   }
   for (let i = 0; i < s.plots.length; i++) {
     const el = timers[i];
-    if (!begun || !s.awake || s.plots[i].stage !== "ready") {
+    if (
+      !begun ||
+      !s.awake ||
+      s.plots[i].stage !== "ready" ||
+      s.plots[i].crop === "iris"
+    ) {
       if (!el.hidden) setHidden(el, true);
       continue;
     }
@@ -7321,6 +7291,7 @@ function frame(now: number) {
     active ? dt : 0,
     speaking?.id,
     !!beaGuide || teaSeated || inBeaHouse(s.position),
+    !!celebration,
   );
   featherModel.visible = !!s.adventure?.feather;
   if (
@@ -7337,8 +7308,6 @@ function frame(now: number) {
     );
   }
   estateWorld.update(s);
-  meteorWorld.update(s, active && s.awake ? dt : 0);
-  world.syncBeds(s.plots);
   world.life.update(active && !featherHandoff ? dt : 0, now / 1000);
   hangMomCanvases();
   syncFurnishings();
@@ -7374,6 +7343,16 @@ function frame(now: number) {
   world.sigma.fountain.update(now / 1000);
   updateCelebration(dt);
   updateSpeech(active ? dt : 0);
+  if (
+    active &&
+    s.awake &&
+    !action &&
+    !celebration &&
+    !birdhouseScene &&
+    !cookingScene &&
+    !sitting
+  )
+    collectWalkoverPackets();
   const uiStarted = profiling.start();
   updateUI();
   updateInventoryNotices(dt);
@@ -7454,6 +7433,19 @@ function frame(now: number) {
     }
   }
   updateEstateFilm(paused || document.hidden ? 0 : dt);
+  if (momAway(s)) world.mom.visible = false;
+  tvCaptions.update(
+    camera,
+    world.tvScreen.userData.headline ?? "Town News",
+    world.tvScreen.userData.caption ?? "",
+    begun &&
+      s.awake &&
+      !paused &&
+      !speaking &&
+      !celebration &&
+      atHome() &&
+      s.tvChannel === "news",
+  );
   const renderStarted = profiling.start();
   if (!document.hidden) renderer.render(scene, camera);
   profiling.end("renderSubmit", renderStarted);
@@ -7621,6 +7613,10 @@ if (new URLSearchParams(location.search).has("test")) {
         position: g.position.toArray(),
         types: g.userData.plantTypes,
         layoutSeed: g.userData.layoutSeed,
+        bounds: (() => {
+          const b = new T.Box3().setFromObject(g);
+          return { min: b.min.toArray(), max: b.max.toArray() };
+        })(),
       })),
     }),
     townLife: () => ({
@@ -7690,6 +7686,24 @@ if (new URLSearchParams(location.search).has("test")) {
       camera.lookAt(10, 0, -67);
       renderer.render(scene, camera);
     },
+    plotModels: () =>
+      world.plots.map((plot, index) => {
+        plot.updateWorldMatrix(true, true);
+        const bounds = new T.Box3().setFromObject(plot);
+        let meshes = 0;
+        plot.traverseVisible((o) => {
+          if (o instanceof T.Mesh) meshes++;
+        });
+        return {
+          index,
+          uuid: plot.uuid,
+          stage: s.plots[index]?.stage,
+          position: plot.position.toArray(),
+          meshes,
+          bounds: { min: bounds.min.toArray(), max: bounds.max.toArray() },
+          attached: plot.parent === scene,
+        };
+      }),
     millionaire: () => ({
       visible: world.millionaire.group.visible,
       draws: renderer.info.render.calls,
@@ -7940,6 +7954,12 @@ if (new URLSearchParams(location.search).has("test")) {
       scene.fog = fog;
     },
     farm: () => ({
+      cropBounds: world.farm.root.children
+        .filter((o) => o.name.startsWith("farm-") || o.name === "carrot-tops")
+        .map((o) => {
+          const b = new T.Box3().setFromObject(o);
+          return { name: o.name, min: b.min.toArray(), max: b.max.toArray() };
+        }),
       packet: world.farm.seed.position.toArray(),
       visible: world.farm.seed.visible,
       cooldown: s.mazeSeedCooldown,
@@ -8081,6 +8101,27 @@ if (new URLSearchParams(location.search).has("test")) {
             ),
           }
         : null,
+      actors: world.speakers
+        .filter((n) => ["mom", "npc1", "npc2", "npc3"].includes(n.id))
+        .map((n) => {
+          n.object.updateWorldMatrix(true, true);
+          const b = new T.Box3().setFromObject(n.object);
+          return {
+            id: n.id,
+            visible: effectivelyVisible(n.object),
+            position: n.object.position.toArray(),
+            rotation: n.object.rotation.toArray(),
+            head: n.object
+              .getObjectByName("head")!
+              .getWorldPosition(new T.Vector3())
+              .toArray(),
+            body: n.object
+              .getObjectByName("body")!
+              .getWorldPosition(new T.Vector3())
+              .toArray(),
+            height: b.max.y - b.min.y,
+          };
+        }),
       momVisible: world.mom.visible,
       momPosition: world.mom.position.toArray(),
       activity: momStatus(s.day, s.familyStory).activity,
@@ -8638,42 +8679,121 @@ function tradingConversation(id: string, more = false) {
   );
 }
 
+function seedPortrait(seed: "money" | Crop) {
+  return shopPortrait(`plant-seed-${seed}`, () => {
+    if (seed !== "money") return makeCrop(seed, true);
+    const group = new T.Group();
+    const skeleton = moneySkeleton(
+      0,
+      1.7,
+      new T.MeshStandardMaterial({ color: "#443a2e" }),
+    );
+    group.add(skeleton.trunk, skeleton.branches);
+    for (const tip of skeleton.tips) {
+      const bill = new T.Mesh(
+        new T.BoxGeometry(0.35, 0.18, 0.025),
+        new T.MeshStandardMaterial({ color: "#93c276" }),
+      );
+      bill.position.copy(tip);
+      group.add(bill);
+    }
+    return group;
+  });
+}
+function pickUpSeedPacket(id: string) {
+  let collected = false;
+  let message = "Five money seeds! Another chance for the garden.";
+  if (id.startsWith("meteor-seed-")) {
+    const [, , meteor, packet] = id.split("-");
+    collected = collectMeteorPacket(s, Number(meteor), Number(packet));
+  } else if (id.startsWith("pepe-seed-"))
+    collected = collectPepePacket(s, Number(id.slice(10)));
+  else if (id === "maze-seeds") {
+    collected = collectMazeSeeds(s);
+    message =
+      "Five money seeds! A new packet will grow here in five minutes of active play.";
+  } else if (["forest-seeds", "garden-seeds"].includes(id)) {
+    collected = findHiddenSeeds(s, id.split("-")[0] as "forest" | "garden");
+    if (id === "garden-seeds")
+      message =
+        "Five seeds! A path has opened past Thread & Thimble. Sigma Town is through the hedge. You can now wear four hats at once.";
+  } else return false;
+  if (collected) {
+    world.setSigmaUnlocked(!!s.foundTVSeeds);
+    world.syncBeds(s.plots);
+    save();
+    seedChime();
+    toast(message);
+  }
+  return true;
+}
+let pickupX = Infinity,
+  pickupZ = Infinity;
+function collectWalkoverPackets() {
+  if (Math.hypot(s.position.x - pickupX, s.position.z - pickupZ) < 0.05) return;
+  pickupX = s.position.x;
+  pickupZ = s.position.z;
+  const tryPacket = (id: string, x: number, y: number, z: number) => {
+    if (
+      Math.hypot(s.position.x - x, s.position.z - z) < 0.8 &&
+      Math.abs(terrainHeight(s.position.x, s.position.z) - y) < 1
+    )
+      pickUpSeedPacket(id);
+  };
+  for (const [id, object] of [
+    ["forest-seeds", world.forestSeeds],
+    ["garden-seeds", world.gardenSeeds],
+    ["maze-seeds", world.farm.seed],
+  ] as const)
+    if (object.visible)
+      tryPacket(id, object.position.x, object.position.y, object.position.z);
+  if (s.pepePopped)
+    world.sigma.debris.slice(0, 25).forEach((d, i) => {
+      if (d.object.visible && d.object.position.y < 0.65)
+        tryPacket(
+          `pepe-seed-${i}`,
+          d.object.position.x,
+          d.object.position.y,
+          d.object.position.z,
+        );
+    });
+  for (const t of world.targets)
+    if (t.id.startsWith("meteor-seed-"))
+      tryPacket(t.id, t.x, terrainHeight(t.x, t.z), t.z);
+}
 function seedATM() {
   panel(
     "Mountain Seed ATM",
-    `<p>Always in stock. Money seeds: $50 for five. Irises are Mom’s favorite; peppers and tomatoes open up new dishes to cook together.</p><p>Pocket: ${money(s.cash)}</p>`,
-    [
-      ...seedOffers.map((o) => ({
-        label: `${o.name} · 5 for ${money(o.price)}`,
-        disabled: s.cash < o.price,
-        run: () => {
-          if (buyGardenSeeds(s, o.id)) {
-            save();
-            seedATM();
-          }
-        },
-      })),
-      { label: "Back", run: close },
-    ],
+    `<p>Always in stock. Irises are Mom’s favorite; peppers and tomatoes open up new dishes to cook together.</p><p>Pocket: ${money(s.cash)}</p><div class="inventory-grid shop-grid">${seedOffers.map((o) => `<button class="inventory-card shop-card" data-seed-offer="${o.id}" aria-label="${escapeHTML(o.name)} · 5 for ${money(o.price)}" ${s.cash < o.price ? "disabled" : ""}><img src="${seedPortrait(o.id)}" alt=""><span>${escapeHTML(o.name)}</span><small>In bag: ${seedCount(s, o.id)}</small><b>5 for ${money(o.price)}</b></button>`).join("")}</div>`,
+    [{ label: "Back", run: close }],
+  );
+  document.querySelectorAll<HTMLButtonElement>("[data-seed-offer]").forEach(
+    (button) =>
+      (button.onclick = () => {
+        if (buyGardenSeeds(s, button.dataset.seedOffer!)) {
+          save();
+          seedATM();
+        }
+      }),
   );
 }
 function chooseGardenSeed(i: number) {
   panel(
-    "What shall we plant?",
-    "<p>Flowers stay in bloom. Vegetables become cooking ingredients after watering and a night’s sleep.</p>",
-    [
-      {
-        label: `Money seed · ${s.seeds} available`,
-        disabled: !s.seeds,
-        run: () => startGardenPlant(i),
-      },
-      ...crops.map((c) => ({
-        label: `${c === "iris" ? "Iris · Mom’s favorite" : c} · ${s.cropSeeds?.[c] ?? 0} seeds`,
-        disabled: !s.cropSeeds?.[c],
-        run: () => startGardenPlant(i, c),
-      })),
-      { label: "Back", run: close },
-    ],
+    "Choose your planting seed",
+    `<p>Choose the seed to use next. Press E at an empty bed to plant it. Flowers stay in bloom; vegetables become cooking ingredients.</p><div class="inventory-grid shop-grid">${seedOffers.map((o) => `<button class="inventory-card shop-card" data-planting-seed="${o.id}" aria-label="Select ${o.id} seeds · ${seedCount(s, o.id)} available" aria-pressed="${activePlantingSeed(s) === o.id}" ${seedCount(s, o.id) ? "" : "disabled"}><img src="${seedPortrait(o.id)}" alt=""><span>${escapeHTML(o.name)}</span><b>${seedCount(s, o.id)} seeds</b></button>`).join("")}</div>`,
+    [{ label: "Back", run: close }],
+  );
+  document.querySelectorAll<HTMLButtonElement>("[data-planting-seed]").forEach(
+    (button) =>
+      (button.onclick = () => {
+        if (
+          selectPlantingSeed(s, button.dataset.plantingSeed as "money" | Crop)
+        ) {
+          save();
+          close();
+          toast(`${s.activeSeed} seeds selected. Press E at the bed to plant.`);
+        }
+      }),
   );
 }
 function startGardenPlant(i: number, crop?: Crop) {

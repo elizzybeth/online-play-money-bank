@@ -308,7 +308,7 @@ export function ensureMountainPlots(s: State) {
     }
     if (p.stage === "planted") {
       p.stage = "growing";
-      p.fertilized = true;
+      p.remaining = p.fertilized ? 120 : 180;
       changed = true;
     }
   }

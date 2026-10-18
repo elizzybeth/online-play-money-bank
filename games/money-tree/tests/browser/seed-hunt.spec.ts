@@ -10,7 +10,7 @@ for (let spot = 0; spot < seedStashSpots.length; spot++)
       boughtSeeds: true,
       foundCapSeeds: true,
       seedStashSpot: spot,
-      position: { x: seedStashSpots[spot].x, z: seedStashSpots[spot].z },
+      position: { x: seedStashSpots[spot].x, z: seedStashSpots[spot].z + 1.1 },
     });
     await page.addInitScript((s) => {
       if (!localStorage.getItem("money-tree-v1"))
@@ -27,7 +27,7 @@ for (let spot = 0; spot < seedStashSpots.length; spot++)
     expect(await page.evaluate(() => (window as any).game.state().seeds)).toBe(
       5,
     );
-    await page.evaluate(() => (window as any).game.teleport(7.8, 20.8));
+    await page.evaluate(() => (window as any).game.teleport(7.8, 21.9));
     await expect(page.locator("#prompt")).toContainText("flowerbed");
     await page.keyboard.press("e");
     expect(await page.evaluate(() => (window as any).game.state().seeds)).toBe(

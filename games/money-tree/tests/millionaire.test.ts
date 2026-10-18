@@ -7,6 +7,7 @@ import {
   decode,
   plant,
   water,
+  fertilize,
   growOvernight,
   harvest,
   sleep,
@@ -95,7 +96,7 @@ test("tithing applies to new earnings and mountain wealth builds six mansions by
   assert.equal(validMillionaire({ ...s.millionaire, member: "bogus" }), false);
 });
 
-test("mountain planting grows overnight with fertilizer, saves reload and transfers are not tithed", () => {
+test("mountain planting is auto-watered, fertilizer is manual, saves reload and transfers are not tithed", () => {
   const s = fresh();
   s.pepePopped = true;
   s.pepeShowStarted = true;
@@ -109,6 +110,10 @@ test("mountain planting grows overnight with fertilizer, saves reload and transf
   s.cash = 1000;
   const index = s.plots.findIndex((p) => p.mountain);
   assert(plant(s, index));
+  assert.equal(s.plots[index].fertilized, false);
+  s.fertilizer = 1;
+  assert(fertilize(s, index));
+  assert.equal(s.fertilizer, 0);
   assert(s.plots[index].fertilized);
   assert.equal(s.plots[index].stage, "growing");
   assert.equal(water(s, index), false);
@@ -220,7 +225,8 @@ test("old mountain gardens migrate to one hundred sites without losing a planted
   ensureMountainPlots(s);
   assert.equal(s.plots.filter((p) => p.mountain).length, mountainPlots.length);
   assert.equal(first.stage, "growing");
-  assert.equal(first.fertilized, true);
+  assert.equal(first.fertilized, false);
+  assert.equal(first.remaining, 180);
   assert(fertileMountainSoil(first.x!, first.z!));
   const coordinates = s.plots
     .filter((p) => p.mountain)

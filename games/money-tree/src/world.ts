@@ -966,7 +966,10 @@ export function createWorld(scene: T.Scene) {
     gardenVisit = false,
   ) {
     const key = `${day}:${story?.surgeryDay ?? 0}:${+gardenVisit}:${+!!story?.escort}`;
-    if (key === momKey && !force) return false;
+    if (key === momKey && !force) {
+      if (story && day === story.surgeryDay) mom.visible = false;
+      return false;
+    }
     momKey = key;
     momUpdates++;
     paintForDay(day);
@@ -1134,24 +1137,7 @@ export function createWorld(scene: T.Scene) {
       c.font = "bold 19px Nunito";
       c.font = "bold 13px Nunito";
       c.fillText(headline, 10, 187, 364);
-      // Closed captions live in the television texture, split into readable sentences.
-      const words = report.split(/\s+/),
-        lines: string[] = [];
-      let line = "";
-      c.font = "13px Nunito";
-      for (const word of words) {
-        const next = line ? line + " " + word : word;
-        if (c.measureText(next).width > 360) {
-          lines.push(line);
-          line = word;
-        } else line = next;
-      }
-      if (line) lines.push(line);
-      c.fillText(
-        lines[Math.floor(time / 4) % Math.max(1, lines.length)] ?? "",
-        10,
-        207,
-      );
+      // Dialogue is drawn beside the TV with a readable attribution line.
       tvScreen.userData.caption = report;
       tvScreen.userData.headline = headline;
       cartoonTexture.needsUpdate = true;
@@ -1314,14 +1300,8 @@ export function createWorld(scene: T.Scene) {
   }
   for (let i = 0; i < 5; i++) addBed(i, -20 + i * 2, 19);
   function syncBeds(data: Plot[]) {
-    const rebuild = data.some(
-      (p, i) =>
-        i >= 5 &&
-        plots[i] &&
-        (plots[i].position.x !== p.x || plots[i].position.z !== p.z),
-    );
-    const changed = rebuild || plots.length !== data.length;
-    while (plots.length > (rebuild ? 5 : data.length)) {
+    const changed = plots.length !== data.length;
+    while (plots.length > data.length) {
       const i = plots.length - 1;
       moneyTree(i, "empty", false);
       plots.pop()!.removeFromParent();
@@ -1336,17 +1316,32 @@ export function createWorld(scene: T.Scene) {
       addBed(i, data[i].x!, data[i].z!);
     }
     data.forEach((p, i) => {
-      bedSoils[i].visible = p.soilFilled !== false;
-      if (p.mountain || p.meteor) {
-        bedFrames[i].position.y = terrainHeight(p.x!, p.z!);
-        bedFrames[i].visible = false;
-        plots[i].userData.mountain = true;
-        plots[i].position.y = terrainHeight(p.x!, p.z!) + 0.03;
-        const target = bedTargets[i];
-        target.label = ["empty", "harvested"].includes(p.stage)
-          ? "Plant in terrace soil"
-          : "Money tree";
+      const plot = plots[i];
+      if (i >= 5 && (plot.position.x !== p.x || plot.position.z !== p.z)) {
+        const dx = p.x! - plot.position.x,
+          dz = p.z! - plot.position.z;
+        bedFrames[i].position.x += dx;
+        bedFrames[i].position.z += dz;
+        plot.position.x = p.x!;
+        plot.position.z = p.z!;
+        bedTargets[i].x = p.x!;
+        bedTargets[i].z = p.z! + 1.6;
+        if (treeRects[i]) {
+          treeRects[i]!.x = p.x!;
+          treeRects[i]!.z = p.z!;
+        }
       }
+      bedSoils[i].visible = p.soilFilled !== false;
+      const openSoil = !!(p.mountain || p.meteor);
+      bedFrames[i].visible = !openSoil;
+      bedFrames[i].position.y = openSoil ? terrainHeight(p.x!, p.z!) : 0;
+      plot.userData.mountain = openSoil;
+      plot.position.y = openSoil ? terrainHeight(p.x!, p.z!) + 0.03 : 0.29;
+      bedTargets[i].label = openSoil
+        ? ["empty", "harvested"].includes(p.stage)
+          ? "Plant in terrace soil"
+          : "Money tree"
+        : `Garden plot ${i + 1}`;
     });
     return changed;
   }
@@ -1572,9 +1567,14 @@ export function createWorld(scene: T.Scene) {
   }
   // Separate, roomy supply displays: an empty wooden bed and a sack of soil.
   box(3, 0.35, -34, 2.7, 0.7, 1.9, "#b2946d", true);
-  for (const x of [1.94, 4.06]) box(x, 0.98, -34, 0.13, 0.4, 1.5, "#c3a176");
-  for (const z of [-34.7, -33.3]) box(3, 0.98, z, 2.25, 0.4, 0.13, "#c3a176");
-  box(3, 0.79, -34, 2.1, 0.05, 1.35, "#66513c");
+  const gardenBedDisplay = new T.Group();
+  gardenBedDisplay.name = "garden-bed-model";
+  scene.add(gardenBedDisplay);
+  for (const x of [1.94, 4.06])
+    box(x, 0.98, -34, 0.13, 0.4, 1.5, "#c3a176", false, gardenBedDisplay);
+  for (const z of [-34.7, -33.3])
+    box(3, 0.98, z, 2.25, 0.4, 0.13, "#c3a176", false, gardenBedDisplay);
+  box(3, 0.79, -34, 2.1, 0.05, 1.35, "#66513c", false, gardenBedDisplay);
   rects.find((r) => r.x === 3 && r.z === -34)!.clearHeight = 1.18;
   label("Garden bed · $30", 3, 1.7, -32.98, 3);
   target("garden-bed", 3, -32.45, "Inspect garden bed · $30");
@@ -2384,7 +2384,7 @@ export function createWorld(scene: T.Scene) {
     [17, 20, ["cabbage", "carrot", "tomato"]],
     [8.2, 6.2, ["orchid", "kangaroo-paw", "tulip"]],
     [17, 6, ["banana", "bird-of-paradise", "monstera"]],
-    [-43, -32, ["lavender", "tulip", "fern"]],
+    [-44, -35, ["lavender", "tulip", "fern"]],
     [7, 12, ["sunflower", "sunflower", "sunflower"]],
     [7, 15, ["kangaroo-paw", "lavender", "orchid"]],
     [17.5, 12, ["rosette", "aloe", "cactus"]],
@@ -2393,10 +2393,10 @@ export function createWorld(scene: T.Scene) {
     [7, 1, ["pitcher", "flytrap", "sundew"]],
     [17.5, -2, ["bird-of-paradise", "orchid", "monstera"]],
     [17.5, 1, ["monstera", "banana", "bird-of-paradise"]],
-    [-41, -35, ["cabbage", "carrot", "tomato"]],
-    [-41, -38, ["tomato", "carrot", "cabbage"]],
-    [-36, -32, ["sunflower", "sunflower", "sunflower"]],
-    [-44, -35, ["fern", "daisy", "lavender"]],
+    [-40, -35, ["cabbage", "carrot", "tomato"]],
+    [-40, -39, ["tomato", "carrot", "cabbage"]],
+    [-44, -39, ["sunflower", "sunflower", "sunflower"]],
+    [-36, -35, ["fern", "daisy", "lavender"]],
   ] as const) {
     const garden = new T.Group();
     garden.position.set(x, 0, z);
@@ -2850,5 +2850,6 @@ export function createWorld(scene: T.Scene) {
     plots,
     bills,
     moneyTree,
+    gardenBedDisplay,
   };
 }
