@@ -132,8 +132,14 @@ test("third retained packet unlocks Sigma in Bea’s flowerbed and persists", as
     position: { x: 7.8, z: 20.8 },
   });
   await open(page, s);
-  await expect(page.locator("#prompt")).toContainText("flowerbed");
-  await page.keyboard.press("e");
+  // Walking onto the packet collects it without an E prompt.
+  await expect
+    .poll(
+      async () =>
+        (await page.evaluate(() => (window as any).game.state()))
+          .foundGardenSeeds,
+    )
+    .toBe(true);
   expect((await page.evaluate(() => (window as any).game.state())).seeds).toBe(
     5,
   );

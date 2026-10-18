@@ -7,7 +7,7 @@ import {
   selectPlantingSeed,
   plantCrop,
 } from "../src/garden-crops";
-import { compostFertilizer } from "../src/town-life";
+import { gardenBatch, compostFertilizer } from "../src/town-life";
 test("selected seeds persist, depletion falls back, and unavailable seeds cannot be selected", () => {
   const s = fresh();
   s.seeds = 2;
@@ -48,4 +48,23 @@ test("compost supplies fertilizer for an unfed growing tree without changing sav
   assert(fertilize(s, 0));
   assert.equal(s.fertilizer, 2);
   assert.equal(decode(JSON.stringify(s))?.soilBags, 7);
+});
+
+test("mountain interaction batches accept manual fertilizer while automatic watering needs no job", () => {
+  const s = fresh();
+  s.fertilizer = 1;
+  s.plots.push({
+    stage: "growing",
+    remaining: 180,
+    fertilized: false,
+    yield: 0,
+    mountain: true,
+    x: 43,
+    z: -355,
+  });
+  assert.deepEqual(gardenBatch(s, 5, "water"), []);
+  assert.deepEqual(gardenBatch(s, 5, "fertilize"), [5]);
+  for (const i of gardenBatch(s, 5, "fertilize")) assert(fertilize(s, i));
+  assert.equal(s.fertilizer, 0);
+  assert.equal(s.plots[5].fertilized, true);
 });

@@ -43,6 +43,7 @@ test("post-Pepe earnings open a real hedge gap, the assessment awards membership
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   const s = base();
+  s.fertilizer = 1;
   s.plots[0] = { stage: "ready", remaining: 0, fertilized: false, yield: 200 };
   await setup(page, s);
   expect(
@@ -148,12 +149,16 @@ test("post-Pepe earnings open a real hedge gap, the assessment awards membership
     (p: any) => p.mountain && p.x === 43 && p.z === -355,
   );
   expect(planted.plots[plot].stage).toBe("growing");
-  expect(planted.plots[plot].fertilized).toBe(true);
+  expect(planted.plots[plot].fertilized).toBe(false);
+  expect(planted.fertilizer).toBe(1);
   await page.keyboard.press("e");
   await frames(page);
   expect(
     (await page.evaluate(() => (window as any).game.state())).plots[plot].stage,
   ).toBe("growing");
+  const fed = await page.evaluate(() => (window as any).game.state());
+  expect(fed.plots[plot].fertilized).toBe(true);
+  expect(fed.fertilizer).toBe(0);
   await page.evaluate(() => (window as any).game.sleep());
   await frames(page);
   expect(

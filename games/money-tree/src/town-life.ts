@@ -42,7 +42,6 @@ export function gardenBatch(s: State, i: number, job: GardenJob) {
       : job === "water"
         ? s.can && p.stage === "planted" && !p.mountain
         : !!s.fertilizer &&
-          !p.mountain &&
           !p.fertilized &&
           ["planted", "growing"].includes(p.stage);
   };
