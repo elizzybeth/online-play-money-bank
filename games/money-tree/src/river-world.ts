@@ -295,6 +295,23 @@ export function createRiverWorld(scene: T.Scene, rects: Rect[], paths: Rect[]) {
   // Ordinary rectangles keep existing movement, NPC route finding and airborne
   // checks consistent. Split them around each deck so bridges remain traversable.
   let colliders: Rect[] = [];
+  // Clear the full ramp and landing corridor too. Water segment AABBs can
+  // extend onto a bank just beyond a shortened deck.
+  const openings = riverBridges.flatMap((b) => {
+    const along = b.axis === "z" ? b.d : b.w;
+    const width = b.axis === "z" ? b.w : b.d;
+    const rect = (offset: number, span: number, breadth: number) => ({
+      x: b.x + (b.axis === "x" ? offset : 0),
+      z: b.z + (b.axis === "z" ? offset : 0),
+      w: b.axis === "z" ? breadth : span,
+      d: b.axis === "z" ? span : breadth,
+    });
+    return [rect(0, along + 9.6, width), ...[-1, 1].flatMap((side) => [
+      ...Array.from({ length: 8 }, (_, i) =>
+        rect(side * (along / 2 + (i + 0.5) * 0.35), 0.35, width + i * 0.5)),
+      rect(side * (along / 2 + 3.8), 2, width + 4),
+    ])];
+  });
   for (let i = 1; i < riverSections.length; i++) {
     const a = riverSections[i - 1],
       b = riverSections[i],
@@ -307,7 +324,7 @@ export function createRiverWorld(scene: T.Scene, rects: Rect[], paths: Rect[]) {
         d: Math.abs(b.z - a.z) + 2 * r,
       },
     ];
-    for (const bridge of riverBridges) {
+    for (const bridge of openings) {
       pieces = pieces.flatMap((p) => {
         const l = p.x - p.w / 2,
           h = p.x + p.w / 2,
