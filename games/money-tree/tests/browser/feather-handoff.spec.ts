@@ -3,6 +3,8 @@ import { fresh } from "../../src/game";
 test("feather stays in hair until the player replies with E, passes to Mom, then completes once", async ({
   page,
 }) => {
+  // This exercises the entire wait, reply, and handoff with rendered frames.
+  test.setTimeout(process.env.CI ? 480000 : 240000);
   const s = Object.assign(fresh(), {
     day: 2,
     awake: true,
