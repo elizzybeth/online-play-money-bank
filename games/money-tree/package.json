@@ -9,7 +9,9 @@
     "test": "node --import tsx --test tests/*.test.ts",
     "test:e2e": "playwright test",
     "format": "prettier --write src tests *.ts *.json index.html",
-    "test:visual": "MONEY_TREE_VISUAL=1 playwright test visual.spec.ts"
+    "test:visual": "MONEY_TREE_VISUAL=1 playwright test visual.spec.ts",
+    "profile:game": "node --import tsx tools/profile-game.mjs",
+    "profile:tests": "node tools/profile-tests.mjs"
   },
   "dependencies": {
     "three": "^0.180.0"

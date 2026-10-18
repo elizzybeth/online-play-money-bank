@@ -1,6 +1,6 @@
 import type { Rect } from "./game";
 // A seeded spanning-tree maze: exactly two openings, with branches and dead ends.
-export const maze = { cols: 11, rows: 5, cell: 3.2, left: -88, top: -47.5 };
+export const maze = { cols: 11, rows: 5, cell: 6.4, left: -123.2, top: -63.5 };
 export const mazeCenter = (col: number, row: number) => ({
   x: maze.left + (col + 0.5) * maze.cell,
   z: maze.top + (row + 0.5) * maze.cell,

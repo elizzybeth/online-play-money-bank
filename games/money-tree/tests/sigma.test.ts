@@ -347,3 +347,10 @@ test("five additional market factors are persistent and independently affect pri
     assert.deepEqual(s.coin, saved.coin);
   }
 });
+
+test("named Chads including the Pepe presenter always have a trading line", () => {
+  const s = fresh();
+  for (const id of ["pepe-show", "grindset", "gigachad", "soyjak"])
+    assert.equal(typeof chadLine(s, id), "string");
+  assert(decode(JSON.stringify(s)));
+});

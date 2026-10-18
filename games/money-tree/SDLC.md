@@ -9,3 +9,9 @@ Every third feature batch, and whenever a player reports hiccups or growing stor
 - Inspect IndexedDB size, compressed snapshot sizes, the bounded backup count and write frequency. Test legacy migration, refresh, rejected saves and storage failures.
 - Check retained geometry, materials, textures, listeners and DOM after repeated interactions.
 - Record measured before/after evidence; distinguish reduced work from an FPS claim. Add a regression for a confirmed bottleneck, then run the normal release checks.
+
+## Profiling on every resume
+
+At every Money Tree resume, run instrumented game measurements alongside native profiles before choosing optimizations. `node --import tsx tools/profile-game.mjs` uses a fresh browser save and collects opt-in frame/UI/render timings, DevTools CPU/heap/timeline profiles, renderer resource counts, network transfers and browser storage size in town, the maze and Level 3. `node tools/profile-tests.mjs` records the unit workload with Node CPU and heap profilers. Set `MONEY_TREE_PROFILE_DIR` to a private local output directory; never publish raw profiles or internal QA notes. Use the same scenario before and after changes, warm caches before retention comparisons, and distinguish software rendering from hardware performance. Inspect repeated interaction/resource retention and save failures with the existing efficiency/storage browser checks. Keep the ordinary release suite intact; profiling does not replace behavior tests.
+
+Shared unit, type/build and compiled-artifact checks run once in the CI core job. The twelve browser shards retain complete Chromium, Firefox and WebKit coverage. Reference screenshots from the farm review run only in Chromium; browser behavior assertions still run in every engine. Include assertions about model proportions, actual interaction results, save round trips and route clearance rather than treating screenshots alone as automated checks.

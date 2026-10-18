@@ -1,3 +1,4 @@
+import { profiling } from "./profiling";
 import { relocateRiverBeds } from "./river-gardens";
 import {
   canTellMomAboutMansion,
@@ -1177,7 +1178,11 @@ function askMom() {
   }
   const featherRequest = s.day % 4 === 2 && requestFeather(s);
   const reply =
-    momReply(s) +
+    (kitchenClearedDay === s.day
+      ? kitchenPrepared || cookingScene || s.pendingMeal
+        ? "The stove is ready, love. I’ve put my things away so we can cook together."
+        : "It was lovely cooking together, sweetheart. I’m glad we had that time."
+      : momReply(s)) +
     (featherRequest ? " Cuddle a chicken for me when you go out, love." : "");
   visit(
     status.energetic
@@ -1947,6 +1952,7 @@ function foodOfTheGods() {
   );
 }
 async function save() {
+  profiling.count("saveRequests");
   updateInventoryNotices(0);
   world.updateNotebook(s.journal.at(-1)!, s.journal.length);
   try {
@@ -2954,6 +2960,7 @@ function hangMomCanvases() {
   }
 }
 let kitchenPrepared = false;
+let kitchenClearedDay = 0;
 const preparedPan = makeCookingPan();
 preparedPan.name = "player-cooking-pan";
 preparedPan.position.set(-12.5, 1.13, 12.8);
@@ -2999,6 +3006,7 @@ function offerCooking() {
         label: "Yes, let’s cook",
         run: () => {
           kitchenPrepared = true;
+          kitchenClearedDay = s.day;
           world.cookingProps.forEach((p) => (p.visible = false));
           if (
             !["bedrest", "resting", "reading"].includes(
@@ -4685,6 +4693,19 @@ function interact(skipTrader = false): void {
       `<p>You have ${s.compostScraps ?? 0} scraps. Replanting dead money trees adds 1 to 3 scraps. Trade 25 scraps for one bag of soil.</p>`,
       [
         {
+          label: `Trade all scraps for ${Math.floor((s.compostScraps ?? 0) / 25)} bags of soil`,
+          default: true,
+          disabled: (s.compostScraps ?? 0) < 25,
+          run: () => {
+            const bags = Math.floor((s.compostScraps ?? 0) / 25);
+            if (compostSoil(s, true)) {
+              save();
+              close();
+              toast(`${bags} bags of soil from our community compost.`);
+            }
+          },
+        },
+        {
           label: "Trade 25 scraps for soil",
           disabled: (s.compostScraps ?? 0) < 25,
           run: () => {
@@ -4744,7 +4765,7 @@ function interact(skipTrader = false): void {
     );
   if (id === "mr-wacky") return wackyConversation();
   if (id === "pepe-show") {
-    if (!canEnterPepe(s)) return;
+    if (!canEnterPepe(s) && !s.pepePopped) return;
     if (s.pepePopped)
       return speak(
         "pepe-show",
@@ -6019,7 +6040,7 @@ function updateUI() {
   const { x, z } = s.position;
   setText(
     $("#location"),
-    x < -44 && z > -49 && z < 0
+    x < -44 && z > -65 && z < 0
       ? "Robertson’s Farm"
       : s.housing?.status === "owned" &&
           Math.abs(x - mansionLot.x) < 16 &&
@@ -6154,8 +6175,13 @@ function updateUI() {
 }
 const timerPosition = new T.Vector3();
 function frame(now: number) {
+  const frameStarted = profiling.start();
   frameNumber++;
-  world.setHat(wornHats(s), !!s.soyEffects?.milk);
+  world.setHat(
+    wornHats(s),
+    !!s.soyEffects?.milk,
+    s.millionaire?.unlocked ? 3 : s.foundTVSeeds ? 2 : 1,
+  );
   world.player.scale.setScalar(s.soyEffects?.burger ? 2 : 1);
   world.setRackHats(
     s.hats.filter((id) => !wearing(s, id) && id !== hatHanging?.id),
@@ -6935,11 +6961,17 @@ function frame(now: number) {
       ? 1
       : 1 - Math.exp(-dt * (now - lastLookInput < 500 ? 16 : 6));
     followAngle += (wantedAngle - followAngle) * easing;
+    const stackHeight =
+      (world.wornHat.userData.height ?? 0) * (s.soyEffects?.burger ? 2 : 1);
+    const displayDistance =
+      zoomDistance > 3
+        ? Math.max(zoomDistance, stackHeight * 1.65 + 1.8)
+        : zoomDistance;
     followDistance +=
-      (zoomDistance - followDistance) *
+      (displayDistance - followDistance) *
       (reducedMotion ? 1 : 1 - Math.exp(-dt * 12));
-    if (Math.abs(followDistance - zoomDistance) < 0.01)
-      followDistance = zoomDistance;
+    if (Math.abs(followDistance - displayDistance) < 0.01)
+      followDistance = displayDistance;
     const angle = followAngle;
     const firstPerson = 1 - T.MathUtils.smoothstep(followDistance, 0, 1.5);
     const target = new T.Vector3(
@@ -6947,6 +6979,7 @@ function frame(now: number) {
         terrainHeight(s.position.x, s.position.z) +
           (s.soyEffects?.burger ? 2.8 : 1.4) +
           firstPerson * 0.3 +
+          (zoomDistance > 3 ? Math.max(0, stackHeight - 1.4) * 0.35 : 0) +
           jumpHeight +
           (sitting
             ? sittingWithStacy
@@ -7026,7 +7059,7 @@ function frame(now: number) {
     }
     for (let pass = 0; pass < 3; pass++)
       for (const object of cameraSolids) {
-        const box = new T.Box3().setFromObject(object).expandByScalar(0.14);
+        const box = cameraWalls.bounds(object).clone().expandByScalar(0.14);
         if (!box.containsPoint(next)) continue;
         const faces = (["x", "y", "z"] as const)
           .flatMap((axis) => [
@@ -7050,6 +7083,13 @@ function frame(now: number) {
         .sub(target)
         .setLength(length + 0.5)
         .add(target);
+    if (
+      s.adventure?.meteors?.some(
+        (m) =>
+          m.landed && Math.hypot(s.position.x - m.x, s.position.z - m.z) < 10,
+      )
+    )
+      next.y = Math.max(next.y, 2.2, terrainHeight(next.x, next.z) + 0.65);
     camera.position.copy(next);
     const tilt = T.MathUtils.clamp((pitch - 0.42) * 0.9, -0.35, 0.6);
     const forward = viewForward();
@@ -7334,8 +7374,10 @@ function frame(now: number) {
   world.sigma.fountain.update(now / 1000);
   updateCelebration(dt);
   updateSpeech(active ? dt : 0);
+  const uiStarted = profiling.start();
   updateUI();
   updateInventoryNotices(dt);
+  profiling.end("ui", uiStarted);
   if (toastTime > 0) {
     toastTime -= dt;
     if (toastTime <= 0) setCss($("#toast").style, "opacity", "0");
@@ -7412,10 +7454,14 @@ function frame(now: number) {
     }
   }
   updateEstateFilm(paused || document.hidden ? 0 : dt);
+  const renderStarted = profiling.start();
   if (!document.hidden) renderer.render(scene, camera);
+  profiling.end("renderSubmit", renderStarted);
+  profiling.end("frame", frameStarted);
 }
 requestAnimationFrame(frame);
 // Explicitly enabled diagnostic harness; absent from ordinary production sessions.
+if (profiling.enabled) (window as any).moneyTreeProfile = profiling;
 if (new URLSearchParams(location.search).has("test")) {
   (window as unknown as { game: unknown }).game = {
     level3Entrance: () => ({
@@ -7483,6 +7529,8 @@ if (new URLSearchParams(location.search).has("test")) {
       film: estateFilm ? { kind: estateFilm.kind, t: estateFilm.t } : null,
       meteors: s.adventure?.meteors ?? [],
       meteorSyncs: meteorWorld.stats(),
+      craterParticles: scene.getObjectByName("uninvestigated-crater-particles")
+        ?.visible,
       mom: world.mom.position.toArray(),
       momActivity: world.mom.userData.activity,
       gardenVisit: momGardenVisit
@@ -7518,6 +7566,14 @@ if (new URLSearchParams(location.search).has("test")) {
       camera.lookAt(mansionLot.x, 5, mansionLot.z);
       renderer.render(scene, camera);
     },
+    renderStats: () => ({
+      calls: renderer.info.render.calls,
+      triangles: renderer.info.render.triangles,
+      geometries: renderer.info.memory.geometries,
+      textures: renderer.info.memory.textures,
+      programs: renderer.info.programs?.length,
+      cameraBounds: cameraWalls.stats(),
+    }),
     state: () => structuredClone(s),
     storageFlush: () => saveStore?.flush(),
     savedRaw: (key?: string) => saveStore?.readRaw(key),
@@ -7584,6 +7640,11 @@ if (new URLSearchParams(location.search).has("test")) {
       world.wornHat.children.map((o) => ({
         id: o.userData.hatId,
         y: o.position.y,
+        scale: o.scale.toArray(),
+        bounds: (() => {
+          const b = new T.Box3().setFromObject(o);
+          return { min: b.min.toArray(), max: b.max.toArray() };
+        })(),
       })),
     sleepingBounds: () => {
       const b = new T.Box3().setFromObject(world.sleeping);
@@ -7864,16 +7925,19 @@ if (new URLSearchParams(location.search).has("test")) {
     },
     farmReview: (view: "overview" | "house" | "maze" | "sign" | "shop") => {
       const views = {
-        overview: [-65, 58, -9, -65, 0, -28],
+        overview: [-85, 82, -4, -85, 0, -35],
         house: [-56, 8, -4, -69, 2, -15],
-        maze: [-65, 26, -24, -70, 0, -39],
+        maze: [-56, 2.2, -34.7, -75, 2.3, -34.7],
         sign: [8, 5, -14, 8, 6, -21],
         shop: [-7, 4, -13, -12, 2, -25],
       };
       const a = views[view];
       camera.position.set(a[0], a[1], a[2]);
       camera.lookAt(a[3], a[4], a[5]);
+      const fog = scene.fog;
+      scene.fog = null;
       renderer.render(scene, camera);
+      scene.fog = fog;
     },
     farm: () => ({
       packet: world.farm.seed.position.toArray(),

@@ -33,7 +33,7 @@ export const riverWaypoints = [
   [-43, -4.5],
   [-61, -4.5],
   [-79, -4.5],
-  [-101, -4.5],
+  [-134, -4.5],
 ] as const;
 export type RiverPoint = { x: number; z: number };
 // Hermite interpolation follows the sketch without sharply kinked banks.
@@ -75,11 +75,11 @@ export const riverBridges: readonly {
   d: number;
   axis: "x" | "z";
 }[] = [
-  { id: "village", x: 3, z: -8.6, w: 8, d: 12, axis: "z" },
+  { id: "village", x: 3, z: -8.6, w: 8, d: 6, axis: "z" },
   { id: "grove", x: 46, z: -98, w: 8, d: 18, axis: "z" },
 ] as const;
 export function riverDistance(x: number, z: number) {
-  if (x < -112 || x > 59 || z < -152 || z > 1) return Infinity;
+  if (x < -140 || x > 59 || z < -152 || z > 1) return Infinity;
   let best = Infinity;
   for (let i = 1; i < points.length; i++) {
     const a = points[i - 1],
@@ -179,9 +179,7 @@ export function riverBoundaryGaps<
 }
 export const groveApproachPaths = [
   { x: 42, z: -61, w: 10, d: 6 },
-  { x: 46, z: -87, w: 4, d: 54 },
-  { x: 40, z: -114, w: 16, d: 4 },
-  { x: 34, z: -122, w: 4, d: 16 },
+  { x: 46, z: -98, w: 4, d: 76 },
 ];
 
 /** Decks are flat; wide, 1:20 ramps join level turning landings to the lawn. */

@@ -2,16 +2,17 @@ import { mountainRetailOpen } from "./millionaire";
 import { terrainHeight } from "./millionaire-land";
 import { purchasePrice } from "./meals";
 import { type State, wearing } from "./game";
-export function compostSoil(s: State) {
+export function compostSoil(s: State, all = false) {
   if (
     (!s.foundTVSeeds && !mountainRetailOpen(s)) ||
     (s.compostScraps ?? 0) < 25
   )
     return false;
-  s.compostScraps! -= 25;
-  s.soilBags = (s.soilBags ?? 0) + 1;
+  const bags = all ? Math.floor(s.compostScraps! / 25) : 1;
+  s.compostScraps! -= bags * 25;
+  s.soilBags = (s.soilBags ?? 0) + bags;
   s.events.push(
-    "Traded 25 compost scraps for a bag of soil at the community composter.",
+    `Traded ${bags * 25} compost scraps for ${bags} bag${bags === 1 ? "" : "s"} of soil at the community composter.`,
   );
   return true;
 }

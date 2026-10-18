@@ -1,3 +1,4 @@
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import * as T from "three";
 import type { Rect } from "./game";
 import {
@@ -268,6 +269,28 @@ export function createRiverWorld(scene: T.Scene, rects: Rect[], paths: Rect[]) {
         bridge,
       );
     }
+    const batches = new Map<T.Material, T.BufferGeometry[]>();
+    for (const child of [...bridge.children])
+      if (child instanceof T.Mesh) {
+        child.updateMatrix();
+        const material = child.material as T.Material;
+        const geometries = batches.get(material) ?? [];
+        // Non-indexed vertices unify ramp triangles and box attributes.
+        const source = child.geometry.index
+          ? child.geometry.toNonIndexed()
+          : child.geometry.clone();
+        source.deleteAttribute("uv");
+        geometries.push(source.applyMatrix4(child.matrix));
+        batches.set(material, geometries);
+        child.geometry.dispose();
+        bridge.remove(child);
+      }
+    for (const [material, geometries] of batches) {
+      const mesh = new T.Mesh(mergeGeometries(geometries)!, material);
+      mesh.castShadow = mesh.receiveShadow = true;
+      bridge.add(mesh);
+      geometries.forEach((g) => g.dispose());
+    }
   }
   // Ordinary rectangles keep existing movement, NPC route finding and airborne
   // checks consistent. Split them around each deck so bridges remain traversable.
@@ -445,6 +468,11 @@ export function createRiverWorld(scene: T.Scene, rects: Rect[], paths: Rect[]) {
     "#69a776",
     crowns,
   );
+  root.updateMatrixWorld(true);
+  root.traverse((o) => {
+    o.matrixAutoUpdate = false;
+    o.matrixWorldAutoUpdate = false;
+  });
   let dry = false;
   return {
     root,

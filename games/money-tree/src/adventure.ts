@@ -1,3 +1,4 @@
+import { meteorSites, meteorSequence } from "./meteor-sites";
 import { recordEarnings } from "./millionaire";
 import { samplePrice } from "./market";
 import type { State } from "./game";
@@ -110,18 +111,12 @@ export function advanceAdventure(s: State, dt: number) {
   if (a.awakeSeconds < (a.meteorNextAt ?? 0)) return null;
   a.meteorSeed = (a.meteorSeed * 16807) % 2147483647;
   const seed = a.meteorSeed;
-  const sites = [
-    [-80, -180],
-    [142, -220],
-    [-77, -255],
-    [150, -270],
-    [-80, -460],
-    [150, -460],
-  ];
   const id = a.nextMeteorId ?? (a.meteors?.length ?? 0) + 1;
   a.nextMeteorId = id + 1;
-  const site = sites[(id - 1) % sites.length];
-  const previous = a.meteors?.find((m) => m.x === site[0] && m.z === site[1]);
+  const site = meteorSites[meteorSequence[(id - 1) % meteorSequence.length]];
+  const previous =
+    a.meteors?.find((m) => m.x === site[0] && m.z === site[1]) ??
+    ((a.meteors?.length ?? 0) >= 6 ? a.meteors![0] : undefined);
   a.meteors = a.meteors?.filter((m) => m !== previous) ?? [];
   const meteor: Meteor = {
     id,
@@ -137,7 +132,11 @@ export function advanceAdventure(s: State, dt: number) {
   // A repeat strike inherits the previous site while the meteor is in flight.
   // Keep its plot link valid before any autosave or tab-close write.
   if (previous?.plot !== undefined && s.plots[previous.plot])
-    s.plots[previous.plot].meteor = id;
+    Object.assign(s.plots[previous.plot], {
+      meteor: id,
+      x: site[0],
+      z: site[1],
+    });
   a.meteorNextDay = s.day;
   a.meteorNextAt = (a.awakeSeconds ?? 0) + 240 + (seed % 121);
   return meteor;

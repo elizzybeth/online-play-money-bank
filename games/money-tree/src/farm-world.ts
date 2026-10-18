@@ -1,3 +1,4 @@
+import { makeFarmSign } from "./farm-sign";
 import * as T from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { mazeWalls, mazeEntrance, mazeExit, mazePacket } from "./farm-layout";
@@ -134,9 +135,14 @@ export function createFarm(scene: T.Scene, rects: Rect[], targets: Target[]) {
     box(x + dx * 0.7, 0.5, z + 4.2, 0.85, 0.14, 0.85, "#ead1a1");
     box(x + dx * 0.7, 0.92, z + 3.85, 0.85, 0.85, 0.12, "#ead1a1");
   }
-  sign("Robertson’s House", x, 3.5, z + 3.83, 4, 0.65);
-  sign("Robertson’s Farm", -47, 2.4, -16.8, 5, 1.35);
-  box(-47, 1, -16.9, 0.16, 2, 0.16, "#765038");
+  const farmSign = makeFarmSign();
+  farmSign.position.set(x + 6.4, 3.1, z);
+  farmSign.rotation.y = Math.PI / 2;
+  root.add(farmSign);
+  box(x + 5.4, 4.7, z, 3, 0.12, 0.12, "#292b27");
+  for (const dz of [-1.5, 1.5])
+    box(x + 6.4, 4.15, z + dz, 0.035, 1.1, 0.035, "#292b27");
+  box(-88, 0.018, -47.5, 70.4, 0.025, 32, "#6b6041");
   // The entrance post stands beside the opening, never through its lettering.
   box(
     mazeEntrance.x + 0.8,
@@ -157,15 +163,15 @@ export function createFarm(scene: T.Scene, rects: Rect[], targets: Target[]) {
   );
   entry.name = "corn-maze-entrance-sign";
   sign("EXIT ONLY →", mazeExit.x + 1.7, 1.4, mazeExit.z - 1.4, 2.6, 0.65);
-  box(mazeExit.x, 0.75, mazeExit.z - 1.35, 0.15, 1.5, 0.15, "#92734c");
+  box(mazeExit.x, 0.75, mazeExit.z - 3.05, 0.15, 1.5, 0.15, "#92734c");
   const gate = new T.Group();
-  gate.position.set(mazeExit.x, 1, mazeExit.z - 1.35);
+  gate.position.set(mazeExit.x, 1, mazeExit.z - 3.05);
   root.add(gate);
-  const bar = new T.Mesh(new T.BoxGeometry(0.1, 0.13, 2.7), mat("#92734c"));
-  bar.position.z = 1.35;
+  const bar = new T.Mesh(new T.BoxGeometry(0.1, 0.13, 6.1), mat("#92734c"));
+  bar.position.z = 3.05;
   gate.add(bar);
   // Directional turnstile: visible swinging leaves, blocks entry from outside.
-  rects.push({ x: mazeExit.x, z: mazeExit.z, w: 0.2, d: 3.2, exitEast: true });
+  rects.push({ x: mazeExit.x, z: mazeExit.z, w: 0.2, d: 6.4, exitEast: true });
   rects.push(...mazeWalls.map((r) => ({ ...r })));
   const stalkMatrices: T.Matrix4[] = [],
     leafMatrices: T.Matrix4[] = [],
@@ -188,26 +194,26 @@ export function createFarm(scene: T.Scene, rects: Rect[], targets: Target[]) {
     list.push(o.matrix.clone());
   };
   for (const wall of mazeWalls) {
-    const count = Math.ceil(Math.max(wall.w, wall.d) / 0.48);
+    const count = Math.ceil(Math.max(wall.w, wall.d) / 0.42);
     for (let i = 0; i < count; i++)
-      for (const side of [-1, 1]) {
+      for (const side of [-1, 0, 1]) {
         const t = (i + 0.5) / count - 0.5,
-          x = wall.x + (wall.w > wall.d ? t * wall.w : side * 0.17),
-          z = wall.z + (wall.d > wall.w ? t * wall.d : side * 0.17),
-          h = 2.7 + (i % 4) * 0.12;
+          x = wall.x + (wall.w > wall.d ? t * wall.w : side * 0.24),
+          z = wall.z + (wall.d > wall.w ? t * wall.d : side * 0.24),
+          h = 4.7 + (i % 5) * 0.18;
         place(stalkMatrices, x, h / 2, z, 0.055, h, 0.055);
-        for (let j = 0; j < 4; j++)
+        for (let j = 0; j < 6; j++)
           place(
             leafMatrices,
             x + Math.sin(j * 2.4 + i) * 0.26,
-            0.65 + j * 0.48,
+            1.25 + j * 0.61,
             z + Math.cos(j * 2.4 + i) * 0.26,
-            0.65,
-            0.11,
-            0.15,
+            0.85,
+            0.22,
+            0.22,
             j * 2.4 + i,
           );
-        place(cobMatrices, x + 0.11, 1.5, z, 0.095, 0.35, 0.095);
+        place(cobMatrices, x + 0.11, 2.4, z, 0.095, 0.35, 0.095);
       }
   }
   const batch = (
@@ -216,11 +222,23 @@ export function createFarm(scene: T.Scene, rects: Rect[], targets: Target[]) {
     list: T.Matrix4[],
     name: string,
   ) => {
-    const m = new T.InstancedMesh(geo, mat(color), list.length);
-    m.name = name;
-    list.forEach((v, i) => m.setMatrixAt(i, v));
-    m.castShadow = m.receiveShadow = true;
-    root.add(m);
+    const tiles = new Map<string, T.Matrix4[]>();
+    for (const matrix of list) {
+      const key = name.startsWith("corn-")
+        ? `${Math.floor(matrix.elements[12] / 12)},${Math.floor(matrix.elements[14] / 12)}`
+        : "all";
+      const tile = tiles.get(key) ?? [];
+      tile.push(matrix);
+      tiles.set(key, tile);
+    }
+    for (const tile of tiles.values()) {
+      const m = new T.InstancedMesh(geo, mat(color), tile.length);
+      m.name = name;
+      tile.forEach((v, i) => m.setMatrixAt(i, v));
+      m.castShadow = m.receiveShadow = true;
+      m.computeBoundingSphere();
+      root.add(m);
+    }
   };
   // A tapered leaf is two triangles instead of a flattened sphere (36).
   // Thousands of plants remain detailed without costly invisible back geometry.
@@ -236,13 +254,13 @@ export function createFarm(scene: T.Scene, rects: Rect[], targets: Target[]) {
   cornLeaf.computeVertexNormals();
   mat("#5c873c").side = T.DoubleSide;
   batch(
-    new T.CylinderGeometry(0.75, 1, 1, 5, 1, true),
+    new T.CylinderGeometry(0.75, 1, 1, 4, 1, true),
     "#90a44f",
     stalkMatrices,
     "corn-stalks",
   );
   batch(cornLeaf, "#5c873c", leafMatrices, "corn-leaves");
-  batch(new T.SphereGeometry(1, 5, 3), "#dfc65f", cobMatrices, "corn-cobs");
+  batch(new T.SphereGeometry(1, 4, 2), "#dfc65f", cobMatrices, "corn-cobs");
   // Two orderly carrot plots beside the farmhouse, with orange shoulders.
   const carrots: T.Matrix4[] = [],
     tops: T.Matrix4[] = [];
@@ -259,6 +277,56 @@ export function createFarm(scene: T.Scene, rects: Rect[], targets: Target[]) {
   }
   batch(new T.ConeGeometry(1, 1, 6), "#e3953d", carrots, "farm-carrots");
   batch(new T.SphereGeometry(1, 5, 3), "#4d8139", tops, "carrot-tops");
+  const gourds: T.Matrix4[] = [],
+    cabbages: T.Matrix4[] = [],
+    stalks: T.Matrix4[] = [],
+    petals: T.Matrix4[] = [];
+  for (const [index, px] of [-118, -105, -92].entries()) {
+    box(px, 0.025, -12, 9, 0.05, 7, "#7b5b3a");
+    for (let row = 0; row < 4; row++)
+      for (let col = 0; col < 6; col++) {
+        const cx = px - 3.4 + col * 1.35,
+          cz = -14.5 + row * 1.6;
+        if (index === 0) {
+          place(gourds, cx, 0.32, cz, 0.48, 0.38, 0.43, col);
+          place(stalks, cx, 0.73, cz, 0.045, 0.28, 0.045);
+        } else if (index === 1) {
+          for (let k = 0; k < 5; k++)
+            place(
+              cabbages,
+              cx + Math.sin(k * 2.4) * 0.14,
+              0.24,
+              cz + Math.cos(k * 2.4) * 0.14,
+              0.28,
+              0.27,
+              0.18,
+              k * 2.4,
+            );
+        } else {
+          place(stalks, cx, 0.9, cz, 0.035, 1.8, 0.035);
+          for (let k = 0; k < 7; k++)
+            place(
+              petals,
+              cx + Math.sin(k * 0.9) * 0.19,
+              1.8 + Math.cos(k * 0.9) * 0.19,
+              cz,
+              0.13,
+              0.19,
+              0.06,
+              k * 0.9,
+            );
+        }
+      }
+  }
+  batch(new T.SphereGeometry(1, 8, 5), "#d67c32", gourds, "farm-pumpkins");
+  batch(new T.SphereGeometry(1, 6, 4), "#709852", cabbages, "farm-cabbages");
+  batch(
+    new T.CylinderGeometry(1, 1, 1, 5),
+    "#4e713a",
+    stalks,
+    "farm-crop-stems",
+  );
+  batch(new T.SphereGeometry(1, 5, 3), "#e7bc43", petals, "farm-sunflowers");
   const seed = makeSeedPacket();
   seed.position.set(mazePacket.x, 0.2, mazePacket.z);
   seed.name = "maze-seed-packet";
@@ -290,6 +358,14 @@ export function createFarm(scene: T.Scene, rects: Rect[], targets: Target[]) {
     root.add(mesh);
     geos.forEach((g) => g.dispose());
   }
+  // Static meshes retain their already-computed transforms. The gate stays dynamic.
+  root.updateMatrixWorld(true);
+  root.traverse((o) => {
+    if (o !== root && o !== gate && o.parent !== gate) {
+      o.matrixAutoUpdate = false;
+      o.matrixWorldAutoUpdate = false;
+    }
+  });
   return {
     root,
     seed,

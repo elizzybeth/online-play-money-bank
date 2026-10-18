@@ -10,14 +10,8 @@ import {
 import { terrainHeight, setCraterSites } from "./millionaire-land";
 import { makeSeedPacket } from "./seed-packet";
 import type { Target } from "./world";
-export const meteorSites = [
-  [-80, -180],
-  [142, -220],
-  [-77, -255],
-  [150, -270],
-  [-80, -460],
-  [150, -460],
-];
+export { meteorSites } from "./meteor-sites";
+import { meteorSites } from "./meteor-sites";
 export function desertGround() {
   const shape = new T.Shape();
   shape.moveTo(-105, -480);
@@ -27,8 +21,8 @@ export function desertGround() {
   // another ground plane at exactly y=0 across the Level 3 transition.
   shape.lineTo(58, -90);
   shape.lineTo(58, -95);
-  shape.lineTo(-101, -95);
-  shape.lineTo(-101, -90);
+  shape.lineTo(-105, -95);
+  shape.lineTo(-105, -90);
   shape.lineTo(-105, -90);
   shape.closePath();
   for (const [x, z] of meteorSites) {
@@ -111,6 +105,26 @@ export function createMeteorWorld(
     group.add(root);
     return root;
   }
+  const glowGeometry = new T.BufferGeometry();
+  const glowPositions = new Float32Array(6 * 24 * 3);
+  glowGeometry.setAttribute(
+    "position",
+    new T.BufferAttribute(glowPositions, 3),
+  );
+  const glow = new T.Points(
+    glowGeometry,
+    new T.PointsMaterial({
+      color: "#ffc46c",
+      size: 0.2,
+      transparent: true,
+      opacity: 0.8,
+      depthWrite: false,
+    }),
+  );
+  glow.name = "uninvestigated-crater-particles";
+  glow.frustumCulled = false;
+  group.add(glow);
+  let glowTime = 0;
   let currentState: State | undefined;
   const dispose = (object: T.Object3D) => {
     object.removeFromParent();
@@ -252,6 +266,21 @@ export function createMeteorWorld(
           }
       }
 
+      glowTime += dt;
+      let count = 0;
+      for (const m of meteors)
+        if (m.landed && !m.harvested) {
+          for (let i = 0; i < 24; i++) {
+            const angle = i * 2.399 + glowTime * 0.15;
+            const radius = 1.8 + (i % 5) * 0.55;
+            glowPositions[count++] = m.x + Math.cos(angle) * radius;
+            glowPositions[count++] = 1.6 + ((i * 0.23 + glowTime * 0.6) % 3.5);
+            glowPositions[count++] = m.z + Math.sin(angle) * radius;
+          }
+        }
+      glow.visible = count > 0;
+      glowGeometry.setDrawRange(0, count / 3);
+      if (count) glowGeometry.attributes.position.needsUpdate = true;
       return born;
     },
   };

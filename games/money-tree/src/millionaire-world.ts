@@ -1,7 +1,7 @@
 import {
   riverDistance,
   splitRiverBoundary,
-  riverBoundaryGaps,
+  riverSections,
   groveApproachPaths,
 } from "./river-land";
 import { flatPath } from "./flat-path";
@@ -146,38 +146,41 @@ export function createMillionaireWorld(
     parts.push(new T.BoxGeometry(w, h, d).translate(x, y, z));
     fenceParts.set(color, parts);
   };
-  for (const r of [
-    { x: 49.1, z: -70.85, w: 0.8, d: 26.7 },
-    { x: 44.05, z: -57.5, w: 10.1, d: 0.8 },
-  ].flatMap(riverBoundaryGaps)) {
-    // These remain solid for bikes and on foot, while open rails preserve the view.
-    boundaryRects.push(r);
-    const vertical = r.d > r.w,
-      length = vertical ? r.d : r.w;
-    for (const y of [0.4, 0.88])
-      fenceBox(
-        r.x,
-        y,
-        r.z,
-        vertical ? 0.12 : length,
-        0.12,
-        vertical ? length : 0.12,
-        "#a78b60",
+  const fenceSegment = (
+    a: { x: number; z: number },
+    b: { x: number; z: number },
+  ) => {
+    const dx = b.x - a.x,
+      dz = b.z - a.z,
+      length = Math.hypot(dx, dz),
+      angle = Math.atan2(dx, dz);
+    const x = (a.x + b.x) / 2,
+      z = (a.z + b.z) / 2;
+    boundaryRects.push({
+      x,
+      z,
+      w: Math.abs(dx) + 0.18,
+      d: Math.abs(dz) + 0.18,
+    });
+    for (const y of [0.4, 0.88]) {
+      const list = fenceParts.get("#a78b60") ?? [];
+      list.push(
+        new T.BoxGeometry(0.12, 0.12, length).rotateY(angle).translate(x, y, z),
       );
-    const count = Math.ceil(length / 1.8);
-    for (let i = 0; i <= count; i++) {
-      const offset = -length / 2 + (i * length) / count;
-      fenceBox(
-        r.x + (vertical ? 0 : offset),
-        0.08,
-        r.z + (vertical ? offset : 0),
-        0.18,
-        1.96,
-        0.18,
-        "#d6c9ac",
-      );
+      fenceParts.set("#a78b60", list);
     }
-  }
+    fenceBox(a.x, 0.5, a.z, 0.18, 1.12, 0.18, "#d6c9ac");
+    fenceBox(b.x, 0.5, b.z, 0.18, 1.12, 0.18, "#d6c9ac");
+  };
+  // Follow the dry inside bank, rather than drawing straight rails through bends.
+  const bank = riverSections
+    .filter((p) => p.z >= -84.2 && p.z <= -57.5 && p.x > 45)
+    .map((p) => ({ x: p.x + p.nx * 3.85, z: p.z + p.nz * 3.85 }));
+  for (let i = 1; i < bank.length; i++) fenceSegment(bank[i - 1], bank[i]);
+  if (bank.length) fenceSegment(bank.at(-1)!, { x: 44.05, z: -57.5 });
+  // Close the shoulders between the low approach walls and flared bridge rails.
+  fenceSegment({ x: 42.9, z: -84.2 }, { x: 40, z: -86.2 });
+  fenceSegment({ x: 49.1, z: -84.2 }, { x: 52, z: -86.2 });
   for (const [color, parts] of fenceParts) {
     const mesh = new T.Mesh(mergeGeometries(parts)!, material(color));
     mesh.castShadow = mesh.receiveShadow = true;
