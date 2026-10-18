@@ -1,0 +1,24 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { fresh, plant, fertilize, water, growOvernight } from "../src/game";
+import { plantCrop, harvestCrop } from "../src/garden-crops";
+test("a new money tree does not inherit fertilizer from harvested vegetables", () => {
+  const s = fresh();
+  s.cropSeeds = { tomato: 1 };
+  s.can = true;
+  s.fertilizer = 1;
+  s.seeds = 1;
+  assert(plantCrop(s, 0, "tomato"));
+  assert(water(s, 0));
+  assert(fertilize(s, 0));
+  growOvernight(s);
+  assert(harvestCrop(s, 0));
+  assert(plant(s, 0));
+  assert.equal(s.plots[0].fertilized, false);
+  assert.equal(s.plots[0].fertilizedDay, undefined);
+  assert.equal(s.plots[0].remaining, 0);
+  assert.equal(s.plots[0].yield, 0);
+  assert(water(s, 0));
+  assert.equal(s.plots[0].remaining, 180);
+  assert.equal(s.fertilizer, 0);
+});

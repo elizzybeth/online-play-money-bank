@@ -1305,7 +1305,17 @@ export function createWorld(scene: T.Scene) {
       const i = plots.length - 1;
       moneyTree(i, "empty", false);
       plots.pop()!.removeFromParent();
-      bedFrames.pop()!.removeFromParent();
+      const frame = bedFrames.pop()!;
+      frame.traverse((object) => {
+        if (!(object instanceof T.Mesh)) return;
+        object.geometry.dispose();
+        // Materials belong to this bed; soil/wood texture maps are shared.
+        for (const material of Array.isArray(object.material)
+          ? object.material
+          : [object.material])
+          material.dispose();
+      });
+      frame.removeFromParent();
       bedSoils.pop();
       bedTargets.pop();
       const at = targets.findIndex((t) => t.id === `plot${i}`);

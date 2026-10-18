@@ -5444,6 +5444,8 @@ function disposeAnimation(root: T.Object3D) {
 }
 
 function resetTransientMotion() {
+  world.sigma.resetPepeAnimation();
+  pickupCheckIn = 0;
   world.life.cancelInteractions();
   if (cookingScene) disposeAnimation(cookingScene.root);
   cookingScene = undefined;
@@ -7352,7 +7354,7 @@ function frame(now: number) {
     !cookingScene &&
     !sitting
   )
-    collectWalkoverPackets();
+    collectWalkoverPackets(dt);
   const uiStarted = profiling.start();
   updateUI();
   updateInventoryNotices(dt);
@@ -7558,6 +7560,46 @@ if (new URLSearchParams(location.search).has("test")) {
       camera.lookAt(mansionLot.x, 5, mansionLot.z);
       renderer.render(scene, camera);
     },
+    bedLifecycleCheck: () => {
+      const memory = () => ({ ...renderer.info.memory });
+      const savedPosition = camera.position.clone(),
+        savedRotation = camera.quaternion.clone();
+      camera.position.set(-16, 9, 27);
+      camera.lookAt(-16, 0, 19);
+      const snapshots = [];
+      try {
+        renderer.render(scene, camera);
+        snapshots.push(memory());
+        for (let cycle = 0; cycle < 4; cycle++) {
+          world.syncBeds([
+            ...s.plots,
+            {
+              stage: "empty",
+              remaining: 0,
+              fertilized: false,
+              yield: 0,
+              x: -16,
+              z: 19,
+            },
+          ]);
+          renderer.render(scene, camera);
+          world.syncBeds(s.plots);
+          renderer.render(scene, camera);
+          snapshots.push(memory());
+        }
+      } finally {
+        camera.position.copy(savedPosition);
+        camera.quaternion.copy(savedRotation);
+      }
+      return snapshots;
+    },
+    pepePackets: () =>
+      world.sigma.debris
+        .slice(0, 25)
+        .map((d) => ({
+          visible: d.object.visible,
+          position: d.object.position.toArray(),
+        })),
     renderStats: () => ({
       calls: renderer.info.render.calls,
       triangles: renderer.info.render.triangles,
@@ -8728,15 +8770,26 @@ function pickUpSeedPacket(id: string) {
   return true;
 }
 let pickupX = Infinity,
-  pickupZ = Infinity;
-function collectWalkoverPackets() {
-  if (Math.hypot(s.position.x - pickupX, s.position.z - pickupZ) < 0.05) return;
+  pickupZ = Infinity,
+  pickupCheckIn = 0;
+function collectWalkoverPackets(dt: number) {
+  pickupCheckIn -= dt;
+  if (
+    Math.hypot(s.position.x - pickupX, s.position.z - pickupZ) < 0.05 &&
+    pickupCheckIn > 0
+  )
+    return;
+  // A packet can land or respawn underfoot while the player stands still.
+  // Idle checks are bounded to four per second; movement still checks promptly.
+  pickupCheckIn = 0.25;
+  profiling.count("seedPickupScans");
   pickupX = s.position.x;
   pickupZ = s.position.z;
+  const ground = terrainHeight(s.position.x, s.position.z);
   const tryPacket = (id: string, x: number, y: number, z: number) => {
     if (
       Math.hypot(s.position.x - x, s.position.z - z) < 0.8 &&
-      Math.abs(terrainHeight(s.position.x, s.position.z) - y) < 1
+      Math.abs(ground - y) < 1
     )
       pickUpSeedPacket(id);
   };
@@ -8748,7 +8801,8 @@ function collectWalkoverPackets() {
     if (object.visible)
       tryPacket(id, object.position.x, object.position.y, object.position.z);
   if (s.pepePopped)
-    world.sigma.debris.slice(0, 25).forEach((d, i) => {
+    for (let i = 0; i < 25; i++) {
+      const d = world.sigma.debris[i];
       if (d.object.visible && d.object.position.y < 0.65)
         tryPacket(
           `pepe-seed-${i}`,
@@ -8756,7 +8810,7 @@ function collectWalkoverPackets() {
           d.object.position.y,
           d.object.position.z,
         );
-    });
+    }
   for (const t of world.targets)
     if (t.id.startsWith("meteor-seed-"))
       tryPacket(t.id, t.x, terrainHeight(t.x, t.z), t.z);
