@@ -24,7 +24,7 @@ test("compiled game renders trees, routes seed-selection input and persists thro
   await page.goto("./?test");
   await expect(page.getByRole("button", { name: "Wake up" })).toBeEnabled();
   await page.getByRole("button", { name: "Wake up" }).dispatchEvent("click");
-  for (let i = 0; i < 3; i++) await page.clock.fastForward(125);
+  await page.clock.fastForward(125);
   const render = await page.evaluate(() => {
     const g = (window as any).game;
     return { stats: g.renderStats(), tree: g.plotModels()[1] };

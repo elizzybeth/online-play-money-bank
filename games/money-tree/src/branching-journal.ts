@@ -78,8 +78,8 @@ const normalize = (s: string) =>
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
 // Only immutable corpus text is shared; player journal history stays entry-local.
-let corpusPhrases:
-  Map<string, { three: string[]; seven: string[] }> | undefined;
+let corpusText: Set<string> | undefined;
+const corpusPhrases = new Map<string, { three: string[]; seven: string[] }>();
 function phrases(text: string, n: number) {
   const words = normalize(text).split(" ");
   return Array.from({ length: Math.max(0, words.length - n + 1) }, (_, i) =>
@@ -87,16 +87,21 @@ function phrases(text: string, n: number) {
   );
 }
 function corpusPhrasesFor(text: string) {
-  if (!corpusPhrases) {
-    corpusPhrases = new Map();
-    for (const passage of Object.values(passages).flat())
-      if (!passage.includes("{"))
-        corpusPhrases.set(passage, {
-          three: phrases(passage, 3).map((p) => ` ${p} `),
-          seven: phrases(passage, 7),
-        });
+  corpusText ??= new Set(
+    Object.values(passages)
+      .flat()
+      .filter((p) => !p.includes("{")),
+  );
+  if (!corpusText.has(text)) return;
+  let value = corpusPhrases.get(text);
+  if (!value) {
+    value = {
+      three: phrases(text, 3).map((p) => ` ${p} `),
+      seven: phrases(text, 7),
+    };
+    corpusPhrases.set(text, value);
   }
-  return corpusPhrases.get(text);
+  return value;
 }
 const count = (c: JournalContext, prefix: string) =>
   c.events.filter((e) => e.startsWith(prefix)).length;

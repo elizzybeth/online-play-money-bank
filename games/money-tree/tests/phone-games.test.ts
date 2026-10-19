@@ -72,8 +72,8 @@ test("all six games can reach ten points through real gameplay and pay once", ()
         const queue = [{ ...start, path: [] as number[][] }],
           seen = new Set<string>();
         let path: number[][] | undefined;
-        while (queue.length) {
-          const p = queue.shift()!;
+        for (let head = 0; head < queue.length; head++) {
+          const p = queue[head];
           if (kind === 0 ? p.x === g.food.x && p.y === g.food.y : p.y < 0.1) {
             path = p.path;
             break;
