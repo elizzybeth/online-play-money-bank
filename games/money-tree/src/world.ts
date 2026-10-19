@@ -1,3 +1,4 @@
+import { farmFields } from "./farm-fields";
 import { addShopGardens } from "./shop-gardens";
 import { arrangeHatStack } from "./hat-arrangement";
 import { createFarm } from "./farm-world";
@@ -81,6 +82,7 @@ export function createWorld(scene: T.Scene) {
     z - radius < r.z + r.d / 2;
   // Reserve the walk-in shop interior before scattering outdoor scenery.
   const sceneryExclusions: Rect[] = [
+    ...farmFields,
     { x: 24, z: -29, w: 12, d: 12 },
     { x: 6, z: -30, w: 20, d: 18 },
     { x: -5, z: 10, w: 8, d: 8 },

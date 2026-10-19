@@ -1,3 +1,4 @@
+import { farmFields, forageFarm } from "./farm-fields";
 import { riverDistance } from "./river-land";
 import {
   DAY_SECONDS,
@@ -25,6 +26,7 @@ import { collectMeteorPacket } from "./adventure";
 import { buySoy, soyProducts } from "./soyjak";
 import {
   crops,
+  isFlower,
   seedCount,
   activePlantingSeed,
   selectPlantingSeed,
@@ -2543,7 +2545,15 @@ function bag() {
   ];
   panel(
     "Your bag",
-    `<div class="inventory-grid">${items.map((item) => `<${item.id === "bed" ? 'button type="button"' : "div"} class="inventory-card ${item.available ? "" : "empty"}" data-item="${item.id}" ${item.id === "bed" ? `aria-label="Place a garden bed from your bag" ${item.available ? "" : "disabled"}` : ""}>${inventoryIcon(item.id)}<span>${item.label}</span><b>${item.value}</b>${item.id === "bed" && item.available ? "<small>Click to place</small>" : ""}</${item.id === "bed" ? "button" : "div"}>`).join("")}</div><div class="inventory-grid" aria-label="Flower and vegetable seeds">${crops.map((c) => `<div class="inventory-card ${seedCount(s, c) ? "" : "empty"}"><img src="${seedPortrait(c)}" alt="${c} plant model"><span>${c} seeds</span><b>${seedCount(s, c)}</b><small>${activePlantingSeed(s) === c ? "Selected for planting" : ""}</small></div>`).join("")}</div><div class="hat-bag">${s.hats.map((id) => `<button type="button" data-hat="${id}"><img src="${hatPortrait(id)}" alt=""><span>${hatById(id)!.name}</span><small>${hatPower(id, s.foundCapSeeds)}</small><b>${wearing(s, id) ? "Wearing" : "Equip"}</b></button>`).join("")}</div>`,
+    `<div class="inventory-grid">${items.map((item) => `<${item.id === "bed" ? 'button type="button"' : "div"} class="inventory-card ${item.available ? "" : "empty"}" data-item="${item.id}" ${item.id === "bed" ? `aria-label="Place a garden bed from your bag" ${item.available ? "" : "disabled"}` : ""}>${inventoryIcon(item.id)}<span>${item.label}</span><b>${item.value}</b>${item.id === "bed" && item.available ? "<small>Click to place</small>" : ""}</${item.id === "bed" ? "button" : "div"}>`).join("")}</div><div class="inventory-grid" aria-label="Flower and vegetable seeds">${crops
+      .filter((c) => seedCount(s, c) > 0)
+      .map(
+        (c) =>
+          `<div class="inventory-card ${seedCount(s, c) ? "" : "empty"}"><img src="${seedPortrait(c)}" alt="${c} plant model"><span>${c} seeds</span><b>${seedCount(s, c)}</b><small>${activePlantingSeed(s) === c ? "Selected for planting" : ""}</small></div>`,
+      )
+      .join(
+        "",
+      )}</div><div class="hat-bag">${s.hats.map((id) => `<button type="button" data-hat="${id}"><img src="${hatPortrait(id)}" alt=""><span>${hatById(id)!.name}</span><small>${hatPower(id, s.foundCapSeeds)}</small><b>${wearing(s, id) ? "Wearing" : "Equip"}</b></button>`).join("")}</div>`,
     [
       ...(s.equippedHat
         ? [
@@ -2565,6 +2575,9 @@ function bag() {
             },
           ]
         : []),
+      ...Object.entries(s.farmProduce ?? {})
+        .filter(([, n]) => n > 0)
+        .map(([crop, n]) => ({ label: `${crop}: ${n} harvested`, run: bag })),
       ...ingredients
         .filter((k) => !!s.groceries?.[k])
         .map((k) => ({ label: `${k}: ${s.groceries![k]} in bag`, run: bag })),
@@ -5120,12 +5133,14 @@ function interact(skipTrader = false): void {
       if (harvestCrop(s, i)) {
         save();
         toast(
-          "Fresh vegetables in your bag. Cook with Mom to try a new recipe.",
+          p.crop === "pepper" || p.crop === "tomato"
+            ? "Fresh vegetables in your bag. Cook with Mom to try a new recipe."
+            : `Harvested ${p.crop}. Your farm produce is in your bag.`,
         );
       } else
         panel(
-          "Mom’s irises",
-          "<p>Mom’s favorite flowers. They can stay in bloom here, or you can clear this bed.</p>",
+          p.crop === "iris" ? "Mom’s irises" : `${p.crop} flowers`,
+          "<p>These flowers can stay in bloom here, or you can clear this bed.</p>",
           [
             { label: "Keep the flowers", run: close },
             {
@@ -5194,7 +5209,11 @@ function interact(skipTrader = false): void {
           fertilizerAnimation.z - s.position.z,
         );
         save();
-        toast("A little nourishment. This tree can grow up to $9 overnight.");
+        toast(
+          ids.length > 1
+            ? `Fertilized ${ids.length} trees on this terrace. Each can grow up to $9 overnight.`
+            : "A little nourishment. This tree can grow up to $9 overnight.",
+        );
       } else
         toast(
           p.mountain
@@ -6206,7 +6225,7 @@ function updateUI() {
   const { x, z } = s.position;
   setText(
     $("#location"),
-    x < -44 && z > -65 && z < 0
+    x < -44 && z > -65 && z < 35
       ? "Robertson’s Farm"
       : s.housing?.status === "owned" &&
           Math.abs(x - mansionLot.x) < 16 &&
@@ -6277,14 +6296,16 @@ function updateUI() {
           ? `${plantingBatch(s, +near.id.slice(4)).length > 2 ? "Plant terrace" : plantingBatch(s, +near.id.slice(4)).length === 2 ? "Plant two adjoining beds" : "Plant seeds"} · stand still (${Number(plantingSeconds(s).toFixed(1))}s)`
           : "Plant seeds (need seeds)"
         : p.stage === "ready"
-          ? p.crop === "iris"
-            ? "Admire Mom’s irises"
+          ? p.crop && isFlower(p.crop)
+            ? `Admire ${p.crop === "iris" ? "Mom’s irises" : p.crop}`
             : p.crop
               ? `Pick ${p.crop}s for cooking`
               : "Harvest money tree"
           : p.stage === "growing"
             ? s.fertilizer && !p.fertilized
-              ? "Apply fertilizer"
+              ? p.mountain && wearing(s, "alchemist")
+                ? "Fertilize terrace"
+                : "Apply fertilizer"
               : "Ready tomorrow"
             : s.can
               ? "Water seeds / tree"
@@ -6845,6 +6866,14 @@ function frame(now: number) {
         }
       }
       tick(s, elapsed);
+      if (!isNight(s)) {
+        const found = forageFarm(s, dt, !riding && jumpHeight < 0.3);
+        if (found) {
+          seedChime();
+          toast(`Picked up a bag of 5 ${found} seeds in Robertson’s fields.`);
+          save();
+        }
+      }
       registerTraders(
         s,
         world.speakers.filter((n) => n.object.userData.chad).map((n) => n.id),
@@ -7404,7 +7433,7 @@ function frame(now: number) {
       !begun ||
       !s.awake ||
       s.plots[i].stage !== "ready" ||
-      s.plots[i].crop === "iris"
+      (s.plots[i].crop && isFlower(s.plots[i].crop!))
     ) {
       if (!el.hidden) setHidden(el, true);
       continue;
@@ -8263,6 +8292,13 @@ if (new URLSearchParams(location.search).has("test")) {
       scene.fog = fog;
     },
     farm: () => ({
+      fields: farmFields,
+      cropModels: world.farm.root.children
+        .filter((o) => o.name.startsWith("farm-field-"))
+        .map((o) => ({
+          name: o.name,
+          plants: o.children.filter((p) => p instanceof T.InstancedMesh).length,
+        })),
       cropBounds: world.farm.root.children
         .filter((o) => o.name.startsWith("farm-") || o.name === "carrot-tops")
         .map((o) => {
@@ -8989,6 +9025,8 @@ function tradingConversation(id: string, more = false) {
 }
 
 function seedPortrait(seed: "money" | Crop) {
+  if (!productPortraits.has(`plant-seed-${seed}`))
+    profiling.count("seedPortraitBuilds");
   return shopPortrait(`plant-seed-${seed}`, () => {
     if (seed !== "money") return makeCrop(seed, true);
     const group = new T.Group();
@@ -9101,7 +9139,13 @@ function seedATM() {
 function chooseGardenSeed(i: number) {
   panel(
     "Choose your planting seed",
-    `<p>Choose the seed to use next. Press E at an empty bed to plant it. Flowers stay in bloom; vegetables become cooking ingredients.</p><div class="inventory-grid shop-grid">${seedOffers.map((o) => `<button class="inventory-card shop-card" data-planting-seed="${o.id}" aria-label="Select ${o.id} seeds · ${seedCount(s, o.id)} available" aria-pressed="${activePlantingSeed(s) === o.id}" ${seedCount(s, o.id) ? "" : "disabled"}><img src="${seedPortrait(o.id)}" alt=""><span>${escapeHTML(o.name)}</span><b>${seedCount(s, o.id)} seeds</b></button>`).join("")}</div>`,
+    `<p>Choose the seed to use next. Press E at an empty bed to plant it. Flowers stay in bloom; vegetables become cooking ingredients.</p><div class="inventory-grid shop-grid">${seedOffers
+      .filter((o) => o.id === "money" || seedCount(s, o.id) > 0)
+      .map(
+        (o) =>
+          `<button class="inventory-card shop-card" data-planting-seed="${o.id}" aria-label="Select ${o.id} seeds · ${seedCount(s, o.id)} available" aria-pressed="${activePlantingSeed(s) === o.id}" ${seedCount(s, o.id) ? "" : "disabled"}><img src="${seedPortrait(o.id)}" alt=""><span>${escapeHTML(o.name)}</span><b>${seedCount(s, o.id)} seeds</b></button>`,
+      )
+      .join("")}</div>`,
     [{ label: "Back", run: close }],
   );
   document.querySelectorAll<HTMLButtonElement>("[data-planting-seed]").forEach(

@@ -1,3 +1,4 @@
+import { validFarmForage, type FarmForage } from "./farm-fields";
 import { validNight, morning, type NightState } from "./night";
 import { validMomHomeStory, type MomHomeStory } from "./mom-home-story";
 import { validCrops, type Crop } from "./garden-crops";
@@ -76,6 +77,8 @@ export type Plot = {
 };
 export type State = {
   night?: NightState;
+  farmForage?: FarmForage;
+  farmProduce?: Partial<Record<Crop, number>>;
   cropSeeds?: Partial<Record<Crop, number>>;
   activeSeed?: "money" | Crop;
   version: 1;
@@ -851,6 +854,7 @@ export function decode(raw: string | null): State | null {
           p.yield <= (p.fertilized ? 900 : 700),
       ) ||
       !validCrops(s) ||
+      !validFarmForage(s.farmForage) ||
       !["events", "journal"].every(
         (k) =>
           Array.isArray(s[k]) &&

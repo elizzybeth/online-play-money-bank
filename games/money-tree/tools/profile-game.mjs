@@ -48,8 +48,13 @@ try {
       ["town", 3, -20],
       ["maze", -57, -34.7],
       ["mountain", 34, -370],
+      ["fields", -86, 18],
       ["night", 0, 25],
-    ]) {
+    ].filter(
+      ([name]) =>
+        !process.env.MONEY_TREE_PROFILE_SCENES ||
+        process.env.MONEY_TREE_PROFILE_SCENES.split(",").includes(name),
+    )) {
       await page.evaluate(([x, z]) => window.game.teleport(x, z), [x, z]);
       if (name === "night")
         await page.evaluate(() => {

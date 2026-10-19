@@ -1,12 +1,39 @@
 import { mountainRetailOpen } from "./millionaire";
 import type { State } from "./game";
-export const crops = ["iris", "pepper", "tomato"] as const;
+export const crops = [
+  "iris",
+  "pepper",
+  "tomato",
+  "corn",
+  "carrot",
+  "pumpkin",
+  "cabbage",
+  "sunflower",
+  "beet",
+  "lettuce",
+  "radish",
+  "onion",
+  "eggplant",
+  "strawberry",
+  "lavender",
+  "potato",
+] as const;
+export const isFlower = (crop: Crop) =>
+  ["iris", "sunflower", "lavender"].includes(crop);
 export type Crop = (typeof crops)[number];
 export const seedOffers = [
   { id: "money", name: "Money seeds", count: 5, price: 5000 },
   { id: "iris", name: "Iris seeds · Mom’s favorite", count: 5, price: 1000 },
   { id: "pepper", name: "Pepper seeds", count: 5, price: 1500 },
   { id: "tomato", name: "Tomato seeds", count: 5, price: 1500 },
+  ...crops
+    .filter((c) => !["iris", "pepper", "tomato"].includes(c))
+    .map((id) => ({
+      id,
+      name: `${id[0].toUpperCase() + id.slice(1)} seeds`,
+      count: 5,
+      price: 1500,
+    })),
 ] as const;
 export function buyGardenSeeds(s: State, id: string) {
   const offer = seedOffers.find((o) => o.id === id);
@@ -53,16 +80,29 @@ export function plantCrop(s: State, i: number, crop: Crop) {
 }
 export function harvestCrop(s: State, i: number) {
   const p = s.plots[i];
-  if (!p?.crop || p.crop === "iris" || p.stage !== "ready") return false;
-  s.groceries ??= {};
-  s.groceries[p.crop] = (s.groceries[p.crop] ?? 0) + 3;
+  if (!p?.crop || isFlower(p.crop) || p.stage !== "ready") return false;
+  if (p.crop === "tomato" || p.crop === "pepper") {
+    s.groceries ??= {};
+    s.groceries[p.crop] = (s.groceries[p.crop] ?? 0) + 3;
+  } else {
+    s.farmProduce ??= {};
+    s.farmProduce[p.crop] = (s.farmProduce[p.crop] ?? 0) + 3;
+  }
   p.stage = "harvested";
   p.yield = 0;
-  s.events.push(`Picked three ${p.crop}s for cooking with Mom.`);
+  s.events.push(`Picked three ${p.crop}s from the garden.`);
   return true;
 }
 export function validCrops(s: State) {
   return (
+    (s.farmProduce === undefined ||
+      (!!s.farmProduce &&
+        typeof s.farmProduce === "object" &&
+        !Array.isArray(s.farmProduce) &&
+        Object.entries(s.farmProduce).every(
+          ([k, v]) =>
+            crops.includes(k as Crop) && Number.isSafeInteger(v) && v >= 0,
+        ))) &&
     (s.activeSeed === undefined ||
       s.activeSeed === "money" ||
       crops.includes(s.activeSeed)) &&

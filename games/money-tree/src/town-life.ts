@@ -54,6 +54,27 @@ export function gardenBatch(s: State, i: number, job: GardenJob) {
         : [],
     );
   }
+  if (job === "fertilize" && wearing(s, "alchemist") && s.plots[i].mountain) {
+    const origin = s.plots[i],
+      tier = terrainHeight(origin.x!, origin.z!);
+    return [
+      i,
+      ...s.plots
+        .flatMap((p, j) =>
+          j !== i &&
+          p.mountain &&
+          eligible(j) &&
+          terrainHeight(p.x!, p.z!) === tier
+            ? [j]
+            : [],
+        )
+        .sort(
+          (a, b) =>
+            Math.hypot(s.plots[a].x! - origin.x!, s.plots[a].z! - origin.z!) -
+            Math.hypot(s.plots[b].x! - origin.x!, s.plots[b].z! - origin.z!),
+        ),
+    ].slice(0, s.fertilizer);
+  }
   if (!wearing(s, "inspector") || (job === "fertilize" && s.fertilizer < 2))
     return [i];
   if (s.plots[i].mountain) {

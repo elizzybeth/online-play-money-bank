@@ -1,3 +1,4 @@
+import { seedOffers } from "../../src/garden-crops";
 import { unlockSigma } from "../../src/sigma";
 import { test, expect } from "@playwright/test";
 import { fresh, decode } from "../../src/game";
@@ -93,7 +94,9 @@ test("seed ATM and garden bed inspection display actual model previews; irises h
   await expect(
     page.getByRole("heading", { name: "Mountain Seed ATM" }),
   ).toBeVisible();
-  await expect(page.locator("[data-seed-offer] img")).toHaveCount(4);
+  await expect(page.locator("[data-seed-offer] img")).toHaveCount(
+    seedOffers.length,
+  );
   await page
     .getByRole("button", { name: "Tomato seeds · 5 for $15.00", exact: true })
     .click();

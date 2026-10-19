@@ -78,6 +78,16 @@ export const riverBridges: readonly {
   { id: "village", x: 3, z: -8.6, w: 8, d: 6, axis: "z" },
   { id: "grove", x: 46, z: -98, w: 8, d: 18, axis: "z" },
 ] as const;
+/** The Sigma landing meets the 5.4m corridor flush; other landings flare. */
+export function bridgeApproachHalfWidth(
+  b: (typeof riverBridges)[number],
+  side: number,
+  t = 1,
+) {
+  const half = b.w / 2,
+    end = b.id === "grove" && side === 1 ? 2.7 : half + 2;
+  return half + (end - half) * Math.max(0, Math.min(1, t));
+}
 export function riverDistance(x: number, z: number) {
   if (x < -140 || x > 59 || z < -152 || z > 1) return Infinity;
   let best = Infinity;
@@ -179,7 +189,7 @@ export function riverBoundaryGaps<
 }
 export const groveApproachPaths = [
   { x: 42, z: -61, w: 10, d: 6 },
-  { x: 46, z: -98, w: 4, d: 76 },
+  { x: 46, z: -98, w: 5.4, d: 76 },
 ];
 
 /** Decks are flat; wide, 1:20 ramps join level turning landings to the lawn. */
@@ -191,7 +201,10 @@ export function bridgeHeight(x: number, z: number): number | undefined {
     const width = (b.axis === "z" ? b.w : b.d) / 2;
     if (along <= half && across <= width) return 0.14;
     const t = (along - half) / 2.8;
-    if (t >= 0 && t <= 1 && across <= width + t * 2) return 0.14 * (1 - t);
-    if (t > 1 && t <= 1 + 2 / 2.8 && across <= width + 2) return 0;
+    const side = (b.axis === "z" ? z - b.z : x - b.x) >= 0 ? 1 : -1;
+    if (t >= 0 && t <= 1 && across <= bridgeApproachHalfWidth(b, side, t))
+      return 0.14 * (1 - t);
+    if (t > 1 && t <= 1 + 2 / 2.8 && across <= bridgeApproachHalfWidth(b, side))
+      return 0;
   }
 }

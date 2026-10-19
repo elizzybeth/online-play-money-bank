@@ -130,7 +130,7 @@ export const hats = [
     price: 30000,
     color: "#8a69b0",
     power:
-      "Walk straight up Mt. Millionaire’s terraces. A brass saxophone for giant steps.",
+      "Walk straight up Mt. Millionaire’s terraces and fertilize a whole terrace in one action. Uses one dose per tree; feeds as many as your doses cover.",
   },
   {
     id: "dew",
