@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { farmFields } from "../../src/farm-fields";
 import { fresh } from "../../src/game";
 
 test("distinct neighborhood gardens and wildlife visit existing birdhouses", async ({
@@ -23,7 +24,15 @@ test("distinct neighborhood gardens and wildlife visit existing birdhouses", asy
   const trees = await page.evaluate(() =>
     (window as any).game.scenery.filter((o: any) => o.kind === "tree"),
   );
-  expect(trees.length).toBeGreaterThan(35);
+  // The south fields replace part of the old woodland; keep a substantial tree population.
+  expect(trees.length).toBeGreaterThan(30);
+  expect(
+    trees.filter((t: any) =>
+      farmFields.some(
+        (f) => Math.abs(t.x - f.x) < f.w / 2 && Math.abs(t.z - f.z) < f.d / 2,
+      ),
+    ),
+  ).toEqual([]);
   expect(new Set(trees.map((t: any) => t.variety)).size).toBe(4);
   const types = before.gardens.flatMap((g: any) => g.types);
   for (const type of [

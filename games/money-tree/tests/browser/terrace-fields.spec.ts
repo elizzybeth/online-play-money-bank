@@ -63,6 +63,7 @@ test("south fields have distinct rendered crops and walking finds that crop’s 
     metMom: true,
     position: { x: field.x - 9, z: field.z },
   });
+  applyDebugAction(s, "level2");
   await open(page, s);
   const data = await page.evaluate(() => (window as any).game.farm());
   expect(new Set(data.fields.map((f: any) => f.crop)).size).toBe(
