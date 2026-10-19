@@ -2213,3 +2213,43 @@ body:has(#intro:not([hidden])) :is(#top-right-hud, #stats) {
   src: url("./fonts/GlassAntiqua.ttf") format("truetype");
   font-display: swap;
 }
+
+#night-hud {
+  position: fixed;
+  left: 1rem;
+  top: 9rem;
+  z-index: 12;
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.65rem 0.9rem;
+  color: #fff9dc;
+  background: #173c39e8;
+  border: 1px solid #a4dfc3;
+  border-radius: 1rem;
+  pointer-events: none;
+}
+#night-hud[hidden],
+#night-help[hidden] {
+  display: none;
+}
+#night-hud[data-hurt="true"] {
+  border-color: #ff867f;
+  background: #653539ed;
+}
+#night-health {
+  font-weight: bold;
+}
+#night-help {
+  position: fixed;
+  bottom: 5.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 12;
+  max-width: 80vw;
+  width: max-content;
+  padding: 0.6rem 1rem;
+  background: #173c39e8;
+  color: #e5fff2;
+  border-radius: 1rem;
+  pointer-events: none;
+}
