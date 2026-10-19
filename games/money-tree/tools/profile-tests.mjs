@@ -21,7 +21,7 @@ const result = spawnSync(
     "--test-isolation=none",
     "tests/*.test.ts",
   ],
-  { encoding: "utf8", env: process.env },
+  { encoding: "utf8", env: process.env, timeout: 60000, killSignal: "SIGKILL" },
 );
 writeFileSync(path.join(output, "unit.log"), result.stdout + result.stderr);
 const report = {

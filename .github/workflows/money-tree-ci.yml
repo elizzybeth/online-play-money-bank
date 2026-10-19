@@ -2,14 +2,26 @@ name: Money Tree checks
 on:
   pull_request:
     paths: ['games/money-tree/**', 'money-tree/**', '.github/workflows/money-tree-ci.yml']
-  push:
-    branches: [main]
-    paths: ['games/money-tree/**', 'money-tree/**', '.github/workflows/money-tree-ci.yml']
+  workflow_dispatch:
+    inputs:
+      full_review:
+        description: Run the slow browser regression archive
+        type: boolean
+        default: false
+      browser:
+        description: Engine for the optional full review
+        type: choice
+        options: [chromium, firefox, webkit, all]
+        default: chromium
 permissions:
   contents: read
+concurrency:
+  group: money-tree-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
   core:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     defaults:
       run:
         working-directory: games/money-tree
@@ -28,12 +40,53 @@ jobs:
       - run: pnpm build
       - name: Verify checked-in Pages artifact
         run: diff -r dist ../../money-tree
-  verify:
-    needs: core
+  browser-smoke:
+    # Independent of core: test the checked-in artifact while core verifies it.
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    defaults:
+      run:
+        working-directory: games/money-tree
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: games/money-tree/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: Use the runner's installed Chrome
+        run: |
+          if command -v google-chrome >/dev/null; then
+            echo "MONEY_TREE_CHROMIUM_EXECUTABLE=$(command -v google-chrome)" >> "$GITHUB_ENV"
+            google-chrome --version
+          else
+            pnpm exec playwright install --with-deps chromium
+          fi
+      - run: pnpm test:smoke
+        env:
+          MONEY_TREE_BUILD_DIR: ../../money-tree
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: money-tree-smoke-timings
+          path: games/money-tree/test-results/browser-timings.json
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: money-tree-smoke-failure
+          path: games/money-tree/test-results
+  browser-review:
+    if: github.event_name == 'workflow_dispatch' && inputs.full_review
+    needs: [core, browser-smoke]
     strategy:
       fail-fast: false
       matrix:
-        browser: [chromium, firefox, webkit]
+        browser: ${{ fromJSON(inputs.browser == 'all' && '["chromium","firefox","webkit"]' || format('["{0}"]', inputs.browser)) }}
         shard: [1, 2, 3, 4, 5, 6]
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -60,11 +113,11 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: money-tree-timings-${{ matrix.browser }}-${{ matrix.shard }}
+          name: money-tree-review-${{ matrix.browser }}-${{ matrix.shard }}
           path: games/money-tree/test-results/browser-timings.json
           if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: money-tree-browser-failures-${{ matrix.browser }}-${{ matrix.shard }}
+          name: money-tree-review-failures-${{ matrix.browser }}-${{ matrix.shard }}
           path: games/money-tree/test-results
