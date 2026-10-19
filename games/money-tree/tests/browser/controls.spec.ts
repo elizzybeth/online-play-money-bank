@@ -168,11 +168,15 @@ test("title-screen new game preserves saves until explicit confirmation", async 
   // preserve that loaded snapshot, including its clock, exactly.
   expect(saved).toEqual({
     ...beforeReload,
+    night: { ...beforeReload.night, elapsed: saved.night.elapsed },
     adventure: {
       ...beforeReload.adventure,
       awakeSeconds: saved.adventure.awakeSeconds,
     },
   });
+  expect(saved.night.elapsed).toBeGreaterThanOrEqual(
+    beforeReload.night.elapsed,
+  );
   expect(saved.adventure.awakeSeconds).toBeGreaterThanOrEqual(
     beforeReload.adventure.awakeSeconds,
   );

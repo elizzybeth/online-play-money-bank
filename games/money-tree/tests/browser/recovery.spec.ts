@@ -84,11 +84,14 @@ test("unstuck returns home without resetting resources, journal, day or crops; c
   await page.keyboard.press("e");
   await expect(page.locator("#prompt")).toContainText("Planting");
   await page.keyboard.press("Escape");
+  const beforeUnstuck = await state(page);
   await page.getByRole("button", { name: "I'm stuck. Return home" }).click();
   await expect(page.locator("#modal")).toBeHidden();
   await expect.poll(async () => (await state(page)).metMom).toBe(true);
   const after = await state(page);
-  const { adventure: elapsed, ...preserved } = after;
+  const { adventure: elapsed, night: cycle, ...preserved } = after;
+  expect(cycle.hp).toBe(beforeUnstuck.night.hp);
+  expect(cycle.elapsed).toBeGreaterThanOrEqual(beforeUnstuck.night.elapsed);
   expect(elapsed?.awakeSeconds ?? 0).toBeGreaterThanOrEqual(0);
   expect(preserved).toEqual({
     ...s,
@@ -105,7 +108,13 @@ test("unstuck returns home without resetting resources, journal, day or crops; c
   await page.reload();
   await page.getByRole("button", { name: "Wake up" }).click();
   const restored = await state(page);
-  const { adventure: restoredClock, ...restoredState } = restored;
+  const {
+    adventure: restoredClock,
+    night: restoredCycle,
+    ...restoredState
+  } = restored;
+  expect(restoredCycle.hp).toBe(cycle.hp);
+  expect(restoredCycle.elapsed).toBeGreaterThanOrEqual(cycle.elapsed);
   expect(restoredClock?.awakeSeconds ?? 0).toBeGreaterThanOrEqual(
     elapsed?.awakeSeconds ?? 0,
   );
