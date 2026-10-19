@@ -26,14 +26,14 @@ export function newsReports(s: State): NewsReport[] {
         day: memory.day,
         headline: "Pepe grows and grows",
         report:
-          "An unusual inflation demonstration has begun in Sigma Town. The giant green Pepe head is swelling like a balloon. The presenter has asked whether inflation is a good thing. We are still waiting for a clear answer.",
+          "An unusual inflation demonstration has begun in Sigma Town. The giant green Pepe head is swelling like a balloon while the presenter asks whether inflation is a good thing.",
       });
     if (/giant Pepe balloon popped/.test(events))
       reports.push({
         day: memory.day,
         headline: "Green scraps across Sigma",
         report:
-          "The enormous Pepe balloon has burst. Green rubber scraps and twenty-five packets of money seeds have landed around Sigma Town. Nobody has reported an injury. Gardeners are picking up the packets.",
+          "The enormous Pepe balloon has burst. Gardeners are gathering green rubber scraps and twenty-five packets of money seeds from around Sigma Town; nobody has reported an injury.",
       });
     if (/gap opened behind Sigma Town/.test(events))
       reports.push({
@@ -47,14 +47,14 @@ export function newsReports(s: State): NewsReport[] {
         day: memory.day,
         headline: "A building boom at Mt. Millionaire",
         report:
-          "Lavish new mansions are rising below the white terraces of Mt. Millionaire. Former terrace residents have moved into the estates, where fancy cars and yachts are beginning to appear.",
+          "Lavish new mansions are rising below the white terraces of Mount Millionaire. Former terrace residents have moved into the estates, where fancy cars and yachts are beginning to appear.",
       });
     if (/Picked paint colors for two birdhouses/.test(events))
       reports.push({
         day: memory.day,
         headline: "New homes for local birds",
         report:
-          "Two newly painted birdhouses have been hung in the neighborhood trees. A mother and her child chose the colors and put them up together. We wish their first feathered tenants a happy move-in.",
+          "Two newly painted birdhouses have been hung in the neighborhood trees. A mother and her child chose the colors together, and local birds are inspecting the new accommodation.",
       });
   }
   return reports.length
@@ -62,9 +62,23 @@ export function newsReports(s: State): NewsReport[] {
     : [
         {
           day: s.day,
-          headline: "A quiet day in town",
-          report:
-            "No new major events to report this morning. Neighbors are tending their gardens, the shops are open, and birds have been spotted around the trees. We will bring you more local news as it happens.",
+          ...[
+            {
+              headline: "Gardening takes root",
+              report:
+                "The neighborhood gardening craze continues, with residents comparing seedlings and making room for more flowerbeds. Our garden desk is following developments from the potting shed.",
+            },
+            {
+              headline: "Birdwatchers look up",
+              report:
+                "Birdwatchers are keeping an eye on the trees around town as familiar birds make their morning rounds. Residents are invited to watch quietly and leave the branches undisturbed.",
+            },
+            {
+              headline: "The lane in bloom",
+              report:
+                "Flowers along the shopping lane are drawing admiring looks from passersby. Shopkeepers say the beds have become a favorite stop on the walk into town.",
+            },
+          ][s.day % 3],
         },
       ];
 }

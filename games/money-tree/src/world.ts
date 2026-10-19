@@ -1,3 +1,4 @@
+import { seatForTea, createTeaDrinking } from "./tea-pose";
 import { farmFields } from "./farm-fields";
 import { addShopGardens } from "./shop-gardens";
 import { arrangeHatStack } from "./hat-arrangement";
@@ -1409,18 +1410,21 @@ export function createWorld(scene: T.Scene) {
     rects.push({ x, z, w: 0.4, d: 0.4 });
   }
   function house(x: number, z: number, c: string, name: string) {
+    const frontWalls: T.Mesh[] = [];
     if (name === "THE WILLOWS") {
       box(x - 3.5, 1.6, z, 0.2, 3.2, 6, c, true);
       box(x + 3.5, 1.6, z, 0.2, 3.2, 6, c, true);
       box(x, 1.6, z - 3, 7, 3.2, 0.2, c, true);
       for (const side of [-1, 1])
-        box(x + side * 2.25, 1.6, z + 3, 2.5, 3.2, 0.2, c, true);
+        frontWalls.push(
+          box(x + side * 2.25, 1.6, z + 3, 2.5, 3.2, 0.2, c, true),
+        );
       box(x, 2.95, z + 3, 2, 0.5, 0.2, c);
     } else {
       box(x - 3.5, 1.6, z, 0.2, 3.2, 6, c, true);
       box(x + 3.5, 1.6, z, 0.2, 3.2, 6, c, true);
       box(x, 1.6, z - 3, 7, 3.2, 0.2, c, true);
-      box(x, 1.6, z + 3, 7, 3.2, 0.2, c, true);
+      frontWalls.push(box(x, 1.6, z + 3, 7, 3.2, 0.2, c, true));
       box(x, 0.025, z, 7, 0.05, 6, "#c3ad8e");
     }
     const roof = new T.Mesh(
@@ -1430,15 +1434,38 @@ export function createWorld(scene: T.Scene) {
     roof.position.set(x, 4, z);
     roof.rotation.y = Math.PI / 4;
     scene.add(roof);
+    roof.name =
+      name === "MAPLE HOUSE"
+        ? "mabel-house-roof"
+        : `${name.toLowerCase().replaceAll(" ", "-")}-roof`;
     roof.userData.roof = true;
+    roof.userData.cameraWall = true;
     if (name === "THE WILLOWS") {
       roof.name = "bea-house-roof";
       (roof.material as T.MeshStandardMaterial).transparent = true;
     }
     (roof.material as T.MeshStandardMaterial).side = T.DoubleSide;
     occluders.push(roof);
-    if (name !== "THE WILLOWS") box(x, 1, z + 3.03, 1.2, 2, 0.12, "#8b6e53");
-    for (const a of [-2, 2]) box(x + a, 1.8, z + 3.1, 1.2, 1.2, 0.1, "#bce0d9");
+    // Window panes and trim belong to their cutaway wall, never float alone.
+    for (const wall of frontWalls) {
+      const xs =
+        name === "THE WILLOWS"
+          ? [x + Math.sign(wall.position.x - x) * 2 - wall.position.x]
+          : [-2, 2];
+      fitWindow(
+        wall,
+        true,
+        name === "THE WILLOWS" ? 2.5 : 7,
+        3.2,
+        0.2,
+        xs.map((offset) => ({ x: offset, y: 0.2, width: 1.2, height: 1.2 })),
+      );
+      wall.userData.windowsFitted = true;
+    }
+    if (name !== "THE WILLOWS") {
+      const door = box(x, 1, z + 3.03, 1.2, 2, 0.12, "#8b6e53");
+      frontWalls[0].attach(door);
+    }
     if (name === "SPOKE & SADDLE") label(name, x, 3.1, z + 3.16, 3.7);
     doorways.push({ x, z: z + 4.5, w: 2.4, d: 4 });
     for (const a of [-2.7, -1.8, 1.8, 2.7]) {
@@ -1484,13 +1511,20 @@ export function createWorld(scene: T.Scene) {
   const bea = speakers.find((n) => n.id === "npc1")!.object;
   const beaCollider = rects.find((r) => r.x === 10 && r.z === 20)!;
   const beaRoom = makeBeaRoom(scene);
+  const beaSip = createTeaDrinking(bea, beaRoom.cups[0]);
+  const playerSip = createTeaDrinking(player, beaRoom.cups[1]);
+  function updateTea(dt: number, seated: boolean, reduced: boolean) {
+    beaSip(dt, beaInside, reduced);
+    playerSip(dt, seated, reduced);
+  }
   rects.push(beaRoom.tableRect);
   target("bea-chair", 12, 16.9, "Sit down for tea with Bea");
   let beaInside = false;
   function setBeaInside(inside: boolean) {
     if (inside === beaInside) return;
     beaInside = inside;
-    bea.position.set(inside ? 10.25 : 10, inside ? 0.6 : 0, inside ? 15.2 : 20);
+    bea.position.set(inside ? 10.25 : 10, 0, inside ? 15.2 : 20);
+    seatForTea(bea, inside);
     bea.rotation.y = inside ? Math.PI / 2 : 0;
     beaCollider.x = bea.position.x;
     beaCollider.z = bea.position.z;
@@ -1672,6 +1706,7 @@ export function createWorld(scene: T.Scene) {
   const homeDecor = decorateHome(scene, rects);
   target("couch", -17.2, 11.1, "Sit on the couch");
   function setPlayerSeated(seated: boolean) {
+    if (player.getObjectByName("tea-legs")) seatForTea(player, false);
     player.rotation.y = seated ? Math.PI / 2 : player.rotation.y;
     player.position.y = seated ? 0.69 : 0;
     for (const foot of player.children.filter((o) => o.name === "foot")) {
@@ -2748,7 +2783,12 @@ export function createWorld(scene: T.Scene) {
   target("forest-seeds", 29, -35, "Search the seed packet");
 
   for (const object of scene.children.slice()) {
-    if (!(object instanceof T.Mesh) || !object.userData.boxDimensions) continue;
+    if (
+      !(object instanceof T.Mesh) ||
+      !object.userData.boxDimensions ||
+      object.userData.windowsFitted
+    )
+      continue;
     const { w, h, d } = object.userData.boxDimensions;
     if (
       h < 2.8 ||
@@ -2854,6 +2894,7 @@ export function createWorld(scene: T.Scene) {
     beaCollider,
     beaRoom,
     setBeaInside,
+    updateTea,
     rackHats,
     setRackHats,
     rects,

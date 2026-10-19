@@ -19,7 +19,7 @@ test("news covers actual recent events and retires old headlines", () => {
   s.events = [];
   s.day = 11;
   assert.equal(newsReports(s).length, 1);
-  assert.equal(newsReports(s)[0].headline, "A quiet day in town");
+  assert.doesNotMatch(newsReports(s)[0].headline, /quiet/i);
   s.tvChannel = "news";
   assert.equal(decode(JSON.stringify(s))!.tvChannel, "news");
 });
@@ -70,8 +70,35 @@ test("news feed reuses unchanged reports and refreshes on events, rollover and s
   s.events = [];
   assert.equal(feed.read(s)[0].headline, "New homes for local birds");
   s.day = 11;
-  assert.equal(feed.read(s)[0].headline, "A quiet day in town");
+  assert.doesNotMatch(feed.read(s)[0].headline, /quiet/i);
   const restored = structuredClone(s);
   restored.events = ["Found five money seeds behind the TV at home."];
   assert.equal(feed.read(restored)[0].headline, "A path to Sigma Town");
+});
+
+test("news stays brief and makes local-interest stories on uneventful days", () => {
+  const s = fresh();
+  const headlines = new Set<string>();
+  for (let day = 4; day < 10; day++) {
+    s.day = day;
+    for (const n of newsReports(s)) {
+      headlines.add(n.headline);
+      assert.doesNotMatch(
+        n.report,
+        /quiet day|no (?:new )?(?:major )?events|nothing.*report/i,
+      );
+      assert.equal(n.report.match(/[.!?](?: |$)/g)?.length, 2);
+    }
+  }
+  assert.equal(headlines.size, 3);
+  s.events = [
+    "Found five money seeds behind the TV",
+    "enormous Pepe balloon",
+    "giant Pepe balloon popped",
+    "gap opened behind Sigma Town",
+    "left the terraces to build lavish mansions",
+    "Picked paint colors for two birdhouses",
+  ];
+  for (const n of newsReports(s))
+    assert((n.report.match(/[.!?](?: |$)/g)?.length ?? 0) <= 2);
 });

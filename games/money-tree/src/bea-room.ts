@@ -88,12 +88,14 @@ export function makeBeaRoom(scene: T.Scene) {
   cloth.rotation.x = -Math.PI / 2;
   cloth.position.set(12, 1.318, 15.2);
   room.add(cloth);
+  const cups: T.Group[] = [];
   function porcelain(x: number, z: number, size = 1) {
     const g = new T.Group();
     g.name = "floral-teacup";
     g.position.set(x, 1.34, z);
     g.scale.setScalar(size);
     room.add(g);
+    cups.push(g);
     const cup = new T.Mesh(
       new T.LatheGeometry(
         [
@@ -113,8 +115,9 @@ export function makeBeaRoom(scene: T.Scene) {
       new T.CylinderGeometry(0.23, 0.2, 0.025, 24),
       material("#eddfca"),
     );
-    saucer.position.y = -0.01;
-    g.add(saucer);
+    saucer.position.set(x, 1.33, z);
+    saucer.scale.setScalar(size);
+    room.add(saucer);
     const tea = new T.Mesh(new T.CircleGeometry(0.13, 20), material("#8c4c24"));
     tea.rotation.x = -Math.PI / 2;
     tea.position.y = 0.18;
@@ -224,6 +227,7 @@ export function makeBeaRoom(scene: T.Scene) {
   box(11, 1.9, 12.21, 0.75, 0.95, 0.03, "#e2d6bb");
   return {
     room,
+    cups,
     tableRect: { x: 12, z: 15.2, w: 2.2, d: 2.2, clearHeight: 1.4 },
   };
 }
