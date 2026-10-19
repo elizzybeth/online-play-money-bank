@@ -9,34 +9,49 @@ const crease = new T.MeshStandardMaterial({
 });
 const jewel = new T.MeshStandardMaterial({
   vertexColors: true,
-  roughness: 0.17,
+  roughness: 0.08,
   metalness: 0.12,
 });
 const handGeometry = new Map<number, T.BufferGeometry>();
 const gemGeometry = new T.BufferGeometry();
 const vertices: number[] = [],
   colors: number[] = [];
-const corners = [
-  [-0.14, 0.13, 0.09],
-  [-0.08, 0.23, 0.09],
-  [0.08, 0.23, 0.09],
-  [0.14, 0.13, 0.09],
-  [0, -0.12, 0.13],
-  [0, 0.13, 0.23],
+// A brilliant-cut solid: octagonal table, crown, thin girdle and pointed pavilion.
+const facets = [
+  "#f2fcff",
+  "#bdeaff",
+  "#72c9ee",
+  "#ddf8ff",
+  "#91dcf5",
+  "#e8fbff",
+  "#66b9e2",
+  "#c4efff",
 ];
-for (const [indices, color] of [
-  [[0, 1, 5], "#bce5fa"],
-  [[1, 2, 5], "#87cfee"],
-  [[2, 3, 5], "#50ace0"],
-  [[0, 5, 4], "#72c4ed"],
-  [[5, 3, 4], "#3d96ce"],
-  [[0, 4, 3], "#5cb2dd"],
-] as const) {
-  const c = new T.Color(color);
-  for (const i of indices) {
-    vertices.push(...corners[i]);
+function face(points: number[][], shade: string) {
+  const c = new T.Color(shade);
+  for (const p of points) {
+    vertices.push(...p);
     colors.push(c.r, c.g, c.b);
   }
+}
+const ring = (i: number, r: number, y: number) => {
+  const a = (i * Math.PI) / 4 + Math.PI / 8;
+  return [Math.cos(a) * r, y, 0.15 + Math.sin(a) * r];
+};
+for (let i = 0; i < 8; i++) {
+  const j = (i + 1) % 8;
+  const top = ring(i, 0.09, 0.25),
+    nextTop = ring(j, 0.09, 0.25);
+  const edge = ring(i, 0.18, 0.13),
+    nextEdge = ring(j, 0.18, 0.13);
+  const low = ring(i, 0.18, 0.11),
+    nextLow = ring(j, 0.18, 0.11);
+  face([[0, 0.25, 0.15], nextTop, top], "#effbff");
+  face([top, nextTop, nextEdge], facets[i]);
+  face([top, nextEdge, edge], facets[(i + 3) % 8]);
+  face([edge, nextEdge, nextLow], "#dff9ff");
+  face([edge, nextLow, low], "#c0e9ff");
+  face([low, nextLow, [0, -0.17, 0.15]], facets[(i + 2) % 8]);
 }
 gemGeometry.setAttribute("position", new T.Float32BufferAttribute(vertices, 3));
 gemGeometry.setAttribute("color", new T.Float32BufferAttribute(colors, 3));

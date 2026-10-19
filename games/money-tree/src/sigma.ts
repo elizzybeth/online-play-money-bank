@@ -592,3 +592,13 @@ export function validCoin(c: unknown): c is Coin {
     x.history.every((n) => Number.isInteger(n) && n >= 1 && n <= 100000)
   );
 }
+
+/** A donation is welcome, but inability to pay never blocks the seed discovery. */
+export function completeMeditation(s: State): number | undefined {
+  if (s.foundMeditationSeeds) return;
+  const fee = s.cash >= 300 ? 300 : 0;
+  s.cash -= fee;
+  s.seeds += 5;
+  s.foundMeditationSeeds = true;
+  return fee;
+}

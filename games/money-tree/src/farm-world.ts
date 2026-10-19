@@ -168,7 +168,29 @@ export function createFarm(scene: T.Scene, rects: Rect[], targets: Target[]) {
     2.1,
   );
   entry.name = "corn-maze-entrance-sign";
-  sign("EXIT ONLY →", mazeExit.x + 1.7, 1.4, mazeExit.z - 1.4, 2.6, 0.65);
+  // This post is east of the opening: point left toward the exit gate.
+  const exitSign = sign(
+    "← EXIT ONLY",
+    mazeExit.x + 1.7,
+    1.4,
+    mazeExit.z - 1.4,
+    2.6,
+    0.65,
+  );
+  (exitSign.material as T.Material).side = T.FrontSide;
+  const exitBack = sign(
+    "EXIT ONLY →",
+    mazeExit.x + 1.7,
+    1.4,
+    mazeExit.z - 1.406,
+    2.6,
+    0.65,
+  );
+  exitBack.rotation.y = Math.PI;
+  (exitBack.material as T.Material).side = T.FrontSide;
+  exitBack.name = "corn-maze-exit-sign-back";
+  exitSign.name = "corn-maze-exit-sign";
+  exitSign.userData.pointsTo = { ...mazeExit };
   box(mazeExit.x, 0.75, mazeExit.z - 3.05, 0.15, 1.5, 0.15, "#92734c");
   const gate = new T.Group();
   gate.position.set(mazeExit.x, 1, mazeExit.z - 3.05);

@@ -60,14 +60,25 @@ export function decorateHome(scene: T.Scene, rects: Rect[]) {
     "#ee9b9f",
   ];
   function bookcase(x: number, z: number, width: number) {
-    box(x, 1.25, z, width, 2.5, 0.42, "#12717b");
+    // An open frame rather than a solid cabinet intersecting every book.
+    box(x, 1.25, z - 0.18, width, 2.5, 0.06, "#12717b");
+    for (const side of [-1, 1])
+      box(
+        x + side * (width / 2 - 0.035),
+        1.25,
+        z + 0.07,
+        0.07,
+        2.5,
+        0.56,
+        "#12717b",
+      );
     for (let row = 0; row < 4; row++) {
       const y = 0.19 + row * 0.57;
       box(x, y, z + 0.24, width, 0.06, 0.52, "#edbd62");
       for (let j = 0; j < Math.floor(width / 0.13) - 1; j++) {
         const bx = x - width / 2 + 0.14 + j * 0.13,
           h = 0.3 + ((j * 7 + row * 3) % 5) * 0.04;
-        const spine = box(
+        box(
           bx,
           y + h / 2 + 0.04,
           z + 0.275,
@@ -76,9 +87,8 @@ export function decorateHome(scene: T.Scene, rects: Rect[]) {
           0.24,
           colors[(j + row * 3) % 6],
         );
-        spine.rotation.z = j % 7 === 0 ? 0.09 : 0;
         for (const line of [0.09, h - 0.06])
-          box(bx, y + line, z + 0.402, 0.07, 0.014, 0.01, "#f9e2a7");
+          box(bx, y + line, z + 0.416, 0.07, 0.014, 0.008, "#f9e2a7");
       }
     }
     box(x, 2.55, z, width + 0.08, 0.1, 0.5, "#12717b");

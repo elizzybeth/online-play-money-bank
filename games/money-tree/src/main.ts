@@ -1,3 +1,6 @@
+import { completeMeditation } from "./sigma";
+import { TEA_SEAT_HEIGHT, seatForTea } from "./tea-pose";
+import { nightDialogue, hasAlternateChadTopic } from "./night-dialogue";
 import { farmFields, forageFarm } from "./farm-fields";
 import { riverDistance } from "./river-land";
 import {
@@ -494,7 +497,7 @@ const nightHelp = document.createElement("aside");
 nightHelp.id = "night-help";
 nightHelp.hidden = true;
 nightHelp.textContent =
-  "V or click · Throw $1 (1 damage) · Run indoors for safety · Interactions resume at dawn";
+  "V or click · Throw $1 (1 damage) · Run indoors for safety · Talk, rest and edit furniture indoors";
 document.body.append(nightHud, nightHelp);
 const nightPhase = nightHud.querySelector("#night-phase")!,
   nightHealth = nightHud.querySelector("#night-health")!,
@@ -517,7 +520,14 @@ function nightBlocked(x: number, z: number) {
   );
 }
 function throwNightBill() {
-  if (!begun || paused || !s.awake || !isNight(s)) return;
+  if (
+    !begun ||
+    paused ||
+    !s.awake ||
+    !isNight(s) ||
+    nightShelterAt(s.position.x, s.position.z)
+  )
+    return;
   const direction = viewForward();
   if (nightCombat.throwBill(s, direction.x, direction.z)) {
     save();
@@ -558,7 +568,7 @@ function updateNight(dt: number, clockActive: boolean) {
     placingBed = false;
     bedGhost.visible = false;
     dismissSpeech();
-    if (sitting) standUp();
+    if (sitting && !shelter) standUp();
     world.life.cancelInteractions();
     toast(
       "Nightfall. Wallets and cash cows roam outside. V or click throws a $1 bill; interiors are safe.",
@@ -1635,8 +1645,9 @@ function beaTea(step = s.familyStory?.teaStep ?? 0) {
     teaSeated = sitting = true;
     sittingWithStacy = false;
     s.position = { x: 12, z: 16.9 };
-    world.player.rotation.y = Math.PI;
     world.setPlayerSeated(true);
+    seatForTea(world.player, true);
+    world.player.rotation.y = Math.PI;
     positionStoryMom(12, 13.6, true);
     world.mom.rotation.y = 0;
   }
@@ -1851,13 +1862,15 @@ function dismissSpeech() {
   speaking = undefined;
 }
 function speak(id: string, text: string, choices: Choice[] = []) {
-  if (isNight(s) && s.awake) return;
+  if (isNight(s) && s.awake && !nightShelterAt(s.position.x, s.position.z))
+    return;
   choices = choices.map((c) => ({
     ...c,
     label: c.label.replaceAll("—", ". "),
   }));
   if (
     id === "mom" &&
+    !isNight(s) &&
     !momHomeDialogue &&
     !momAway(s) &&
     atHome() &&
@@ -2849,8 +2862,8 @@ function closeFurnitureEditor() {
   keys.clear();
 }
 function openFurnitureEditor() {
-  if (isNight(s)) {
-    toast("Furniture editing is available in daylight.");
+  if (isNight(s) && !nightShelterAt(s.position.x, s.position.z)) {
+    toast("Go indoors to arrange furniture safely at night.");
     return;
   }
   if (
@@ -4585,10 +4598,6 @@ function offerMeditation() {
       label: "Sit down",
       run: () => {
         dismissSpeech();
-        if (s.cash < 300) {
-          toast("Chad whispers that you need $3 in your pocket to join.");
-          return;
-        }
         sitting = true;
         world.setPlayerSeated(true);
         s.position = { x: -18, z: -47 };
@@ -4604,17 +4613,15 @@ function finishMeditation() {
   world.setPlayerSeated(false);
   s.position = { x: -18, z: -45.7 };
   world.sigma.handSeeds("doge-meditator-0", s.position.x, s.position.z);
-  if (s.foundMeditationSeeds) return;
-  s.cash -= 300;
-  s.seeds += 5;
-  s.foundMeditationSeeds = true;
+  const meditationFee = completeMeditation(s);
+  if (meditationFee === undefined) return;
   visit(
-    "Joined the Chads for thirty seconds of meditation in Doge. They charged $3.00 afterward and gave me five money seeds.",
+    `Joined the Chads for thirty seconds of meditation in Doge. They accepted $${(meditationFee / 100).toFixed(2)} and gave me five money seeds.`,
   );
   save();
   speak(
     "doge-meditator-0",
-    "<p>That’s $3 for the meditation. You did a great job. I found this crazy new drug. You’ve got to try it.</p>",
+    `<p>${meditationFee === 300 ? "That’s $3 for the meditation." : "Don’t worry about the fee. Everyone is welcome."} You did a great job. I found this crazy new drug. You’ve got to try it.</p>`,
     [
       {
         label: "Have you really been snorting this shit?",
@@ -4664,8 +4671,10 @@ function wackyConversation() {
   ]);
 }
 function interact(skipTrader = false): void {
-  if (isNight(s) && s.awake) {
-    toast("Interactions resume at dawn. V or click throws a $1 bill.");
+  if (isNight(s) && s.awake && !nightShelterAt(s.position.x, s.position.z)) {
+    toast(
+      "Go indoors to talk, rest or arrange furniture. V or click throws a $1 bill outside.",
+    );
     return;
   }
   if (world.life.cuddling !== undefined) {
@@ -4716,6 +4725,11 @@ function interact(skipTrader = false): void {
   }
   if (!near) return;
   const id = near.id;
+  if (isNight(s) && world.speakers.some((n) => n.id === id)) {
+    return speak(id, `<p>${escapeHTML(nightDialogue(id))}</p>`, [
+      { label: "Stay safe", run: dismissSpeech },
+    ]);
+  }
   if (id === "mountain-seed-atm") return seedATM();
   if (s.coin && !skipTrader) {
     const ids = world.speakers
@@ -4775,7 +4789,7 @@ function interact(skipTrader = false): void {
     if (s.familyStory?.escort) return beaTea();
     return speak(
       "npc1",
-      "<p>Come sit down, dear. I have a cup of tea for you.</p>",
+      `<p>${isNight(s) ? nightDialogue("npc1") : "Come sit down, dear. I have a cup of tea for you."}</p>`,
       [
         {
           label: "Sit for tea",
@@ -4783,6 +4797,7 @@ function interact(skipTrader = false): void {
             teaSeated = sitting = true;
             s.position = { x: 12, z: 16.9 };
             world.setPlayerSeated(true);
+            seatForTea(world.player, true);
             world.player.rotation.y = Math.PI;
             dismissSpeech();
           },
@@ -5006,7 +5021,7 @@ function interact(skipTrader = false): void {
   if (["can", "shovel", "fertilizer"].includes(id))
     return shop(id as "can" | "shovel" | "fertilizer");
   if (id === "bed")
-    if (momAway(s) && !s.familyStory?.called)
+    if (!isNight(s) && momAway(s) && !s.familyStory?.called)
       return panel(
         "Waiting for Mom",
         "<p>I want to hear how Mom’s surgery went before I go to sleep. I can keep doing my usual jobs while I wait for her call.</p>",
@@ -5024,7 +5039,7 @@ function interact(skipTrader = false): void {
           destructive: !!s.drink,
           run: () => {
             const completedDay = s.day;
-            if (!sleep(s)) return;
+            if (!sleep(s, isNight(s))) return;
             visitedOutside = false;
             wasHome = true;
             momSpoke = false;
@@ -5475,7 +5490,12 @@ addEventListener("keydown", (e) => {
     }
     return;
   }
-  if (isNight(s) && s.awake && ["e", "g", "h", "t", "f", "b"].includes(key)) {
+  if (
+    isNight(s) &&
+    s.awake &&
+    !nightShelterAt(s.position.x, s.position.z) &&
+    ["e", "g", "h", "t", "f", "b"].includes(key)
+  ) {
     toast("Interactions resume at dawn. V or click throws a $1 bill.");
     return;
   }
@@ -5875,8 +5895,10 @@ function atBikeRack() {
   );
 }
 function selectTarget() {
-  if (isNight(s) && s.awake) return;
+  if (isNight(s) && s.awake && !nightShelterAt(s.position.x, s.position.z))
+    return;
   const { x, z } = s.position;
+  const shelter = isNight(s) ? nightShelterAt(x, z) : undefined;
   if (atBikeRack()) return bikeRackTarget;
   if (
     !riding &&
@@ -5892,6 +5914,7 @@ function selectTarget() {
   let best: Target | undefined;
   let bestScore = Infinity;
   for (const t of world.targets) {
+    if (isNight(s) && nightShelterAt(t.x, t.z) !== shelter) continue;
     let distance = 0;
     if (
       (t.id !== "player-stove" || kitchenPrepared || !!s.pendingMeal) &&
@@ -6258,8 +6281,8 @@ function updateUI() {
       : "";
   let unavailable = false;
   if (!s.awake) prompt = "<kbd>E</kbd> Get out of bed";
-  else if (isNight(s))
-    prompt = "<kbd>V</kbd> Throw $1 · Interactions resume at dawn";
+  else if (isNight(s) && !nightShelterAt(x, z))
+    prompt = "<kbd>V</kbd> Throw $1 · Go indoors to talk or rest";
   else if (action)
     prompt = `Planting… ${Math.ceil(action.duration - action.elapsed)}s · stand still (moving cancels)`;
   else if (near) {
@@ -6813,7 +6836,9 @@ function frame(now: number) {
             ? 0.15
             : sittingWithStacy
               ? 0.52
-              : 0.69
+              : teaSeated
+                ? TEA_SEAT_HEIGHT
+                : 0.69
           : 0;
       if (rolling) {
         move(
@@ -7564,6 +7589,7 @@ function frame(now: number) {
   }
   estateWorld.update(s);
   world.life.update(active && !featherHandoff ? dt : 0, now / 1000);
+  world.updateTea(active ? dt : 0, teaSeated, reducedMotion);
   hangMomCanvases();
   syncFurnishings();
   updateFurniturePlacement();
@@ -8315,6 +8341,44 @@ if (new URLSearchParams(location.search).has("test")) {
     riverDrought: (dry: boolean) => world.river.setDrought(dry),
     depthAudit: () => depthAudit(scene, { taggedOnly: true, upwardOnly: true }),
     targets: world.targets,
+    homeBugShot: (view: "bookcase" | "mabel" | "exit") => {
+      const shots = {
+        bookcase: [-11, 2.3, 9.8, -12.1, 1.4, 6.8],
+        mabel: [-31, 4, -19, -39, 2, -25],
+        exit: [-49, 2, -55, -51.1, 1.4, -61.7],
+      };
+      const p = shots[view];
+      camera.position.set(p[0], p[1], p[2]);
+      camera.lookAt(p[3], p[4], p[5]);
+      renderer.render(scene, camera);
+    },
+    homeBugReview: () => ({
+      cups: scene
+        .getObjectByName("bea-tea-room")!
+        .children.filter((o) => o.name === "floral-teacup")
+        .map((o) => o.position.toArray()),
+      teaLegs: world.bea.getObjectByName("tea-legs")?.visible,
+      playerTeaLegs: world.player.getObjectByName("tea-legs")?.visible,
+      mabelWindows: scene.children
+        .find(
+          (o) =>
+            o.position.x === -39 &&
+            o.position.z === -22 &&
+            o.userData.windowsFitted,
+        )
+        ?.children.filter((o) => o.name === "inset-window").length,
+      mabelRoof: (() => {
+        const roof = scene.getObjectByName("mabel-house-roof")!;
+        return { cutaway: roof.userData.cameraWall, visible: roof.visible };
+      })(),
+      exit: (() => {
+        const sign = scene.getObjectByName("corn-maze-exit-sign")!;
+        return {
+          position: sign.position.toArray(),
+          pointsTo: sign.userData.pointsTo,
+        };
+      })(),
+    }),
     homeDesign: () => ({
       furnishings: world.homeDecor.children.length,
       tv: {
@@ -9018,7 +9082,17 @@ function tradingConversation(id: string, more = false) {
     `<p>${escapeHTML(line)}</p>${more ? "" : `<p>${escapeHTML(traderDialogue(s, id) ?? "I’m still working out my strategy.")}</p>`}`,
     [
       { label: "Tell me more", run: () => tradingConversation(id, true) },
-      { label: "Something else", run: () => interact(true) },
+      ...(hasAlternateChadTopic(id)
+        ? [
+            {
+              label: "Something else",
+              run: () => {
+                dismissSpeech();
+                interact(true);
+              },
+            },
+          ]
+        : []),
       { label: "See you around", run: dismissSpeech },
     ],
   );
