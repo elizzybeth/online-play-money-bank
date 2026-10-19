@@ -1,3 +1,4 @@
+import { validNight, morning, type NightState } from "./night";
 import { validMomHomeStory, type MomHomeStory } from "./mom-home-story";
 import { validCrops, type Crop } from "./garden-crops";
 import { withinPlayableBounds } from "./world-bounds";
@@ -74,6 +75,7 @@ export type Plot = {
   yield: number;
 };
 export type State = {
+  night?: NightState;
   cropSeeds?: Partial<Record<Crop, number>>;
   activeSeed?: "money" | Crop;
   version: 1;
@@ -645,8 +647,9 @@ export function summarizeDay(
   }
   return `Day ${day}\n\n${lines.join("\n\n")}`.replaceAll("—", ". ");
 }
-export function sleep(s: State) {
-  if (momAway(s) && !s.familyStory?.called) return false;
+export function sleep(s: State, forceMorning = false) {
+  if (!forceMorning && momAway(s) && !s.familyStory?.called) return false;
+  morning(s);
   dailyEconomy(s);
   const entry = writeBranchedDay(s);
   (s.journalHistory ??= []).push(rememberDay(s));
@@ -819,6 +822,7 @@ export function decode(raw: string | null): State | null {
       ) ||
       (s.fertilizerPurchased !== undefined &&
         typeof s.fertilizerPurchased !== "boolean") ||
+      !validNight(s.night) ||
       !Number.isSafeInteger(s.day) ||
       s.day < 1 ||
       !["cash", "bank", "seeds", "fertilizer"].every(

@@ -1,3 +1,14 @@
+import { riverDistance } from "./river-land";
+import {
+  DAY_SECONDS,
+  NIGHT_SECONDS,
+  MAX_HP,
+  isNight,
+  nightState,
+  tickNight,
+  NightCombat,
+} from "./night";
+import { createNightWorld } from "./night-world";
 import { createTVCaptions } from "./tv-captions";
 import { profiling } from "./profiling";
 import { relocateRiverBeds } from "./river-gardens";
@@ -53,6 +64,7 @@ import {
   housingSaleValue,
   mansionPrice,
   mansionLot,
+  marvelsLot,
   type MansionStyle,
 } from "./housing";
 import { createMeteorWorld } from "./meteor-world";
@@ -373,7 +385,8 @@ if (softwareRenderer) {
 }
 
 renderer.outputColorSpace = T.SRGBColorSpace;
-scene.add(new T.HemisphereLight("#fff5de", "#819b74", 2.3));
+const hemisphere = new T.HemisphereLight("#fff5de", "#819b74", 2.3);
+scene.add(hemisphere);
 const sun = new T.DirectionalLight("#ffe7b9", 3);
 sun.position.set(-14, 35, 16);
 sun.castShadow = true;
@@ -433,6 +446,179 @@ if (s.familyStory?.escort) {
   positionStoryMom(p.x, p.z);
 }
 const tvCaptions = createTVCaptions(world.tvScreen);
+const nightCombat = new NightCombat();
+const nightWorld = createNightWorld(scene);
+const shelterLamp = new T.PointLight("#ffc77f", 0, 20, 2);
+scene.add(shelterLamp);
+const nightShelters = [
+  { x: -15, z: 6, w: 12, d: 16 },
+  { x: -5, z: 10, w: 8, d: 8 },
+  { x: 12, z: 15, w: 6.8, d: 5.8 },
+  { x: 12, z: 1, w: 6.8, d: 5.8 },
+  { x: -39, z: -25, w: 6.8, d: 5.8 },
+  { x: 6, z: -30, w: 19.6, d: 17.6 },
+  { x: 24, z: -29, w: 11.6, d: 13.6 },
+  {
+    x: (bikeShopBounds.left + bikeShopBounds.right) / 2,
+    z: (bikeShopBounds.north + bikeShopBounds.south) / 2,
+    w: bikeShopBounds.right - bikeShopBounds.left,
+    d: bikeShopBounds.south - bikeShopBounds.north,
+  },
+  { x: -69, z: -15, w: 7.6, d: 6.6 },
+  { x: 32, z: -79, w: 7.6, d: 5.6 },
+  ...world.sigma.houseBounds,
+];
+const mansionShelter = { x: mansionLot.x, z: mansionLot.z, w: 32, d: 22 };
+const marvelsShelter = { x: marvelsLot.x, z: marvelsLot.z, w: 19.6, d: 17.6 };
+function nightShelterAt(x: number, z: number) {
+  const contains = (r: { x: number; z: number; w: number; d: number }) =>
+    Math.abs(x - r.x) < r.w / 2 - 0.12 && Math.abs(z - r.z) < r.d / 2 - 0.12;
+  return (
+    nightShelters.find(contains) ??
+    (s.housing?.status === "owned" && contains(mansionShelter)
+      ? mansionShelter
+      : undefined) ??
+    (s.housing?.storeOpened && contains(marvelsShelter)
+      ? marvelsShelter
+      : undefined)
+  );
+}
+const nightHud = document.createElement("aside");
+nightHud.id = "night-hud";
+nightHud.hidden = true;
+nightHud.innerHTML =
+  '<strong id="night-phase"></strong><span id="night-health" role="meter" aria-label="Health" aria-valuemin="0" aria-valuemax="10"></span><small id="night-ammo"></small>';
+const nightHelp = document.createElement("aside");
+nightHelp.id = "night-help";
+nightHelp.hidden = true;
+nightHelp.textContent =
+  "V or click · Throw $1 (1 damage) · Run indoors for safety · Interactions resume at dawn";
+document.body.append(nightHud, nightHelp);
+const nightPhase = nightHud.querySelector("#night-phase")!,
+  nightHealth = nightHud.querySelector("#night-health")!,
+  nightAmmo = nightHud.querySelector("#night-ammo")!;
+let nightWasActive = isNight(s);
+const daySky = new T.Color("#bfd9d6"),
+  nightSky = new T.Color("#071525"),
+  moonColor = new T.Color("#9bb7ec"),
+  daySunColor = new T.Color("#ffe7b9");
+function nightBlocked(x: number, z: number) {
+  return (
+    !!nightShelterAt(x, z) ||
+    !withinPlayableBounds({
+      millionaire: s.millionaire,
+      foundTVSeeds: s.foundTVSeeds,
+      position: { x, z },
+    }) ||
+    riverDistance(x, z) < 3.4 ||
+    blocked(x, z, world.rects, 0.55)
+  );
+}
+function throwNightBill() {
+  if (!begun || paused || !s.awake || !isNight(s)) return;
+  const direction = viewForward();
+  if (nightCombat.throwBill(s, direction.x, direction.z)) {
+    save();
+  } else if (s.cash < 100)
+    toast(
+      "You need $1 in pocket money to throw a bill. Get indoors or keep moving.",
+    );
+}
+function finishNight(died: boolean) {
+  sleep(s, true);
+  if (died) {
+    s.position = { x: -16, z: 4 };
+    s.awake = false;
+  }
+  resetTransientMotion();
+  dismissSpeech();
+  close();
+  nightWasActive = false;
+  save();
+  toast(
+    died
+      ? `You woke safely in your bed. Good morning, Day ${s.day}. Health restored to 10.`
+      : `Dawn. Day ${s.day} begins. Interactions are available again.`,
+  );
+}
+function updateNight(dt: number, clockActive: boolean) {
+  const started = profiling.start();
+  const transition = clockActive ? tickNight(s, dt) : undefined;
+  if (transition === "dawn") {
+    finishNight(false);
+    profiling.end("night", started);
+    return;
+  }
+  const dark = isNight(s),
+    shelter = nightShelterAt(s.position.x, s.position.z);
+  if (dark && !nightWasActive) {
+    action = undefined;
+    placingBed = false;
+    bedGhost.visible = false;
+    dismissSpeech();
+    if (sitting) standUp();
+    world.life.cancelInteractions();
+    toast(
+      "Nightfall. Wallets and cash cows roam outside. V or click throws a $1 bill; interiors are safe.",
+    );
+    save();
+  }
+  if (!dark && nightWasActive) nightCombat.reset();
+  nightWasActive = dark;
+  if (dark && clockActive) {
+    const result = nightCombat.update(s, dt, !!shelter, nightBlocked, (x, z) =>
+      blocked(x, z, world.rects, 0.05),
+    );
+    if (result.died) {
+      finishNight(true);
+      profiling.end("night", started);
+      return;
+    }
+    if (result.collected) {
+      toast(`Picked up ${money(result.collected)} from defeated monsters.`);
+      save();
+    }
+  }
+  nightWorld.update(nightCombat, dark, reducedMotion);
+  const blend = 1 - Math.exp(-dt * 3);
+  const sky = scene.background as T.Color;
+  sky.lerp(dark ? nightSky : daySky, blend);
+  (scene.fog as T.Fog).color.copy(sky);
+  hemisphere.intensity += ((dark ? 0.28 : 2.3) - hemisphere.intensity) * blend;
+  sun.intensity += ((dark ? 0.15 : 3) - sun.intensity) * blend;
+  sun.color.lerp(dark ? moonColor : daySunColor, blend);
+  shelterLamp.intensity = dark && shelter ? 140 : 0;
+  if (shelter)
+    shelterLamp.position.set(
+      shelter.x,
+      terrainHeight(shelter.x, shelter.z) + 2.7,
+      shelter.z,
+    );
+  setHidden(nightHud, !begun || !s.awake);
+  setHidden(nightHelp, !begun || !dark || paused || !s.awake);
+  const n = nightState(s),
+    remaining = Math.max(
+      0,
+      Math.ceil((dark ? DAY_SECONDS + NIGHT_SECONDS : DAY_SECONDS) - n.elapsed),
+    );
+  setText(
+    nightPhase,
+    `${dark ? "Night" : "Daylight"} · ${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, "0")}${dark && shelter ? " · Safe indoors" : ""}`,
+  );
+  const health = nightHealth;
+  setText(health, `${n.hp} / ${MAX_HP} HP`);
+  setAttr(health, "aria-valuenow", String(n.hp));
+  setAttr(nightHud, "data-hurt", String(nightCombat.hurtFor > 0));
+  setText(
+    nightAmmo,
+    dark
+      ? `${Math.floor(s.cash / 100)} dollar bills · $1 per throw`
+      : "Night arrives after five minutes of daylight",
+  );
+  profiling.count("night.enemies", nightCombat.enemies.length);
+  profiling.end("night", started);
+}
+
 scene.add(camera);
 const bikeCockpit = makeBikeCockpit();
 camera.add(bikeCockpit.object);
@@ -1663,6 +1849,7 @@ function dismissSpeech() {
   speaking = undefined;
 }
 function speak(id: string, text: string, choices: Choice[] = []) {
+  if (isNight(s) && s.awake) return;
   choices = choices.map((c) => ({
     ...c,
     label: c.label.replaceAll("—", ". "),
@@ -2649,6 +2836,10 @@ function closeFurnitureEditor() {
   keys.clear();
 }
 function openFurnitureEditor() {
+  if (isNight(s)) {
+    toast("Furniture editing is available in daylight.");
+    return;
+  }
   if (
     !begun ||
     !s.awake ||
@@ -4460,6 +4651,10 @@ function wackyConversation() {
   ]);
 }
 function interact(skipTrader = false): void {
+  if (isNight(s) && s.awake) {
+    toast("Interactions resume at dawn. V or click throws a $1 bill.");
+    return;
+  }
   if (world.life.cuddling !== undefined) {
     world.life.putDown();
     return;
@@ -5261,6 +5456,14 @@ addEventListener("keydown", (e) => {
     }
     return;
   }
+  if (isNight(s) && s.awake && ["e", "g", "h", "t", "f", "b"].includes(key)) {
+    toast("Interactions resume at dawn. V or click throws a $1 bill.");
+    return;
+  }
+  if (key === "v") {
+    throwNightBill();
+    return;
+  }
   if (key === "e" && world.life.cuddling !== undefined) {
     world.life.putDown();
     return;
@@ -5444,6 +5647,7 @@ function disposeAnimation(root: T.Object3D) {
 }
 
 function resetTransientMotion() {
+  nightCombat.reset();
   world.sigma.resetPepeAnimation();
   pickupCheckIn = 0;
   world.life.cancelInteractions();
@@ -5551,6 +5755,7 @@ async function captureMouse() {
 $("#world").addEventListener("pointerdown", (e) => {
   if (!begun || paused) return;
   dragging = true;
+  if (isNight(s) && (e as PointerEvent).button === 0) throwNightBill();
   if (s.awake) void captureMouse();
   else
     ($("#world") as HTMLCanvasElement).setPointerCapture(
@@ -5651,6 +5856,7 @@ function atBikeRack() {
   );
 }
 function selectTarget() {
+  if (isNight(s) && s.awake) return;
   const { x, z } = s.position;
   if (atBikeRack()) return bikeRackTarget;
   if (
@@ -6033,6 +6239,8 @@ function updateUI() {
       : "";
   let unavailable = false;
   if (!s.awake) prompt = "<kbd>E</kbd> Get out of bed";
+  else if (isNight(s))
+    prompt = "<kbd>V</kbd> Throw $1 · Interactions resume at dawn";
   else if (action)
     prompt = `Planting… ${Math.ceil(action.duration - action.elapsed)}s · stand still (moving cancels)`;
   else if (near) {
@@ -6262,7 +6470,17 @@ function frame(now: number) {
     !celebration &&
     !hatHanging &&
     !estateFilm;
-  updateMomGardenVisit(active && s.awake ? dt : 0);
+  updateNight(
+    dt,
+    active &&
+      s.awake &&
+      !speaking &&
+      !cookingScene &&
+      !featherHandoff &&
+      !world.life.busy &&
+      bikeMountTime <= 0,
+  );
+  updateMomGardenVisit(active && s.awake && !isNight(s) ? dt : 0);
   if (beaGuide) {
     if (
       active &&
@@ -6404,7 +6622,7 @@ function frame(now: number) {
         Math.abs(s.position.x + 18) < 6.5 &&
         Math.abs(s.position.z + 65) < 6.5;
       if (!inPepe) pepeGreeted = false;
-      if (inPepe && !pepeGreeted && !s.pepeShowStarted) {
+      if (!isNight(s) && inPepe && !pepeGreeted && !s.pepeShowStarted) {
         pepeGreeted = true;
         pepeConversation();
       }
@@ -6642,7 +6860,7 @@ function frame(now: number) {
         !teaSeated &&
         momStatus(s.day, s.familyStory).activity !== "garden";
       if (wasHome && !homeNow) visitedOutside = true;
-      if (!wasHome && homeNow && visitedOutside && momInside) {
+      if (!isNight(s) && !wasHome && homeNow && visitedOutside && momInside) {
         momSpoke = true;
         returnToMom();
       }
@@ -6654,7 +6872,13 @@ function frame(now: number) {
         );
         world.mom.rotation.z = Math.sin(now * 0.035) * 0.07;
       } else world.mom.rotation.z = 0;
-      if (!momSpoke && atHome() && s.position.z > 6 && momInside) {
+      if (
+        !isNight(s) &&
+        !momSpoke &&
+        atHome() &&
+        s.position.z > 6 &&
+        momInside
+      ) {
         momSpoke = true;
         s.metMom = true;
         visit("Talked with Mom before heading out.");
@@ -6745,7 +6969,7 @@ function frame(now: number) {
     );
     millionairePathNoticed = true;
   } else if (!s.millionaire?.unlocked) millionairePathNoticed = false;
-  if (active && s.awake && !speaking && !paused) {
+  if (active && s.awake && !speaking && !paused && !isNight(s)) {
     const greeting = world.millionaire.approachGreeting(s, dt);
     if (greeting) fellowshipConversation(greeting);
     const owner = world.millionaire.greeting(s);
@@ -7353,8 +7577,9 @@ function frame(now: number) {
     !birdhouseScene &&
     !cookingScene &&
     !sitting
-  )
-    collectWalkoverPackets(dt);
+  ) {
+    if (!isNight(s)) collectWalkoverPackets(dt);
+  }
   const uiStarted = profiling.start();
   updateUI();
   updateInventoryNotices(dt);
@@ -7594,12 +7819,10 @@ if (new URLSearchParams(location.search).has("test")) {
       return snapshots;
     },
     pepePackets: () =>
-      world.sigma.debris
-        .slice(0, 25)
-        .map((d) => ({
-          visible: d.object.visible,
-          position: d.object.position.toArray(),
-        })),
+      world.sigma.debris.slice(0, 25).map((d) => ({
+        visible: d.object.visible,
+        position: d.object.position.toArray(),
+      })),
     renderStats: () => ({
       calls: renderer.info.render.calls,
       triangles: renderer.info.render.triangles,
@@ -7609,6 +7832,50 @@ if (new URLSearchParams(location.search).has("test")) {
       cameraBounds: cameraWalls.stats(),
     }),
     state: () => structuredClone(s),
+    night: () => ({
+      state: structuredClone(nightState(s)),
+      dark: isNight(s),
+      safe: !!nightShelterAt(s.position.x, s.position.z),
+      enemies: structuredClone(nightCombat.enemies),
+      bills: structuredClone(nightCombat.bills),
+      loot: structuredClone(nightCombat.loot),
+      sky: (scene.background as T.Color).getHexString(),
+      ambient: hemisphere.intensity,
+      warmLight: shelterLamp.intensity,
+    }),
+    nightClock: (seconds: number) => {
+      const transition = tickNight(s, seconds);
+      if (transition === "dawn") finishNight(false);
+    },
+    nightSpawn: (kind: "wallet" | "cow", x: number, z: number) =>
+      nightCombat.spawn(kind, x, z),
+    nightLifecycleCheck: () => {
+      const combat = new NightCombat();
+      const snapshots = [];
+      try {
+        for (let cycle = 0; cycle < 4; cycle++) {
+          for (const kind of ["wallet", "cow"] as const) {
+            combat.reset();
+            for (let i = 0; i < 8; i++)
+              combat.spawn(
+                kind,
+                s.position.x + (i % 4) - 2,
+                s.position.z - 3 - Math.floor(i / 4),
+              );
+            nightWorld.update(combat, true, true);
+            renderer.render(scene, camera);
+          }
+          snapshots.push({ ...renderer.info.memory });
+        }
+      } finally {
+        nightWorld.update(nightCombat, isNight(s), reducedMotion);
+      }
+      return snapshots;
+    },
+    nightHurt: (hp: number) => {
+      nightState(s).hp = hp;
+      if (hp <= 0) finishNight(true);
+    },
     storageFlush: () => saveStore?.flush(),
     savedRaw: (key?: string) => saveStore?.readRaw(key),
     savedState: async (key?: string) =>

@@ -48,8 +48,15 @@ try {
       ["town", 3, -20],
       ["maze", -57, -34.7],
       ["mountain", 34, -370],
+      ["night", 0, 25],
     ]) {
       await page.evaluate(([x, z]) => window.game.teleport(x, z), [x, z]);
+      if (name === "night")
+        await page.evaluate(() => {
+          window.game.nightClock(300);
+          window.game.nightSpawn("wallet", -2, 21);
+          window.game.nightSpawn("cow", 3, 20);
+        });
       await page.waitForTimeout(1200);
       await cdp.send("HeapProfiler.collectGarbage");
       const before = await cdp.send("Performance.getMetrics");
