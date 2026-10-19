@@ -90,6 +90,8 @@ test("unstuck returns home without resetting resources, journal, day or crops; c
   await expect.poll(async () => (await state(page)).metMom).toBe(true);
   const after = await state(page);
   const { adventure: elapsed, night: cycle, ...preserved } = after;
+  if (!cycle || !beforeUnstuck.night)
+    throw new Error("Active play must initialize the night clock");
   expect(cycle.hp).toBe(beforeUnstuck.night.hp);
   expect(cycle.elapsed).toBeGreaterThanOrEqual(beforeUnstuck.night.elapsed);
   expect(elapsed?.awakeSeconds ?? 0).toBeGreaterThanOrEqual(0);
@@ -113,6 +115,7 @@ test("unstuck returns home without resetting resources, journal, day or crops; c
     night: restoredCycle,
     ...restoredState
   } = restored;
+  if (!restoredCycle) throw new Error("Reload must preserve the night clock");
   expect(restoredCycle.hp).toBe(cycle.hp);
   expect(restoredCycle.elapsed).toBeGreaterThanOrEqual(cycle.elapsed);
   expect(restoredClock?.awakeSeconds ?? 0).toBeGreaterThanOrEqual(
