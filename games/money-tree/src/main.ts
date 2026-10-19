@@ -2,7 +2,7 @@ import { completeMeditation } from "./sigma";
 import { TEA_SEAT_HEIGHT, seatForTea } from "./tea-pose";
 import { nightDialogue, hasAlternateChadTopic } from "./night-dialogue";
 import { farmFields, forageFarm } from "./farm-fields";
-import { riverDistance } from "./river-land";
+import { riverDistance, riverTravelFactor } from "./river-land";
 import {
   DAY_SECONDS,
   NIGHT_SECONDS,
@@ -748,13 +748,17 @@ function dismountBike() {
   rideSpeed = actualRideSpeed = 0;
   bikeCockpit.object.visible = false;
   if (parkedBike) {
-    parkedBike.position.set(s.position.x, 0, s.position.z);
+    parkedBike.position.set(
+      s.position.x,
+      terrainHeight(s.position.x, s.position.z),
+      s.position.z,
+    );
     const side = new T.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
     for (const sign of [1, -1]) {
       const x = s.position.x + side.x * sign * 1.1,
         z = s.position.z + side.z * sign * 1.1;
       if (!blocked(x, z, world.rects, 0.85)) {
-        parkedBike.position.set(x, 0, z);
+        parkedBike.position.set(x, terrainHeight(x, z), z);
         break;
       }
     }
@@ -6771,6 +6775,8 @@ function frame(now: number) {
           s.millionaire?.unlocked ? -470 : s.foundTVSeeds ? -89 : -39,
         );
       const rolling = rollTime > 0;
+      const riverDrag =
+        riding || rolling ? riverTravelFactor(s.position.x, s.position.z) : 1;
       if (riding) {
         yaw -= r * dt * 1.6;
         const wanted =
@@ -6783,8 +6789,8 @@ function frame(now: number) {
           forward = viewForward();
         move(
           s.position,
-          forward.x * rideSpeed * dt,
-          forward.z * rideSpeed * dt,
+          forward.x * rideSpeed * dt * riverDrag,
+          forward.z * rideSpeed * dt * riverDrag,
           world.rects,
         );
         actualRideSpeed =
@@ -6843,8 +6849,8 @@ function frame(now: number) {
       if (rolling) {
         move(
           s.position,
-          rollDirection.x * Math.min(dt, rollTime) * 10,
-          rollDirection.z * Math.min(dt, rollTime) * 10,
+          rollDirection.x * Math.min(dt, rollTime) * 10 * riverDrag,
+          rollDirection.z * Math.min(dt, rollTime) * 10 * riverDrag,
           world.rects,
         );
         world.player.rotation.y = Math.atan2(rollDirection.x, rollDirection.z);
@@ -8272,11 +8278,54 @@ if (new URLSearchParams(location.search).has("test")) {
     river: () => ({
       bridges: world.river.bridges,
       colliders: world.river.colliders,
+      plants: world.river.vegetation.userData.plants,
+      travelFactor: riverTravelFactor(s.position.x, s.position.z),
+      groundHeight: terrainHeight(s.position.x, s.position.z),
       vegetation: world.river.vegetation.children.map((o) => ({
         name: o.name,
         count: (o as T.InstancedMesh).count,
       })),
     }),
+    riverPlantReview: (kind: string) => {
+      const matrix = new T.Matrix4(),
+        best = new T.Matrix4(),
+        point = new T.Vector3();
+      let distance = Infinity;
+      for (const object of world.river.vegetation.children) {
+        if (object.userData.riverPlant !== kind) continue;
+        const mesh = object as T.InstancedMesh;
+        for (let i = 0; i < mesh.count; i++) {
+          mesh.getMatrixAt(i, matrix);
+          matrix.premultiply(mesh.matrixWorld);
+          point.setFromMatrixPosition(matrix);
+          const d =
+            (point.x - s.position.x) ** 2 + (point.z - s.position.z) ** 2;
+          if (d < distance) {
+            distance = d;
+            best.copy(matrix);
+          }
+        }
+      }
+      if (!Number.isFinite(distance)) throw Error(`No river plant: ${kind}`);
+      matrix.copy(best);
+      const p = new T.Vector3().setFromMatrixPosition(matrix);
+      const forward = new T.Vector3(0, 0, 1).transformDirection(matrix);
+      camera.position
+        .copy(p)
+        .addScaledVector(forward, 3.1)
+        .add(new T.Vector3(0, 1.6, 0));
+      camera.lookAt(
+        p.clone().add(new T.Vector3(0, kind === "fern" ? 0.45 : 1, 0)),
+      );
+      const visibility = world.river.vegetation.children.map((o) => o.visible);
+      world.river.vegetation.children.forEach((o) => {
+        o.visible = o.userData.riverPlant === kind;
+      });
+      renderer.render(scene, camera);
+      world.river.vegetation.children.forEach((o, i) => {
+        o.visible = visibility[i];
+      });
+    },
     riverOverview: (view: "village" | "grove" | "east") => {
       const p =
         view === "village"

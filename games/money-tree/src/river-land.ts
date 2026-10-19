@@ -106,6 +106,74 @@ export function riverDistance(x: number, z: number) {
   }
   return Math.sqrt(best);
 }
+// Index only segments close enough to affect feet/wheels. Faraway movement
+// avoids a whole-river scan; immutable buckets are shared by height and speed.
+let bankCells: Map<number, number[]> | undefined;
+const cellKey = (x: number, z: number) =>
+  (Math.floor(x / 8) + 64) * 128 + Math.floor(z / 8) + 64;
+function indexedBanks() {
+  if (bankCells) return bankCells;
+  bankCells = new Map();
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1],
+      b = points[i];
+    for (
+      let x = Math.floor((Math.min(a.x, b.x) - riverBankWidth) / 8);
+      x <= Math.floor((Math.max(a.x, b.x) + riverBankWidth) / 8);
+      x++
+    )
+      for (
+        let z = Math.floor((Math.min(a.z, b.z) - riverBankWidth) / 8);
+        z <= Math.floor((Math.max(a.z, b.z) + riverBankWidth) / 8);
+        z++
+      ) {
+        const key = (x + 64) * 128 + z + 64;
+        if (!bankCells.has(key)) bankCells.set(key, []);
+        bankCells.get(key)!.push(i);
+      }
+  }
+  return bankCells;
+}
+export function riverBankDistance(x: number, z: number) {
+  if (x < -140 || x > 59 || z < -152 || z > 1) return Infinity;
+  const candidates = indexedBanks().get(cellKey(x, z));
+  if (!candidates) return Infinity;
+  let best = Infinity;
+  for (const i of candidates) {
+    const a = points[i - 1],
+      b = points[i],
+      dx = b.x - a.x,
+      dz = b.z - a.z;
+    const t = Math.max(
+      0,
+      Math.min(1, ((x - a.x) * dx + (z - a.z) * dz) / (dx * dx + dz * dz)),
+    );
+    best = Math.min(best, (x - a.x - t * dx) ** 2 + (z - a.z - t * dz) ** 2);
+  }
+  return best <= riverBankWidth ** 2 ? Math.sqrt(best) : Infinity;
+}
+export function riverGroundHeight(x: number, z: number) {
+  const distance = riverBankDistance(x, z);
+  return distance < riverBankWidth
+    ? -0.9 *
+        Math.min(
+          1,
+          (riverBankWidth - distance) / (riverBankWidth - riverHalfWidth),
+        )
+    : undefined;
+}
+/** Wading and pedalling through water take 35% of dry-ground speed. */
+export function riverTravelFactor(x: number, z: number) {
+  if (bridgeHeight(x, z) !== undefined) return 1;
+  const distance = riverBankDistance(x, z);
+  if (distance >= riverBankWidth) return 1;
+  const wet = Math.min(
+    1,
+    (riverBankWidth - distance) / (riverBankWidth - riverHalfWidth),
+  );
+  return 1 - 0.65 * wet * wet * (3 - 2 * wet);
+}
+
 /** Keep boundary meshes and their colliders in agreement at river outlets. */
 export function splitRiverBoundary<
   R extends { x: number; z: number; w: number; d: number },
