@@ -4,6 +4,7 @@ import full from "./playwright.config";
 // Keep one real-browser wiring check; game rules and geometry run in Node.
 export default defineConfig(full, {
   testMatch: "smoke.spec.ts",
+  testIgnore: [],
   timeout: 45000,
   retries: 0,
   fullyParallel: false,
