@@ -1,3 +1,8 @@
+import {
+  riverTravelFactor,
+  riverBankDistance,
+  riverBankWidth,
+} from "./river-land";
 import { validFarmForage, type FarmForage } from "./farm-fields";
 import { validNight, morning, type NightState } from "./night";
 import { validMomHomeStory, type MomHomeStory } from "./mom-home-story";
@@ -1427,7 +1432,8 @@ export const movementSpeed = (s: State, running: boolean) =>
       ? 1.25
       : 1) *
   (buff(s, "sprint") ? 1.3 : 1) *
-  (foodPower(s, "speed") ? 1.2 : 1);
+  (foodPower(s, "speed") ? 1.2 : 1) *
+  riverTravelFactor(s.position.x, s.position.z);
 
 export const seedStashSpots = [
   { x: -29, z: -33 },
@@ -1575,6 +1581,15 @@ export function buyGardenSupply(s: State, item: "bed" | "soil") {
 export function canPlaceBed(s: State, x: number, z: number, obstacles: Rect[]) {
   return (
     withinProperty(x, z) &&
+    [
+      [0, 0],
+      [-0.9, -1.6],
+      [0.9, -1.6],
+      [-0.9, 1.6],
+      [0.9, 1.6],
+    ].every(
+      ([dx, dz]) => riverBankDistance(x + dx, z + dz) >= riverBankWidth,
+    ) &&
     s.plots.filter((p) => !p.community && !p.mountain && !p.meteor).length <
       50 &&
     !obstacles.some(

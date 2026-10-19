@@ -1,5 +1,5 @@
 // Run with node --import tsx. Raw native profiles stay in the requested local directory.
-import { chromium } from "@playwright/test";
+import { chromium, expect } from "@playwright/test";
 import { fresh } from "../src/game.ts";
 import { applyDebugAction } from "../src/debug-menu.ts";
 import { mkdir, writeFile } from "node:fs/promises";
@@ -41,7 +41,14 @@ try {
     );
     cdp.on("Network.loadingFailed", () => network.failed++);
     await page.goto(base + "?test" + (instrumented ? "&profile" : ""));
-    await page.getByRole("button", { name: "Wake up" }).click();
+    // Profile rendering, not driver pointer-acknowledgement delays on software GPUs.
+    await expect(page.getByRole("button", { name: "Wake up" })).toBeEnabled({
+      timeout: 30000,
+    });
+    await page.getByRole("button", { name: "Wake up" }).dispatchEvent("click");
+    await expect(page.getByRole("button", { name: "Wake up" })).toBeHidden({
+      timeout: 30000,
+    });
     await page.waitForTimeout(1500);
     const startupNetwork = { ...network };
     for (const [name, x, z] of [
@@ -158,7 +165,14 @@ try {
     }
     const preReload = { ...network };
     await page.reload();
-    await page.getByRole("button", { name: "Wake up" }).click();
+    // Profile rendering, not driver pointer-acknowledgement delays on software GPUs.
+    await expect(page.getByRole("button", { name: "Wake up" })).toBeEnabled({
+      timeout: 30000,
+    });
+    await page.getByRole("button", { name: "Wake up" }).dispatchEvent("click");
+    await expect(page.getByRole("button", { name: "Wake up" })).toBeHidden({
+      timeout: 30000,
+    });
     await page.waitForTimeout(500);
     await writeFile(
       path.join(

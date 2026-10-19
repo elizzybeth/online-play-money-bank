@@ -1,3 +1,18 @@
+import {
+  fresh,
+  move,
+  movementSpeed,
+  canPlaceBed,
+  type Rect,
+} from "../src/game";
+import {
+  riverBankDistance,
+  riverTravelFactor,
+  riverGroundHeight,
+} from "../src/river-land";
+import { terrainHeight } from "../src/millionaire-land";
+import { createRiverWorld } from "../src/river-world";
+import { makeRiverPlantGeometry, type RiverPlant } from "../src/river-plants";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as T from "three";
@@ -135,7 +150,7 @@ test("grove bridge continues straight along the approach and the riverside turn 
   const world = createRiverWorld(new T.Scene(), rects, []);
   assert(!world.root.getObjectByName("river-bridge-east-road"));
   assert(
-    rects.some(
+    !rects.some(
       (r) => Math.abs(43 - r.x) < r.w / 2 && Math.abs(-16 - r.z) < r.d / 2,
     ),
   );
@@ -144,4 +159,85 @@ test("grove bridge continues straight along the approach and the riverside turn 
   assert(riverBoundaryGaps(rail).length > 0);
   for (let z = -89.5; z < -57.5; z += 0.25)
     assert(spans.some((r) => Math.abs(z - r.z) <= r.d / 2));
+});
+
+test("walkers and wheels can cross the riverbed slowly, climb both banks and use bridges at full speed", () => {
+  const rects: Rect[] = [];
+  const world = createRiverWorld(new T.Scene(), rects, []);
+  assert.deepEqual(world.colliders, []);
+  const s = fresh();
+  s.position = { x: -25, z: -1 };
+  const dry = movementSpeed(s, false);
+  move(s.position, 0, -5, rects);
+  assert(s.position.z < -5.9);
+  assert(movementSpeed(s, false) < dry * 0.4);
+  assert(Math.abs(terrainHeight(s.position.x, s.position.z) + 0.9) < 0.05);
+  assert.equal(riverTravelFactor(-25, -6), 0.35);
+  move(s.position, 0, -5, rects);
+  assert(s.position.z < -10.9);
+  assert.equal(movementSpeed(s, false), dry);
+  move(s.position, 0, 10, rects);
+  assert(Math.abs(s.position.z + 1) < 0.01);
+  for (const bridge of riverBridges) {
+    assert.equal(riverTravelFactor(bridge.x, bridge.z), 1);
+    assert.equal(terrainHeight(bridge.x, bridge.z), 0.14);
+  }
+  assert.equal(canPlaceBed(s, -25, -5.5, []), false);
+});
+test("indexed river queries agree with exact distance near the bank and have continuous heights", () => {
+  for (let i = 3; i < riverSections.length - 3; i += 13) {
+    const p = riverSections[i];
+    for (const d of [-4, -3.3, -2.4, 0, 2.4, 3.3, 4]) {
+      const x = p.x + p.nx * d,
+        z = p.z + p.nz * d,
+        exact = riverDistance(x, z),
+        indexed = riverBankDistance(x, z);
+      if (exact <= 3.4) assert(Math.abs(exact - indexed) < 1e-7);
+      else assert.equal(indexed, Infinity);
+    }
+  }
+  let previous = 0;
+  for (let z = -1; z >= -11; z -= 0.025) {
+    const y = riverGroundHeight(-25, z) ?? 0;
+    assert(Math.abs(y - previous) < 0.04);
+    previous = y;
+  }
+});
+test("river planting contains abundant actual fern fronds, all heliconias and passionflowers with shared bounded geometry", () => {
+  const scene = new T.Scene();
+  const world = createRiverWorld(scene, [], []);
+  const totals = world.vegetation.userData.plants;
+  assert(totals.fern > 150);
+  assert(totals.rush > 100);
+  assert(totals.passionflower > 10);
+  const meshes = world.vegetation.children as T.InstancedMesh[];
+  for (const kind of [
+    "heliconia-red",
+    "heliconia-pendant",
+    "heliconia-gold",
+    "heliconia-orange",
+    "passionflower",
+    "fern",
+    "sedge",
+    "rush",
+    "daisy",
+    "moss-rock",
+  ] as RiverPlant[]) {
+    assert(totals[kind] > 0, kind);
+    const same = meshes.filter((m) => m.userData.riverPlant === kind);
+    assert(same.every((m) => m.geometry === same[0].geometry));
+    const g = makeRiverPlantGeometry(kind),
+      p = g.attributes.position;
+    assert(p.count > 100 && p.count < 12000, `${kind}: ${p.count}`);
+    assert.equal(p.count, g.attributes.color.count);
+    for (const value of p.array) assert(Number.isFinite(value));
+    g.dispose();
+  }
+  const before = meshes.map((m) => [m.geometry, m.material, m.count]);
+  world.setDrought(true);
+  world.setDrought(false);
+  assert.deepEqual(
+    meshes.map((m) => [m.geometry, m.material, m.count]),
+    before,
+  );
 });

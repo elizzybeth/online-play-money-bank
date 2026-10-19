@@ -1,4 +1,4 @@
-import { bridgeHeight } from "./river-land";
+import { bridgeHeight, riverGroundHeight } from "./river-land";
 let craters: { x: number; z: number }[] = [];
 export function setCraterSites(sites: { x: number; z: number }[]) {
   craters = sites;
@@ -23,6 +23,8 @@ export const mountainTerraces = Array.from({ length: 8 }, (_, tier) => ({
 export function terrainHeight(x: number, z: number) {
   const bridge = bridgeHeight(x, z);
   if (bridge !== undefined) return bridge;
+  const bank = riverGroundHeight(x, z);
+  if (bank !== undefined) return bank;
   for (const crater of craters) {
     const dx = x - crater.x,
       dz = z - crater.z;
