@@ -5,6 +5,7 @@ const compiled = !!process.env.MONEY_TREE_BUILD_DIR;
 export default defineConfig({
   expect: { timeout: 15000 },
   testDir: "tests/browser",
+  testIgnore: "**/smoke.spec.ts",
   // Software WebGL on shared CI runners renders the expanded town more slowly.
   timeout: process.env.CI ? 240000 : 120000,
   workers: 1,

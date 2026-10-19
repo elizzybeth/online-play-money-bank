@@ -23,7 +23,7 @@ test("farm is reachable, maze reward survives reload, and new layouts render cle
     () => (window as any).game.farm().cornMeshes,
   );
   expect(cropBatches).toBeGreaterThan(9);
-  expect(cropBatches).toBeLessThan(100);
+  expect(cropBatches).toBeLessThan(140);
   const mabelBeds = await page.evaluate(() =>
     (window as any).game
       .wildlife()
@@ -45,7 +45,11 @@ test("farm is reachable, maze reward survives reload, and new layouts render cle
     () => (window as any).game.farm().cropBounds,
   );
   expect(crops.length).toBeGreaterThan(4);
-  for (const crop of crops) expect(crop.max[2]).toBeLessThan(-13);
+  for (const crop of crops.filter((c: any) => c.min[2] < 0))
+    expect(crop.max[2]).toBeLessThan(-13);
+  const south = crops.filter((c: any) => c.min[2] > 0);
+  expect(south).toHaveLength(9);
+  for (const crop of south) expect(crop.min[2]).toBeGreaterThan(2);
   await walkTo(page, -47, -30);
   expect(
     (await page.evaluate(() => (window as any).game.state())).position.z,

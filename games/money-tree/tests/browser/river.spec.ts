@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import { fresh } from "../../src/game";
 import { applyDebugAction } from "../../src/debug-menu";
 import { createCoin } from "../../src/sigma";
-import { riverBridges } from "../../src/river-land";
+import { bridgeApproachHalfWidth, riverBridges } from "../../src/river-land";
 test("river bridges are walkable, banks are lush and drought can change them without rebuilding", async ({
   page,
 }, info) => {
@@ -57,25 +57,31 @@ test("river bridges are walkable, banks are lush and drought can change them wit
     }, bridge);
     expect(blocked, bridge.id).toEqual([]);
   }
+  const approaches = riverBridges.flatMap((b) =>
+    [-1, 1].map((side) => ({
+      ...b,
+      side,
+      clearHalf: Math.min(3, bridgeApproachHalfWidth(b, side) - 0.7),
+    })),
+  );
   const approachObstacles = await page.evaluate((bridges) => {
     const rects = (window as any).game.rects,
       blocked = [];
     for (const b of bridges)
-      for (const side of [-1, 1])
-        for (const dx of [-3, 0, 3]) {
-          const x = b.x + dx,
-            z = b.z + side * (b.d / 2 + 2);
-          if (
-            rects.some(
-              (r: any) =>
-                Math.abs(x - r.x) < r.w / 2 + 0.48 &&
-                Math.abs(z - r.z) < r.d / 2 + 0.48,
-            )
+      for (const dx of [-b.clearHalf, 0, b.clearHalf]) {
+        const x = b.x + dx,
+          z = b.z + b.side * (b.d / 2 + 2);
+        if (
+          rects.some(
+            (r: any) =>
+              Math.abs(x - r.x) < r.w / 2 + 0.48 &&
+              Math.abs(z - r.z) < r.d / 2 + 0.48,
           )
-            blocked.push({ id: b.id, x, z });
-        }
+        )
+          blocked.push({ id: b.id, x, z });
+      }
     return blocked;
-  }, riverBridges);
+  }, approaches);
   expect(approachObstacles).toEqual([]);
   expect(data.bridges.map((b: any) => b.id)).not.toContain("east-road");
   const constraints = await page.evaluate(() => {

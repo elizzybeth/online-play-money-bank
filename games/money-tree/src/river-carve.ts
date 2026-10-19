@@ -1,5 +1,10 @@
 import * as T from "three";
-import { riverSections, riverBankWidth, riverBridges } from "./river-land";
+import {
+  riverSections,
+  riverBankWidth,
+  riverBridges,
+  bridgeApproachHalfWidth,
+} from "./river-land";
 type V = { x: number; y: number; z: number; u: number; v: number };
 const quads = riverSections.slice(1).flatMap((b, i) => {
   const a = riverSections[i],
@@ -44,17 +49,18 @@ for (const b of riverBridges) {
   ];
   for (const side of [-1, 1]) {
     const end = b.z + (side * b.d) / 2;
+    const endHalf = bridgeApproachHalfWidth(b, side);
     polygons.push([
       { x: b.x - b.w / 2, z: end },
       { x: b.x + b.w / 2, z: end },
-      { x: b.x + b.w / 2 + 2, z: end + side * 2.8 },
-      { x: b.x - b.w / 2 - 2, z: end + side * 2.8 },
+      { x: b.x + endHalf, z: end + side * 2.8 },
+      { x: b.x - endHalf, z: end + side * 2.8 },
     ]);
     polygons.push([
-      { x: b.x - b.w / 2 - 2, z: end + side * 2.8 },
-      { x: b.x + b.w / 2 + 2, z: end + side * 2.8 },
-      { x: b.x + b.w / 2 + 2, z: end + side * 4.8 },
-      { x: b.x - b.w / 2 - 2, z: end + side * 4.8 },
+      { x: b.x - endHalf, z: end + side * 2.8 },
+      { x: b.x + endHalf, z: end + side * 2.8 },
+      { x: b.x + endHalf, z: end + side * 4.8 },
+      { x: b.x - endHalf, z: end + side * 4.8 },
     ]);
   }
   for (const p of polygons)

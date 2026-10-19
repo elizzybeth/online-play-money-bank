@@ -1,3 +1,9 @@
+import { addFarmFields } from "./farm-crops-world";
+import {
+  cornEarGeometry,
+  cornBladeGeometry,
+  cornKernelMaterial,
+} from "./corn-model";
 import { makeFarmSign } from "./farm-sign";
 import * as T from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
@@ -203,17 +209,18 @@ export function createFarm(scene: T.Scene, rects: Rect[], targets: Target[]) {
           h = 4.7 + (i % 5) * 0.18;
         place(stalkMatrices, x, h / 2, z, 0.055, h, 0.055);
         for (let j = 0; j < 6; j++)
-          place(
-            leafMatrices,
-            x + Math.sin(j * 2.4 + i) * 0.26,
-            1.25 + j * 0.61,
-            z + Math.cos(j * 2.4 + i) * 0.26,
-            0.85,
-            0.22,
-            0.22,
-            j * 2.4 + i,
-          );
-        place(cobMatrices, x + 0.11, 2.4, z, 0.095, 0.35, 0.095);
+          place(leafMatrices, x, 1.25 + j * 0.61, z, 1, 1, 1, j * 2.4 + i);
+        const angle = i * 2.399 + side * 1.1;
+        place(
+          cobMatrices,
+          x + Math.cos(angle) * 0.28,
+          2.4 + (i % 3) * 0.12,
+          z + Math.sin(angle) * 0.28,
+          0.27,
+          0.64,
+          0.27,
+          angle,
+        );
       }
   }
   const batch = (
@@ -221,6 +228,7 @@ export function createFarm(scene: T.Scene, rects: Rect[], targets: Target[]) {
     color: string,
     list: T.Matrix4[],
     name: string,
+    material: T.Material = mat(color),
   ) => {
     const tiles = new Map<string, T.Matrix4[]>();
     for (const matrix of list) {
@@ -232,7 +240,7 @@ export function createFarm(scene: T.Scene, rects: Rect[], targets: Target[]) {
       tiles.set(key, tile);
     }
     for (const tile of tiles.values()) {
-      const m = new T.InstancedMesh(geo, mat(color), tile.length);
+      const m = new T.InstancedMesh(geo, material, tile.length);
       m.name = name;
       tile.forEach((v, i) => m.setMatrixAt(i, v));
       m.castShadow = m.receiveShadow = true;
@@ -240,31 +248,42 @@ export function createFarm(scene: T.Scene, rects: Rect[], targets: Target[]) {
       root.add(m);
     }
   };
-  // A tapered leaf is two triangles instead of a flattened sphere (36).
-  // Thousands of plants remain detailed without costly invisible back geometry.
-  const cornLeaf = new T.BufferGeometry();
-  cornLeaf.setAttribute(
-    "position",
-    new T.Float32BufferAttribute(
-      [-1, 0, 0, 0, 0.5, -1, 1, 0.9, 0, 0, 0.5, 1],
-      3,
-    ),
-  );
-  cornLeaf.setIndex([0, 1, 2, 0, 2, 3]);
-  cornLeaf.computeVertexNormals();
-  mat("#5c873c").side = T.DoubleSide;
+  const leafMaterial = mat("#699743");
+  leafMaterial.side = T.DoubleSide;
   batch(
     new T.CylinderGeometry(0.75, 1, 1, 4, 1, true),
     "#90a44f",
     stalkMatrices,
     "corn-stalks",
   );
-  batch(cornLeaf, "#5c873c", leafMatrices, "corn-leaves");
-  batch(new T.SphereGeometry(1, 4, 2), "#dfc65f", cobMatrices, "corn-cobs");
-  // Two orderly carrot plots beside the farmhouse, with orange shoulders.
+  batch(
+    cornBladeGeometry(),
+    "#699743",
+    leafMatrices,
+    "corn-leaves",
+    leafMaterial,
+  );
+  batch(
+    cornEarGeometry(),
+    "#ffcf35",
+    cobMatrices,
+    "corn-cobs",
+    cornKernelMaterial(),
+  );
+  const husks: T.Matrix4[] = [];
+  const huskPose = new T.Matrix4();
+  for (const matrix of cobMatrices)
+    for (let side = 0; side < 3; side++) {
+      huskPose.makeRotationY((side * Math.PI * 2) / 3);
+      husks.push(matrix.clone().multiply(huskPose));
+    }
+  const huskMaterial = mat("#8dbb39");
+  huskMaterial.side = T.DoubleSide;
+  batch(cornBladeGeometry(true), "#8dbb39", husks, "corn-husks", huskMaterial);
+  // One carrot section beside the farmhouse, with orange shoulders.
   const carrots: T.Matrix4[] = [],
     tops: T.Matrix4[] = [];
-  for (const px of [-82, -56]) {
+  for (const px of [-82]) {
     box(px, 0.025, -19, 8, 0.05, 8, "#7b5b3a");
     for (let row = 0; row < 5; row++)
       for (let col = 0; col < 11; col++) {
@@ -336,6 +355,7 @@ export function createFarm(scene: T.Scene, rects: Rect[], targets: Target[]) {
     ...mazePacket,
     label: "Collect the corn maze seed packet",
   });
+  addFarmFields(root);
   // Batch static cottage pieces by material to keep the expansion inexpensive.
   const groups = new Map<T.Material, T.BufferGeometry[]>();
   root.updateMatrixWorld(true);

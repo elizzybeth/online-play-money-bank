@@ -179,8 +179,8 @@ export function createMillionaireWorld(
   for (let i = 1; i < bank.length; i++) fenceSegment(bank[i - 1], bank[i]);
   if (bank.length) fenceSegment(bank.at(-1)!, { x: 44.05, z: -57.5 });
   // Close the shoulders between the low approach walls and flared bridge rails.
-  fenceSegment({ x: 42.9, z: -84.2 }, { x: 40, z: -86.2 });
-  fenceSegment({ x: 49.1, z: -84.2 }, { x: 52, z: -86.2 });
+  fenceSegment({ x: 42.9, z: -84.2 }, { x: 43.18, z: -86.2 });
+  fenceSegment({ x: 49.1, z: -84.2 }, { x: 48.82, z: -86.2 });
   for (const [color, parts] of fenceParts) {
     const mesh = new T.Mesh(mergeGeometries(parts)!, material(color));
     mesh.castShadow = mesh.receiveShadow = true;

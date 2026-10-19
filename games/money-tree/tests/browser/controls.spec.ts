@@ -1,34 +1,38 @@
 import { test, expect } from "@playwright/test";
-test("Shift runs faster than walking without crossing colliders", async ({
+import { fresh } from "../../src/game";
+test("Shift runs 1.75 times faster than walking on the same clear route", async ({
   page,
 }) => {
-  // Pause on the blank page before expensive WebGL loading. A fixed future
-  // target cannot race slow CI rendering or a Date.now() round trip.
   await page.clock.install({ time: new Date("2026-01-01T00:00:00Z") });
   await page.clock.pauseAt(new Date("2026-01-02T00:00:00Z"));
+  const state = Object.assign(fresh(), {
+    awake: true,
+    metMom: true,
+    position: { x: 3, z: 25 },
+  });
+  await page.addInitScript(
+    (s) => localStorage.setItem("money-tree-v1", JSON.stringify(s)),
+    state,
+  );
   await page.goto("./?test");
   await page.getByRole("button", { name: "Wake up" }).click();
-  await page.keyboard.press("e");
-  await page.evaluate(async () => (window as any).game.teleport(3, 25));
-  for (let i = 0; i < 120; i++) await page.clock.fastForward(16);
-  await page.keyboard.down("w");
-  await page.clock.fastForward(1000);
-  await page.keyboard.up("w");
-  const walk = await page.evaluate(async () => {
-    const p = (window as any).game.state().position;
-    return Math.hypot(p.x - 3, p.z - 25);
-  });
-  await page.evaluate(async () => (window as any).game.teleport(3, 25));
-  await page.keyboard.down("Shift");
-  for (let i = 0; i < 120; i++) await page.clock.fastForward(16);
-  await page.keyboard.down("w");
-  await page.clock.fastForward(1000);
-  await page.keyboard.up("w");
-  await page.keyboard.up("Shift");
-  const run = await page.evaluate(async () => {
-    const p = (window as any).game.state().position;
-    return Math.hypot(p.x - 3, p.z - 25);
-  });
+  await page.evaluate(() => (window as any).game.setYaw(0));
+  for (let i = 0; i < 4; i++) await page.clock.fastForward(125);
+  const travel = async (running: boolean) => {
+    await page.evaluate(() => (window as any).game.teleport(3, 25));
+    if (running) await page.keyboard.down("Shift");
+    await page.keyboard.down("w");
+    for (let i = 0; i < 16; i++) await page.clock.fastForward(125);
+    await page.keyboard.up("w");
+    if (running) await page.keyboard.up("Shift");
+    return page.evaluate(() => {
+      const p = (window as any).game.state().position;
+      return Math.hypot(p.x - 3, p.z - 25);
+    });
+  };
+  const walk = await travel(false),
+    run = await travel(true);
+  expect(walk).toBeGreaterThan(2);
   expect(run / walk).toBeCloseTo(1.75, 1);
 });
 test("click captures mouse; NPC replies and menus release it", async ({

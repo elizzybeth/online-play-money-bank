@@ -6,12 +6,13 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && vite build",
-    "test": "node --import tsx --test tests/*.test.ts",
+    "test": "node --import tsx --test --test-isolation=none tests/*.test.ts",
     "test:e2e": "playwright test",
     "format": "prettier --write src tests *.ts *.json index.html",
     "test:visual": "MONEY_TREE_VISUAL=1 playwright test visual.spec.ts",
     "profile:game": "node --import tsx tools/profile-game.mjs",
-    "profile:tests": "node tools/profile-tests.mjs"
+    "profile:tests": "node tools/profile-tests.mjs",
+    "test:smoke": "playwright test --config playwright.smoke.config.ts"
   },
   "dependencies": {
     "three": "^0.180.0"

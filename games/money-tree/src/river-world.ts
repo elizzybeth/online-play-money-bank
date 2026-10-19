@@ -6,6 +6,7 @@ import {
   riverHalfWidth,
   riverBankWidth,
   riverBridges,
+  bridgeApproachHalfWidth,
   riverDistance,
 } from "./river-land";
 import { carveRiver } from "./river-carve";
@@ -204,6 +205,7 @@ export function createRiverWorld(scene: T.Scene, rects: Rect[], paths: Rect[]) {
     }
     for (const side of [-1, 1]) {
       const end = b.z + (side * b.d) / 2;
+      const endHalf = bridgeApproachHalfWidth(b, side);
       const vertices = [
         b.x - b.w / 2,
         0.14,
@@ -211,16 +213,16 @@ export function createRiverWorld(scene: T.Scene, rects: Rect[], paths: Rect[]) {
         b.x + b.w / 2,
         0.14,
         end,
-        b.x + b.w / 2 + 2,
+        b.x + endHalf,
         0,
         end + side * 2.8,
         b.x - b.w / 2,
         0.14,
         end,
-        b.x + b.w / 2 + 2,
+        b.x + endHalf,
         0,
         end + side * 2.8,
-        b.x - b.w / 2 - 2,
+        b.x - endHalf,
         0,
         end + side * 2.8,
       ];
@@ -233,12 +235,21 @@ export function createRiverWorld(scene: T.Scene, rects: Rect[], paths: Rect[]) {
       ramp.name = "bridge-flared-ramp";
       ramp.receiveShadow = true;
       bridge.add(ramp);
-      part(b.x, -0.06, end + side * 3.8, b.w + 4, 0.12, 2, wood, bridge).name =
-        "bridge-level-landing";
+      part(
+        b.x,
+        -0.06,
+        end + side * 3.8,
+        endHalf * 2,
+        0.12,
+        2,
+        wood,
+        bridge,
+      ).name = "bridge-level-landing";
+      if (b.id === "village") continue;
       for (const edge of [-1, 1]) {
         for (let i = 0; i < 7; i++) {
           const t = (i + 0.5) / 7,
-            x = b.x + edge * (b.w / 2 + 2 * t + 0.12),
+            x = b.x + edge * (bridgeApproachHalfWidth(b, side, t) + 0.12),
             z = end + side * 2.8 * t;
           const rail = part(
             x,
@@ -250,7 +261,7 @@ export function createRiverWorld(scene: T.Scene, rects: Rect[], paths: Rect[]) {
             wood,
             bridge,
           );
-          rail.rotation.y = edge * side * Math.atan2(2, 2.8);
+          rail.rotation.y = edge * side * Math.atan2(endHalf - b.w / 2, 2.8);
           rects.push({ x, z, w: 0.3, d: 0.5 });
         }
       }
@@ -306,11 +317,19 @@ export function createRiverWorld(scene: T.Scene, rects: Rect[], paths: Rect[]) {
       w: b.axis === "z" ? breadth : span,
       d: b.axis === "z" ? span : breadth,
     });
-    return [rect(0, along + 9.6, width), ...[-1, 1].flatMap((side) => [
-      ...Array.from({ length: 8 }, (_, i) =>
-        rect(side * (along / 2 + (i + 0.5) * 0.35), 0.35, width + i * 0.5)),
-      rect(side * (along / 2 + 3.8), 2, width + 4),
-    ])];
+    return [
+      rect(0, along + 9.6, width),
+      ...[-1, 1].flatMap((side) => [
+        ...Array.from({ length: 8 }, (_, i) =>
+          rect(
+            side * (along / 2 + (i + 0.5) * 0.35),
+            0.35,
+            bridgeApproachHalfWidth(b, side, (i + 1) / 8) * 2,
+          ),
+        ),
+        rect(side * (along / 2 + 3.8), 2, bridgeApproachHalfWidth(b, side) * 2),
+      ]),
+    ];
   });
   for (let i = 1; i < riverSections.length; i++) {
     const a = riverSections[i - 1],

@@ -116,7 +116,7 @@ test("bridge approaches are broad, flat at the ends and no steeper than 1:20", (
     assert.equal(bridgeHeight(b.x, end), 0.14);
     assert(Math.abs(bridgeHeight(b.x, end + 1.4)! - 0.07) < 1e-8);
     assert.equal(bridgeHeight(b.x, end + 3.8), 0);
-    assert(bridgeHeight(b.x + 5, end + 2)! >= 0);
+    assert(bridgeHeight(b.x + (b.id === "grove" ? 2.5 : 5), end + 2)! >= 0);
     assert.equal(bridgeHeight(b.x + 7, end + 2), undefined);
   }
 });
