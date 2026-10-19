@@ -18,6 +18,8 @@ Use Node 22+ and pnpm 11.
 pnpm install
 pnpm dev
 pnpm test
+pnpm test:stress # optional full journal/seed soak
+pnpm test:smoke
 pnpm test:e2e
 pnpm test:visual
 pnpm build
@@ -175,3 +177,5 @@ After Pepe's balloon pops, Mr Wacky appears in the center of the room while the 
 The starting hat limit is three. Opening Sigma Town adds a fourth slot; opening Mt. Millionaire adds a fifth. Both racks, shop purchases, the bag and save validation use the same derived limit. Existing saves retain their stacks and automatically gain the slots they have unlocked. The temporary Serious Hat remains an extra cosmetic effect.
 
 The owned-bike rack stands at the house's southeast corner, clear of its doors and the main lane. Its post-mounted charcoal sign has a white border, tall BIKE RACK lettering and a bicycle pictogram. Choosing, storing and mounting bicycles still use the same saved ownership.
+
+The fast unit command reuses content-hashed compiled tests and bounded workers. Use `pnpm test:stress` for the full journal/seed soak. The browser smoke defaults to the compiled `dist` build; run `pnpm build` first after local game-code edits. CI tests the checked-in Pages artifact while core verifies it matches a fresh build.

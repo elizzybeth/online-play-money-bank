@@ -77,6 +77,27 @@ const normalize = (s: string) =>
     .replace(/[’']/g, "")
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
+// Only immutable corpus text is shared; player journal history stays entry-local.
+let corpusPhrases:
+  Map<string, { three: string[]; seven: string[] }> | undefined;
+function phrases(text: string, n: number) {
+  const words = normalize(text).split(" ");
+  return Array.from({ length: Math.max(0, words.length - n + 1) }, (_, i) =>
+    words.slice(i, i + n).join(" "),
+  );
+}
+function corpusPhrasesFor(text: string) {
+  if (!corpusPhrases) {
+    corpusPhrases = new Map();
+    for (const passage of Object.values(passages).flat())
+      if (!passage.includes("{"))
+        corpusPhrases.set(passage, {
+          three: phrases(passage, 3).map((p) => ` ${p} `),
+          seven: phrases(passage, 7),
+        });
+  }
+  return corpusPhrases.get(text);
+}
 const count = (c: JournalContext, prefix: string) =>
   c.events.filter((e) => e.startsWith(prefix)).length;
 const has = (c: JournalContext, pattern: RegExp) =>
@@ -196,26 +217,21 @@ export function constructJournal(
         `The community took its tenth from my money tree earnings today.`,
       );
   }
-  // Local caches live for one entry only; no journal history is retained globally.
-  const wordsCache = new Map<string, string[]>();
-  const wordsFor = (text: string) => {
-    let words = wordsCache.get(text);
-    if (!words) {
-      words = normalize(text).split(" ");
-      wordsCache.set(text, words);
+  const entryPhrases = new Map<string, { three: string[]; seven: string[] }>();
+  const phrasesFor = (text: string) => {
+    let value = corpusPhrasesFor(text) ?? entryPhrases.get(text);
+    if (!value) {
+      value = {
+        three: phrases(text, 3).map((p) => ` ${p} `),
+        seven: phrases(text, 7),
+      };
+      entryPhrases.set(text, value);
     }
-    return words;
+    return value;
   };
-  // Newlines cannot occur in normalized phrases, so matches cannot cross pages.
   const recentText = c.previous.slice(-8).map(normalize).join("\n");
-  const repeatsPhrase = (text: string) => {
-    const words = wordsFor(text);
-    return words.some(
-      (_, i) =>
-        i + 7 <= words.length &&
-        recentText.includes(words.slice(i, i + 7).join(" ")),
-    );
-  };
+  const repeatsPhrase = (text: string) =>
+    phrasesFor(text).seven.some((phrase) => recentText.includes(phrase));
   const choose = (
     family: string,
     options = passages[family],
@@ -230,14 +246,8 @@ export function constructJournal(
       }),
     }));
     const existingText = " " + paragraphs.map(normalize).join(" \n ") + " ";
-    const repeatedWithinPage = (text: string) => {
-      const words = wordsFor(text);
-      return words.some(
-        (_, i) =>
-          i + 3 <= words.length &&
-          existingText.includes(` ${words.slice(i, i + 3).join(" ")} `),
-      );
-    };
+    const repeatedWithinPage = (text: string) =>
+      phrasesFor(text).three.some((phrase) => existingText.includes(phrase));
     const fresh = candidates.filter(
       (p) =>
         !repeatsPhrase(p.text) &&

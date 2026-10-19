@@ -111,13 +111,16 @@ test("construction is deterministic, stable after reload, and corrupt optional m
   assert.equal(fixed.bank, s.bank);
   assert.deepEqual(fixed.journal, s.journal);
 });
-test("10000 simulated nights stay bounded, grounded, fresh, and narratively coherent", () => {
+test("simulated journal histories stay bounded, grounded, fresh, and coherent", () => {
+  const stress = process.env.MONEY_TREE_STRESS === "1";
+  const runs = stress ? 100 : 8,
+    days = stress ? 100 : 32;
   const seen = new Set<string>();
-  for (let run = 1; run <= 100; run++) {
+  for (let run = 1; run <= runs; run++) {
     const s = fresh();
     s.journalNarrative = newNarrativeMemory(run);
     s.boughtSeeds = true;
-    for (let day = 1; day <= 100; day++) {
+    for (let day = 1; day <= days; day++) {
       s.day = day;
       s.events = [];
       const activity = [
@@ -156,7 +159,10 @@ test("10000 simulated nights stay bounded, grounded, fresh, and narratively cohe
       if (c.firstHarvest) s.harvestReflected = true;
     }
   }
-  assert(seen.size > 7000, `Only ${seen.size} distinct entries`);
+  assert(
+    seen.size > (stress ? 7000 : 180),
+    `Only ${seen.size} distinct entries`,
+  );
 });
 
 test("all Mom activity families and hat powers are reachable without inventing purchases", () => {
@@ -168,7 +174,7 @@ test("all Mom activity families and hat powers are reachable without inventing p
     ["looking at the garden", "garden"],
   ]) {
     const seen = new Set<string>();
-    for (let seed = 1; seed <= 200; seed++) {
+    for (let seed = 1; seed <= 200 && seen.size < 8; seed++) {
       const result = constructJournal(
         context([`Mom had energy for ${activity} today.`]),
         newNarrativeMemory(seed * 104729),
@@ -242,4 +248,29 @@ test("hat reflections describe the current fertilizer and harvest powers", () =>
     context(["Used my Lucky Tallboy to get an extra dollar from a harvest."]),
   );
   assert.match(banker.entry, /nine if I fertilized it/);
+});
+
+test("cached phrase comparisons preserve the reviewed journal choices across histories", async () => {
+  const { createHash } = await import("node:crypto");
+  const hash = createHash("sha256");
+  for (let seed = 1; seed <= 8; seed++) {
+    const s = fresh();
+    let memory = newNarrativeMemory(seed);
+    for (let day = 1; day <= 12; day++) {
+      s.day = day;
+      s.events = [
+        `Mom had energy for ${["painting", "cooking", "reading a book"][day % 3]} today.`,
+      ];
+      const c = journalContext(s);
+      c.seed = seed;
+      const result = constructJournal(c, memory);
+      hash.update(JSON.stringify(result));
+      memory = result.memory;
+      s.journal.push(result.entry);
+    }
+  }
+  assert.equal(
+    hash.digest("hex"),
+    "41e90f90e6575f233a2d84671ab0488e017b63b31817de717c27c0144daead01",
+  );
 });

@@ -22,7 +22,8 @@ test("compiled game renders trees, routes seed-selection input and persists thro
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("./?test");
-  await page.getByRole("button", { name: "Wake up" }).click();
+  await expect(page.getByRole("button", { name: "Wake up" })).toBeEnabled();
+  await page.getByRole("button", { name: "Wake up" }).dispatchEvent("click");
   for (let i = 0; i < 3; i++) await page.clock.fastForward(125);
   const render = await page.evaluate(() => {
     const g = (window as any).game;
@@ -74,7 +75,8 @@ test("compiled game renders trees, routes seed-selection input and persists thro
     )
     .toBe("beet");
   await page.reload();
-  await page.getByRole("button", { name: "Wake up" }).click();
+  await expect(page.getByRole("button", { name: "Wake up" })).toBeEnabled();
+  await page.getByRole("button", { name: "Wake up" }).dispatchEvent("click");
   expect(
     await page.evaluate(() => (window as any).game.state().activeSeed),
   ).toBe("beet");

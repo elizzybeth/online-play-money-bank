@@ -158,7 +158,16 @@ test("journal reflects actual community planting and does not pretend investment
   s.events = [];
   plant(s, 5);
   const c = journalContext(s);
-  for (let seed = 1; seed <= 1000; seed++) {
+  // Full seed sweep remains available in the stress run.
+  for (
+    let n = 0;
+    n < (process.env.MONEY_TREE_STRESS === "1" ? 1000 : 32);
+    n++
+  ) {
+    const seed =
+      process.env.MONEY_TREE_STRESS === "1"
+        ? n + 1
+        : 1 + Math.floor((n * 999) / 31);
     const result = constructJournal(c, newNarrativeMemory(seed));
     assert(
       result.selections.some((id) => id.startsWith("sigmaGarden:")),
@@ -236,7 +245,16 @@ test("community-garden criticism enters the journal only after hearing the actua
     "Heard Chad: A community garden? Sharing soil is not very sigma.",
   );
   const c = journalContext(s);
-  for (let seed = 1; seed <= 1000; seed++) {
+  // Full seed sweep remains available in the stress run.
+  for (
+    let n = 0;
+    n < (process.env.MONEY_TREE_STRESS === "1" ? 1000 : 32);
+    n++
+  ) {
+    const seed =
+      process.env.MONEY_TREE_STRESS === "1"
+        ? n + 1
+        : 1 + Math.floor((n * 999) / 31);
     const result = constructJournal(c, newNarrativeMemory(seed));
     assert(
       result.selections.some((id) => id.startsWith("sigmaGardenCriticism:")),
