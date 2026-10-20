@@ -457,6 +457,9 @@ export function createWorld(scene: T.Scene) {
   townGround.name = "town-ground";
   townGround.userData.depthAudit = true;
   townGround.material = surfaceMaterial(colors.grass, "grass", 50, 45);
+  const eastMarketGround = box(95, -0.25, -19, 74, 0.5, 44, colors.grass);
+  eastMarketGround.name = "east-market-ground";
+  eastMarketGround.material = surfaceMaterial(colors.grass, "grass", 20, 12);
   // Draw the union once: overlapping sidewalk rectangles used to flicker.
   const xs = [
     ...new Set(paths.flatMap((p) => [p.x - p.w / 2, p.x + p.w / 2])),
@@ -2603,11 +2606,14 @@ export function createWorld(scene: T.Scene) {
   }
   // River outlets interrupt both the visible hedge and its collision.
   const hedgeRects = [
+    { x: 91, z: -41, w: 82, d: 1, clearHeight: 2.3 },
+    { x: 131, z: -19, w: 1, d: 44, clearHeight: 2.3 },
+    { x: 91, z: 3, w: 82, d: 1, clearHeight: 2.3 },
     { x: -130, z: -12.5, w: 1, d: 103, clearHeight: 2.3 },
     { x: -84.5, z: -64.5, w: 91, d: 1, clearHeight: 2.3 },
     { x: -39, z: -52, w: 1, d: 24, clearHeight: 2.3 },
     { x: 39, z: 0, w: 1, d: 90, clearHeight: 2.3 },
-    { x: -3.25, z: -66, w: 70.5, d: 1, clearHeight: 2.3 },
+    { x: -3.25, z: -40, w: 70.5, d: 1, clearHeight: 2.3 },
     { x: 37.75, z: -40, w: 1.5, d: 1, clearHeight: 2.3 },
     { x: -45.5, z: 39, w: 168, d: 1, clearHeight: 2.3 },
   ].flatMap(splitRiverBoundary);
@@ -2638,8 +2644,8 @@ export function createWorld(scene: T.Scene) {
     sigma.setMillionaireOpen(open);
     for (const bush of level3PathBushes) bush.visible = !open;
   }
-  const gateRect = { x: 34.5, z: -66, w: 5, d: 1 };
-  const gate = box(34.5, 1.05, -66, 5, 2.1, 1, "#658464");
+  const gateRect = { x: 34.5, z: -40, w: 5, d: 1 };
+  const gate = box(34.5, 1.05, -40, 5, 2.1, 1, "#658464");
   rects.push(gateRect);
   occluders.push(gate);
   let sigmaOpen = false;

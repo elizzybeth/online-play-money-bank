@@ -9,20 +9,20 @@ import { makeGrocery } from "./grocery-models";
 import { signCanvas } from "./signage";
 export const marketShops = [
   {
-    x: -20,
-    z: -52,
+    x: 104,
+    z: -24,
     w: 24,
     d: 16,
     name: "Bright Side Home",
     id: "bright-side-home",
   },
-  { x: 12, z: -52, w: 24, d: 16, name: "The Green Basket", id: "green-basket" },
+  { x: 70, z: -24, w: 24, d: 16, name: "The Green Basket", id: "green-basket" },
 ] as const;
 export const marketPaths: Rect[] = [
-  { x: 34, z: -48, w: 5, d: 32 },
-  { x: 1, z: -41.5, w: 70, d: 4 },
-  { x: -20, z: -43, w: 5, d: 4 },
-  { x: 12, z: -43, w: 5, d: 4 },
+  { x: 55, z: -16, w: 5, d: 14 },
+  { x: 87, z: -12, w: 64, d: 5 },
+  { x: 70, z: -14, w: 5, d: 4 },
+  { x: 104, z: -14, w: 5, d: 4 },
 ];
 export function createMarketShops(
   scene: T.Scene,

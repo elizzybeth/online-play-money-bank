@@ -76,6 +76,7 @@ export const riverBridges: readonly {
   axis: "x" | "z";
 }[] = [
   { id: "village", x: 3, z: -8.6, w: 8, d: 6, axis: "z" },
+  { id: "market", x: 43, z: -20, w: 14, d: 6, axis: "x" },
   { id: "grove", x: 46, z: -98, w: 8, d: 18, axis: "z" },
 ] as const;
 /** The Sigma landing meets the 5.4m corridor flush; other landings flare. */
@@ -84,7 +85,7 @@ export function bridgeApproachHalfWidth(
   side: number,
   t = 1,
 ) {
-  const half = b.w / 2,
+  const half = (b.axis === "z" ? b.w : b.d) / 2,
     end = b.id === "grove" && side === 1 ? 2.7 : half + 2;
   return half + (end - half) * Math.max(0, Math.min(1, t));
 }

@@ -56,8 +56,8 @@ try {
       ["maze", -57, -34.7],
       ["mountain", 34, -370],
       ["fields", -86, 18],
-      ["groceries", 12, -46],
-      ["furnishings", -20, -46],
+      ["groceries", 70, -18],
+      ["furnishings", 104, -18],
       ["night", 0, 25],
     ].filter(
       ([name]) =>

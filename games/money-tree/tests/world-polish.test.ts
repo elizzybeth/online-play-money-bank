@@ -61,7 +61,7 @@ test("meteor rotation visits interior desert, remains bounded and saves during r
 test("Level 1 players keep their position when reloading inside the expanded farm", () => {
   const p = { x: -118, z: -60 };
   assert.deepEqual(clearPosition(p, []), p);
-  assert.deepEqual(clearPosition({ x: 3, z: -60 }, []), { x: 3, z: -60 });
+  assert.deepEqual(clearPosition({ x: 3, z: -60 }, []), { x: -16, z: 4 });
   assert.deepEqual(clearPosition({ x: 3, z: -70 }, []), { x: -16, z: 4 });
   const s = fresh();
   s.position = p;
