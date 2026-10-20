@@ -6,7 +6,7 @@ import { journalContext } from "../src/journal";
 import { constructJournal } from "../src/branching-journal";
 test("news covers actual recent events and retires old headlines", () => {
   const s = fresh();
-  assert(newsReports(s).some((n) => n.headline.includes("Spoke")));
+  assert(newsReports(s).some((n) => n.headline.includes("Pretty Good Bikes")));
   s.day = 8;
   s.events = [
     "Found five money seeds behind the TV at home.",

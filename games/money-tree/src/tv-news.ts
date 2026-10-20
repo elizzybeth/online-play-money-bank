@@ -5,9 +5,9 @@ export function newsReports(s: State): NewsReport[] {
   if (s.day <= 3)
     reports.push({
       day: 1,
-      headline: "Spoke & Saddle opens",
+      headline: "Pretty Good Bikes opens",
       report:
-        "Spoke & Saddle has opened its doors with seven bicycles, from a little bike with training wheels to a carbon road bike. Riders can browse the new showroom just off the lane.",
+        "Pretty Good Bikes has opened its doors with seven bicycles, from a little bike with training wheels to a carbon road bike. Riders can browse the new showroom just off the lane.",
     });
   for (const memory of [
     ...(s.journalHistory ?? []).filter((m) => m.day >= s.day - 2),
