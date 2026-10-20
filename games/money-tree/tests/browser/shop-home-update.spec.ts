@@ -45,7 +45,7 @@ test("couch channel control preserves seating and showroom bicycles can be inspe
   await page.keyboard.press("e");
   await expect(page.locator("#modal")).toBeVisible();
 });
-test("bed and shop displays have grounded geometry and leave the shared wall window clear", async ({
+test("bed and separate shop displays have grounded geometry outside Robertsons", async ({
   page,
 }) => {
   await start(page);
@@ -53,7 +53,8 @@ test("bed and shop displays have grounded geometry and leave the shared wall win
   expect(r.bed.min[2]).toBeCloseTo(6.15, 1);
   expect(r.bed.max[2]).toBeCloseTo(9.65, 1);
   expect(r.groceries.max[2]).toBeLessThan(-32.1);
-  expect(r.furnishings.min[2]).toBeGreaterThan(-27.9);
+  expect(r.furnishings.max[2]).toBeLessThan(-40);
+  expect(r.furnishings.max[0]).toBeLessThan(r.groceries.min[0]);
   expect(r.bracelet.max[0] - r.bracelet.min[0]).toBeLessThan(0.4);
   for (const view of ["bed", "shop", "memes", "guru"]) {
     await page.evaluate(

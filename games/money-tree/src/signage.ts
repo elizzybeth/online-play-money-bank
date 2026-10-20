@@ -1,7 +1,7 @@
 import { heritageSign, robertsonsLabels } from "./heritage-signs";
 // Original shop identities, drawn at texture resolution with bundled fonts.
 export function signCanvas(text: string, width = 768, height = 192) {
-  if (text === "Hardware & Grocer") return heritageSign(text, 1536, 640, true);
+  if (text === "Hardware") return heritageSign(text, 1536, 640, true);
   if (
     robertsonsLabels.has(text) ||
     /^(WATERING CAN|SHOVEL|FERTILIZER|Garden bed|Soil) ·/.test(text)
@@ -322,7 +322,7 @@ export function signCanvas(text: string, width = 768, height = 192) {
     }
     return c;
   }
-  const grocery = text === "Robertsons" || text === "Hardware & Grocer";
+  const grocery = text === "Robertsons" || text === "Hardware";
   const hat =
     text === "Thread & Thimble" ||
     text === "Haberdashery" ||
@@ -368,8 +368,8 @@ export function signCanvas(text: string, width = 768, height = 192) {
               : text === "Hawk Tuah"
                 ? "Nunito"
                 : "BarlowCondensed";
-  let label = text === "Hardware & Grocer" ? "GROCERY & HARDWARE" : text;
-  if (text === "Hardware & Grocer") font = "BarlowCondensed";
+  let label = text === "Hardware" ? "HARDWARE & GARDEN" : text;
+  if (text === "Hardware") font = "BarlowCondensed";
   const icon = grocery || hat || bike || coffee;
   const left = icon ? height * 0.94 : 24;
   let size = height * (hat ? 0.42 : 0.52);

@@ -2,6 +2,14 @@ import { modernFurniture, type ModernFurnitureId } from "./marvels-catalog";
 import type { State, Rect } from "./game";
 export type FurnishingId =
   | ModernFurnitureId
+  | "jewel-lamp"
+  | "woven-pendant"
+  | "yellow-chair"
+  | "tulip-table"
+  | "pink-locker"
+  | "balloon-dog"
+  | "striped-vase"
+  | "color-gallery"
   | "sunset"
   | "botanical"
   | "geometric"
@@ -112,6 +120,73 @@ export const furnishingCatalog: {
   },
   { id: "rug", name: "Woven jewel rug", price: 900, level: 3, w: 2.4, d: 1.6 },
 ];
+furnishingCatalog.push(
+  {
+    id: "jewel-lamp",
+    name: "Jewel-glass table lamp",
+    price: 850,
+    level: 1,
+    w: 0.6,
+    d: 0.6,
+  },
+  {
+    id: "woven-pendant",
+    name: "Woven rattan floor lantern",
+    price: 1400,
+    level: 1,
+    w: 1.1,
+    d: 1.1,
+  },
+  {
+    id: "yellow-chair",
+    name: "Sunshine woven chair",
+    price: 900,
+    level: 1,
+    w: 1.1,
+    d: 1.1,
+  },
+  {
+    id: "tulip-table",
+    name: "Golden tulip dining table",
+    price: 1800,
+    level: 1,
+    w: 1.7,
+    d: 1.7,
+  },
+  {
+    id: "pink-locker",
+    name: "Hot pink locker cabinet",
+    price: 1600,
+    level: 1,
+    w: 1.3,
+    d: 0.65,
+  },
+  {
+    id: "balloon-dog",
+    name: "Magenta balloon dog sculpture",
+    price: 1100,
+    level: 1,
+    w: 1.1,
+    d: 0.7,
+  },
+  {
+    id: "striped-vase",
+    name: "Striped vase with wildflowers",
+    price: 650,
+    level: 1,
+    w: 0.7,
+    d: 0.7,
+  },
+  {
+    id: "color-gallery",
+    name: "Colorful town gallery",
+    price: 1200,
+    level: 1,
+    wall: true,
+    w: 1.7,
+    d: 0.1,
+  },
+);
 furnishingCatalog.push(
   {
     id: "royal-bed",

@@ -15,7 +15,7 @@ export function playableBounds(s: BoundaryState) {
         ? -63.5
         : s.foundTVSeeds
           ? -89
-          : -39,
+          : -65,
     bottom: 38,
   };
 }
