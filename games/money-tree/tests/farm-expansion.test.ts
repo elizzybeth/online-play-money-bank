@@ -111,12 +111,20 @@ test("Giant Steps climbs terraces on foot while ordinary movement and walls stil
 });
 test("bridge approaches are broad, flat at the ends and no steeper than 1:20", () => {
   for (const b of riverBridges) {
-    assert(b.w >= 8);
-    const end = b.z + b.d / 2;
-    assert.equal(bridgeHeight(b.x, end), 0.14);
-    assert(Math.abs(bridgeHeight(b.x, end + 1.4)! - 0.07) < 1e-8);
-    assert.equal(bridgeHeight(b.x, end + 3.8), 0);
-    assert(bridgeHeight(b.x + (b.id === "grove" ? 2.5 : 5), end + 2)! >= 0);
-    assert.equal(bridgeHeight(b.x + 7, end + 2), undefined);
+    const width = b.axis === "z" ? b.w : b.d;
+    assert(width >= (b.id === "market" ? 6 : 8));
+    const end = (b.axis === "z" ? b.d : b.w) / 2;
+    const at = (along: number, across = 0) =>
+      bridgeHeight(
+        b.x + (b.axis === "z" ? across : along),
+        b.z + (b.axis === "z" ? along : across),
+      );
+    assert.equal(at(end), 0.14);
+    assert(Math.abs(at(end + 1.4)! - 0.07) < 1e-8);
+    assert.equal(at(end + 3.8), 0);
+    assert(
+      at(end + 2, b.id === "grove" ? 2.5 : b.id === "market" ? 4 : 5)! >= 0,
+    );
+    assert.equal(at(end + 2, 7), undefined);
   }
 });

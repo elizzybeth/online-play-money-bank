@@ -6223,7 +6223,7 @@ function updateUI() {
                     Math.abs(x - shop.x) < shop.w / 2 &&
                     Math.abs(z - shop.z) < shop.d / 2,
                 )!.name
-              : z >= -65 && z < -39 && x > -38 && x < 38
+              : x >= 50 && x < 130 && z >= -40 && z <= 2
                 ? "Market Lane"
                 : s.foundTVSeeds && z < -40
                   ? "Sigma Town"
@@ -8368,9 +8368,9 @@ if (new URLSearchParams(location.search).has("test")) {
         | "furnishings",
     ) => {
       const shots = {
-        market: [32, 25, -21, 0, 0, -52],
-        grocer: [12, 7, -45, 12, 1, -55],
-        furnishings: [-20, 7, -45, -20, 1, -55],
+        market: [78, 38, 28, 82, 0, -22],
+        grocer: [76, 7, -17, 70, 1, -27],
+        furnishings: [110, 7, -17, 104, 1, -27],
         bikes: [-18, 4.8, -4, -18, 3.6, -21],
         bookcase: [-11, 2.3, 9.8, -12.1, 1.4, 6.8],
         mabel: [-31, 4, -19, -39, 2, -25],

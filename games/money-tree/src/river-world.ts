@@ -209,28 +209,22 @@ export function createRiverWorld(
         );
       }
     }
+    const crossHalf = (alongZ ? b.w : b.d) / 2;
+    const point = (across: number, y: number, along: number) => [
+      b.x + (alongZ ? across : along),
+      y,
+      b.z + (alongZ ? along : across),
+    ];
     for (const side of [-1, 1]) {
-      const end = b.z + (side * b.d) / 2;
+      const end = (side * length) / 2;
       const endHalf = bridgeApproachHalfWidth(b, side);
       const vertices = [
-        b.x - b.w / 2,
-        0.14,
-        end,
-        b.x + b.w / 2,
-        0.14,
-        end,
-        b.x + endHalf,
-        0,
-        end + side * 2.8,
-        b.x - b.w / 2,
-        0.14,
-        end,
-        b.x + endHalf,
-        0,
-        end + side * 2.8,
-        b.x - endHalf,
-        0,
-        end + side * 2.8,
+        ...point(-crossHalf, 0.14, end),
+        ...point(crossHalf, 0.14, end),
+        ...point(endHalf, 0, end + side * 2.8),
+        ...point(-crossHalf, 0.14, end),
+        ...point(endHalf, 0, end + side * 2.8),
+        ...point(-endHalf, 0, end + side * 2.8),
       ];
       const geo = new T.BufferGeometry();
       geo.setAttribute("position", new T.Float32BufferAttribute(vertices, 3));
@@ -241,36 +235,39 @@ export function createRiverWorld(
       ramp.name = "bridge-flared-ramp";
       ramp.receiveShadow = true;
       bridge.add(ramp);
+      const landing = point(0, -0.06, end + side * 3.8);
       part(
-        b.x,
-        -0.06,
-        end + side * 3.8,
-        endHalf * 2,
+        landing[0],
+        landing[1],
+        landing[2],
+        alongZ ? endHalf * 2 : 2,
         0.12,
-        2,
+        alongZ ? 2 : endHalf * 2,
         wood,
         bridge,
       ).name = "bridge-level-landing";
-      if (b.id === "village") continue;
-      for (const edge of [-1, 1]) {
+      if (b.id === "village" || b.id === "market") continue;
+      for (const edge of [-1, 1])
         for (let i = 0; i < 7; i++) {
-          const t = (i + 0.5) / 7,
-            x = b.x + edge * (bridgeApproachHalfWidth(b, side, t) + 0.12),
-            z = end + side * 2.8 * t;
+          const t = (i + 0.5) / 7;
+          const [x, y, z] = point(
+            edge * (bridgeApproachHalfWidth(b, side, t) + 0.12),
+            1.04 - 0.14 * t,
+            end + side * 2.8 * t,
+          );
           const rail = part(
             x,
-            1.04 - 0.14 * t,
+            y,
             z,
-            0.14,
+            alongZ ? 0.14 : 0.5,
             0.16,
-            0.5,
+            alongZ ? 0.5 : 0.14,
             wood,
             bridge,
           );
-          rail.rotation.y = edge * side * Math.atan2(endHalf - b.w / 2, 2.8);
-          rects.push({ x, z, w: 0.3, d: 0.5 });
+          rail.rotation.y = edge * side * Math.atan2(endHalf - crossHalf, 2.8);
+          rects.push({ x, z, w: alongZ ? 0.3 : 0.5, d: alongZ ? 0.5 : 0.3 });
         }
-      }
     }
     // Individual plank seams are narrow vertical faces, not overlapping decals.
     for (let j = 1; j < Math.floor(length / 0.6); j++) {

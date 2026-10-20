@@ -43,7 +43,7 @@ test("river stays outside the home and Mabel footprints and has smooth continuou
     for (let a = x - w / 2; a <= x + w / 2; a += 0.5)
       for (let b = z - d / 2; b <= z + d / 2; b += 0.5)
         assert(riverDistance(a, b) > 3.4, `${a},${b} intrudes on a house`);
-  assert.equal(riverBridges.length, 2);
+  assert.equal(riverBridges.length, 3);
 });
 test("river terrain carving removes the channel instead of layering over the ground", () => {
   const mesh = new T.Mesh(

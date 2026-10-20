@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { fresh } from "../../src/game";
-test("expanded market has separate shops, vegetarian foods, persistent purchases and centered hats", async ({
+test("east-bank market has a river bridge and separate shops, vegetarian foods, persistent purchases and centered hats", async ({
   page,
 }, info) => {
   const s = fresh();
@@ -9,7 +9,7 @@ test("expanded market has separate shops, vegetarian foods, persistent purchases
     metMom: true,
     cash: 100000,
     hats: ["beekeeper", "seedkeeper", "alchemist"],
-    position: { x: 34, z: -38 },
+    position: { x: 42, z: -20 },
   });
   await page.clock.install({ time: new Date("2026-01-01") });
   await page.clock.pauseAt(new Date("2026-01-02"));
@@ -22,13 +22,19 @@ test("expanded market has separate shops, vegetarian foods, persistent purchases
   await expect(wake).toBeEnabled({ timeout: 30000 });
   await wake.dispatchEvent("click");
   await page.clock.fastForward(64);
-  await page.keyboard.down("w");
-  for (let i = 0; i < 40; i++) await page.clock.fastForward(250);
-  await page.keyboard.up("w");
+  await page.keyboard.down("d");
+  for (let i = 0; i < 6; i++) await page.clock.fastForward(250);
+  await page.keyboard.up("d");
   expect(
-    (await page.evaluate(() => (window as any).game.state())).position.z,
-  ).toBeLessThan(-40);
-  await page.evaluate(() => (window as any).game.teleport(12, -46));
+    (await page.evaluate(() => (window as any).game.state())).position.x,
+  ).toBeGreaterThan(42);
+  expect(
+    await page.evaluate(() => (window as any).game.river().travelFactor),
+  ).toBe(1);
+  const targets = await page.evaluate(() => (window as any).game.targets);
+  expect(targets.find((t: any) => t.id === "green-basket").x).toBe(70);
+  expect(targets.find((t: any) => t.id === "bright-side-home").x).toBe(104);
+  await page.evaluate(() => (window as any).game.teleport(70, -18));
   await page.clock.fastForward(64);
   await page.keyboard.press("e");
   await expect(
@@ -53,7 +59,7 @@ test("expanded market has separate shops, vegetarian foods, persistent purchases
   await page
     .getByRole("button", { name: "Back to the day", exact: true })
     .click();
-  await page.evaluate(() => (window as any).game.teleport(-20, -46));
+  await page.evaluate(() => (window as any).game.teleport(104, -18));
   await page.clock.fastForward(64);
   await page.keyboard.press("e");
   await expect(

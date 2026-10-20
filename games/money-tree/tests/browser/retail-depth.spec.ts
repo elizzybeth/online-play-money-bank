@@ -54,7 +54,7 @@ test("Market Lane has separate pictorial shops with repeat purchases, saved quan
     .click();
   await page.evaluate(() => {
     const g = (window as any).game;
-    g.teleport(12, -46);
+    g.teleport(70, -18);
   });
   await frames(page);
   await page.keyboard.press("e");
