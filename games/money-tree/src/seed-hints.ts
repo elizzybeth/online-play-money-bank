@@ -47,7 +47,7 @@ export function seedHint(s: State, level: number): string | null {
       "Maybe a packet was left somewhere familiar.",
       "I should take another look inside Robertsons.",
       "Look around the groceries, beyond the tools.",
-      "Check behind the groceries on the right side of Robertsons.",
+      "Check behind the hardware boxes on the right side of Robertsons.",
     ],
     garden: [
       "Maybe the neighbors have something growing besides flowers.",

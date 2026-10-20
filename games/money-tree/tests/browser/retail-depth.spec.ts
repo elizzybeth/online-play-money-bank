@@ -24,19 +24,19 @@ async function start(page: Page, cash = 2000) {
 async function frames(page: Page, n = 8) {
   for (let i = 0; i < n; i++) await page.clock.fastForward(40);
 }
-test("Robertsons has separate pictorial departments with repeat purchases, saved quantities, and affordability", async ({
+test("Market Lane has separate pictorial shops with repeat purchases, saved quantities, and affordability", async ({
   page,
 }) => {
   await start(page);
   await page.evaluate(() => {
     const g = (window as any).game,
-      t = g.targets.find((t: any) => t.id === "robertsons-home");
+      t = g.targets.find((t: any) => t.id === "bright-side-home");
     g.teleport(t.x + 1.5, t.z);
   });
   await frames(page);
   await page.keyboard.press("e");
   await expect(
-    page.getByRole("dialog", { name: "Robertsons: Home Furnishings" }),
+    page.getByRole("dialog", { name: "Bright Side Home" }),
   ).toBeVisible();
   await expect(page.locator("[data-product=eggs]")).toHaveCount(0);
   const chair = page.locator("[data-product=chair]");
@@ -49,12 +49,20 @@ test("Robertsons has separate pictorial departments with repeat purchases, saved
   expect(
     (await page.evaluate(() => (window as any).game.state())).furnitureBag,
   ).toContain("chair");
-  await page.getByRole("button", { name: "Groceries", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Back to the day", exact: true })
+    .click();
+  await page.evaluate(() => {
+    const g = (window as any).game;
+    g.teleport(12, -46);
+  });
+  await frames(page);
+  await page.keyboard.press("e");
   await expect(
-    page.getByRole("dialog", { name: "Robertsons: Groceries" }),
+    page.getByRole("dialog", { name: "The Green Basket" }),
   ).toBeVisible();
   await expect(page.locator("[data-product=chair]")).toHaveCount(0);
-  await expect(page.locator(".shop-card")).toHaveCount(4);
+  await expect(page.locator(".shop-card")).toHaveCount(20);
   await page.locator("[data-product=eggs]").click();
   await page.locator("[data-product=eggs]").click();
   await expect(page.locator("[data-product=eggs]")).toContainText("In bag: 2");
@@ -74,12 +82,12 @@ test("unaffordable cards are disabled without charging the player", async ({
   await start(page, 50);
   await page.evaluate(() => {
     const g = (window as any).game,
-      t = g.targets.find((t: any) => t.id === "robertsons-groceries");
+      t = g.targets.find((t: any) => t.id === "green-basket");
     g.teleport(t.x + 1.5, t.z);
   });
   await frames(page);
   await page.keyboard.press("e");
-  await expect(page.locator(".shop-card:disabled")).toHaveCount(4);
+  await expect(page.locator(".shop-card:disabled")).toHaveCount(20);
   expect((await page.evaluate(() => (window as any).game.state())).cash).toBe(
     50,
   );

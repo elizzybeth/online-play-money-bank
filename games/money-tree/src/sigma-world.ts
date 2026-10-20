@@ -157,7 +157,7 @@ export function createSigmaWorld(
   walkway.userData.depthAudit = true;
   walkway.receiveShadow = true;
   town.add(walkway);
-  const entranceSign = sign("Sigma Town", 34, 4.8, -43, 5);
+  const entranceSign = sign("Sigma Town", 34, 4.8, -69, 5);
   box(31.7, 2.35, -43, 0.18, 4.7, 0.18, "#6c5940");
   box(36.3, 2.35, -43, 0.18, 4.7, 0.18, "#6c5940");
   const chadHands: { ordinary: T.Object3D; diamond: T.Object3D }[] = [];

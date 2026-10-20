@@ -1,6 +1,7 @@
 import { completeMeditation } from "./sigma";
 import { TEA_SEAT_HEIGHT, seatForTea } from "./tea-pose";
 import { nightDialogue, hasAlternateChadTopic } from "./night-dialogue";
+import { marketShops } from "./market-world";
 import { farmFields, forageFarm } from "./farm-fields";
 import { riverDistance, riverTravelFactor } from "./river-land";
 import {
@@ -472,6 +473,7 @@ const nightShelters = [
   { x: -69, z: -15, w: 7.6, d: 6.6 },
   { x: 32, z: -79, w: 7.6, d: 5.6 },
   ...world.sigma.houseBounds,
+  ...marketShops,
 ];
 const mansionShelter = { x: mansionLot.x, z: mansionLot.z, w: 32, d: 22 };
 const marvelsShelter = { x: marvelsLot.x, z: marvelsLot.z, w: 19.6, d: 17.6 };
@@ -2389,60 +2391,17 @@ function notebook(page = s.journal.length - 1, direction = 0, leaf = 0) {
 const hatPortraits = new Map<HatId | BikeId | Fellowship, string>();
 function hatPortrait(id: HatId | BikeId | Fellowship) {
   if (hatPortraits.has(id)) return hatPortraits.get(id)!;
-  const preview = new T.Scene();
-  preview.background = new T.Color("#f1e4c9");
-  preview.add(new T.HemisphereLight("#ffffff", "#776852", 3));
-  const light = new T.DirectionalLight("#fff3d2", 3);
-  light.position.set(-3, 5, 4);
-  preview.add(light);
   const isMascot = fellowships.some((f) => f.id === id);
   const model = isMascot
     ? makeMascot(id as Fellowship)
     : bikeById(id)
       ? makeBike(id as BikeId)
       : makeHat(id as HatId);
-  preview.add(model);
-  const cam = new T.PerspectiveCamera(35, 1, 0.1, 20);
-  const viewpoint = bikeById(id) ? [3.2, 2.1, 3.6] : [1.5, 1.3, 2.6];
-  cam.position.set(viewpoint[0], viewpoint[1], viewpoint[2]);
-  cam.lookAt(0, bikeById(id) ? 0.85 : 0.2, 0);
-  if (isMascot) {
-    const bounds = new T.Box3().setFromObject(model),
-      center = bounds.getCenter(new T.Vector3());
-    const span = bounds.getSize(new T.Vector3()).length();
-    cam.far = 40;
-    cam.position
-      .copy(center)
-      .add(new T.Vector3(span * 0.45, span * 0.2, span * 1.6));
-    cam.lookAt(center);
-    cam.updateProjectionMatrix();
-  }
-  const target = new T.WebGLRenderTarget(160, 160);
-  target.texture.colorSpace = T.SRGBColorSpace;
-  const old = renderer.getRenderTarget();
-  renderer.setRenderTarget(target);
-  renderer.render(preview, cam);
-  const pixels = new Uint8Array(160 * 160 * 4);
-  renderer.readRenderTargetPixels(target, 0, 0, 160, 160, pixels);
-  renderer.setRenderTarget(old);
-  const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = 160;
-  const ctx = canvas.getContext("2d")!,
-    image = ctx.createImageData(160, 160);
-  for (let y = 0; y < 160; y++)
-    image.data.set(pixels.subarray((159 - y) * 640, (160 - y) * 640), y * 640);
-  ctx.putImageData(image, 0, 0);
-  const url = canvas.toDataURL();
+  const url = productPortrait(renderer, model);
   hatPortraits.set(id, url);
-  target.dispose();
-  model.traverse((o) => {
-    if (o instanceof T.Mesh) {
-      o.geometry.dispose();
-      (o.material as T.Material).dispose();
-    }
-  });
   return url;
 }
+
 function showHat(id: HatId) {
   const hat = hatById(id)!;
   panel(
@@ -2753,7 +2712,7 @@ function shopPortrait(id: string, model: () => T.Object3D) {
 function homeShop(department: "groceries" | "furnishings" = "furnishings") {
   const groceries = department === "groceries";
   const stock = groceries
-    ? ingredients.slice(0, 4).map((id) => ({
+    ? ingredients.map((id) => ({
         id,
         name: id[0].toUpperCase() + id.slice(1),
         price: 100,
@@ -2762,7 +2721,7 @@ function homeShop(department: "groceries" | "furnishings" = "furnishings") {
         buy: () => buyGrocery(s, id),
       }))
     : furnishingCatalog
-        .filter((f) => f.level <= homeLevel(s) && f.level < 4)
+        .filter((f) => f.level < 4)
         .map((f) => ({
           ...f,
           image: () => makeFurnishing(f.id),
@@ -2777,15 +2736,9 @@ function homeShop(department: "groceries" | "furnishings" = "furnishings") {
           },
         }));
   panel(
-    groceries ? "Robertsons: Groceries" : "Robertsons: Home Furnishings",
+    groceries ? "The Green Basket" : "Bright Side Home",
     `<p>${groceries ? "Bring groceries home to cook with Mom. Food bonuses last until sleep." : "Choose furnishings for your home. New items arrive as you explore."}</p><p>Your pocket: <b>${money(s.cash)}</b></p><div class="inventory-grid shop-grid">${stock.map((item) => `<button type="button" class="inventory-card shop-card" data-product="${item.id}" aria-label="${item.name} · ${money(purchasePrice(s, item.price))}" ${s.cash < purchasePrice(s, item.price) ? "disabled" : ""}><img src="${shopPortrait(item.id, item.image)}" alt="${item.name}"><span>${item.name}</span><small>In bag: ${item.quantity}</small><b>Buy · ${money(purchasePrice(s, item.price))}</b></button>`).join("")}</div>`,
-    [
-      {
-        label: groceries ? "Home Furnishings" : "Groceries",
-        run: () => homeShop(groceries ? "furnishings" : "groceries"),
-      },
-      { label: "Back to the day", default: true, run: close },
-    ],
+    [{ label: "Back to the day", default: true, run: close }],
   );
   $("#modal .panel").classList.add("inventory-panel", "shop-panel");
   document
@@ -3528,11 +3481,7 @@ function momGreeting() {
   return `“${line}${reminder}”`;
 }
 function shopConversationChoices() {
-  return [
-    { label: "Groceries", run: () => homeShop("groceries") },
-    { label: "Home Furnishings", run: () => homeShop("furnishings") },
-    { label: "Look around", run: dismissSpeech },
-  ];
+  return [{ label: "Look around", run: dismissSpeech }];
 }
 function celebrateShop() {
   if (!s.familyStory?.shopSaved || s.familyStory.shopCelebrated || celebration)
@@ -3694,8 +3643,6 @@ function robertson() {
       ...(!s.boughtSeeds
         ? [{ label: "Yes, seeds please · $2", run: () => shop("seeds") }]
         : []),
-      { label: "Groceries", run: () => homeShop("groceries") },
-      { label: "Home Furnishings", run: () => homeShop("furnishings") },
       { label: "Look around", default: !!s.boughtSeeds, run: dismissSpeech },
       ...(!s.can && s.cash + s.bank < 100 && !s.recovered
         ? [
@@ -4822,8 +4769,10 @@ function interact(skipTrader = false): void {
       "<p>Oh, how wonderful to see you both! You’re looking brighter, dear. Come along, let’s go inside for tea.</p>",
       [{ label: "Lead us in", run: guideIntoBea }],
     );
-  if (id === "robertsons-home") return homeShop("furnishings");
-  if (id === "robertsons-groceries") return homeShop("groceries");
+  if (id === "bright-side-home" || id.startsWith("home-display-"))
+    return homeShop("furnishings");
+  if (id === "green-basket" || id.startsWith("grocery-display-"))
+    return homeShop("groceries");
   if (id === "bike-rack") return bikeRackMenu();
   if (id.startsWith("bike-")) return showBike(id.slice(5) as BikeId);
   if (id === "bicycle") {
@@ -6264,19 +6213,31 @@ function updateUI() {
             ? z < -335
               ? "Mt. Millionaire"
               : "The Willow Grove"
-            : s.foundTVSeeds && z < -40
-              ? "Sigma Town"
-              : atHome()
-                ? "Home, Sweet Home"
-                : x < -8 && x > -23 && z >= 14 && z < 24
-                  ? "Your Little Garden"
-                  : z < -21 && z > -39 && x > -4 && x < 16
-                    ? "Robertsons"
-                    : z < -23 && z > -35 && x > 18 && x < 30
-                      ? "Thread & Thimble"
-                      : z < -13
-                        ? "Market Lane"
-                        : "Willow Lane",
+            : marketShops.some(
+                  (shop) =>
+                    Math.abs(x - shop.x) < shop.w / 2 &&
+                    Math.abs(z - shop.z) < shop.d / 2,
+                )
+              ? marketShops.find(
+                  (shop) =>
+                    Math.abs(x - shop.x) < shop.w / 2 &&
+                    Math.abs(z - shop.z) < shop.d / 2,
+                )!.name
+              : z >= -65 && z < -39 && x > -38 && x < 38
+                ? "Market Lane"
+                : s.foundTVSeeds && z < -40
+                  ? "Sigma Town"
+                  : atHome()
+                    ? "Home, Sweet Home"
+                    : x < -8 && x > -23 && z >= 14 && z < 24
+                      ? "Your Little Garden"
+                      : z < -21 && z > -39 && x > -4 && x < 16
+                        ? "Robertsons"
+                        : z < -23 && z > -35 && x > 18 && x < 30
+                          ? "Thread & Thimble"
+                          : z < -13
+                            ? "Market Lane"
+                            : "Willow Lane",
   );
   near = selectTarget();
   let prompt =
@@ -8144,9 +8105,9 @@ if (new URLSearchParams(location.search).has("test")) {
       return {
         bed: bounds("moms-bed-frame"),
         pan: bounds("player-cooking-pan"),
-        display: bounds("robertsons-groceries-and-furnishings"),
-        groceries: bounds("grocery-wall-display"),
-        furnishings: bounds("furnishing-wall-display"),
+        display: bounds("bright-side-home"),
+        groceries: bounds("green-basket"),
+        furnishings: bounds("bright-side-home"),
         necklace: bounds("guru-beaded-necklace"),
         bracelet: bounds("guru-wrist-bracelet"),
         rooster: world.life.roosterCharge,
@@ -8396,8 +8357,20 @@ if (new URLSearchParams(location.search).has("test")) {
     riverDrought: (dry: boolean) => world.river.setDrought(dry),
     depthAudit: () => depthAudit(scene, { taggedOnly: true, upwardOnly: true }),
     targets: world.targets,
-    homeBugShot: (view: "bookcase" | "mabel" | "exit" | "bikes") => {
+    homeBugShot: (
+      view:
+        | "bookcase"
+        | "mabel"
+        | "exit"
+        | "bikes"
+        | "market"
+        | "grocer"
+        | "furnishings",
+    ) => {
       const shots = {
+        market: [32, 25, -21, 0, 0, -52],
+        grocer: [12, 7, -45, 12, 1, -55],
+        furnishings: [-20, 7, -45, -20, 1, -55],
         bikes: [-18, 4.8, -4, -18, 3.6, -21],
         bookcase: [-11, 2.3, 9.8, -12.1, 1.4, 6.8],
         mabel: [-31, 4, -19, -39, 2, -25],

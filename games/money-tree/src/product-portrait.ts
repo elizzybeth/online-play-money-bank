@@ -7,18 +7,7 @@ export function productPortrait(renderer: T.WebGLRenderer, model: T.Object3D) {
   const light = new T.DirectionalLight("#fff3d2", 3);
   light.position.set(3, 5, 4);
   preview.add(light, model);
-  const bounds = new T.Box3().setFromObject(model);
-  const center = bounds.getCenter(new T.Vector3());
-  const span = bounds.getSize(new T.Vector3()).length() * 0.62;
-  const camera = new T.OrthographicCamera(-span, span, span, -span, 0.01, 200);
-  camera.position
-    .copy(center)
-    .add(
-      new T.Vector3(3, 2.4, 4)
-        .normalize()
-        .multiplyScalar(Math.max(3, span * 4)),
-    );
-  camera.lookAt(center);
+  const camera = fittedPortraitCamera(model);
   const target = new T.WebGLRenderTarget(192, 192);
   target.texture.colorSpace = T.SRGBColorSpace;
   const old = renderer.getRenderTarget();
@@ -74,4 +63,21 @@ export function cloneProductModel(source: T.Object3D) {
       : clone(o.material);
   });
   return model;
+}
+
+export function fittedPortraitCamera(model: T.Object3D) {
+  const bounds = new T.Box3().setFromObject(model);
+  const center = bounds.getCenter(new T.Vector3());
+  const span = bounds.getSize(new T.Vector3()).length() * 0.62;
+  const camera = new T.OrthographicCamera(-span, span, span, -span, 0.01, 200);
+  camera.position
+    .copy(center)
+    .add(
+      new T.Vector3(3, 2.4, 4)
+        .normalize()
+        .multiplyScalar(Math.max(3, span * 4)),
+    );
+  camera.lookAt(center);
+  camera.updateMatrixWorld(true);
+  return camera;
 }

@@ -13,7 +13,7 @@ import {
 import { makeSeriousHat } from "./soyjak-models";
 import { makeCrop } from "./crop-model";
 import type { Crop } from "./garden-crops";
-import { makeRobertsonsDisplay } from "./robertsons-display";
+import { createMarketShops, marketPaths, marketShops } from "./market-world";
 import { makeBikeRack, makeBikeRackSign, homeBikeRack } from "./bike-rack";
 import { makeBedsideTable } from "./bedside-model";
 import { makeFurnishing } from "./furnishing-models";
@@ -56,6 +56,7 @@ export function createWorld(scene: T.Scene) {
     bills: T.Object3D[] = [],
     plots: T.Group[] = [];
   const paths: Rect[] = [
+    ...marketPaths,
     { x: 3, z: 0, w: 5, d: 78 },
     { x: 15, z: -16, w: 52, d: 5 },
     { x: -8.25, z: 25, w: 17.5, d: 2 },
@@ -85,6 +86,7 @@ export function createWorld(scene: T.Scene) {
   // Reserve the walk-in shop interior before scattering outdoor scenery.
   const sceneryExclusions: Rect[] = [
     ...farmFields,
+    ...marketShops,
     { x: 24, z: -29, w: 12, d: 12 },
     { x: 6, z: -30, w: 20, d: 18 },
     { x: -5, z: 10, w: 8, d: 8 },
@@ -1562,8 +1564,7 @@ export function createWorld(scene: T.Scene) {
   robertsonsRoof.material = surfaceMaterial("#647a66", "shingles", 6, 5);
   (robertsonsRoof.material as T.MeshStandardMaterial).transparent = true;
   label("Robertsons", 8, 8, -20.7, 8).name = "robertsons-name";
-  label("Hardware & Grocer", 8, 5.1, -20.7, 8, "#334a3c", 2.4).name =
-    "robertsons-trade";
+  label("Hardware", 8, 5.1, -20.7, 8, "#334a3c", 2.4).name = "robertsons-trade";
   for (const x of [15.15]) {
     box(x, 1, -29, 1, 2, 7, "#947859", true);
     for (let j = 0; j < 6; j++) {
@@ -1571,13 +1572,6 @@ export function createWorld(scene: T.Scene) {
       box(x, 2.2, -32 + j * 1.1, 0.65, 0.5, 0.6, j % 2 ? "#8caa86" : "#d2ad93");
     }
   }
-  scene.add(makeRobertsonsDisplay());
-  rects.push(
-    { x: -3.05, z: -35, w: 1.05, d: 5.5, clearHeight: 3.3 },
-    { x: -3.05, z: -25, w: 1.05, d: 5.5, clearHeight: 3.6 },
-  );
-  target("robertsons-home", -1.9, -25, "Browse Home Furnishings");
-  target("robertsons-groceries", -1.9, -35, "Browse Groceries");
   box(8, 0.5, -33, 5, 1, 1, "#8b7456", true);
   speakers.push({
     id: "robertson",
@@ -2613,7 +2607,7 @@ export function createWorld(scene: T.Scene) {
     { x: -84.5, z: -64.5, w: 91, d: 1, clearHeight: 2.3 },
     { x: -39, z: -52, w: 1, d: 24, clearHeight: 2.3 },
     { x: 39, z: 0, w: 1, d: 90, clearHeight: 2.3 },
-    { x: -3.25, z: -40, w: 70.5, d: 1, clearHeight: 2.3 },
+    { x: -3.25, z: -66, w: 70.5, d: 1, clearHeight: 2.3 },
     { x: 37.75, z: -40, w: 1.5, d: 1, clearHeight: 2.3 },
     { x: -45.5, z: 39, w: 168, d: 1, clearHeight: 2.3 },
   ].flatMap(splitRiverBoundary);
@@ -2644,8 +2638,8 @@ export function createWorld(scene: T.Scene) {
     sigma.setMillionaireOpen(open);
     for (const bush of level3PathBushes) bush.visible = !open;
   }
-  const gateRect = { x: 34.5, z: -40, w: 5, d: 1 };
-  const gate = box(34.5, 1.05, -40, 5, 2.1, 1, "#658464");
+  const gateRect = { x: 34.5, z: -66, w: 5, d: 1 };
+  const gate = box(34.5, 1.05, -66, 5, 2.1, 1, "#658464");
   rects.push(gateRect);
   occluders.push(gate);
   let sigmaOpen = false;
@@ -2822,6 +2816,7 @@ export function createWorld(scene: T.Scene) {
     ),
   );
   const bikeShopSign = bikeShopMural[0];
+  const market = createMarketShops(scene, rects, targets);
   const life = createTownLife(scene, rects, targets, speakers, player, mom);
   const farm = createFarm(scene, rects, targets);
   addShopGardens(scene);
@@ -2846,10 +2841,12 @@ export function createWorld(scene: T.Scene) {
         d: bikeShopBounds.south - bikeShopBounds.north,
       },
       ...sigma.houseBounds,
+      ...marketShops,
     ],
   );
   return {
     river,
+    market,
     farm,
     life,
     cookingProps: [

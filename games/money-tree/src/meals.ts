@@ -6,6 +6,20 @@ export const ingredients = [
   "tortillas",
   "pepper",
   "tomato",
+  "black beans",
+  "red beans",
+  "pinto beans",
+  "corn",
+  "carrot",
+  "pumpkin",
+  "cabbage",
+  "beet",
+  "lettuce",
+  "radish",
+  "onion",
+  "eggplant",
+  "strawberry",
+  "potato",
 ] as const;
 export type Ingredient = (typeof ingredients)[number];
 export type FoodBuff = { recipe: number; remaining: number };
@@ -143,11 +157,17 @@ for (let mask = 16; mask < 64; mask++) {
           : "50% chance to keep a seed when planting",
   };
 }
+meals[64] = {
+  name: "Market garden supper",
+  seconds: 180,
+  power: "harvest",
+  effect: "20% more money from trees",
+};
 export function mealMask(s: State) {
-  return ingredients.reduce(
-    (n, k, i) => n + ((s.groceries?.[k] ?? 0) > 0 ? 1 << i : 0),
-    0,
-  );
+  if (ingredients.slice(6).some((k) => (s.groceries?.[k] ?? 0) > 0)) return 64;
+  return ingredients
+    .slice(0, 6)
+    .reduce((n, k, i) => n + ((s.groceries?.[k] ?? 0) > 0 ? 1 << i : 0), 0);
 }
 export function foodPower(s: State, power: Meal["power"]) {
   return (
@@ -161,7 +181,7 @@ export function purchasePrice(s: State, cents: number) {
 }
 export function buyGrocery(s: State, item: Ingredient) {
   const cost = purchasePrice(s, 100);
-  if (s.cash < cost) return false;
+  if (!ingredients.includes(item) || s.cash < cost) return false;
   s.cash -= cost;
   s.groceries ??= {};
   s.groceries[item] = (s.groceries[item] ?? 0) + 1;
@@ -172,7 +192,11 @@ export function startMeal(s: State) {
   const recipe = mealMask(s);
   if (!recipe || s.pendingMeal) return 0;
   ingredients.forEach((k, i) => {
-    if (recipe & (1 << i)) s.groceries![k]!--;
+    if (
+      (recipe === 64 && (s.groceries?.[k] ?? 0) > 0) ||
+      (recipe !== 64 && i < 6 && recipe & (1 << i))
+    )
+      s.groceries![k]!--;
   });
   s.pendingMeal = recipe;
   return recipe;

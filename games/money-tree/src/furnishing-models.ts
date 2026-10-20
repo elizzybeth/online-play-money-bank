@@ -29,6 +29,180 @@ export function makeFurnishing(id: FurnishingId, seed = 0) {
     z: number,
   ) => add(new T.BoxGeometry(w, h, d), c, x, y, z);
   if (
+    [
+      "jewel-lamp",
+      "woven-pendant",
+      "yellow-chair",
+      "tulip-table",
+      "pink-locker",
+      "balloon-dog",
+      "striped-vase",
+      "color-gallery",
+    ].includes(id)
+  ) {
+    const tube = (
+      a: T.Vector3,
+      b: T.Vector3,
+      radius: number,
+      color: string,
+    ) => {
+      const mesh = add(
+        new T.CylinderGeometry(radius, radius, a.distanceTo(b), 8),
+        color,
+      );
+      mesh.position.copy(a).add(b).multiplyScalar(0.5);
+      mesh.quaternion.setFromUnitVectors(
+        new T.Vector3(0, 1, 0),
+        b.clone().sub(a).normalize(),
+      );
+    };
+    const rod = (
+      x: number,
+      y: number,
+      z: number,
+      X: number,
+      Y: number,
+      Z: number,
+      r: number,
+      c: string,
+    ) => tube(new T.Vector3(x, y, z), new T.Vector3(X, Y, Z), r, c);
+    if (id === "jewel-lamp") {
+      add(new T.CylinderGeometry(0.2, 0.24, 0.07, 16), "#c3a35f", 0, 0.04, 0);
+      rod(0, 0.05, 0, 0, 0.65, 0, 0.025, "#c3a35f");
+      add(
+        new T.CylinderGeometry(0.2, 0.3, 0.3, 16, 1, true),
+        "#9d4892",
+        0,
+        0.66,
+        0,
+      );
+      add(new T.SphereGeometry(0.13, 12, 8), "#58a5b1", 0, 0.25, 0);
+    } else if (id === "pink-locker") {
+      box(1.3, 1.6, 0.65, "#e84393", 0, 0.9, 0);
+      for (const x of [-0.33, 0.33]) {
+        box(0.6, 1.45, 0.025, "#f05b9d", x, 0.92, 0.34);
+        box(0.025, 0.18, 0.06, "#d2af46", x + 0.18, 1, 0.38);
+        for (let n = 0; n < 4; n++)
+          box(0.38, 0.025, 0.025, "#a52b67", x, 0.4 + n * 0.07, 0.36);
+      }
+      for (const x of [-0.52, 0.52])
+        for (const z of [-0.2, 0.2]) box(0.08, 0.2, 0.08, "#d6b65d", x, 0.1, z);
+    } else if (id === "tulip-table") {
+      add(new T.ConeGeometry(0.45, 0.85, 20), "#ceaa4f", 0, 0.45, 0);
+      add(new T.CylinderGeometry(0.85, 0.85, 0.07, 28), "#243c43", 0, 0.92, 0);
+    } else if (id === "yellow-chair") {
+      for (const x of [-0.43, 0.43])
+        for (const z of [-0.4, 0.4])
+          rod(x, 0, z, x * 0.8, 0.55, z * 0.8, 0.025, "#c9a143");
+      box(0.95, 0.1, 0.9, "#f1c845", 0, 0.6, 0);
+      for (let n = 0; n < 13; n++)
+        rod(
+          -0.47 + n * 0.078,
+          0.62,
+          0.38,
+          -0.4 + n * 0.067,
+          1.35 - Math.abs(n - 6) * 0.025,
+          0.42,
+          0.019,
+          "#edc23b",
+        );
+      rod(-0.4, 1.2, 0.42, 0.4, 1.2, 0.42, 0.04, "#e9b535");
+    } else if (id === "balloon-dog") {
+      const balloon = (
+        x: number,
+        y: number,
+        z: number,
+        sx: number,
+        sy: number,
+        sz: number,
+      ) =>
+        add(new T.SphereGeometry(1, 12, 8), "#dc2696", x, y, z).scale.set(
+          sx,
+          sy,
+          sz,
+        );
+      balloon(0, 0.6, 0, 0.38, 0.16, 0.16);
+      balloon(0.35, 0.83, 0, 0.14, 0.25, 0.14);
+      balloon(0.46, 1.01, 0, 0.22, 0.13, 0.13);
+      for (const z of [-0.14, 0.14]) {
+        balloon(0.25, 0.3, z, 0.1, 0.3, 0.1);
+        balloon(-0.25, 0.3, z, 0.1, 0.3, 0.1);
+        balloon(0.25, 1.18, z, 0.08, 0.22, 0.08);
+      }
+      balloon(-0.42, 0.84, 0, 0.075, 0.25, 0.075);
+    } else if (id === "woven-pendant") {
+      add(
+        new T.CylinderGeometry(0.36, 0.49, 0.7, 20, 1, true),
+        "#cba25d",
+        0,
+        1.05,
+        0,
+      );
+      for (let n = 0; n < 20; n++) {
+        const a = (n * Math.PI) / 10;
+        rod(
+          Math.cos(a) * 0.49,
+          0.7,
+          Math.sin(a) * 0.49,
+          Math.cos(a) * 0.36,
+          1.4,
+          Math.sin(a) * 0.36,
+          0.014,
+          "#f1d59a",
+        );
+      }
+      rod(0, 0.05, 0, 0, 1.55, 0, 0.025, "#927340");
+      add(new T.CylinderGeometry(0.35, 0.4, 0.06, 20), "#bd9349", 0, 0.03, 0);
+    } else if (id === "striped-vase") {
+      for (let n = 0; n < 12; n++) {
+        const a = (n * Math.PI) / 6;
+        const m = add(
+          new T.CylinderGeometry(0.22, 0.17, 0.5, 12, 1, false, a, Math.PI / 6),
+          n % 2 ? "#f6e3b2" : "#356796",
+          0,
+          0.3,
+          0,
+        );
+      }
+      for (let n = 0; n < 7; n++) {
+        const x = Math.sin(n * 2.4) * 0.25,
+          z = Math.cos(n * 2.4) * 0.25;
+        rod(0, 0.5, 0, x, 0.9 + n * 0.05, z, 0.012, "#4b8551");
+        add(
+          new T.SphereGeometry(0.085, 8, 6),
+          ["#eea94a", "#de5e92", "#8b72bf"][n % 3],
+          x,
+          0.9 + n * 0.05,
+          z,
+        );
+      }
+    } else {
+      for (let i = 0; i < 3; i++) {
+        const x = (i - 1) * 0.52;
+        box(0.49, 0.65, 0.06, "#f3dfb0", x, (i % 2) * 0.14, 0);
+        box(
+          0.41,
+          0.57,
+          0.012,
+          ["#e39871", "#80b9b4", "#e7ba52"][i],
+          x,
+          (i % 2) * 0.14,
+          0.04,
+        );
+        for (let n = 0; n < 3; n++)
+          box(
+            0.09,
+            0.2 + n * 0.05,
+            0.02,
+            ["#d86991", "#f1d897", "#559d83"][n],
+            x - 0.12 + n * 0.12,
+            -0.1 + (i % 2) * 0.14,
+            0.055,
+          );
+      }
+    }
+    return root;
+  } else if (
     id === "royal-bed" ||
     id === "gilded-chair" ||
     id === "marble-planter" ||
