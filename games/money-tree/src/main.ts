@@ -776,7 +776,7 @@ function mountBike(complete = false) {
     return toast("Walk with Mom to Bea’s before getting back on your bike.");
   if (!s.selectedBike)
     return toast(
-      "Spoke & Saddle sells bicycles. Buy one, then press H to ride.",
+      "Pretty Good Bikes sells bicycles. Buy one, then press H to ride.",
     );
   if (
     !s.awake ||
@@ -5123,7 +5123,7 @@ function interact(skipTrader = false): void {
         : "“Try the hats on the stands! Each has a little talent of its own. The green cap has a curious brim…”",
     ],
     bicycle: [
-      "Spoke & Saddle",
+      "Pretty Good Bikes",
       "“A good bike makes a small town feel big. We’ll have something for you soon.”",
     ],
   };
@@ -7766,6 +7766,12 @@ if (new URLSearchParams(location.search).has("test")) {
       multiplier: bikeSpecial.speedMultiplier,
     }),
     bicycle: () => ({
+      mural: world.bikeShopMural.map((m) => ({
+        label: m.userData.label,
+        vertices: m.geometry.attributes.position.count,
+        ready: !!(m.material.map?.image as HTMLImageElement)?.complete,
+        parentCutaway: !!m.parent?.userData.cameraWall,
+      })),
       facade: [world.bikeShopSign, world.bikeShopRoof].map((o) => {
         const b = new T.Box3().setFromObject(o);
         return { min: b.min.toArray(), max: b.max.toArray() };
@@ -8390,8 +8396,9 @@ if (new URLSearchParams(location.search).has("test")) {
     riverDrought: (dry: boolean) => world.river.setDrought(dry),
     depthAudit: () => depthAudit(scene, { taggedOnly: true, upwardOnly: true }),
     targets: world.targets,
-    homeBugShot: (view: "bookcase" | "mabel" | "exit") => {
+    homeBugShot: (view: "bookcase" | "mabel" | "exit" | "bikes") => {
       const shots = {
+        bikes: [-18, 4.8, -4, -18, 3.6, -21],
         bookcase: [-11, 2.3, 9.8, -12.1, 1.4, 6.8],
         mabel: [-31, 4, -19, -39, 2, -25],
         exit: [-49, 2, -55, -51.1, 1.4, -61.7],

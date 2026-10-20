@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as T from "three";
+import { paintBikeShopFacade } from "../src/bike-shop-mural";
 import { fitWindow } from "../src/architecture";
 test("windows cut through the wall and fit transparent glass inside its thickness on both axes", () => {
   for (const alongX of [true, false]) {
@@ -40,4 +41,33 @@ test("doorway lintels never sprout a window below the wall", () => {
   wall.position.y = 5.15;
   fitWindow(wall, true, 5, 4.1, 0.25);
   assert.equal(wall.children.length, 0);
+});
+
+test("bike mural shares one map, preserves the real window hole and follows facade-wide UVs", () => {
+  const wall = new T.Mesh(
+    new T.BoxGeometry(15.1, 7.2, 0.25),
+    new T.MeshStandardMaterial(),
+  );
+  wall.position.set(-20.45, 3.6, -21);
+  wall.userData.cameraWall = true;
+  fitWindow(wall, true, 15.1, 7.2, 0.25);
+  const texture = new T.Texture();
+  const pieces = paintBikeShopFacade([wall], texture);
+  const m = pieces[0],
+    p = m.geometry.attributes.position,
+    uv = m.geometry.attributes.uv;
+  const ray = new T.Raycaster();
+  wall.updateMatrixWorld(true);
+  ray.set(new T.Vector3(-20.45, 1.95, -19), new T.Vector3(0, 0, -1));
+  assert.equal(ray.intersectObject(m).length, 0, "window remains open");
+  ray.set(new T.Vector3(-20.45, 5.5, -19), new T.Vector3(0, 0, -1));
+  assert(ray.intersectObject(m).length > 0, "lettering area covers solid wall");
+  assert.equal(m.parent, wall);
+  assert.equal(m.material.map, texture);
+  for (let i = 0; i < p.count; i++) {
+    assert(
+      Math.abs(uv.getX(i) - (p.getX(i) + wall.position.x + 28) / 20) < 1e-6,
+    );
+    assert(Math.abs(uv.getY(i) - (p.getY(i) + wall.position.y) / 7.2) < 1e-6);
+  }
 });

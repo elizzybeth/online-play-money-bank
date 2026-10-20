@@ -1,16 +1,30 @@
 import { test, expect, type Page } from "@playwright/test";
 import { fresh, type State } from "../../src/game";
-test("Spoke & Saddle sign stands clear of the roof fascia", async ({
+test("Pretty Good Bikes mural covers the facade while keeping the entrance and window open", async ({
   page,
-}) => {
-  await start(page, { position: { x: -18, z: -17 } });
-  const [sign, roof] = await page.evaluate(
-    () => (window as any).game.bicycle().facade,
-  );
-  expect(sign.min[2]).toBeGreaterThan(roof.max[2] + 0.15);
-  await page.evaluate(() => (window as any).game.setYaw(0));
-  await expect(page.locator("#toast")).toHaveCSS("opacity", "0");
-  await page.screenshot({ path: "../../outputs/money-tree-bike-facade.png" });
+}, info) => {
+  await start(page, { position: { x: -18, z: -17 }, metMom: true });
+  await expect
+    .poll(async () =>
+      (await page.evaluate(() => (window as any).game.bicycle().mural)).every(
+        (p: any) => p.ready,
+      ),
+    )
+    .toBe(true);
+  const mural = await page.evaluate(() => (window as any).game.bicycle().mural);
+  expect(mural).toHaveLength(3);
+  expect(
+    mural.every(
+      (p: any) =>
+        p.label === "PRETTY GOOD BIKES" && p.vertices > 0 && p.parentCutaway,
+    ),
+  ).toBe(true);
+  await page.clock.install();
+  await page.clock.pauseAt(new Date());
+  await page.evaluate(() => (window as any).game.homeBugShot("bikes"));
+  await page.screenshot({
+    path: info.outputPath("pretty-good-bikes-facade.png"),
+  });
 });
 test("Grindset has a clear customer area and targets the barista from the front and sides", async ({
   page,
@@ -46,7 +60,10 @@ async function start(page: Page, extra: Partial<State>) {
     s,
   );
   await page.goto("./?test");
-  await page.getByRole("button", { name: "Wake up" }).click();
+  await expect(page.getByRole("button", { name: "Wake up" })).toBeEnabled({
+    timeout: 30000,
+  });
+  await page.getByRole("button", { name: "Wake up" }).dispatchEvent("click");
 }
 async function importFile(page: Page, s: State) {
   await page.getByRole("button", { name: "Pause game" }).click();

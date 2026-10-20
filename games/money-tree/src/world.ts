@@ -1,3 +1,4 @@
+import { paintBikeShopFacade } from "./bike-shop-mural";
 import { seatForTea, createTeaDrinking } from "./tea-pose";
 import { farmFields } from "./farm-fields";
 import { addShopGardens } from "./shop-gardens";
@@ -1803,17 +1804,18 @@ export function createWorld(scene: T.Scene) {
   box(-28, 3.6, -30, 0.25, 7.2, 18, "#b5c4cd", true);
   box(-8, 3.6, -30, 0.25, 7.2, 18, "#b5c4cd", true);
   box(-18, 3.6, -39, 20, 7.2, 0.25, "#b5c4cd", true);
-  box(-20.45, 3.6, -21, 15.1, 7.2, 0.25, "#b5c4cd", true);
-  box(-8.2, 3.6, -21, 0.4, 7.2, 0.25, "#b5c4cd", true);
-  box(-10.65, 5.15, -21, 4.5, 4.1, 0.25, "#b5c4cd");
+  const bikeShopFront = [
+    box(-20.45, 3.6, -21, 15.1, 7.2, 0.25, "#b5c4cd", true),
+    box(-8.2, 3.6, -21, 0.4, 7.2, 0.25, "#b5c4cd", true),
+    box(-10.65, 5.15, -21, 4.5, 4.1, 0.25, "#b5c4cd"),
+  ];
   const bikeShopRoof = box(-18, 7.4, -30, 20.5, 0.25, 18.5, "#647a84");
   bikeShopRoof.material = surfaceMaterial("#647a84", "shingles", 6, 5);
   (bikeShopRoof.material as T.MeshStandardMaterial).transparent = true;
   bikeShopRoof.geometry.dispose();
   bikeShopRoof.geometry = pitchedRoof(20.5, 18.5);
   bikeShopRoof.name = "spoke-saddle-roof";
-  // The roof fascia is at z=-20.75. Keep the sign in front of it.
-  const bikeShopSign = label("SPOKE & SADDLE", -18, 5.5, -20.5, 6);
+
   box(-9, 0.65, -34.5, 1, 1.3, 3, "#947859", true);
   box(-9, 1.35, -34.5, 1.2, 0.12, 3.2, "#8f9ea2");
   for (const z of [-35.4, -34.5, -33.6])
@@ -1888,10 +1890,10 @@ export function createWorld(scene: T.Scene) {
   });
   speakers.push({
     id: "bicycle",
-    name: "Spoke & Saddle",
+    name: "Pretty Good Bikes",
     object: person(-18, -32.5, "#aec3a1", "#79584b"),
   });
-  target("bicycle", -18, -31, "Talk to Spoke & Saddle");
+  target("bicycle", -18, -31, "Talk to Pretty Good Bikes");
   for (let i = 0; i < 30; i++) {
     const x = i % 2 ? -28 - (i % 4) * 2 : 30 + (i % 4) * 2,
       z = -38 + i * 2.5;
@@ -2813,6 +2815,13 @@ export function createWorld(scene: T.Scene) {
       continue;
     fitWindow(object, w > d, Math.max(w, d), h, Math.min(w, d));
   }
+  const bikeShopMural = paintBikeShopFacade(
+    bikeShopFront,
+    new T.TextureLoader().load(
+      new URL("./assets/pretty-good-bikes.webp", import.meta.url).href,
+    ),
+  );
+  const bikeShopSign = bikeShopMural[0];
   const life = createTownLife(scene, rects, targets, speakers, player, mom);
   const farm = createFarm(scene, rects, targets);
   addShopGardens(scene);
@@ -2856,6 +2865,7 @@ export function createWorld(scene: T.Scene) {
     robertsonsRoof,
     bikeShopRoof,
     bikeShopSign,
+    bikeShopMural,
     bikeDisplays,
     bikeRack,
     wildlife,

@@ -520,12 +520,12 @@ export function constructJournal(
           : [
               `I bought the ${bicycle.name}. That was a lot of money. I hope it helps with trips around town.`,
               `The ${bicycle.name} is mine now. I want to try it outside.`,
-              `I picked the ${bicycle.name} at Spoke & Saddle. I kept looking at the other bikes too.`,
+              `I picked the ${bicycle.name} at Pretty Good Bikes. I kept looking at the other bikes too.`,
               `I have a ${bicycle.name} now. It should make the trip home quicker.`,
               `I paid for the ${bicycle.name} today. I need to earn that money back.`,
               `I chose the ${bicycle.name}. There were seven different bikes in the shop.`,
               `I bought a ${bicycle.name}. I hope I chose a good one.`,
-              `Spoke & Saddle sold me the ${bicycle.name}. I want to use it for the garden trips.`,
+              `Pretty Good Bikes sold me the ${bicycle.name}. I want to use it for the garden trips.`,
             ],
       );
     } else if (has(c, /^Named my pretend coin/))
