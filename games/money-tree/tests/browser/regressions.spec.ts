@@ -19,8 +19,8 @@ test("Pretty Good Bikes mural covers the facade while keeping the entrance and w
         p.label === "PRETTY GOOD BIKES" && p.vertices > 0 && p.parentCutaway,
     ),
   ).toBe(true);
-  await page.clock.install();
-  await page.clock.pauseAt(new Date());
+  await page.clock.install({ time: new Date("2026-01-01") });
+  await page.clock.pauseAt(new Date("2026-01-02"));
   await page.evaluate(() => (window as any).game.homeBugShot("bikes"));
   await page.screenshot({
     path: info.outputPath("pretty-good-bikes-facade.png"),
