@@ -24,7 +24,7 @@ import { type BirdhousePaint } from "./birdhouse-paint";
 import { createWildlife } from "./wildlife";
 import { makeBeaRoom } from "./bea-room";
 import type { FamilyStory } from "./family-story";
-import { bikes } from "./bikes";
+import { bikes, bikeShopBounds } from "./bikes";
 import { makeBike } from "./bike-models";
 import { notebookSketches } from "./notebook-doodles";
 import { makeSeedPacket } from "./seed-packet";
@@ -2816,11 +2816,29 @@ export function createWorld(scene: T.Scene) {
   const life = createTownLife(scene, rects, targets, speakers, player, mom);
   const farm = createFarm(scene, rects, targets);
   addShopGardens(scene);
-  const river = createRiverWorld(scene, rects, [
-    ...paths,
-    ...sigma.paths,
-    ...groveApproachPaths,
-  ]);
+  const river = createRiverWorld(
+    scene,
+    rects,
+    [...paths, ...sigma.paths, ...groveApproachPaths],
+    [
+      { x: -15, z: 6, w: 12, d: 16 },
+      { x: -5, z: 10, w: 8, d: 8 },
+      { x: 12, z: 15, w: 7, d: 6 },
+      { x: 12, z: 1, w: 7, d: 6 },
+      { x: -39, z: -25, w: 7, d: 6 },
+      { x: 6, z: -30, w: 20, d: 18 },
+      { x: 24, z: -29, w: 12, d: 14 },
+      { x: -69, z: -15, w: 8, d: 7 },
+      { x: 32, z: -79, w: 8, d: 6 },
+      {
+        x: (bikeShopBounds.left + bikeShopBounds.right) / 2,
+        z: (bikeShopBounds.north + bikeShopBounds.south) / 2,
+        w: bikeShopBounds.right - bikeShopBounds.left,
+        d: bikeShopBounds.south - bikeShopBounds.north,
+      },
+      ...sigma.houseBounds,
+    ],
+  );
   return {
     river,
     farm,

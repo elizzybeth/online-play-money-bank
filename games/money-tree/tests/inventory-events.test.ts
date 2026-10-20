@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fresh, buy, fertilize } from "../src/game";
 import { inventoryChanges, inventorySnapshot } from "../src/inventory-events";
+import { forageFarm, farmFields } from "../src/farm-fields";
 import { hats, hatPower } from "../src/hats";
 test("purchases and applications report money and item deltas together", () => {
   const s = fresh();
@@ -32,4 +33,22 @@ test("Sprout Cap retires its brim hint after the seeds are found", () => {
   assert(hatPower("cap", false).includes("Check the brim"));
   assert(!hatPower("cap", true).includes("Check the brim"));
   assert(hatPower("cap", true).includes("50%"));
+});
+
+test("wandering fields emits a crop-specific inventory toast once per collected bag", () => {
+  const s = fresh();
+  const field = farmFields.find((f) => f.crop === "beet")!;
+  s.position = { x: field.x - 9, z: field.z };
+  forageFarm(s, 0.1, true);
+  const before = inventorySnapshot(s);
+  for (let i = 0; i < 20; i++) {
+    s.position.x = field.x - 9 + i * 0.95;
+    forageFarm(s, 0.1, true);
+  }
+  assert.deepEqual(inventoryChanges(before, inventorySnapshot(s)), [
+    "+5 beet seeds",
+  ]);
+  const collected = inventorySnapshot(s);
+  forageFarm(s, 0.1, true);
+  assert.deepEqual(inventoryChanges(collected, inventorySnapshot(s)), []);
 });

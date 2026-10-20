@@ -218,6 +218,10 @@ test("walk and bike through the river slowly among ferns, heliconias and passion
   expect(data.plants.fern).toBeGreaterThan(100);
   for (const kind of [
     "fern",
+    "fern-ostrich",
+    "fern-maidenhair",
+    "fern-strap",
+    "fern-silver",
     "heliconia-red",
     "heliconia-pendant",
     "heliconia-gold",

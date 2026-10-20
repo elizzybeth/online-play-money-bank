@@ -1,6 +1,10 @@
 import * as T from "three";
 export type RiverPlant =
   | "fern"
+  | "fern-ostrich"
+  | "fern-maidenhair"
+  | "fern-strap"
+  | "fern-silver"
   | "sedge"
   | "rush"
   | "daisy"
@@ -67,16 +71,18 @@ class PlantGeometry {
     return g;
   }
 }
-function fern(g: PlantGeometry) {
+function fern(g: PlantGeometry, kind: RiverPlant = "fern") {
+  const upright = kind === "fern-ostrich";
+  const silver = kind === "fern-silver";
   for (let f = 0; f < 7; f++) {
     const a = (f * Math.PI * 2) / 7 + 0.17,
       dx = Math.cos(a),
       dz = Math.sin(a),
-      h = 0.75 + (f % 3) * 0.13;
+      h = (upright ? 1.45 : 0.75) + (f % 3) * 0.13;
     const p = (t: number): V => [
-      dx * t * 0.9,
+      dx * t * (upright ? 0.45 : 0.9),
       0.04 + h * Math.sin(t * Math.PI * 0.78),
-      dz * t * 0.9,
+      dz * t * (upright ? 0.45 : 0.9),
     ];
     for (let n = 0; n < 7; n++) {
       const a = p(n / 7),
@@ -113,9 +119,58 @@ function fern(g: PlantGeometry) {
           edge = q(0.01, length * 0.6, 0.014),
           tip = q(0.11, length, -0.025),
           lower = q(0.065, length * 0.45, -0.018);
-        g.tri(base, edge, tip, shade);
-        g.tri(base, tip, lower, shade);
+        g.tri(base, edge, tip, silver ? "#a9c6b4" : shade);
+        g.tri(base, tip, lower, silver ? "#738e91" : shade);
       }
+    }
+  }
+}
+function fernFans(g: PlantGeometry) {
+  for (let f = 0; f < 7; f++) {
+    const a = f * 2.4,
+      dx = Math.cos(a),
+      dz = Math.sin(a);
+    const end: V = [dx * 0.6, 0.5 + (f % 3) * 0.15, dz * 0.6];
+    g.tube([0, 0, 0], end, 0.008, "#514537", 3);
+    for (let n = 1; n <= 5; n++) {
+      const t = n / 6;
+      for (const side of [-1, 1]) {
+        const x = end[0] * t - dz * side * 0.15,
+          z = end[2] * t + dx * side * 0.15;
+        const y = end[1] * t;
+        for (let j = 0; j < 4; j++) {
+          const b = a + side * 1.2 + (j - 2) * 0.3;
+          g.tri(
+            [x, y, z],
+            [x + Math.cos(b) * 0.14, y + 0.035, z + Math.sin(b) * 0.14],
+            [
+              x + Math.cos(b + 0.3) * 0.14,
+              y + 0.035,
+              z + Math.sin(b + 0.3) * 0.14,
+            ],
+            "#70ac63",
+          );
+        }
+      }
+    }
+  }
+}
+function fernStraps(g: PlantGeometry) {
+  for (let f = 0; f < 9; f++)
+    leaf(g, [0, 0.015, 0], 0.85 + (f % 3) * 0.17, 0.11, f * 2.4, "#669648");
+}
+function fiddleheads(g: PlantGeometry) {
+  for (let f = 0; f < 3; f++) {
+    const x = (f - 1) * 0.16,
+      z = (f % 2) * 0.15;
+    g.tube([x, 0, z], [x, 0.85, z], 0.014, "#7d9b50", 4);
+    let prev: V = [x, 0.85, z];
+    for (let n = 1; n <= 14; n++) {
+      const a = (n / 14) * Math.PI * 2,
+        r = 0.12 * (1 - n / 18);
+      const next: V = [x + Math.sin(a) * r, 0.85 + 0.12 - Math.cos(a) * r, z];
+      g.tube(prev, next, 0.015, "#91b364", 4);
+      prev = next;
     }
   }
 }
@@ -356,8 +411,12 @@ function passion(g: PlantGeometry) {
 }
 export function makeRiverPlantGeometry(kind: RiverPlant) {
   const g = new PlantGeometry();
-  if (kind === "fern") fern(g);
-  else if (kind.startsWith("heliconia")) heliconia(g, kind);
+  if (kind === "fern-maidenhair") fernFans(g);
+  else if (kind === "fern-strap") fernStraps(g);
+  else if (kind.startsWith("fern")) {
+    fern(g, kind);
+    if (kind === "fern-ostrich") fiddleheads(g);
+  } else if (kind.startsWith("heliconia")) heliconia(g, kind);
   else if (kind === "passionflower") passion(g);
   else if (kind === "sedge" || kind === "rush") {
     for (let n = 0; n < 9; n++) {
