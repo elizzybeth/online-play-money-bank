@@ -11,6 +11,7 @@ export function plantRiverBanks(
   vegetation: T.Group,
   obstacles: Rect[],
   paths: Rect[],
+  buildings: Rect[] = [],
 ) {
   let seed = 7419;
   const random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
@@ -18,16 +19,15 @@ export function plantRiverBanks(
     ...paths,
     ...riverBridges.map((b) => ({ ...b, w: b.w + 5, d: b.d + 10 })),
   ];
-  const clear = (x: number, z: number, radius: number) =>
-    !reserved.some(
+  const excluded = [...reserved, ...obstacles, ...buildings];
+  const bounds = new T.Box3();
+  const clear = () =>
+    !excluded.some(
       (r) =>
-        Math.abs(x - r.x) < r.w / 2 + radius &&
-        Math.abs(z - r.z) < r.d / 2 + radius,
-    ) &&
-    !obstacles.some(
-      (r) =>
-        Math.abs(x - r.x) < r.w / 2 + radius &&
-        Math.abs(z - r.z) < r.d / 2 + radius,
+        bounds.min.x < r.x + r.w / 2 + 0.15 &&
+        bounds.max.x > r.x - r.w / 2 - 0.15 &&
+        bounds.min.z < r.z + r.d / 2 + 0.15 &&
+        bounds.max.z > r.z - r.d / 2 - 0.15,
     );
   const buckets = new Map<
     string,
@@ -47,20 +47,16 @@ export function plantRiverBanks(
     size = 1,
     angle = random() * Math.PI * 2,
   ) {
-    if (
-      !clear(
-        x,
-        z,
-        kind.startsWith("heliconia") ? 1.2 : kind === "fern" ? 0.65 : 0.4,
-      )
-    )
-      return;
     const key = `${kind}:${Math.floor(x / 24)}:${Math.floor(z / 24)}`;
-    if (!buckets.has(key)) buckets.set(key, { kind, matrices: [] });
     transform.position.set(x, riverGroundHeight(x, z) ?? 0.02, z);
     transform.rotation.set(0, angle, 0);
     transform.scale.setScalar(size);
     transform.updateMatrix();
+    bounds
+      .copy(sharedRiverPlantGeometry(kind).boundingBox!)
+      .applyMatrix4(transform.matrix);
+    if (!clear()) return;
+    if (!buckets.has(key)) buckets.set(key, { kind, matrices: [] });
     buckets.get(key)!.matrices.push(transform.matrix.clone());
   }
   const heliconias: RiverPlant[] = [
@@ -76,14 +72,25 @@ export function plantRiverBanks(
         x: p.x + p.nx * side * distance,
         z: p.z + p.nz * side * distance,
       });
-      const f = at(3.65 + random() * 0.8);
-      for (let n = 0; n < 3; n++)
-        plant(
-          "fern",
-          f.x + (random() - 0.5) * 1.1,
-          f.z + (random() - 0.5) * 1.1,
-          0.65 + random() * 0.45,
-        );
+      const fernKinds: RiverPlant[] = [
+        "fern",
+        "fern-ostrich",
+        "fern-maidenhair",
+        "fern-strap",
+        "fern-silver",
+      ];
+      for (let row = 0; row < 4; row++) {
+        const f = at(2.15 + row * 0.9 + random() * 0.25);
+        for (let n = 0; n < 2; n++)
+          plant(
+            row === 0
+              ? "fern-ostrich"
+              : fernKinds[(i + row + n) % fernKinds.length],
+            f.x + (random() - 0.5) * 0.65,
+            f.z + (random() - 0.5) * 0.65,
+            row === 0 ? 1 : 0.65 + random() * 0.4,
+          );
+      }
       const water = at(2.1 + random() * 1.1);
       if (riverBankDistance(water.x, water.z) < 3.4)
         for (let n = 0; n < 3; n++)
@@ -137,14 +144,13 @@ export function plantRiverBanks(
       material,
       matrices.length,
     );
-    mesh.name =
-      kind === "fern"
-        ? "bank-ferns"
-        : kind === "rush" || kind === "sedge"
-          ? "bank-reeds"
-          : kind === "daisy"
-            ? "bank-wildflowers"
-            : `bank-${kind}`;
+    mesh.name = kind.startsWith("fern")
+      ? "bank-ferns"
+      : kind === "rush" || kind === "sedge"
+        ? "bank-reeds"
+        : kind === "daisy"
+          ? "bank-wildflowers"
+          : `bank-${kind}`;
     mesh.userData.riverPlant = kind;
     matrices.forEach((m, i) => mesh.setMatrixAt(i, m));
     mesh.computeBoundingBox();

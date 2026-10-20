@@ -582,6 +582,14 @@ canvas:focus {
     14px/1.3 Arial,
     sans-serif;
 }
+.inventory-card img {
+  width: 112px;
+  max-width: 100%;
+  height: 94px;
+  object-fit: contain;
+  display: block;
+  flex-shrink: 0;
+}
 .inventory-card svg {
   width: 112px;
   max-width: 100%;

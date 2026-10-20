@@ -12,7 +12,12 @@ import {
 } from "./river-land";
 import { carveRiver } from "./river-carve";
 
-export function createRiverWorld(scene: T.Scene, rects: Rect[], paths: Rect[]) {
+export function createRiverWorld(
+  scene: T.Scene,
+  rects: Rect[],
+  paths: Rect[],
+  buildings: Rect[] = [],
+) {
   const root = new T.Group();
   root.name = "willow-river";
   const vegetation = new T.Group();
@@ -306,7 +311,7 @@ export function createRiverWorld(scene: T.Scene, rects: Rect[], paths: Rect[]) {
   }
   // Water slows movement through riverTravelFactor; it is not a solid wall.
   const colliders: Rect[] = [];
-  const planting = plantRiverBanks(vegetation, rects, paths);
+  const planting = plantRiverBanks(vegetation, rects, paths, buildings);
   root.updateMatrixWorld(true);
   root.traverse((o) => {
     o.matrixAutoUpdate = false;

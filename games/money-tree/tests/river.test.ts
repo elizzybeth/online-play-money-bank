@@ -218,6 +218,10 @@ test("river planting contains abundant actual fern fronds, all heliconias and pa
     "heliconia-orange",
     "passionflower",
     "fern",
+    "fern-ostrich",
+    "fern-maidenhair",
+    "fern-strap",
+    "fern-silver",
     "sedge",
     "rush",
     "daisy",
@@ -240,4 +244,35 @@ test("river planting contains abundant actual fern fronds, all heliconias and pa
     meshes.map((m) => [m.geometry, m.material, m.count]),
     before,
   );
+});
+
+test("whole plant bounds stay outside rooms and span shallow water through upper banks", () => {
+  const room = { x: -25, z: -1, w: 10, d: 12 };
+  const world = createRiverWorld(new T.Scene(), [], [], [room]);
+  const matrix = new T.Matrix4(),
+    bounds = new T.Box3(),
+    root = new T.Vector3();
+  const bands = new Set<string>();
+  for (const mesh of world.vegetation.children as T.InstancedMesh[]) {
+    for (let i = 0; i < mesh.count; i++) {
+      mesh.getMatrixAt(i, matrix);
+      bounds.copy(mesh.geometry.boundingBox!).applyMatrix4(matrix);
+      assert(
+        !(
+          bounds.min.x < room.x + room.w / 2 &&
+          bounds.max.x > room.x - room.w / 2 &&
+          bounds.min.z < room.z + room.d / 2 &&
+          bounds.max.z > room.z - room.d / 2
+        ),
+        mesh.userData.riverPlant,
+      );
+      if (!mesh.userData.riverPlant.startsWith("fern")) continue;
+      root.setFromMatrixPosition(matrix);
+      const d = riverDistance(root.x, root.z);
+      bands.add(d < 2.4 ? "water" : d < 3.4 ? "slope" : "bank");
+      if (d < 2.4)
+        assert(bounds.max.y > -0.32, "water fern emerges above surface");
+    }
+  }
+  assert.deepEqual([...bands].sort(), ["bank", "slope", "water"]);
 });
