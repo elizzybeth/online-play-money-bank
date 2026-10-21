@@ -175,6 +175,8 @@ export function riverTravelFactor(x: number, z: number) {
   return 1 - 0.65 * wet * wet * (3 - 2 * wet);
 }
 
+export const bridgeLandingHeight = (id: string) => (id === "market" ? 0.06 : 0);
+
 /** Keep boundary meshes and their colliders in agreement at river outlets. */
 export function splitRiverBoundary<
   R extends { x: number; z: number; w: number; d: number },
@@ -272,8 +274,8 @@ export function bridgeHeight(x: number, z: number): number | undefined {
     const t = (along - half) / 2.8;
     const side = (b.axis === "z" ? z - b.z : x - b.x) >= 0 ? 1 : -1;
     if (t >= 0 && t <= 1 && across <= bridgeApproachHalfWidth(b, side, t))
-      return 0.14 * (1 - t);
+      return 0.14 * (1 - t) + bridgeLandingHeight(b.id) * t;
     if (t > 1 && t <= 1 + 2 / 2.8 && across <= bridgeApproachHalfWidth(b, side))
-      return 0;
+      return bridgeLandingHeight(b.id);
   }
 }

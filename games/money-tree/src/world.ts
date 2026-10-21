@@ -2614,7 +2614,7 @@ export function createWorld(scene: T.Scene) {
     { x: -39, z: -52, w: 1, d: 24, clearHeight: 2.3 },
     { x: 39, z: 0, w: 1, d: 90, clearHeight: 2.3 },
     { x: -3.25, z: -40, w: 70.5, d: 1, clearHeight: 2.3 },
-    { x: 37.75, z: -40, w: 1.5, d: 1, clearHeight: 2.3 },
+    { x: 35.25, z: -40, w: 6.5, d: 1, clearHeight: 2.3 },
     { x: -45.5, z: 39, w: 168, d: 1, clearHeight: 2.3 },
   ].flatMap(splitRiverBoundary);
   rects.push(...hedgeRects);

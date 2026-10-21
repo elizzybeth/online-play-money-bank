@@ -1,3 +1,4 @@
+import { createSunsetSky, sunsetProgress } from "./sunset";
 import { completeMeditation } from "./sigma";
 import { TEA_SEAT_HEIGHT, seatForTea } from "./tea-pose";
 import { nightDialogue, hasAlternateChadTopic } from "./night-dialogue";
@@ -84,6 +85,7 @@ import { registerTraders, traderDialogue, rangePrices } from "./market";
 import { makeCookingPan } from "./cooking-pan";
 import {
   ingredients,
+  groceryStock,
   meals,
   mealMask,
   buyGrocery,
@@ -362,6 +364,7 @@ let storageWarning = false;
 const scene = new T.Scene();
 scene.background = new T.Color("#bfd9d6");
 scene.fog = new T.Fog("#bfd9d6", 35, 90);
+const sunsetSky = createSunsetSky(scene);
 let renderer: T.WebGLRenderer;
 try {
   renderer = new T.WebGLRenderer({
@@ -508,7 +511,11 @@ let nightWasActive = isNight(s);
 const daySky = new T.Color("#bfd9d6"),
   nightSky = new T.Color("#071525"),
   moonColor = new T.Color("#9bb7ec"),
-  daySunColor = new T.Color("#ffe7b9");
+  daySunColor = new T.Color("#ffe7b9"),
+  duskSky = new T.Color("#e88470"),
+  duskSun = new T.Color("#ff9273"),
+  skyTarget = new T.Color(),
+  sunTarget = new T.Color();
 function nightBlocked(x: number, z: number) {
   return (
     !!nightShelterAt(x, z) ||
@@ -596,11 +603,16 @@ function updateNight(dt: number, clockActive: boolean) {
   nightWorld.update(nightCombat, dark, reducedMotion);
   const blend = 1 - Math.exp(-dt * 3);
   const sky = scene.background as T.Color;
-  sky.lerp(dark ? nightSky : daySky, blend);
+  const sunset = sunsetProgress(s.night?.elapsed ?? 0);
+  skyTarget.copy(daySky).lerp(duskSky, sunset);
+  sky.lerp(dark ? nightSky : skyTarget, blend);
+  sunsetSky.update(s.night?.elapsed ?? 0, dark, blend);
   (scene.fog as T.Fog).color.copy(sky);
-  hemisphere.intensity += ((dark ? 0.28 : 2.3) - hemisphere.intensity) * blend;
-  sun.intensity += ((dark ? 0.15 : 3) - sun.intensity) * blend;
-  sun.color.lerp(dark ? moonColor : daySunColor, blend);
+  hemisphere.intensity +=
+    ((dark ? 0.28 : 2.3 - sunset * 1.65) - hemisphere.intensity) * blend;
+  sun.intensity += ((dark ? 0.15 : 3 - sunset * 2.25) - sun.intensity) * blend;
+  sunTarget.copy(daySunColor).lerp(duskSun, sunset);
+  sun.color.lerp(dark ? moonColor : sunTarget, blend);
   shelterLamp.intensity = dark && shelter ? 140 : 0;
   if (shelter)
     shelterLamp.position.set(
@@ -2712,7 +2724,7 @@ function shopPortrait(id: string, model: () => T.Object3D) {
 function homeShop(department: "groceries" | "furnishings" = "furnishings") {
   const groceries = department === "groceries";
   const stock = groceries
-    ? ingredients.map((id) => ({
+    ? groceryStock.map((id) => ({
         id,
         name: id[0].toUpperCase() + id.slice(1),
         price: 100,
@@ -4771,7 +4783,11 @@ function interact(skipTrader = false): void {
     );
   if (id === "bright-side-home" || id.startsWith("home-display-"))
     return homeShop("furnishings");
-  if (id === "green-basket" || id.startsWith("grocery-display-"))
+  if (
+    id === "green-basket" ||
+    id === "green-basket-bridge" ||
+    id.startsWith("grocery-display-")
+  )
     return homeShop("groceries");
   if (id === "bike-rack") return bikeRackMenu();
   if (id.startsWith("bike-")) return showBike(id.slice(5) as BikeId);
@@ -8364,6 +8380,8 @@ if (new URLSearchParams(location.search).has("test")) {
         | "exit"
         | "bikes"
         | "market"
+        | "grocer-side"
+        | "market-hedge"
         | "grocer-front"
         | "grocer-river"
         | "home-entry"
@@ -8373,8 +8391,10 @@ if (new URLSearchParams(location.search).has("test")) {
       const shots = {
         market: [78, 38, 28, 82, 0, -22],
         grocer: [76, 7, -17, 70, 1, -27],
-        "grocer-front": [70, 3, -5, 70, 4, -16],
-        "grocer-river": [39, 3.3, -22, 70, 2.3, -27],
+        "grocer-front": [70, 5, 4, 70, 5.5, -16],
+        "grocer-side": [73, 3.5, -22, 81, 1.5, -28],
+        "market-hedge": [35, 3, -31, 35, 1, -40],
+        "grocer-river": [35, 5, -20, 65, 4.5, -24],
         "home-entry": [104, 3.5, -15, 104, 1.6, -28],
         furnishings: [110, 7, -17, 104, 1, -27],
         bikes: [-18, 4.8, -4, -18, 3.6, -21],
@@ -8695,6 +8715,15 @@ if (new URLSearchParams(location.search).has("test")) {
           position: o.position.toArray(),
           shop: o.parent?.name,
         })),
+    marketFacade: () =>
+      ["green-basket-logo", "green-basket-river-logo"].map((name) => {
+        const o = scene.getObjectByName(name)!;
+        return {
+          name,
+          bounds: new T.Box3().setFromObject(o),
+          rotation: o.rotation.y,
+        };
+      }),
     marketRoof: () => {
       const roof = scene.getObjectByName("green-basket-roof")!;
       const b = new T.Box3().setFromObject(roof);
@@ -8706,22 +8735,24 @@ if (new URLSearchParams(location.search).has("test")) {
       };
     },
     marketWindows: () =>
-      world.market.flatMap((root) => {
-        const pane = root.getObjectByName("grocery-river-window") as
-          T.Mesh | undefined;
-        if (!pane) return [];
-        const b = new T.Box3().setFromObject(pane),
-          m = pane.material as T.MeshPhysicalMaterial;
-        return [
-          {
-            min: b.min.toArray(),
-            max: b.max.toArray(),
-            opacity: m.opacity,
-            transparent: m.transparent,
-            depthWrite: m.depthWrite,
-          },
-        ];
-      }),
+      world.market
+        .flatMap((root) =>
+          root.children.filter((o) => o.name === "grocery-river-window"),
+        )
+        .flatMap((object) => {
+          const pane = object as T.Mesh;
+          const b = new T.Box3().setFromObject(pane),
+            m = pane.material as T.MeshPhysicalMaterial;
+          return [
+            {
+              min: b.min.toArray(),
+              max: b.max.toArray(),
+              opacity: m.opacity,
+              transparent: m.transparent,
+              depthWrite: m.depthWrite,
+            },
+          ];
+        }),
     cameraPitch: () => pitch,
     seedChimes: () => seedChimes,
     frame: () => frameNumber,

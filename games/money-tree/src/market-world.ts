@@ -4,7 +4,7 @@ import type { Rect } from "./game";
 import type { Target } from "./world";
 import { furnishingCatalog } from "./furnishings";
 import { makeFurnishing } from "./furnishing-models";
-import { ingredients } from "./meals";
+import { ingredients, groceryStock } from "./meals";
 import { makeGrocery } from "./grocery-models";
 import { signCanvas } from "./signage";
 import { grocerySignCanvas } from "./grocery-signs";
@@ -21,6 +21,7 @@ export const marketShops = [
 ] as const;
 export const marketPaths: Rect[] = [
   { x: 55, z: -16, w: 5, d: 14 },
+  { x: 56.5, z: -20, w: 3, d: 4 },
   { x: 87, z: -12, w: 64, d: 5 },
   { x: 70, z: -14, w: 5, d: 4 },
   { x: 104, z: -14, w: 5, d: 4 },
@@ -97,7 +98,8 @@ export function createMarketShops(
       [0, -8, 24, 0.22],
       [-7.5, 8, 9, 0.22],
       [7.5, 8, 9, 0.22],
-    ])
+    ]) {
+      if (shop.id === "green-basket" && x === -12) continue;
       box(
         x,
         shop.id === "green-basket" && (z === 8 || x === -12) ? 0.15 : 2.8,
@@ -109,6 +111,7 @@ export function createMarketShops(
         true,
         true,
       );
+    }
     box(
       0,
       shop.id === "green-basket" ? 4.97 : 5,
@@ -170,12 +173,36 @@ export function createMarketShops(
       );
       logo.colorSpace = T.SRGBColorSpace;
       const plaque = new T.Mesh(
-        new T.PlaneGeometry(4.5, 1.5),
+        new T.PlaneGeometry(8.4, 2.8),
         new T.MeshBasicMaterial({ map: logo }),
       );
       plaque.name = "green-basket-logo";
-      plaque.position.set(0, 4.65, 8.37);
+      plaque.position.set(0, 7.8, 8.37);
       root.add(plaque);
+      const riverSign = plaque.clone();
+      riverSign.name = "green-basket-river-logo";
+      riverSign.position.set(-12.18, 7.8, 0);
+      riverSign.rotation.y = -Math.PI / 2;
+      root.add(riverSign);
+      // A tall retail upper facade, with cream panels, timber courses and stone piers.
+      for (const [x, z, w, d] of [
+        [0, 8, 24, 0.28],
+        [-12, 0, 0.28, 16],
+        [12, 0, 0.28, 16],
+        [0, -8, 24, 0.28],
+      ]) {
+        box(x, 7.8, z, w, 4.2, d, "#e5dfce", false, true);
+      }
+      for (const y of [6.05, 6.4, 9.3, 9.65]) {
+        box(0, y, 8.18, 24, 0.21, 0.08, "#aa7651", false, true);
+        box(-12.18, y, 0, 0.08, 0.21, 16, "#aa7651", false, true);
+      }
+      for (const x of [-11.4, 11.4])
+        box(x, 7.8, 8.23, 1.1, 4.2, 0.16, "#918c7f", false, true);
+      for (const z of [-7.4, 7.4])
+        box(-12.23, 7.8, z, 0.16, 4.2, 1.1, "#918c7f", false, true);
+      box(0, 10, 0, 25.1, 0.24, 17.1, "#626c6b", false, true).name =
+        "green-basket-upper-roof";
     } else sign(shop.name, 0, 5, 8.34, 9);
     targets.push({
       id: shop.id,
@@ -329,16 +356,31 @@ export function createMarketShops(
         root.add(pane);
         occluders.push(pane);
       }
-      const riverWindow = new T.Mesh(new T.PlaneGeometry(15.65, 5.05), glass);
-      riverWindow.name = "grocery-river-window";
-      riverWindow.position.set(-12, 2.875, 0);
-      riverWindow.rotation.y = -Math.PI / 2;
-      riverWindow.userData.cameraWall = true;
-      root.add(riverWindow);
-      occluders.push(riverWindow);
+      // A four-metre opening lines up with the bridge at local z=4.
+      for (const [z, length] of [
+        [-3, 10],
+        [7, 2],
+      ]) {
+        box(-12, 0.15, z, 0.22, 0.3, length, "#f2dfb7", true, true);
+        const pane = new T.Mesh(new T.PlaneGeometry(length - 0.1, 5.05), glass);
+        pane.name = "grocery-river-window";
+        pane.position.set(-12, 2.875, z);
+        pane.rotation.y = -Math.PI / 2;
+        pane.userData.cameraWall = true;
+        root.add(pane);
+        occluders.push(pane);
+      }
       box(-12, 5.5, 0, 0.22, 0.2, 16, "#e0e2dc", false, true);
-      for (const z of [-7.9, -4, 0, 4, 7.9])
+      for (const z of [-7.9, -4, 0, 2, 6, 7.9])
         box(-12, 2.9, z, 0.1, 5.2, 0.07, "#d2d7d8", false, true);
+      box(-12.7, 3.65, 4, 1.8, 0.16, 4.7, "#e0e2dc", false, true);
+      box(-12, 4.55, 4, 0.16, 1.6, 4, "#e0e2dc", false, true);
+      targets.push({
+        id: "green-basket-bridge",
+        x: 59.5,
+        z: -20,
+        label: "Browse The Green Basket",
+      });
       sign("FRESH PRODUCE", -5, 4.6, -7.83, 6);
       sign("PANTRY & EVERYDAY", 6, 4.6, -7.83, 6);
       const produce = ingredients.filter(
@@ -441,14 +483,14 @@ export function createMarketShops(
         });
         crate(item, x, y, z, 3.8, 1.1, 1.04);
       });
-      const pantry = ingredients.filter((item) => !produce.includes(item));
+      const pantry = groceryStock.filter((item) => !produce.includes(item));
       pantry.forEach((item, i) => {
-        const alongWall = i >= 4;
-        const x = [-8.5, -3.1, 2.3, -5.5][i % 4],
-          z = i === 3 ? 3.7 : 0.2;
+        const alongWall = i >= 3;
+        const x = [-7.5, -2.2, 3.1][i % 3],
+          z = 0.2;
         const start = fixtures.children.length;
         const displayX = alongWall ? 10.95 : x,
-          displayZ = alongWall ? -4.8 + (i - 4) * 4.8 : z;
+          displayZ = alongWall ? -2.9 + (i - 3) * 4.2 : z;
         box(x, 0.95, z - 0.45, 3.6, 1.9, 0.08, "#364d51");
         rects.push({
           x: shop.x + displayX,
