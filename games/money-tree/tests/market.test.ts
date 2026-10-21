@@ -2,7 +2,13 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as T from "three";
 import { fresh, decode, move } from "../src/game";
-import { ingredients, buyGrocery, startMeal, finishMeal } from "../src/meals";
+import {
+  groceryStock,
+  ingredients,
+  buyGrocery,
+  startMeal,
+  finishMeal,
+} from "../src/meals";
 import { farmFields } from "../src/farm-fields";
 import { isFlower } from "../src/garden-crops";
 import { makeHat } from "../src/hat-models";
@@ -21,6 +27,7 @@ import { withinPlayableBounds } from "../src/world-bounds";
 test("market groceries include every edible field crop and distinct beans, cook and reload without changing old meals", () => {
   for (const f of farmFields.filter((f) => !isFlower(f.crop)))
     assert((ingredients as readonly string[]).includes(f.crop), f.crop);
+  assert(!groceryStock.includes("beans" as any));
   const s = fresh();
   s.cash = 10000;
   for (const item of [
@@ -110,10 +117,10 @@ test("east-bank shops fit the map box and the river bridge has clear, level conn
     assert.equal(bridgeHeight(x, -20), 0.14);
     assert.equal(riverTravelFactor(x, -20), 1);
   }
-  assert(Math.abs(bridgeHeight(35, -20)! - 0.09) < 1e-9);
-  assert(Math.abs(bridgeHeight(51, -20)! - 0.09) < 1e-9);
-  assert.equal(bridgeHeight(31.5, -20), 0);
-  assert.equal(bridgeHeight(54.5, -20), 0);
+  assert(Math.abs(bridgeHeight(35, -20)! - (0.14 - 0.08 / 2.8)) < 1e-9);
+  assert(Math.abs(bridgeHeight(51, -20)! - (0.14 - 0.08 / 2.8)) < 1e-9);
+  assert.equal(bridgeHeight(31.5, -20), 0.06);
+  assert.equal(bridgeHeight(54.5, -20), 0.06);
   const old = fresh();
   old.position = { x: 3, z: -60 };
   assert.equal(withinPlayableBounds(old), false);

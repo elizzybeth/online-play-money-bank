@@ -55,6 +55,7 @@ test("east-bank market has a river bridge and separate shops, vegetarian foods, 
   ]) {
     await expect(page.locator(`[data-product="${item}"]`)).toHaveCount(1);
   }
+  await expect(page.locator('[data-product="beans"]')).toHaveCount(0);
   await page.locator('[data-product="pinto beans"]').click();
   await page
     .getByRole("button", { name: "Back to the day", exact: true })
@@ -137,22 +138,65 @@ test("east-bank market has a river bridge and separate shops, vegetarian foods, 
   const glazing = await page.evaluate(() =>
     (window as any).game.marketWindows(),
   );
-  expect(glazing).toHaveLength(1);
+  expect(glazing).toHaveLength(2);
   expect(glazing[0].transparent).toBe(true);
   expect(glazing[0].opacity).toBeLessThan(0.25);
   expect(glazing[0].min[0]).toBeCloseTo(58);
   expect(glazing[0].max[1] - glazing[0].min[1]).toBeGreaterThan(5);
+  // Walk directly off the bridge through the new river entrance.
+  await page.evaluate(() => {
+    (window as any).game.teleport(55, -20);
+    (window as any).game.setYaw(0);
+  });
+  await page.keyboard.down("d");
+  for (let i = 0; i < 12; i++) await page.clock.fastForward(100);
+  await page.keyboard.up("d");
+  expect(
+    (await page.evaluate(() => (window as any).game.state())).position.x,
+  ).toBeGreaterThan(58.6);
+  const facade = await page.evaluate(() => (window as any).game.marketFacade());
+  expect(facade).toHaveLength(2);
+  expect(facade.every((f: any) => f.bounds.min.y > 6)).toBe(true);
   for (const shot of [
     "market",
     "grocer",
     "grocer-river",
     "grocer-front",
+    "grocer-side",
+    "market-hedge",
     "furnishings",
     "home-entry",
   ]) {
     await page.evaluate((shot) => (window as any).game.homeBugShot(shot), shot);
     await page.screenshot({ path: info.outputPath(`${shot}.png`) });
   }
+  const rects = await page.evaluate(() => (window as any).game.rects);
+  expect(
+    rects.some(
+      (r: any) =>
+        Math.abs(r.z + 40) < 0.1 && r.x - r.w / 2 <= 34 && r.x + r.w / 2 >= 36,
+    ),
+  ).toBe(true);
+  const beans = rects.find(
+    (r: any) => Math.abs(r.x - 80.95) < 0.01 && Math.abs(r.z + 26.9) < 0.01,
+  );
+  const rear = rects.find(
+    (r: any) => Math.abs(r.x - 78.7) < 0.01 && Math.abs(r.z + 30.65) < 0.01,
+  );
+  expect(beans.z - beans.d / 2 - (rear.z + rear.d / 2)).toBeGreaterThan(0.5);
+  const beforeSunset = await page.evaluate(() => (window as any).game.night());
+  await page.evaluate(() => {
+    const game = (window as any).game;
+    game.nightClock(285 - game.night().state.elapsed);
+    game.teleport(35, -20);
+  });
+  for (let i = 0; i < 12; i++) await page.clock.fastForward(100);
+  const sunset = await page.evaluate(() => (window as any).game.night());
+  expect(sunset.dark).toBe(false);
+  expect(sunset.ambient).toBeLessThan(beforeSunset.ambient - 0.5);
+  expect(sunset.sky).not.toBe(beforeSunset.sky);
+  await page.evaluate(() => (window as any).game.homeBugShot("grocer-river"));
+  await page.screenshot({ path: info.outputPath("sunset.png") });
   await page.keyboard.press("i");
   const hats = page.locator(".hat-bag img");
   await expect(hats).toHaveCount(3);

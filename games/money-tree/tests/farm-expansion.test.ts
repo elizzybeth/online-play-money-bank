@@ -120,8 +120,8 @@ test("bridge approaches are broad, flat at the ends and no steeper than 1:20", (
         b.z + (b.axis === "z" ? along : across),
       );
     assert.equal(at(end), 0.14);
-    assert(Math.abs(at(end + 1.4)! - 0.07) < 1e-8);
-    assert.equal(at(end + 3.8), 0);
+    assert(Math.abs(at(end + 1.4)! - (b.id === "market" ? 0.1 : 0.07)) < 1e-8);
+    assert.equal(at(end + 3.8), b.id === "market" ? 0.06 : 0);
     assert(
       at(end + 2, b.id === "grove" ? 2.5 : b.id === "market" ? 4 : 5)! >= 0,
     );

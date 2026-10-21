@@ -21,6 +21,8 @@ export const ingredients = [
   "strawberry",
   "potato",
 ] as const;
+// Keep legacy beans in saved inventories and old recipe masks, but stop selling them.
+export const groceryStock = ingredients.filter((item) => item !== "beans");
 export type Ingredient = (typeof ingredients)[number];
 export type FoodBuff = { recipe: number; remaining: number };
 export type Meal = {

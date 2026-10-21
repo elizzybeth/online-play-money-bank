@@ -8,6 +8,7 @@ import {
   riverBankWidth,
   riverBridges,
   bridgeApproachHalfWidth,
+  bridgeLandingHeight,
   riverDistance,
 } from "./river-land";
 import { carveRiver } from "./river-carve";
@@ -216,15 +217,16 @@ export function createRiverWorld(
       b.z + (alongZ ? along : across),
     ];
     for (const side of [-1, 1]) {
+      const landingY = bridgeLandingHeight(b.id);
       const end = (side * length) / 2;
       const endHalf = bridgeApproachHalfWidth(b, side);
       const vertices = [
         ...point(-crossHalf, 0.14, end),
         ...point(crossHalf, 0.14, end),
-        ...point(endHalf, 0, end + side * 2.8),
+        ...point(endHalf, landingY, end + side * 2.8),
         ...point(-crossHalf, 0.14, end),
-        ...point(endHalf, 0, end + side * 2.8),
-        ...point(-endHalf, 0, end + side * 2.8),
+        ...point(endHalf, landingY, end + side * 2.8),
+        ...point(-endHalf, landingY, end + side * 2.8),
       ];
       const geo = new T.BufferGeometry();
       geo.setAttribute("position", new T.Float32BufferAttribute(vertices, 3));
@@ -235,7 +237,7 @@ export function createRiverWorld(
       ramp.name = "bridge-flared-ramp";
       ramp.receiveShadow = true;
       bridge.add(ramp);
-      const landing = point(0, -0.06, end + side * 3.8);
+      const landing = point(0, landingY - 0.06, end + side * 3.8);
       part(
         landing[0],
         landing[1],
