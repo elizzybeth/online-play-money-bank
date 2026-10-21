@@ -7,6 +7,7 @@ import { makeFurnishing } from "./furnishing-models";
 import { ingredients } from "./meals";
 import { makeGrocery } from "./grocery-models";
 import { signCanvas } from "./signage";
+import { grocerySignCanvas } from "./grocery-signs";
 export const marketShops = [
   {
     x: 104,
@@ -108,12 +109,43 @@ export function createMarketShops(
         true,
         true,
       );
-    box(0, 5, 8, 6, 1.6, 0.22, "#f2dfb7", false, true);
+    box(
+      0,
+      shop.id === "green-basket" ? 4.97 : 5,
+      8,
+      shop.id === "green-basket" ? 24 : 6,
+      shop.id === "green-basket" ? 1.24 : 1.6,
+      0.22,
+      shop.id === "green-basket" ? "#e0e2dc" : "#f2dfb7",
+      false,
+      true,
+    );
+    if (shop.id === "green-basket") {
+      const roof = box(0, 5.76, 0, 25.1, 0.32, 17.1, "#e0e2dc", false, true);
+      roof.name = "green-basket-roof";
+      roof.userData.roof = true;
+      const fascia = roof.material;
+      const top = new T.MeshStandardMaterial({
+        color: "#626c6b",
+        roughness: 0.9,
+      });
+      (roof as T.Mesh<T.BufferGeometry, T.Material | T.Material[]>).material = [
+        fascia,
+        fascia,
+        top,
+        fascia,
+        fascia,
+        fascia,
+      ];
+    }
+
     const sign = (text: string, x: number, y: number, z: number, w: number) => {
       const column = labelIndex % 4,
         row = Math.floor(labelIndex++ / 4);
       context.drawImage(
-        signCanvas(text, 512, 128),
+        shop.id === "green-basket"
+          ? grocerySignCanvas(text, 512, 128)
+          : signCanvas(text, 512, 128),
         column * 512,
         row * 128,
         512,
@@ -132,7 +164,19 @@ export function createMarketShops(
       fixtures.add(mesh);
       return mesh;
     };
-    sign(shop.name, 0, 5, 8.34, 9);
+    if (shop.id === "green-basket") {
+      const logo = new T.TextureLoader().load(
+        new URL("./assets/green-basket-logo.webp", import.meta.url).href,
+      );
+      logo.colorSpace = T.SRGBColorSpace;
+      const plaque = new T.Mesh(
+        new T.PlaneGeometry(4.5, 1.5),
+        new T.MeshBasicMaterial({ map: logo }),
+      );
+      plaque.name = "green-basket-logo";
+      plaque.position.set(0, 4.65, 8.37);
+      root.add(plaque);
+    } else sign(shop.name, 0, 5, 8.34, 9);
     targets.push({
       id: shop.id,
       x: shop.x,
@@ -399,14 +443,18 @@ export function createMarketShops(
       });
       const pantry = ingredients.filter((item) => !produce.includes(item));
       pantry.forEach((item, i) => {
-        const x = -9 + (i % 4) * 5.7,
-          z = i < 4 ? 0.2 : 3.7;
+        const alongWall = i >= 4;
+        const x = [-8.5, -3.1, 2.3, -5.5][i % 4],
+          z = i === 3 ? 3.7 : 0.2;
+        const start = fixtures.children.length;
+        const displayX = alongWall ? 10.95 : x,
+          displayZ = alongWall ? -4.8 + (i - 4) * 4.8 : z;
         box(x, 0.95, z - 0.45, 3.6, 1.9, 0.08, "#364d51");
         rects.push({
-          x: shop.x + x,
-          z: shop.z + z,
-          w: 3.6,
-          d: 0.95,
+          x: shop.x + displayX,
+          z: shop.z + displayZ,
+          w: alongWall ? 0.95 : 3.6,
+          d: alongWall ? 3.6 : 0.95,
           clearHeight: 1.9,
         });
         for (let tier = 0; tier < 4; tier++) {
@@ -424,10 +472,18 @@ export function createMarketShops(
           }
         }
         sign(`${item} · $1`, x, 1.9, z + 0.56, 2.6);
+        if (alongWall) {
+          const transform = new T.Matrix4()
+            .makeTranslation(displayX, 0, displayZ)
+            .multiply(new T.Matrix4().makeRotationY(-Math.PI / 2))
+            .multiply(new T.Matrix4().makeTranslation(-x, 0, -z));
+          for (const object of fixtures.children.slice(start))
+            object.applyMatrix4(transform);
+        }
         targets.push({
           id: `grocery-display-${item}`,
-          x: shop.x + x,
-          z: shop.z + z + 1.2,
+          x: shop.x + displayX - (alongWall ? 1.2 : 0),
+          z: shop.z + displayZ + (alongWall ? 0 : 1.2),
           label: `Browse ${item}`,
         });
       });
