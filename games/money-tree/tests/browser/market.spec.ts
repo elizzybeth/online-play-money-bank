@@ -85,7 +85,7 @@ test("east-bank market has a river bridge and separate shops, vegetarian foods, 
   // Normal follow camera must cut away either shop's walls when orbiting indoors.
   for (const [x, z, shop] of [
     [59, -22.2, "green-basket"],
-    [115, -24, "bright-side-home"],
+    [115, -28, "bright-side-home"],
   ] as const) {
     await page.evaluate(
       ([x, z]) => (window as any).game.teleport(x, z),
@@ -108,7 +108,24 @@ test("east-bank market has a river bridge and separate shops, vegetarian foods, 
     }
     expect(hidden).toBe(true);
   }
-  for (const shot of ["market", "grocer", "furnishings"]) {
+  // Cross the showroom between front and rear sets without a partition blocking it.
+  for (let x = 96; x <= 112; x += 0.5)
+    await page.evaluate((x) => (window as any).game.teleport(x, -24.5), x);
+  const glazing = await page.evaluate(() =>
+    (window as any).game.marketWindows(),
+  );
+  expect(glazing).toHaveLength(1);
+  expect(glazing[0].transparent).toBe(true);
+  expect(glazing[0].opacity).toBeLessThan(0.25);
+  expect(glazing[0].min[0]).toBeCloseTo(58);
+  expect(glazing[0].max[1] - glazing[0].min[1]).toBeGreaterThan(5);
+  for (const shot of [
+    "market",
+    "grocer",
+    "grocer-river",
+    "furnishings",
+    "home-entry",
+  ]) {
     await page.evaluate((shot) => (window as any).game.homeBugShot(shot), shot);
     await page.screenshot({ path: info.outputPath(`${shot}.png`) });
   }

@@ -99,10 +99,10 @@ export function createMarketShops(
     ])
       box(
         x,
-        shop.id === "green-basket" && z === 8 ? 0.3 : 2.8,
+        shop.id === "green-basket" && (z === 8 || x === -12) ? 0.15 : 2.8,
         z,
         w,
-        shop.id === "green-basket" && z === 8 ? 0.6 : 5.6,
+        shop.id === "green-basket" && (z === 8 || x === -12) ? 0.3 : 5.6,
         d,
         "#f2dfb7",
         true,
@@ -130,6 +130,7 @@ export function createMarketShops(
       const mesh = new T.Mesh(geometry, signMaterial);
       mesh.position.set(x, y, z);
       fixtures.add(mesh);
+      return mesh;
     };
     sign(shop.name, 0, 5, 8.34, 9);
     targets.push({
@@ -182,19 +183,16 @@ export function createMarketShops(
             5.35,
             "#f7e9ce",
           );
-        box(room.x, 1.3, room.z - 2.75, 9, 2.6, 0.14, room.color, true, true);
-        box(
-          room.x - 4.5,
-          0.95,
-          room.z - 1.8,
-          0.14,
-          1.9,
-          1.9,
-          room.color,
-          true,
-          true,
-        );
-        sign(room.title, room.x, 2.18, room.z - 2.65, 3.3);
+        if (room.z < 0) {
+          // Tall backdrops belong at the perimeter, leaving the middle open.
+          box(room.x, 1.3, -6.95, 8.4, 2.6, 0.14, room.color, true, true);
+          sign(room.title, room.x + 2.6, 2.2, -6.85, 2.2);
+        } else {
+          const side = room.x < 0 ? -1 : 1;
+          box(side * 10.8, 1.3, room.z, 0.14, 2.6, 5.4, room.color, true, true);
+          const title = sign(room.title, side * 10.68, 2.15, room.z, 2.7);
+          title.rotation.y = (-side * Math.PI) / 2;
+        }
       }
       const place = (
         id: import("./furnishings").FurnishingId,
@@ -228,40 +226,38 @@ export function createMarketShops(
           label: `Browse ${item.name}`,
         });
       };
-      place("everyday-sofa", -6, -5.6);
-      place("coffee-table", -6, -3.5);
-      place("chair", -8.8, -3.6, 0.12, 0.5);
-      place("pouf", -3.5, -3.4);
-      place("woven-pendant", -9.6, -5.5);
-      place("monstera", -2.5, -5.8);
-      place("sunset", -6, -6.64, 1.65);
-      place("botanical", -8, -6.64, 1.65);
-      place("everyday-bed", 5.4, -4.4);
-      place("bedside-table", 7, -5.4);
-      place("jewel-lamp", 7, -5.4, 0.79);
-      place("oak-sideboard", 9.1, -5.9);
-      place("seascape", 9, -6.64, 1.8);
+      place("everyday-sofa", -6.2, -5.7);
+      place("coffee-table", -6.2, -3.55);
+      place("chair", -8.8, -3.8, 0.12, -1.2);
+      place("pouf", -4.1, -3.1);
+      place("woven-pendant", -9.3, -5.9);
+      place("monstera", -2.8, -5.9);
+      place("sunset", -6.2, -6.84, 1.65);
+      place("botanical", -8, -6.84, 1.65);
+      place("everyday-bed", 5.6, -4.6);
+      place("bedside-table", 7.1, -5.6);
+      place("jewel-lamp", 7.1, -5.6, 0.79);
+      place("oak-sideboard", 9.25, -5.9);
+      place("seascape", 5.6, -6.84, 1.8);
       place("snake", 9.5, -3.2);
-      place("tulip-table", -6, 3.2);
-      place("yellow-chair", -7.5, 3.1, 0.12, -Math.PI / 2);
-      place("yellow-chair", -4.5, 3.1, 0.12, Math.PI / 2);
-      place("pink-locker", -8.8, 0.9);
-      place("striped-vase", -6, 3.2, 1.1);
-      place("balloon-dog", -8.8, 0.9, 1.8);
-      place("color-gallery", -5.5, 0.35, 1.6);
-      place("writing-desk", 5.1, 1.1);
-      place("yellow-chair", 5.1, 2.4, 0.12, Math.PI);
-      place("open-bookcase", 8.8, 1);
-      place("pothos", 9.3, 4.4);
-      place("rug", 6, 4.6);
-      place("geometric", 6, 0.35, 1.7);
-      sign(
-        "Explore four rooms · everything is for your home",
-        0,
-        4.5,
-        -7.84,
-        9,
-      );
+      // Dining is an open island, with its storage and art against the side wall.
+      place("tulip-table", -6, 3);
+      place("yellow-chair", -6, 1.55, 0.12, Math.PI);
+      place("yellow-chair", -6, 4.45, 0.12, 0);
+      place("pink-locker", -10.2, 2.6, 0.12, Math.PI / 2);
+      place("striped-vase", -6, 3, 1.1);
+      place("balloon-dog", -10.2, 2.6, 1.8, Math.PI / 2);
+      place("color-gallery", -10.68, 4.2, 1.55, Math.PI / 2);
+      // Tall shelving at the east edge keeps the bedroom visible from the door.
+      place("writing-desk", 10, 3.5, 0.12, -Math.PI / 2);
+      place("yellow-chair", 8.75, 3.5, 0.12, -Math.PI / 2);
+      place("open-bookcase", 10.35, 0.8, 0.12, -Math.PI / 2);
+      place("pothos", 9.4, 5.3);
+      place("rug", 6, 3.5);
+      place("chair", 5.7, 2.2, 0.12, -2.7);
+      place("pouf", 6.5, 4.5);
+      place("geometric", 10.68, 4.5, 1.75, -Math.PI / 2);
+      sign("Make room for living", 0, 4.3, -7.84, 7);
     } else {
       // Modern grocery frontage: panel cladding, warm timber fascia and glazed doors.
       for (const x of [-7.5, 7.5]) {
@@ -276,7 +272,9 @@ export function createMarketShops(
       const glass = new T.MeshPhysicalMaterial({
         color: "#a7cfce",
         transparent: true,
-        opacity: 0.33,
+        opacity: 0.17,
+        depthWrite: false,
+        side: T.DoubleSide,
         roughness: 0.12,
         metalness: 0.05,
       });
@@ -287,8 +285,18 @@ export function createMarketShops(
         root.add(pane);
         occluders.push(pane);
       }
-      sign("FRESH PRODUCE", -5, 3.8, -7.83, 6);
-      sign("PANTRY & EVERYDAY", 6, 3.8, -7.83, 6);
+      const riverWindow = new T.Mesh(new T.PlaneGeometry(15.65, 5.05), glass);
+      riverWindow.name = "grocery-river-window";
+      riverWindow.position.set(-12, 2.875, 0);
+      riverWindow.rotation.y = -Math.PI / 2;
+      riverWindow.userData.cameraWall = true;
+      root.add(riverWindow);
+      occluders.push(riverWindow);
+      box(-12, 5.5, 0, 0.22, 0.2, 16, "#e0e2dc", false, true);
+      for (const z of [-7.9, -4, 0, 4, 7.9])
+        box(-12, 2.9, z, 0.1, 5.2, 0.07, "#d2d7d8", false, true);
+      sign("FRESH PRODUCE", -5, 4.6, -7.83, 6);
+      sign("PANTRY & EVERYDAY", 6, 4.6, -7.83, 6);
       const produce = ingredients.filter(
         (item) =>
           ![
@@ -301,39 +309,93 @@ export function createMarketShops(
             "pinto beans",
           ].includes(item),
       );
-      produce.forEach((item, i) => {
-        const x = -10.2 + (i % 7) * 3.4,
-          z = i < 7 ? -6.65 : -3.6;
-        // Three stepped shelves, filled crates and small shelf-edge labels.
-        box(x, 0.16, z, 3.15, 0.22, 1.5, "#8b6545");
-        box(x, 1, z - 0.68, 3.15, 1.9, 0.1, "#8b6545");
-        rects.push({
-          x: shop.x + x,
-          z: shop.z + z,
-          w: 3.15,
-          d: 1.5,
-          clearHeight: 1.7,
-        });
-        for (let tier = 0; tier < 3; tier++) {
-          const shelfZ = z + 0.5 - tier * 0.45,
-            y = 0.55 + tier * 0.55;
-          box(x, y, shelfZ, 3.1, 0.1, 0.65, "#c69b64");
-          for (const dx of [-1.48, 1.48])
-            box(x + dx, y + 0.18, shelfZ, 0.06, 0.32, 0.65, "#ae8052");
-          for (let n = 0; n < 6; n++) {
-            const m = makeGrocery(item);
-            m.scale.setScalar(0.68);
-            m.position.set(x - 1.15 + n * 0.46, y + 0.06, shelfZ);
+      const towers: (typeof ingredients)[number][][] = [
+        ["tomato", "pepper", "strawberry"],
+        ["carrot", "radish", "beet"],
+        ["onion", "potato", "eggplant"],
+        ["corn", "tomato", "pepper"],
+      ];
+      const crate = (
+        item: (typeof ingredients)[number],
+        x: number,
+        y: number,
+        z: number,
+        w: number,
+        d: number,
+        scale: number,
+      ) => {
+        box(x, y, z, w, 0.08, d, "#c69b64");
+        for (const dx of [-w / 2, w / 2])
+          box(x + dx, y + 0.13, z, 0.055, 0.24, d, "#ae8052");
+        // Shallow lips and labels sit below the produce instead of covering it.
+        box(x, y + 0.06, z + d / 2, w, 0.12, 0.05, "#ae8052");
+        sign(`${item} · $1`, x, y - 0.09, z + d / 2 + 0.035, 1.35);
+        const columns = ["tomato", "pepper", "strawberry"].includes(item)
+            ? 11
+            : 9,
+          rows = 3;
+        const template = makeGrocery(item);
+        const bounds = new T.Box3().setFromObject(template);
+        for (let row = 0; row < rows; row++)
+          for (let col = 0; col < columns; col++) {
+            const m = template.clone();
+            const varied = scale * (0.94 + ((col + row * 3) % 4) * 0.04);
+            m.scale.setScalar(varied);
+            m.rotation.y = ((col * 5 + row * 3) % 7) * 0.17;
+            m.position.set(
+              x -
+                w * 0.39 +
+                (col * w * 0.78) / (columns - 1) +
+                (row % 2) * 0.035,
+              y + 0.05 - bounds.min.y * varied + row * 0.025,
+              z + d * 0.29 - row * d * 0.29,
+            );
             fixtures.add(m);
           }
-        }
-        sign(`${item} · $1`, x, 0.95, z + 0.78, 2.2);
         targets.push({
           id: `grocery-display-${item}`,
           x: shop.x + x,
-          z: shop.z + z + 1.55,
+          z: shop.z + z + d / 2 + 0.75,
           label: `Browse ${item}`,
         });
+      };
+      // Taller rear shelves use the wall height; compact low islands preserve views.
+      towers.forEach((items, i) => {
+        const x = -8.7 + i * 5.8,
+          step = [0.91, 1.04, 0.96, 1.09][i];
+        box(x, 1.85, -7.48, 4.8, 3.6, 0.1, "#8b6545");
+        rects.push({
+          x: shop.x + x,
+          z: shop.z - 6.65,
+          w: 4.9,
+          d: 2,
+          clearHeight: 3.8,
+        });
+        items.forEach((item, tier) =>
+          crate(
+            item,
+            x,
+            0.65 + tier * step,
+            -5.95 - tier * 0.55,
+            4.7,
+            0.94,
+            ["tomato", "pepper", "strawberry"].includes(item) ? 1.25 : 1.05,
+          ),
+        );
+      });
+      (["cabbage", "pumpkin", "lettuce"] as const).forEach((item, i) => {
+        const x = [-5.8, 0, 5.8][i],
+          y = [0.42, 0.64, 0.5][i],
+          z = -3;
+        box(x, y / 2, z, 3.8, y, 1.1, "#8b6545");
+        rects.push({
+          x: shop.x + x,
+          z: shop.z + z,
+          w: 3.9,
+          d: 1.2,
+          clearHeight: y + 0.65,
+        });
+        crate(item, x, y, z, 3.8, 1.1, 1.04);
       });
       const pantry = ingredients.filter((item) => !produce.includes(item));
       pantry.forEach((item, i) => {
