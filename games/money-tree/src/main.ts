@@ -8364,12 +8364,16 @@ if (new URLSearchParams(location.search).has("test")) {
         | "exit"
         | "bikes"
         | "market"
+        | "grocer-river"
+        | "home-entry"
         | "grocer"
         | "furnishings",
     ) => {
       const shots = {
         market: [78, 38, 28, 82, 0, -22],
         grocer: [76, 7, -17, 70, 1, -27],
+        "grocer-river": [39, 3.3, -22, 70, 2.3, -27],
+        "home-entry": [104, 3.5, -15, 104, 1.6, -28],
         furnishings: [110, 7, -17, 104, 1, -27],
         bikes: [-18, 4.8, -4, -18, 3.6, -21],
         bookcase: [-11, 2.3, 9.8, -12.1, 1.4, 6.8],
@@ -8681,6 +8685,23 @@ if (new URLSearchParams(location.search).has("test")) {
           position: o.position.toArray(),
           shop: o.parent?.name,
         })),
+    marketWindows: () =>
+      world.market.flatMap((root) => {
+        const pane = root.getObjectByName("grocery-river-window") as
+          T.Mesh | undefined;
+        if (!pane) return [];
+        const b = new T.Box3().setFromObject(pane),
+          m = pane.material as T.MeshPhysicalMaterial;
+        return [
+          {
+            min: b.min.toArray(),
+            max: b.max.toArray(),
+            opacity: m.opacity,
+            transparent: m.transparent,
+            depthWrite: m.depthWrite,
+          },
+        ];
+      }),
     cameraPitch: () => pitch,
     seedChimes: () => seedChimes,
     frame: () => frameNumber,
