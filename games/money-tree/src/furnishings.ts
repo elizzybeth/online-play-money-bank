@@ -1,6 +1,13 @@
 import { modernFurniture, type ModernFurnitureId } from "./marvels-catalog";
 import type { State, Rect } from "./game";
 export type FurnishingId =
+  | "everyday-sofa"
+  | "everyday-bed"
+  | "oak-sideboard"
+  | "coffee-table"
+  | "open-bookcase"
+  | "writing-desk"
+  | "bedside-table"
   | ModernFurnitureId
   | "jewel-lamp"
   | "woven-pendant"
@@ -120,6 +127,64 @@ export const furnishingCatalog: {
   },
   { id: "rug", name: "Woven jewel rug", price: 900, level: 3, w: 2.4, d: 1.6 },
 ];
+furnishingCatalog.push(
+  {
+    id: "everyday-sofa",
+    name: "Terracotta everyday sofa",
+    price: 2400,
+    level: 1,
+    w: 3,
+    d: 1.35,
+  },
+  {
+    id: "everyday-bed",
+    name: "Blue stripe double bed",
+    price: 2800,
+    level: 1,
+    w: 2,
+    d: 3,
+  },
+  {
+    id: "oak-sideboard",
+    name: "Honey oak sideboard",
+    price: 1600,
+    level: 1,
+    w: 2,
+    d: 0.65,
+  },
+  {
+    id: "coffee-table",
+    name: "Oak coffee table",
+    price: 850,
+    level: 1,
+    w: 1.8,
+    d: 1,
+  },
+  {
+    id: "open-bookcase",
+    name: "Color-pop open bookcase",
+    price: 1400,
+    level: 1,
+    w: 1.5,
+    d: 0.45,
+  },
+  {
+    id: "writing-desk",
+    name: "Little oak writing desk",
+    price: 1200,
+    level: 1,
+    w: 1.8,
+    d: 0.8,
+  },
+  {
+    id: "bedside-table",
+    name: "Sage bedside table",
+    price: 650,
+    level: 1,
+    w: 0.65,
+    d: 0.6,
+  },
+);
 furnishingCatalog.push(
   {
     id: "jewel-lamp",

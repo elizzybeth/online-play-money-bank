@@ -30,6 +30,89 @@ export function makeFurnishing(id: FurnishingId, seed = 0) {
   ) => add(new T.BoxGeometry(w, h, d), c, x, y, z);
   if (
     [
+      "everyday-sofa",
+      "everyday-bed",
+      "oak-sideboard",
+      "coffee-table",
+      "open-bookcase",
+      "writing-desk",
+      "bedside-table",
+    ].includes(id)
+  ) {
+    const oak = "#b98d58",
+      cream = "#f6e6c8",
+      sage = "#72978b";
+    const legs = (w: number, d: number, h: number) => {
+      for (const x of [-w / 2 + 0.12, w / 2 - 0.12])
+        for (const z of [-d / 2 + 0.12, d / 2 - 0.12])
+          box(0.1, h, 0.1, oak, x, h / 2, z);
+    };
+    if (id === "everyday-sofa") {
+      legs(2.9, 1.2, 0.25);
+      box(3, 0.32, 1.3, "#a54e37", 0, 0.4, 0);
+      box(2.8, 0.85, 0.25, "#bf6b4b", 0, 0.9, -0.52);
+      for (const x of [-1.36, 1.36])
+        box(0.28, 0.65, 1.3, "#bf6b4b", x, 0.72, 0);
+      for (const x of [-0.84, 0, 0.84])
+        box(0.79, 0.22, 1, "#d08358", x, 0.66, 0.07);
+      for (const x of [-0.9, 0.9])
+        box(0.42, 0.42, 0.18, x < 0 ? "#e7b44f" : sage, x, 0.98, -0.3);
+    } else if (id === "everyday-bed") {
+      legs(2, 3, 0.3);
+      box(2, 0.25, 3, oak, 0, 0.38, 0);
+      box(2, 1.1, 0.12, oak, 0, 0.8, -1.45);
+      box(1.9, 0.25, 2.85, cream, 0, 0.63, 0);
+      box(1.94, 0.08, 1.8, "#678fa8", 0, 0.81, 0.5);
+      for (let z = -0.25; z < 1.4; z += 0.24)
+        box(1.95, 0.015, 0.08, cream, 0, 0.86, z);
+      for (const x of [-0.48, 0.48]) box(0.8, 0.14, 0.48, cream, x, 0.85, -1);
+    } else if (id === "coffee-table" || id === "writing-desk") {
+      const desk = id === "writing-desk",
+        d = desk ? 0.8 : 1,
+        h = desk ? 1.05 : 0.55;
+      legs(1.8, d, h);
+      box(1.8, 0.12, d, oak, 0, h, 0);
+      if (desk) box(0.55, 0.28, 0.7, cream, 0.5, h - 0.2, 0);
+    } else if (id === "open-bookcase") {
+      for (const x of [-0.72, 0.72]) box(0.08, 2.4, 0.45, oak, x, 1.2, 0);
+      for (let y = 0.08; y < 2.5; y += 0.58) {
+        box(1.5, 0.08, 0.45, oak, 0, y, 0);
+        if (y < 2)
+          for (let i = 0; i < 6; i++)
+            box(
+              0.12,
+              0.32 + (i % 2) * 0.07,
+              0.28,
+              [sage, "#e7b44f", "#c46c7d"][i % 3],
+              -0.53 + i * 0.2,
+              y + 0.22,
+              0,
+            );
+      }
+    } else {
+      const small = id === "bedside-table",
+        w = small ? 0.65 : 2,
+        d = small ? 0.6 : 0.65,
+        h = small ? 0.65 : 1.05;
+      legs(w, d, 0.18);
+      box(w, h - 0.18, d, small ? sage : oak, 0, (h + 0.18) / 2, 0);
+      for (const x of small ? [0] : [-0.48, 0.48]) {
+        box(
+          small ? 0.55 : 0.9,
+          h - 0.3,
+          0.03,
+          cream,
+          x,
+          (h + 0.18) / 2,
+          d / 2 + 0.02,
+        );
+        box(0.12, 0.04, 0.04, oak, x, h * 0.65, d / 2 + 0.05);
+      }
+    }
+    return root;
+  }
+  if (
+    [
       "jewel-lamp",
       "woven-pendant",
       "yellow-chair",

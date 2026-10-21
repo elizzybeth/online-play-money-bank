@@ -8676,7 +8676,11 @@ if (new URLSearchParams(location.search).has("test")) {
     cameraWalls: () =>
       world.occluders
         .filter((o) => o.userData.cameraWall)
-        .map((o) => ({ visible: o.visible, position: o.position.toArray() })),
+        .map((o) => ({
+          visible: o.visible,
+          position: o.position.toArray(),
+          shop: o.parent?.name,
+        })),
     cameraPitch: () => pitch,
     seedChimes: () => seedChimes,
     frame: () => frameNumber,

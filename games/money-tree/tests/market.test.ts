@@ -59,6 +59,13 @@ test("tall and asymmetrical hat portraits fit fully around the centered model", 
 test("new colorful furnishings are modeled, catalogued and persist in the furniture bag", () => {
   const s = fresh();
   for (const id of [
+    "everyday-sofa",
+    "everyday-bed",
+    "oak-sideboard",
+    "coffee-table",
+    "open-bookcase",
+    "writing-desk",
+    "bedside-table",
     "pink-locker",
     "tulip-table",
     "yellow-chair",
