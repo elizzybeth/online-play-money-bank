@@ -8364,6 +8364,7 @@ if (new URLSearchParams(location.search).has("test")) {
         | "exit"
         | "bikes"
         | "market"
+        | "grocer-front"
         | "grocer-river"
         | "home-entry"
         | "grocer"
@@ -8372,6 +8373,7 @@ if (new URLSearchParams(location.search).has("test")) {
       const shots = {
         market: [78, 38, 28, 82, 0, -22],
         grocer: [76, 7, -17, 70, 1, -27],
+        "grocer-front": [70, 3, -5, 70, 4, -16],
         "grocer-river": [39, 3.3, -22, 70, 2.3, -27],
         "home-entry": [104, 3.5, -15, 104, 1.6, -28],
         furnishings: [110, 7, -17, 104, 1, -27],
@@ -8380,10 +8382,18 @@ if (new URLSearchParams(location.search).has("test")) {
         mabel: [-31, 4, -19, -39, 2, -25],
         exit: [-49, 2, -55, -51.1, 1.4, -61.7],
       };
+      const groceryRoof = scene.getObjectByName("green-basket-roof");
+      const roofVisible = groceryRoof?.visible;
+      if (
+        groceryRoof &&
+        ["grocer", "grocer-river", "grocer-front", "market"].includes(view)
+      )
+        groceryRoof.visible = view !== "grocer";
       const p = shots[view];
       camera.position.set(p[0], p[1], p[2]);
       camera.lookAt(p[3], p[4], p[5]);
       renderer.render(scene, camera);
+      if (groceryRoof) groceryRoof.visible = roofVisible!;
     },
     homeBugReview: () => ({
       cups: scene
@@ -8685,6 +8695,16 @@ if (new URLSearchParams(location.search).has("test")) {
           position: o.position.toArray(),
           shop: o.parent?.name,
         })),
+    marketRoof: () => {
+      const roof = scene.getObjectByName("green-basket-roof")!;
+      const b = new T.Box3().setFromObject(roof);
+      return {
+        visible: roof.visible,
+        cutaway: roof.userData.cameraWall,
+        min: b.min.toArray(),
+        max: b.max.toArray(),
+      };
+    },
     marketWindows: () =>
       world.market.flatMap((root) => {
         const pane = root.getObjectByName("grocery-river-window") as

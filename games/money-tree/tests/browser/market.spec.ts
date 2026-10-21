@@ -108,6 +108,29 @@ test("east-bank market has a river bridge and separate shops, vegetarian foods, 
     }
     expect(hidden).toBe(true);
   }
+  await page.evaluate(() => (window as any).game.teleport(55, -20));
+  await page.clock.fastForward(250);
+  const roof = await page.evaluate(() => (window as any).game.marketRoof());
+  expect(roof.visible).toBe(true);
+  expect(roof.cutaway).toBe(true);
+  expect(roof.min[0]).toBeLessThan(58);
+  expect(roof.max[0]).toBeGreaterThan(82);
+  expect(roof.min[2]).toBeLessThan(-32);
+  expect(roof.max[2]).toBeGreaterThan(-16);
+  await page.evaluate(() => (window as any).game.teleport(70, -18));
+  await page.evaluate(() => (window as any).game.setYaw(Math.PI));
+  await page
+    .locator("canvas")
+    .first()
+    .dispatchEvent("wheel", { deltaY: 1000, bubbles: true });
+  for (let n = 0; n < 12; n++) await page.clock.fastForward(100);
+  expect(
+    (await page.evaluate(() => (window as any).game.marketRoof())).visible,
+  ).toBe(false);
+  await page
+    .locator("canvas")
+    .first()
+    .dispatchEvent("wheel", { deltaY: -1000, bubbles: true });
   // Cross the showroom between front and rear sets without a partition blocking it.
   for (let x = 96; x <= 112; x += 0.5)
     await page.evaluate((x) => (window as any).game.teleport(x, -24.5), x);
@@ -123,6 +146,7 @@ test("east-bank market has a river bridge and separate shops, vegetarian foods, 
     "market",
     "grocer",
     "grocer-river",
+    "grocer-front",
     "furnishings",
     "home-entry",
   ]) {
