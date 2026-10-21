@@ -2822,7 +2822,7 @@ export function createWorld(scene: T.Scene) {
     ),
   );
   const bikeShopSign = bikeShopMural[0];
-  const market = createMarketShops(scene, rects, targets);
+  const market = createMarketShops(scene, rects, targets, occluders);
   const life = createTownLife(scene, rects, targets, speakers, player, mom);
   const farm = createFarm(scene, rects, targets);
   addShopGardens(scene);

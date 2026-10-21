@@ -65,6 +65,16 @@ test("east-bank market has a river bridge and separate shops, vegetarian foods, 
   await expect(
     page.getByRole("heading", { name: "Bright Side Home", exact: true }),
   ).toBeVisible();
+  for (const id of [
+    "everyday-sofa",
+    "everyday-bed",
+    "oak-sideboard",
+    "coffee-table",
+    "open-bookcase",
+    "writing-desk",
+    "bedside-table",
+  ])
+    await expect(page.locator(`[data-product="${id}"]`)).toHaveCount(1);
   await page.locator('[data-product="pink-locker"]').click();
   expect(
     (await page.evaluate(() => (window as any).game.state())).furnitureBag,
@@ -72,6 +82,32 @@ test("east-bank market has a river bridge and separate shops, vegetarian foods, 
   await page
     .getByRole("button", { name: "Back to the day", exact: true })
     .click();
+  // Normal follow camera must cut away either shop's walls when orbiting indoors.
+  for (const [x, z, shop] of [
+    [59, -22.2, "green-basket"],
+    [115, -24, "bright-side-home"],
+  ] as const) {
+    await page.evaluate(
+      ([x, z]) => (window as any).game.teleport(x, z),
+      [x, z],
+    );
+    let hidden = false;
+    for (const yaw of [0, Math.PI / 2, Math.PI, Math.PI * 1.5]) {
+      await page.evaluate((yaw) => (window as any).game.setYaw(yaw), yaw);
+      for (let n = 0; n < 4; n++) await page.clock.fastForward(100);
+      const walls = await page.evaluate(() =>
+        (window as any).game.cameraWalls(),
+      );
+      expect(walls.filter((w: any) => w.shop === shop).length).toBeGreaterThan(
+        5,
+      );
+      hidden ||= walls.some((w: any) => w.shop === shop && !w.visible);
+      expect(
+        (await page.evaluate(() => (window as any).game.camera())).penetrations,
+      ).toBe(0);
+    }
+    expect(hidden).toBe(true);
+  }
   for (const shot of ["market", "grocer", "furnishings"]) {
     await page.evaluate((shot) => (window as any).game.homeBugShot(shot), shot);
     await page.screenshot({ path: info.outputPath(`${shot}.png`) });
