@@ -8382,6 +8382,7 @@ if (new URLSearchParams(location.search).has("test")) {
         | "market"
         | "grocer-side"
         | "market-hedge"
+        | "sigma-entrance"
         | "grocer-front"
         | "grocer-river"
         | "home-entry"
@@ -8393,7 +8394,8 @@ if (new URLSearchParams(location.search).has("test")) {
         grocer: [76, 7, -17, 70, 1, -27],
         "grocer-front": [70, 5, 4, 70, 5.5, -16],
         "grocer-side": [73, 3.5, -22, 81, 1.5, -28],
-        "market-hedge": [35, 3, -31, 35, 1, -40],
+        "market-hedge": [57, 3, -31, 50, 1, -31],
+        "sigma-entrance": [34.5, 4, -33, 34.5, 1, -44],
         "grocer-river": [35, 5, -20, 65, 4.5, -24],
         "home-entry": [104, 3.5, -15, 104, 1.6, -28],
         furnishings: [110, 7, -17, 104, 1, -27],
@@ -8715,6 +8717,25 @@ if (new URLSearchParams(location.search).has("test")) {
           position: o.position.toArray(),
           shop: o.parent?.name,
         })),
+    hedgeAudit: () => {
+      const panels: {
+        name: string;
+        run: Rect;
+        min: number[];
+        max: number[];
+      }[] = [];
+      scene.traverse((o) => {
+        if (!o.userData.hedgeBoundary) return;
+        const bounds = new T.Box3().setFromObject(o);
+        panels.push({
+          name: o.name,
+          run: o.userData.hedgeBoundary,
+          min: bounds.min.toArray(),
+          max: bounds.max.toArray(),
+        });
+      });
+      return panels;
+    },
     marketFacade: () =>
       ["green-basket-logo", "green-basket-river-logo"].map((name) => {
         const o = scene.getObjectByName(name)!;

@@ -174,7 +174,10 @@ test("east-bank market has a river bridge and separate shops, vegetarian foods, 
   expect(
     rects.some(
       (r: any) =>
-        Math.abs(r.z + 40) < 0.1 && r.x - r.w / 2 <= 34 && r.x + r.w / 2 >= 36,
+        r.id === "market-west" &&
+        Math.abs(r.x - 50) < 0.1 &&
+        r.z - r.d / 2 <= -35 &&
+        r.z + r.d / 2 >= -25,
     ),
   ).toBe(true);
   const beans = rects.find(
