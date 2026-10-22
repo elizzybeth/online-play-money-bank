@@ -1,3 +1,4 @@
+import { villageHedgeRuns, hedgePanels, sigmaGate } from "./hedge-boundaries";
 import { paintBikeShopFacade } from "./bike-shop-mural";
 import { seatForTea, createTeaDrinking } from "./tea-pose";
 import { farmFields } from "./farm-fields";
@@ -5,11 +6,7 @@ import { addShopGardens } from "./shop-gardens";
 import { arrangeHatStack } from "./hat-arrangement";
 import { createFarm } from "./farm-world";
 import { createRiverWorld } from "./river-world";
-import {
-  riverDistance,
-  splitRiverBoundary,
-  groveApproachPaths,
-} from "./river-land";
+import { riverDistance, groveApproachPaths } from "./river-land";
 import { makeSeriousHat } from "./soyjak-models";
 import { makeCrop } from "./crop-model";
 import type { Crop } from "./garden-crops";
@@ -2604,22 +2601,12 @@ export function createWorld(scene: T.Scene) {
     for (let j = 0; j < 3; j++)
       ball(j * 1.6, 0, 0, 1.8, "#f6eedc", g).scale.set(1, 0.65, 0.8);
   }
-  // River outlets interrupt both the visible hedge and its collision.
-  const hedgeRects = [
-    { x: 91, z: -41, w: 82, d: 1, clearHeight: 2.3 },
-    { x: 131, z: -19, w: 1, d: 44, clearHeight: 2.3 },
-    { x: 91, z: 3, w: 82, d: 1, clearHeight: 2.3 },
-    { x: -130, z: -12.5, w: 1, d: 103, clearHeight: 2.3 },
-    { x: -84.5, z: -64.5, w: 91, d: 1, clearHeight: 2.3 },
-    { x: -39, z: -52, w: 1, d: 24, clearHeight: 2.3 },
-    { x: 39, z: 0, w: 1, d: 90, clearHeight: 2.3 },
-    { x: -3.25, z: -40, w: 70.5, d: 1, clearHeight: 2.3 },
-    { x: 35.25, z: -40, w: 6.5, d: 1, clearHeight: 2.3 },
-    { x: -45.5, z: 39, w: 168, d: 1, clearHeight: 2.3 },
-  ].flatMap(splitRiverBoundary);
+  const hedgeRects = hedgePanels(villageHedgeRuns, 2.3);
   rects.push(...hedgeRects);
   const boundaryHedges = hedgeRects.map((r) => {
     const hedge = box(r.x, 1.05, r.z, r.w, 2.1, r.d, "#658464");
+    hedge.name = `hedge-${r.id}`;
+    hedge.userData.hedgeBoundary = r;
     occluders.push(hedge);
     const length = Math.max(r.w, r.d);
     for (let n = -length / 2 + 0.5; n < length / 2; n += 1.6)
@@ -2644,8 +2631,9 @@ export function createWorld(scene: T.Scene) {
     sigma.setMillionaireOpen(open);
     for (const bush of level3PathBushes) bush.visible = !open;
   }
-  const gateRect = { x: 34.5, z: -40, w: 5, d: 1 };
+  const gateRect = { ...sigmaGate };
   const gate = box(34.5, 1.05, -40, 5, 2.1, 1, "#658464");
+  gate.name = "hedge-sigma-gate";
   rects.push(gateRect);
   occluders.push(gate);
   let sigmaOpen = false;
