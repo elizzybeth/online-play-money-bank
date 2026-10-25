@@ -1,3 +1,4 @@
+import { makeBikeShopStorefront, bikeShopWindow } from "./bike-shop-storefront";
 import { villageHedgeRuns, hedgePanels, sigmaGate } from "./hedge-boundaries";
 import { bikeShopArtwork, paintBikeShopFacade } from "./bike-shop-mural";
 import { seatForTea, createTeaDrinking } from "./tea-pose";
@@ -1801,7 +1802,7 @@ export function createWorld(scene: T.Scene) {
   const bikeShopFront = [
     box(-20.45, 3.6, -21, 15.1, 7.2, 0.25, "#b5c4cd", true),
     box(-8.2, 3.6, -21, 0.4, 7.2, 0.25, "#b5c4cd", true),
-    box(-10.65, 5.15, -21, 4.5, 4.1, 0.25, "#b5c4cd"),
+    box(-10.65, 5.925, -21, 4.5, 2.55, 0.25, "#b5c4cd"),
   ];
   const bikeShopRoof = box(-18, 7.4, -30, 20.5, 0.25, 18.5, "#647a84");
   bikeShopRoof.material = surfaceMaterial("#647a84", "shingles", 6, 5);
@@ -2808,7 +2809,13 @@ export function createWorld(scene: T.Scene) {
       h,
       Math.min(w, d),
       object === bikeShopFront[0]
-        ? [{ x: 4, y: 1.95 - object.position.y, width: 2.4, height: 1.45 }]
+        ? [
+            {
+              ...bikeShopWindow,
+              x: bikeShopWindow.x - object.position.x,
+              y: bikeShopWindow.y - object.position.y,
+            },
+          ]
         : undefined,
     );
   }
@@ -2820,6 +2827,29 @@ export function createWorld(scene: T.Scene) {
     ),
   );
   const bikeShopSign = bikeShopMural[0];
+  const bikeShopStorefront = makeBikeShopStorefront();
+  bikeShopStorefront.position
+    .copy(bikeShopFront[0].position)
+    .multiplyScalar(-1);
+  bikeShopFront[0].add(bikeShopStorefront);
+  // Match the held-open door leaves so the player cannot walk through glass.
+  bikeShopStorefront.updateWorldMatrix(true, true);
+  for (const side of [-1, 1]) {
+    const leaf = bikeShopStorefront.getObjectByName(`open-glass-door-${side}`)!;
+    const bounds = new T.Box3().setFromObject(leaf);
+    const center = bounds.getCenter(new T.Vector3());
+    const size = bounds.getSize(new T.Vector3());
+    rects.push({
+      x: center.x,
+      z: center.z,
+      w: size.x,
+      d: size.z,
+      clearHeight: bounds.max.y,
+    });
+    occluders.push(
+      ...leaf.children.filter((o): o is T.Mesh => o instanceof T.Mesh),
+    );
+  }
   const market = createMarketShops(scene, rects, targets, occluders);
   const life = createTownLife(scene, rects, targets, speakers, player, mom);
   const farm = createFarm(scene, rects, targets);
