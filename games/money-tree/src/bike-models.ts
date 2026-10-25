@@ -79,8 +79,9 @@ function wheel(
   tube(w, [-0.1, 0, 0], [0.1, 0, 0], 0.04, "#657075");
   return w;
 }
-export function makeBike(id: BikeId) {
-  const bike = bikeById(id)!;
+export function makeBike(id: BikeId, frameColor?: string) {
+  const original = bikeById(id)!;
+  const bike = { ...original, color: frameColor ?? original.color };
   const g = new T.Group();
   g.name = `bicycle-${id}`;
   g.userData.bikeId = id;
@@ -237,7 +238,11 @@ export function makeBike(id: BikeId) {
   g.traverse((o) => {
     if (o instanceof T.Mesh) {
       const material = o.material as T.MeshStandardMaterial;
-      if (id === "road" && material.color.equals(new T.Color(bike.color)))
+      if (
+        id === "road" &&
+        !frameColor &&
+        material.color.equals(new T.Color(bike.color))
+      )
         material.map = carbonWeave;
       o.castShadow = true;
       o.receiveShadow = true;
