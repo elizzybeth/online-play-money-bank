@@ -1,5 +1,5 @@
 import { villageHedgeRuns, hedgePanels, sigmaGate } from "./hedge-boundaries";
-import { paintBikeShopFacade } from "./bike-shop-mural";
+import { bikeShopArtwork, paintBikeShopFacade } from "./bike-shop-mural";
 import { seatForTea, createTeaDrinking } from "./tea-pose";
 import { farmFields } from "./farm-fields";
 import { addShopGardens } from "./shop-gardens";
@@ -2801,12 +2801,22 @@ export function createWorld(scene: T.Scene) {
       )
     )
       continue;
-    fitWindow(object, w > d, Math.max(w, d), h, Math.min(w, d));
+    fitWindow(
+      object,
+      w > d,
+      Math.max(w, d),
+      h,
+      Math.min(w, d),
+      object === bikeShopFront[0]
+        ? [{ x: 4, y: 1.95 - object.position.y, width: 2.4, height: 1.45 }]
+        : undefined,
+    );
   }
   const bikeShopMural = paintBikeShopFacade(
     bikeShopFront,
-    new T.TextureLoader().load(
-      new URL("./assets/pretty-good-bikes.webp", import.meta.url).href,
+    bikeShopArtwork(
+      new URL("./assets/pretty-good-bikes-hand-drawn.jpeg", import.meta.url)
+        .href,
     ),
   );
   const bikeShopSign = bikeShopMural[0];

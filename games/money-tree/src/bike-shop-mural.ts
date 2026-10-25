@@ -1,5 +1,27 @@
 import * as T from "three";
 
+/** Compose the original drawing without cropping or stretching its brushwork. */
+export function bikeShopArtwork(url: string) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 2000;
+  canvas.height = 720;
+  const context = canvas.getContext("2d")!;
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  const texture = new T.CanvasTexture(canvas);
+  const artwork = new Image();
+  artwork.onload = () => {
+    // Nine world units wide, with the original 4:3 proportions. The window
+    // and doorway occupy the clear space to the right of the artwork.
+    const width = 900;
+    const height = (width * artwork.naturalHeight) / artwork.naturalWidth;
+    context.drawImage(artwork, 100, (720 - height) / 2, width, height);
+    texture.needsUpdate = true;
+  };
+  artwork.src = url;
+  return texture;
+}
+
 /** Use only existing exterior triangles, preserving the window and doorway holes.
  * All pieces sample one facade-wide texture and inherit each wall's cutaway. */
 export function paintBikeShopFacade(walls: T.Mesh[], texture: T.Texture) {
