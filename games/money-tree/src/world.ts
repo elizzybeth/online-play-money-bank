@@ -1,4 +1,8 @@
-import { makeBikeShopStorefront, bikeShopWindow } from "./bike-shop-storefront";
+import {
+  makeBikeShopStorefront,
+  bikeShopWindow,
+  bikeShopGold,
+} from "./bike-shop-storefront";
 import { villageHedgeRuns, hedgePanels, sigmaGate } from "./hedge-boundaries";
 import { bikeShopArtwork, paintBikeShopFacade } from "./bike-shop-mural";
 import { seatForTea, createTeaDrinking } from "./tea-pose";
@@ -1804,8 +1808,8 @@ export function createWorld(scene: T.Scene) {
     box(-8.2, 3.6, -21, 0.4, 7.2, 0.25, "#b5c4cd", true),
     box(-10.65, 5.925, -21, 4.5, 2.55, 0.25, "#b5c4cd"),
   ];
-  const bikeShopRoof = box(-18, 7.4, -30, 20.5, 0.25, 18.5, "#647a84");
-  bikeShopRoof.material = surfaceMaterial("#647a84", "shingles", 6, 5);
+  const bikeShopRoof = box(-18, 7.4, -30, 20.5, 0.25, 18.5, bikeShopGold);
+  bikeShopRoof.material = surfaceMaterial(bikeShopGold, "shingles", 6, 5);
   (bikeShopRoof.material as T.MeshStandardMaterial).transparent = true;
   bikeShopRoof.geometry.dispose();
   bikeShopRoof.geometry = pitchedRoof(20.5, 18.5);
